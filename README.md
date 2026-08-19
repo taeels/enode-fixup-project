@@ -21,7 +21,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 |---|---|---|
 | **S1** | 계약 타입 + 매처 (순수 함수) | — I/O 0. 넷의 공통 어휘 |
 | **S2** | Mediator: DB 스키마 + `POST /v1/runs` | **`I5` · `I1`(=`O7`)** |
-| S3 | enode: 신원 + 로컬 잠금 + `POST /v1/nodes` | `O8` |
+| **S3** | enode: 신원 + 로컬 잠금 + 광고 루프 | **`O8` · `O9`** |
 | S4 | ★ 두 연결 ★ 하트비트 + `claim` 롱폴 | `O6` — **가장 안 검증된 것** |
 | S5 | 명령 단계 실행 + `result` + 상태기계 |  |
 | S6 | Record 봉인 + `GET record` (tar) | `O1` |
@@ -42,7 +42,8 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
    internal/config     ADR-015 §4 의 우선순위. ★ 사용자 경로가 /etc 를 이긴다 ★
    internal/store      PostgreSQL. ★ 매칭 로직은 여기 없다 ★
    internal/api        HTTP 표면. 라우팅은 표준 라이브러리만 (Go 1.22+ ServeMux)
-   cmd/mediator        (cmd/runctl · cmd/enode 는 아직)
+   internal/enode      신원 · 잠금(unix/windows) · 능력 탐지 · 광고 루프
+   cmd/mediator  cmd/enode        (cmd/runctl 는 아직)
 ```
 
 ### ★ I1 은 애플리케이션 로직이 아니라 기본키가 강제한다 ★
@@ -64,6 +65,30 @@ CREATE TABLE leases (
 `I5`(전부 아니면 전무)는 그 충돌에 **롤백**을 붙여 얻는다 — 손으로 해제할 것이 없다.
 ※ `claim`(S4)의 `SKIP LOCKED` 와는 **다른 기계**다. 저쪽은 대기열에서 하나를 집는
 것이고 이쪽은 여러 자원을 한꺼번에 잡거나 전부 포기하는 것이다.
+
+### ★ 설정 파일이 곧 신원이다 ★
+
+```text
+   node_id = hash(email ∥ hostname ∥ realpath(config))[:12]
+```
+
+한 기계에서 둘을 띄우려면 설정이 이미 둘이어야 한다 — 같은 `local.yaml` 을
+두 프로세스가 읽으면 같은 자원을 둘 다 광고해 `I1` 이 깨지기 때문이다.
+**이미 유일해야 하는 것을 신원으로 쓰는 데는 비용이 0 이다** (`ADR-015` §2).
+
+실물 확인 — 같은 노트북, 설정 둘:
+
+```text
+   8d73234fac52  taeels@CT103:ws-a   arch=armv7 repo=gerrit.corp/kernel/linux
+   7a02313b8c10  taeels@CT103:ws-b   board=SoC-X tag=board-042
+```
+
+`repo` 는 워크스페이스의 `git remote` 에서 유도된 것이다 —
+`ssh://git@gerrit.corp:29418/kernel/linux` → `gerrit.corp/kernel/linux`.
+**사람이 저장소 주소를 안 적는다.**
+
+중복 실행은 **로컬 잠금**이 막는다 (`flock` / `LockFileEx`). Mediator 에게 재시작과
+중복은 똑같이 "같은 node_id 의 새 광고" 라 구분할 정보가 없기 때문이다.
 
 ## 테스트
 

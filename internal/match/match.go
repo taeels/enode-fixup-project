@@ -56,27 +56,29 @@ func Match(reqs []contract.Require, adverts []contract.Advert, busy map[string]b
 	copy(sorted, adverts)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].NodeID < sorted[j].NodeID })
 
+	// ★ 1차 — 영구 불가를 ★ 전부 ★ 먼저 본다 ★
+	//
+	// 순서대로 보다가 첫 실패에서 멈추면, 앞에 일시(409) 뒤에 영구(422)가 있을 때
+	// 호출자가 409 를 받고 ★ 영원히 재시도 ★ 한다. 코드가 존재하는 이유가
+	// "재시도해도 되는지" 를 알려주는 것이므로(ADR-014 결정 3),
+	// ★ 어디든 영구 문제가 있으면 그것이 이긴다 ★.
+	for _, r := range reqs {
+		if n := countSatisfying(sorted, r, nil); n < r.Wanted() {
+			return nil, &Reject{
+				Code: CodeNoCandidate, As: r.As,
+				Reason: fmt.Sprintf("요구 %d, 함대에 %d — %s", r.Wanted(), n, describe(r)),
+			}
+		}
+	}
+
+	// 2차 — 실제 배정. 여기서 나오는 실패는 전부 일시적이다.
 	out := make([]Assignment, 0, len(reqs))
 	for _, r := range reqs {
 		want := r.Wanted()
-
-		var total, free []string
+		var free []string
 		for _, a := range sorted {
-			if !a.Satisfies(r) {
-				continue
-			}
-			total = append(total, a.NodeID)
-			if !busy[a.NodeID] {
+			if a.Satisfies(r) && !busy[a.NodeID] {
 				free = append(free, a.NodeID)
-			}
-		}
-
-		// ★ 영구와 일시를 가른다 ★
-		// 함대에 아예 없거나 총수가 모자라면 다시 제출해도 영원히 같다.
-		if len(total) < want {
-			return nil, &Reject{
-				Code: CodeNoCandidate, As: r.As,
-				Reason: fmt.Sprintf("요구 %d, 함대에 %d — %s", want, len(total), describe(r)),
 			}
 		}
 		if len(free) < want {
@@ -88,6 +90,16 @@ func Match(reqs []contract.Require, adverts []contract.Advert, busy map[string]b
 		out = append(out, Assignment{As: r.As, Nodes: append([]string(nil), free[:want]...)})
 	}
 	return out, nil
+}
+
+func countSatisfying(adverts []contract.Advert, r contract.Require, busy map[string]bool) int {
+	n := 0
+	for _, a := range adverts {
+		if a.Satisfies(r) && !busy[a.NodeID] {
+			n++
+		}
+	}
+	return n
 }
 
 // describe 는 거절 사유에 요구를 사람이 읽게 적는다.

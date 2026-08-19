@@ -11,6 +11,7 @@ toolchain go1.26.6
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0
+	golang.org/x/sys v0.47.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

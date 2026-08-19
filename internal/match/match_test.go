@@ -185,3 +185,26 @@ func TestMatchDoesNotMutate(t *testing.T) {
 		t.Fatal("점유 장부가 변형됐다")
 	}
 }
+
+// ★ 영구가 일시를 이긴다 ★
+//
+// 앞의 요구가 일시(점유)이고 뒤의 요구가 영구(함대에 없음)이면,
+// 순서대로 보다 멈추는 매처는 409 를 낸다 → 호출자가 ★ 영원히 재시도 ★ 한다.
+// 코드가 존재하는 이유가 "재시도해도 되는지" 를 알려주는 것이므로 그건 틀렸다.
+func TestMatchPermanentBeatsTransient(t *testing.T) {
+	reqs := []contract.Require{
+		req("busy", 0, map[string]string{"harness": "claude"}), // 있는데 점유됨 → 일시
+		req("never", 0, map[string]string{"board": "SoC-Z"}),   // 함대에 없음 → 영구
+	}
+	_, rej := Match(reqs, fleet, map[string]bool{"n01-mac": true})
+	if rej == nil {
+		t.Fatal("통과해버렸다")
+	}
+	if rej.Code != CodeNoCandidate {
+		t.Fatalf("code=%d 기대 %d — 영구 문제가 있는데 재시도하라고 답했다 (%s)",
+			rej.Code, CodeNoCandidate, rej.Reason)
+	}
+	if rej.As != "never" {
+		t.Fatalf("어느 역할이 영구인지가 안 나온다: %+v", rej)
+	}
+}
