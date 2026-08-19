@@ -851,3 +851,53 @@ func TestRetryExhaustionFailsViaWithinAttempts(t *testing.T) {
 		t.Fatalf("★ 소진이 verdict 에 안 잡혔다 ★: %v", v)
 	}
 }
+
+// ═══ S10 — GET /v1/capabilities ══════════════════════════════════════════
+
+// ★ 이것이 우리 층의 tools/list 다 ★ — ADR-012 가 어휘를 창발시켰으므로
+// 읽는 경로가 없으면 계약을 쓰는 쪽이 문자열을 추측한다.
+func TestCapabilities(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a",
+		map[string]string{"harness": "claude", "repo": "corp/linux", "arch": "armv7"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("n2", "b",
+		map[string]string{"board": "SoC-X", "tag": "board-042"}), nil)
+
+	_, body := do(t, srv, "GET", "/v1/capabilities", "", nil)
+	caps, _ := body["capabilities"].([]any)
+	if len(caps) != 1 {
+		t.Fatalf("★ ADR-019 이후 어휘는 하나다 ★: %v", body)
+	}
+	c := caps[0].(map[string]any)
+	if c["capability"] != "agent.reason" {
+		t.Fatalf("capability=%v", c["capability"])
+	}
+	// ★ nodes 는 총수(존재)다 ★ — 여유가 아니다
+	if n, _ := c["nodes"].(float64); n != 2 {
+		t.Fatalf("nodes=%v 기대 2", c["nodes"])
+	}
+	attrs, _ := c["attrs"].(map[string]any)
+	for _, k := range []string{"harness", "repo", "arch", "board", "tag"} {
+		if _, ok := attrs[k]; !ok {
+			t.Fatalf("속성 %q 가 안 보인다 — 계약 작성자가 어휘를 못 읽는다: %v", k, attrs)
+		}
+	}
+}
+
+// ★ 존재는 답하고 여유는 답하지 않는다 ★ (ADR-014 결정 3)
+func TestCapabilitiesDoesNotLeakAvailability(t *testing.T) {
+	srv, _ := newServerFast(t)
+	adv := advert("n1", "a", map[string]string{"role": "x"})
+	do(t, srv, "POST", "/v1/nodes", adv, nil)
+	do(t, srv, "POST", "/v1/runs", oneStepRun("busy", "n1"), nil) // 점유한다
+
+	_, body := do(t, srv, "GET", "/v1/capabilities", "", nil)
+	caps, _ := body["capabilities"].([]any)
+	c := caps[0].(map[string]any)
+	if n, _ := c["nodes"].(float64); n != 1 {
+		t.Fatalf("★ 점유 상태가 어휘에 샜다 ★ nodes=%v — 총수여야 한다", c["nodes"])
+	}
+	if _, leaked := c["free"]; leaked {
+		t.Fatal("★ 여유를 노출했다 ★ 확인-후-행동 경쟁을 부른다")
+	}
+}

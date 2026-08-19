@@ -167,3 +167,24 @@ func (c *Client) Wait(ctx context.Context, runID string, every time.Duration) (*
 		}
 	}
 }
+
+// Capability 는 함대의 속성 어휘 한 줄이다.
+type Capability struct {
+	Capability string              `json:"capability"`
+	Nodes      int                 `json:"nodes"`
+	Attrs      map[string][]string `json:"attrs"`
+}
+
+// Capabilities 는 ★ 계약을 쓰기 전에 어휘를 읽는다 ★ (ADR-014 결정 3).
+// 어휘가 enode 광고에서 창발하므로 어디에도 선언되어 있지 않다.
+func (c *Client) Capabilities(ctx context.Context) ([]Capability, error) {
+	resp, err := c.do(ctx, "GET", "/v1/capabilities", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Capabilities []Capability `json:"capabilities"`
+	}
+	return out.Capabilities, json.NewDecoder(resp.Body).Decode(&out)
+}

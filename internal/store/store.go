@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -304,4 +305,65 @@ func (s *Store) Truncate(ctx context.Context) error {
 func (s *Store) ForceExpire(ctx context.Context, runID string) error {
 	_, err := s.pool.Exec(ctx, `UPDATE leases SET not_after = now() - interval '1s' WHERE run_id=$1`, runID)
 	return err
+}
+
+// CapabilityView 는 GET /v1/capabilities 의 한 줄이다 (ADR-014 결정 3).
+type CapabilityView struct {
+	Capability string              `json:"capability"`
+	Nodes      int                 `json:"nodes"`
+	Attrs      map[string][]string `json:"attrs"`
+}
+
+// Capabilities 는 ★ 함대의 속성 어휘 ★ 를 돌려준다.
+//
+// ★ 존재는 답하고 여유는 답하지 않는다 ★ (ADR-014 결정 3) —
+// nodes 는 ★ 총수 ★ 이지 지금 비어 있는 수가 아니다. 여유를 알려주면
+// 호출자가 그것을 보고 제출하는데 그 사이 다른 Run 이 가져가, 아무것도
+// 보장하지 않는 확인이 된다. 그리고 first available 아래서는 지명도 못 한다.
+//
+// ADR-019 로 어휘가 agent.reason 하나가 됐으므로 ★ 읽는 것은 「속성 어휘」 ★ 다.
+// attrs 의 값 목록은 노드별 집합이 아니라 ★ 함대 전체의 합집합 ★ 이다 —
+// "보드가 있고 armv7 을 빌드하는 노드가 몇 개인가" 는 여기서 못 센다.
+// 그 답은 POST /v1/runs/dry-run 이 준다 (매처를 두 벌 만들지 않는다).
+func (s *Store) Capabilities(ctx context.Context) ([]CapabilityView, error) {
+	adverts, err := s.LiveAdverts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	byCap := map[string]*CapabilityView{}
+	seen := map[string]map[string]map[string]bool{} // cap → key → value
+	for _, a := range adverts {
+		for _, c := range a.Capabilities {
+			v, ok := byCap[c.Capability]
+			if !ok {
+				v = &CapabilityView{Capability: c.Capability, Attrs: map[string][]string{}}
+				byCap[c.Capability] = v
+				seen[c.Capability] = map[string]map[string]bool{}
+			}
+			v.Nodes++
+			for k, val := range c.Attrs {
+				if seen[c.Capability][k] == nil {
+					seen[c.Capability][k] = map[string]bool{}
+				}
+				if !seen[c.Capability][k][val] {
+					seen[c.Capability][k][val] = true
+					v.Attrs[k] = append(v.Attrs[k], val)
+				}
+			}
+		}
+	}
+	out := make([]CapabilityView, 0, len(byCap))
+	names := make([]string, 0, len(byCap))
+	for n := range byCap {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		v := byCap[n]
+		for k := range v.Attrs {
+			sort.Strings(v.Attrs[k])
+		}
+		out = append(out, *v)
+	}
+	return out, nil
 }

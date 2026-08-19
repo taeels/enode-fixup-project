@@ -238,7 +238,23 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	}
 	defer os.RemoveAll(out)
 
-	// ★ ①사출 ★ (ADR-013) — 이전 단계의 산출물을 $IN 에 이름별 파일로 깐다.
+	// ★ ①사출 ★ (ADR-013 · ADR-017) — 순서가 있다:
+	//   sanitize → 리비전 확인 → $IN 을 깐다 → 기동
+	// 워크스페이스를 먼저 세워야 한다. clean 이 $IN 을 지우면 안 되므로
+	// $IN 은 워크스페이스 밖의 임시 디렉터리다.
+	if spec, err := parseWorkspace(step.Workspace); err != nil || spec != nil {
+		if err == nil {
+			err = w.Prepare(ctx, spec, log)
+		}
+		if err != nil {
+			log.Error("워크스페이스를 세울 수 없다", "err", err)
+			_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+				Node: w.Ident.NodeID, Error: "워크스페이스: " + err.Error()})
+			return
+		}
+	}
+
+	// 이전 단계의 산출물을 $IN 에 이름별 파일로 깐다.
 	// 별 모양이므로 노드끼리 직접 주고받지 않고 Mediator 를 경유한다.
 	in, err := os.MkdirTemp("", "enode-in-")
 	if err != nil {

@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -80,7 +81,10 @@ func run() int {
 	// 플래그가 조용히 무시되고, ★ 조용한 무시가 가장 나쁘다 ★.
 	flag.CommandLine.Parse(permute(os.Args[1:]))
 
-	if flag.NArg() < 2 {
+	// capabilities 는 인자가 없다.
+	if flag.NArg() == 1 && flag.Arg(0) == "capabilities" {
+		flag.CommandLine.Parse(append(permute(os.Args[1:]), "-"))
+	} else if flag.NArg() < 2 {
 		usage()
 		return exitRequest
 	}
@@ -102,8 +106,31 @@ func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cmd, arg := flag.Arg(0), flag.Arg(1)
+	cmd, arg := flag.Arg(0), ""
+	if flag.NArg() > 1 {
+		arg = flag.Arg(1)
+	}
 	switch cmd {
+	case "capabilities":
+		caps, err := c.Capabilities(ctx)
+		if code := report(err); code != 0 {
+			return code
+		}
+		for _, cp := range caps {
+			fmt.Printf("%s  nodes: %d\n", cp.Capability, cp.Nodes)
+			keys := make([]string, 0, len(cp.Attrs))
+			for k := range cp.Attrs {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				fmt.Printf("  %-10s %s\n", k, strings.Join(cp.Attrs[k], ", "))
+			}
+		}
+		fmt.Println("\n※ nodes 는 총수(존재)다. 지금 비어 있는지는 알려주지 않는다 —")
+		fmt.Println("  속성 조합으로 세려면 dry-run 을 쓴다.")
+		return exitOK
+
 	case "submit", "dry-run":
 		body, err := os.ReadFile(arg)
 		if err != nil {
@@ -229,6 +256,7 @@ func usage() {
   runctl status  <run-id>
   runctl record  <run-id> [-o out.tar]    ★ 봉인된 Run Record ★
   runctl cancel  <run-id>
+  runctl capabilities                     ★ 함대의 속성 어휘 ★ — 계약을 쓰기 전에
 
 종료코드
   0  Run 이 SUCCEEDED (또는 아직 진행 중)

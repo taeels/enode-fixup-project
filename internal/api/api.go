@@ -57,6 +57,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/runs", s.auth(s.postRuns))
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
 	mux.HandleFunc("GET /v1/runs/{id}", s.auth(s.getRun))
+	mux.HandleFunc("GET /v1/capabilities", s.auth(s.getCapabilities))
 	mux.HandleFunc("GET /v1/runs/{id}/record", s.auth(s.getRecord))
 	mux.HandleFunc("POST /v1/runs/{id}/cancel", s.auth(s.postCancel))
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/log", s.auth(s.putLog))
@@ -380,6 +381,24 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, view(run))
+}
+
+// ── GET /v1/capabilities ─────────────────────────────────────────────────
+//
+// ★ 이것이 우리 층의 tools/list 다 ★ (ADR-012 가 MCP 에 물어보던 것의 대칭).
+// 다만 돌려주는 것은 모델이 읽는 산문이 아니라 ★ 스케줄러가 평가하는 술어 ★ 다.
+//
+// ADR-012 가 어휘를 창발시켰기 때문에 이것이 필요하다 — capability 이름과 속성이
+// 중앙에 선언되지 않고 enode 광고로만 존재하므로, 읽는 경로가 없으면
+// ★ 계약을 쓰는 쪽이 문자열을 추측한다 ★. 계약은 사람이 아니라 에이전트가 쓴다.
+func (s *Server) getCapabilities(w http.ResponseWriter, r *http.Request) {
+	caps, err := s.st.Capabilities(r.Context())
+	if err != nil {
+		s.log.Error("어휘 조회 실패", "err", err)
+		fail(w, 503, "조회 실패")
+		return
+	}
+	write(w, 200, map[string]any{"capabilities": caps})
 }
 
 // ── POST /v1/runs/{id}/cancel ────────────────────────────────────────────
