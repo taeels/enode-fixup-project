@@ -18,12 +18,18 @@ import (
 
 	"github.com/taeels/enode/internal/contract"
 	"github.com/taeels/enode/internal/match"
+	"github.com/taeels/enode/internal/record"
 )
 
 //go:embed schema.sql
 var schemaSQL string
 
-type Store struct{ pool *pgxpool.Pool }
+type Store struct {
+	pool *pgxpool.Pool
+	// Records 는 봉인된 Run Record 가 사는 곳이다 (ADR-015 §3).
+	// ★ DB 가 아니다 ★ — I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 한다.
+	Records *record.Store
+}
 
 func Open(ctx context.Context, url string) (*Store, error) {
 	pool, err := pgxpool.New(ctx, url)
@@ -233,7 +239,17 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	// ★ 실행 중에는 붙이기만 한다 ★ (성질 1: append-only) —
+	// 디렉터리를 지금 열어두고 로그가 쌓이게 한다. 봉인은 종료 시 한 번뿐이다.
+	if s.Records != nil {
+		if err := s.Records.Open(r.RunID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // CreateRejectedRun 은 매칭이 거절된 Run 을 기록한다.

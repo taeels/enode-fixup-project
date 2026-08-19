@@ -57,6 +57,28 @@ func (c *Client) Claim(ctx context.Context, nodeID string) (*Step, error) {
 	}
 }
 
+// UploadLog 는 그 단계가 뱉은 것을 원문 그대로 올린다 (ADR-005 의 logs/).
+// ★ result 보다 먼저 올린다 ★ — 단계가 실패해도 로그는 남아야 한다.
+func (c *Client) UploadLog(ctx context.Context, runID string, seq int, name string, body []byte) error {
+	url := fmt.Sprintf("%s/v1/runs/%s/steps/%d/log?name=%s", c.Base, runID, seq, name)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("X-Enode-Principal", c.Principal)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("로그 거절: %s", resp.Status)
+	}
+	return nil
+}
+
 type Result struct {
 	Node     string   `json:"node"`
 	ExitCode *int     `json:"exit_code,omitempty"`
@@ -197,6 +219,12 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 
 	produced := harvest(out)
 	res := Result{Node: w.Ident.NodeID, Produced: produced}
+
+	// ★ 로그를 먼저 올린다 ★ — 단계가 실패해도 원문은 남아야 한다.
+	// 여기서 실패해도 결과 보고는 계속한다. 로그가 없다고 Run 을 멈출 이유는 없다.
+	if err := w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, buf.Bytes()); err != nil && ctx.Err() == nil {
+		log.Warn("로그 업로드 실패", "err", err)
+	}
 
 	switch {
 	case runCtx.Err() != nil && ctx.Err() == nil:

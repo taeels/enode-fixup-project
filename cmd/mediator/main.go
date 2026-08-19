@@ -15,6 +15,7 @@ import (
 
 	"github.com/taeels/enode/internal/api"
 	"github.com/taeels/enode/internal/config"
+	"github.com/taeels/enode/internal/record"
 	"github.com/taeels/enode/internal/store"
 )
 
@@ -44,6 +45,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer st.Close()
+	// Run Record 는 ★ DB 가 아니라 파일시스템 ★ 에 산다 (ADR-015 §3) —
+	// I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 한다.
+	if err := os.MkdirAll(cfg.Artifacts.Root, 0o755); err != nil {
+		log.Error("아티팩트 디렉터리를 만들 수 없다", "root", cfg.Artifacts.Root, "err", err)
+		os.Exit(1)
+	}
+	st.Records = record.New(cfg.Artifacts.Root)
 	if err := st.Migrate(ctx); err != nil {
 		log.Error("스키마 적용 실패", "err", err)
 		os.Exit(1)

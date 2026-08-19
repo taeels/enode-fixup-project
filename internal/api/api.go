@@ -20,17 +20,19 @@ import (
 	"github.com/taeels/enode/internal/config"
 	"github.com/taeels/enode/internal/contract"
 	"github.com/taeels/enode/internal/match"
+	"github.com/taeels/enode/internal/record"
 	"github.com/taeels/enode/internal/store"
 )
 
 type Server struct {
-	st  *store.Store
-	cfg config.Config
-	log *slog.Logger
+	st      *store.Store
+	records *record.Store
+	cfg     config.Config
+	log     *slog.Logger
 }
 
 func New(st *store.Store, cfg config.Config, log *slog.Logger) *Server {
-	return &Server{st: st, cfg: cfg, log: log}
+	return &Server{st: st, records: st.Records, cfg: cfg, log: log}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -41,6 +43,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/runs", s.auth(s.postRuns))
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
 	mux.HandleFunc("GET /v1/runs/{id}", s.auth(s.getRun))
+	mux.HandleFunc("GET /v1/runs/{id}/record", s.auth(s.getRecord))
+	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/log", s.auth(s.putLog))
 	return mux
 }
 
@@ -351,6 +355,69 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, view(run))
+}
+
+// ── PUT /v1/runs/{run}/steps/{seq}/log ───────────────────────────────────
+//
+// 그 단계가 뱉은 것을 원문 그대로 남긴다 (ADR-005 의 logs/).
+// blob 과 자리가 다르다 — blob 은 단계 ★ 사이 ★ 를 오가고 다음 단계가 읽지만,
+// log 는 그 단계가 ★ 뱉은 것 ★ 으로 아무도 읽지 않고 기록에만 남는다.
+//
+// result 보다 ★ 먼저 ★ 올린다 — 단계가 실패해도 로그는 남아야 한다.
+func (s *Server) putLog(w http.ResponseWriter, r *http.Request) {
+	runID := r.PathValue("run")
+	seq, err := strconv.Atoi(r.PathValue("seq"))
+	if err != nil || seq <= 0 {
+		fail(w, 400, "단계 순번이 이상하다")
+		return
+	}
+	run, err := s.st.GetRun(r.Context(), runID)
+	if errors.Is(err, store.ErrNotFound) {
+		fail(w, 404, "그런 Run 이 없다")
+		return
+	}
+	if err != nil {
+		fail(w, 503, "조회 실패")
+		return
+	}
+	// ★ I4 — 봉인된 것에는 못 쓴다 ★
+	if run.State == store.StateSucceeded || run.State == store.StateFailed {
+		fail(w, 410, "Run 이 이미 종료됐다")
+		return
+	}
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		name = "step"
+	}
+	if _, err := s.records.AppendLog(runID, seq, name, r.Body, s.cfg.Artifacts.MaxBlobBytes); err != nil {
+		s.log.Error("로그 저장 실패", "run", runID, "seq", seq, "err", err)
+		fail(w, 503, "저장 실패")
+		return
+	}
+	w.WriteHeader(204)
+}
+
+// ── GET /v1/runs/{id}/record ─────────────────────────────────────────────
+//
+// 봉인된 Record 를 tar 로 돌려준다.
+// ★ 성질 4(자기충족)가 전송 형식까지 정한다 ★ — 묶음 하나를 받아 풀면 전부 있다.
+//
+// 종료 전에 부르면 409 다 — ★ 봉인되지 않은 것은 Record 가 아니다 ★ (I4).
+func (s *Server) getRecord(w http.ResponseWriter, r *http.Request) {
+	runID := r.PathValue("id")
+	if _, err := s.st.GetRun(r.Context(), runID); errors.Is(err, store.ErrNotFound) {
+		fail(w, 404, "그런 Run 이 없다")
+		return
+	}
+	if !s.records.Sealed(runID) {
+		fail(w, 409, "아직 봉인되지 않았다 — 봉인되지 않은 것은 Record 가 아니다")
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-tar")
+	w.Header().Set("Content-Disposition", `attachment; filename="run-`+runID+`.tar"`)
+	if err := s.records.Tar(runID, w); err != nil {
+		s.log.Error("Record 내보내기 실패", "run", runID, "err", err)
+	}
 }
 
 // label 은 node_id 에 사람이 읽는 이름을 붙인다.

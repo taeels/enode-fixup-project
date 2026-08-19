@@ -24,7 +24,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 | **S3** | enode: 신원 + 로컬 잠금 + 광고 루프 | **`O8` · `O9`** |
 | **S4** | ★ 두 연결 ★ 하트비트 + `claim` 롱폴 + 명령 실행 | **`O6` · `I2`** |
 | **S5** | 계약 조건 대조(⑩) — `success_when` | **`O4`** |
-| S6 | Record 봉인 + `GET record` (tar) | `O1` |
+| **S6** | Record 봉인 + `GET record` (tar) | **`O1`·`O2`·`O3` · `I4`** |
 | S7 | `runctl` — 제출 · 상태 · Record 읽기 | `O7` |
 | ══ | **여기까지가 스켈레톤** | |
 | S8 | blob 별 모양 (2단계 Run) |  |
@@ -41,6 +41,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
    internal/match      요구 → 노드. ★ 순수 함수 ★ (ADR-014 결정 3)
    internal/config     ADR-015 §4 의 우선순위. ★ 사용자 경로가 /etc 를 이긴다 ★
    internal/store      PostgreSQL. ★ 매칭 로직은 여기 없다 ★
+   internal/record     ★ Run Record — DB 가 아니라 파일시스템 ★ 봉인 · tar
    internal/api        HTTP 표면. 라우팅은 표준 라이브러리만 (Go 1.22+ ServeMux)
    internal/enode      신원 · 잠금(unix/windows) · 탐지 · ★ 광고 루프 + claim 루프 ★
    cmd/mediator  cmd/enode        (cmd/runctl 는 아직)
@@ -153,6 +154,46 @@ enode 나 핸들러가 종료코드로 미리 판정하면 **계약이 할 일�
 ```
 
 **`verdict` 가 무엇을 왜 로 남는다** — `ADR-005` 의 *실패 원인이 Record 에 있다*.
+
+### ★ I4 는 파일시스템이 강제한다 ★
+
+애플리케이션이 "고치지 않기로 한다" 가 아니라 **쓰기 비트를 내린다**.
+`ADR-015` §3 이 Record 를 DB 가 아니라 디렉터리에 둔 논거가 이것이다 —
+봉인된 디렉터리는 권한으로 불변이 되지만 **봉인된 행은 애플리케이션 규약일 뿐**이다.
+
+```text
+   dr-xr-xr-x  run-gerrit-12345-ps3/
+   -r--r--r--    manifest.json      Run · Work · 요청자 · ★ 계약 전문 ★
+   dr-xr-xr-x    steps/
+   -r--r--r--      01-baseline_build.json   ★ node id + label ★
+   -r--r--r--      02-parent_observe.json
+   dr-xr-xr-x    logs/
+   -r--r--r--      01-baseline_build.log    원문 그대로
+   -r--r--r--      02-parent_observe.log
+   dr-xr-xr-x    blobs/                     (S8)
+   -r--r--r--    verdict.json       ⑩ 의 대조 결과
+
+   $ echo tampered > verdict.json     → 허가 거부
+   $ touch steps/03-injected.json     → 허가 거부
+```
+
+#### 한 묶음에서 `O1`·`O3`·`O4` 가 동시에 보인다
+
+```text
+   steps/   8d73234fac52  taeels@CT103:ws-a   baseline_build   ┐ ★ O1 ★
+            7a02313b8c10  taeels@CT103:ws-b   parent_observe   ┘ 서로 다른 기계
+
+   logs/02  not ok 1 - spi_cdiv_readback          ★ O3 — 테스트는 실패했다 ★
+   verdict  {"state":"SUCCEEDED", …}              ★ O4 — 그런데 Run 은 성공 ★
+```
+
+**계약 전문이 `manifest.json` 에 들어간다** — 성질 4(자기충족)의 핵심이고,
+`ADR-020` 이 스키마를 인라인으로 둔 덕에 **무엇으로 검증했는지까지** 함께 남는다.
+
+#### 운영상 함의 하나
+
+**봉인은 삭제까지 막는다.** 그것이 `I4` 의 값이지만 디스크가 차면 사람이 지우지도
+못한다. `ADR-005` 가 *장기 보관 정책은 MVP 밖, 쌓아두기만 한다* 로 미뤄둔 자리다.
 
 ## 테스트
 

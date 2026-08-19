@@ -44,10 +44,61 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 		 WHERE r.run_id = l.run_id AND r.state IN ('SUCCEEDED','FAILED')`); err != nil {
 		return n, err
 	}
-	if n > 0 && log != nil {
-		log.Warn("임대 만료로 Run 을 회수했다", "runs", n)
+	if n > 0 {
+		if log != nil {
+			log.Warn("임대 만료로 Run 을 회수했다", "runs", n)
+		}
+		// 회수된 Run 도 봉인한다 — ★ 왜 안 돌았는지가 Record 에 남아야 한다 ★ (ADR-005)
+		if err := s.sealExpired(ctx, log); err != nil && log != nil {
+			log.Error("회수된 Run 봉인 실패", "err", err)
+		}
 	}
 	return n, nil
+}
+
+// sealExpired 는 아직 안 봉인된 종료 Run 을 봉인한다.
+// Mediator 가 죽어 있는 동안 끝난 것들이 여기서 잡힌다.
+func (s *Store) sealExpired(ctx context.Context, log *slog.Logger) error {
+	if s.Records == nil {
+		return nil
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT run_id, verdict FROM runs WHERE state IN ('SUCCEEDED','FAILED') AND ended_at > now() - interval '1 hour'`)
+	if err != nil {
+		return err
+	}
+	type item struct {
+		id string
+		v  Verdict
+	}
+	var items []item
+	for rows.Next() {
+		var id string
+		var raw []byte
+		if err := rows.Scan(&id, &raw); err != nil {
+			rows.Close()
+			return err
+		}
+		var v Verdict
+		if len(raw) > 0 {
+			_ = json.Unmarshal(raw, &v)
+		}
+		if v.State == "" {
+			v = Verdict{State: StateFailed, Checks: []Check{{
+				What: "ran", OK: false, Note: "임대 만료 — 갱신이 끊겼다"}}}
+		}
+		items = append(items, item{id, v})
+	}
+	rows.Close()
+	for _, it := range items {
+		if s.Records.Sealed(it.id) {
+			continue
+		}
+		if err := s.sealRecord(ctx, it.id, it.v); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RunReaper 는 주기 스캔이다. 시작할 때 한 번 먼저 돈다 (재시작 스캔).
@@ -133,5 +184,12 @@ func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) 
 	if _, err := tx.Exec(ctx, `DELETE FROM leases WHERE run_id = $1`, runID); err != nil {
 		return "", err
 	}
-	return v.State, tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	// ★ 종료 상태에 이르렀으므로 봉인한다 ★ (I4) — 이후 변경되지 않는다.
+	if err := s.sealRecord(ctx, runID, v); err != nil {
+		return v.State, err
+	}
+	return v.State, nil
 }
