@@ -20,7 +20,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 | | 슬라이스 | 켜는 것 |
 |---|---|---|
 | **S1** | 계약 타입 + 매처 (순수 함수) | — I/O 0. 넷의 공통 어휘 |
-| S2 | Mediator: DB 스키마 + `POST /v1/runs` | `I5` |
+| **S2** | Mediator: DB 스키마 + `POST /v1/runs` | **`I5` · `I1`(=`O7`)** |
 | S3 | enode: 신원 + 로컬 잠금 + `POST /v1/nodes` | `O8` |
 | S4 | ★ 두 연결 ★ 하트비트 + `claim` 롱폴 | `O6` — **가장 안 검증된 것** |
 | S5 | 명령 단계 실행 + `result` + 상태기계 |  |
@@ -39,8 +39,41 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 ```
    internal/contract   계약 · 광고 타입. ★ 넷의 공통 어휘 ★
    internal/match      요구 → 노드. ★ 순수 함수 ★ (ADR-014 결정 3)
-   cmd/runctl  cmd/mediator  cmd/enode
+   internal/config     ADR-015 §4 의 우선순위. ★ 사용자 경로가 /etc 를 이긴다 ★
+   internal/store      PostgreSQL. ★ 매칭 로직은 여기 없다 ★
+   internal/api        HTTP 표면. 라우팅은 표준 라이브러리만 (Go 1.22+ ServeMux)
+   cmd/mediator        (cmd/runctl · cmd/enode 는 아직)
 ```
+
+### ★ I1 은 애플리케이션 로직이 아니라 기본키가 강제한다 ★
+
+```sql
+CREATE TABLE leases (
+    node_id text PRIMARY KEY,   -- ★ 이 한 줄이 I1 이다 ★
+    run_id  text NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE, ...
+```
+
+`ADR-019` 결정 2 가 임대 키를 `(노드, capability)` 에서 `(노드)` 로 붕괴시킨 것의
+직접 표현이다. 두 번째 Run 이 같은 노드를 잡으려 하면 코드가 아니라 **DB 가 막는다.**
+
+```text
+   ERROR: duplicate key value violates unique constraint "leases_pkey"
+   DETAIL: Key (node_id)=(board-042) already exists.
+```
+
+`I5`(전부 아니면 전무)는 그 충돌에 **롤백**을 붙여 얻는다 — 손으로 해제할 것이 없다.
+※ `claim`(S4)의 `SKIP LOCKED` 와는 **다른 기계**다. 저쪽은 대기열에서 하나를 집는
+것이고 이쪽은 여러 자원을 한꺼번에 잡거나 전부 포기하는 것이다.
+
+## 테스트
+
+```bash
+eval "$(scripts/testdb.sh)"   # docker 로 Postgres 하나
+go test ./...
+```
+
+`ENODE_TEST_DATABASE_URL` 이 없으면 DB 테스트는 `t.Skip` 한다.
+**CI 에는 그 스킵을 잡는 단계가 따로 있다** — 조용히 안 도는 것이 가장 나쁘다.
 
 ## 테스트가 곧 명세다
 

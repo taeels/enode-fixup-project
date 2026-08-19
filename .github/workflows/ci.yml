@@ -8,6 +8,21 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # ★ 진짜 Postgres 로 돈다 ★ — I5(전부 아니면 전무)는 트랜잭션으로 얻는 것이라
+    # 가짜 저장소로는 검증되지 않는다. 없으면 그 테스트들이 t.Skip 으로 사라진다.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: enode
+          POSTGRES_PASSWORD: enode
+          POSTGRES_DB: enode
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U enode"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ENODE_TEST_DATABASE_URL: postgres://enode:enode@127.0.0.1:5432/enode?sslmode=disable
     steps:
       - uses: actions/checkout@v4
       # go-version-file 로 go.mod 의 toolchain 을 그대로 쓴다.
@@ -24,6 +39,10 @@ jobs:
         run: go vet ./...
       - name: 테스트
         run: go test ./... -count=1
+      - name: ★ DB 테스트가 스킵되지 않았는지 ★
+        run: |
+          go test ./internal/api/ -count=1 -v 2>&1 | tee /tmp/api.log
+          grep -q 'SKIP' /tmp/api.log && { echo 'DB 테스트가 스킵됐다'; exit 1; } || true
 
   # ★ ADR-015 가 Go 를 고른 핵심 이유를 검증한다 ★
   # "리눅스 CI 에서 GOOS=windows 로 exe 가 나온다" 가 깨지면

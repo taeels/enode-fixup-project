@@ -1,0 +1,65 @@
+-- Mediator 의 상태 저장소 (ADR-015 §3).
+--
+-- 여기 있는 것   경쟁이 있고 계속 바뀌는 것 — 광고 · 점유 · Run 상태 · 단계 진행
+-- 여기 없는 것   경쟁이 없고 봉인되는 것 — Run Record 디렉터리 · blob 본문
+--                I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 하기 때문이다.
+--
+-- ★ 매칭은 SQL 이 하지 않는다 ★ — ADR-014 결정 3 이 매처를 순수 함수로 못 박았고
+-- runs 와 dry-run 이 같은 함수를 부른다. DB 는 광고와 점유를 돌려줄 뿐이다.
+
+CREATE TABLE IF NOT EXISTS nodes (
+    node_id      text PRIMARY KEY,
+    label        text        NOT NULL,
+    principal    text        NOT NULL,  -- ★ 식별이지 인증이 아니다 ★ (ADR-015 §1)
+    -- [{capability, attrs}] — 속성 어휘가 창발하므로(ADR-012) 정규화하지 않는다.
+    -- ★ 델타가 아니라 매번 전부다 ★ 그래서 갱신은 통째 교체이고,
+    -- capability 를 빼고 보내는 것이 곧 "지금은 못 한다" 가 된다 (ADR-017 결정 3).
+    capabilities jsonb       NOT NULL,
+    expires_at   timestamptz NOT NULL,  -- 광고는 만료된다 (ADR-012)
+    seen_at      timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+    run_id     text PRIMARY KEY,        -- runctl 이 만든다. 재제출이 멱등이다 (INVARIANTS §4)
+    state      text        NOT NULL,
+    principal  text        NOT NULL,
+    contract   jsonb       NOT NULL,    -- 계약 전문. Record 의 manifest 가 된다.
+                                        -- ADR-020 이 스키마를 인라인으로 둔 덕에 여기 다 들어온다.
+    assigned   jsonb,                   -- [{as, nodes:[{node,label}]}] — ALLOCATING 을 지난 뒤
+    reject     jsonb,                   -- 거절 사유 (422/409). FAILED 의 원인이 남는다.
+    created_at timestamptz NOT NULL DEFAULT now(),
+    ended_at   timestamptz
+);
+
+-- ★ 점유 장부 — I1 이 여기서 스키마로 강제된다 ★
+--
+-- node_id 가 PRIMARY KEY 인 것이 ADR-019 결정 2 의 직접 표현이다:
+-- capability 어휘가 하나로 줄면서 임대 키 (노드, capability) 가 (노드) 로 붕괴했고,
+-- 그래서 ★ 노드 자체가 배타 자원 ★ 이 됐다.
+--
+-- 두 번째 Run 이 같은 노드를 잡으려 하면 애플리케이션 로직이 아니라
+-- ★ 기본키 충돌 ★ 이 막는다. I5(전부 아니면 전무)는 그 충돌에 롤백을 붙여 얻는다.
+CREATE TABLE IF NOT EXISTS leases (
+    node_id    text PRIMARY KEY,
+    run_id     text        NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+    not_after  timestamptz NOT NULL,    -- ADR-010 허가 아티팩트의 만료
+    nonce      text        NOT NULL,
+    granted_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS leases_run_idx ON leases (run_id);
+
+-- 단계. Mediator 가 시퀀서이므로(ADR-014 결정 1) 순서는 여기 있고 계약에서 온다.
+CREATE TABLE IF NOT EXISTS steps (
+    run_id   text        NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
+    seq      int         NOT NULL,      -- 계약의 steps[] 순서. step_id 는 run_id#NN 으로 노출한다.
+    name     text        NOT NULL,      -- 계약의 steps[].id
+    uses     text        NOT NULL,      -- 역할 이름
+    kind     text        NOT NULL,      -- agent | run  (ADR-019 결정 3)
+    state    text        NOT NULL,      -- PENDING | CLAIMED | DONE | FAILED
+    node_id  text,                      -- 배정된 노드. claim 이 채운다 (S4).
+    attempt  int         NOT NULL DEFAULT 0,
+    started_at timestamptz,
+    ended_at   timestamptz,
+    result   jsonb,                     -- exit_code · produced · harness (ADR-020)
+    PRIMARY KEY (run_id, seq)
+);
