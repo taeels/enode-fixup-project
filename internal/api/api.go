@@ -14,6 +14,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/taeels/enode/internal/config"
@@ -35,6 +36,8 @@ func New(st *store.Store, cfg config.Config, log *slog.Logger) *Server {
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/nodes", s.auth(s.postNodes))
+	mux.HandleFunc("POST /v1/nodes/{id}/claim", s.auth(s.postClaim))
+	mux.HandleFunc("POST /v1/runs/{run}/steps/{seq}/result", s.auth(s.postResult))
 	mux.HandleFunc("POST /v1/runs", s.auth(s.postRuns))
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
 	mux.HandleFunc("GET /v1/runs/{id}", s.auth(s.getRun))
@@ -105,10 +108,10 @@ func view(r *store.Run) runView {
 
 // ── POST /v1/nodes — 광고 + 하트비트 ──────────────────────────────────────
 //
-// S2 는 쓰기 경로만 만든다. 응답의 leases(임대 갱신·취소 통보, ADR-016)는
-// ★ 자리를 지금 만들되 채우는 것은 S4 ★ 다 — 그래야 enode 쪽 계약이 안 바뀐다.
+// ★ 응답이 임대의 갱신이자 취소 통보다 ★ (ADR-016).
+// 목록은 델타가 아니라 ★ 전부 ★ 이므로 목록에 없는 것이 곧 없는 것이다.
 type advertResponse struct {
-	Leases []any `json:"leases"`
+	Leases []store.LeaseRow `json:"leases"`
 }
 
 func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +131,103 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "저장 실패")
 		return
 	}
-	write(w, 200, advertResponse{Leases: []any{}})
+	// ★ 살아 있다고 말하면 살아 있을 권한을 받는다 ★
+	// not_after 는 갱신 주기의 배수로 준다 — 하트비트를 한 번 놓쳐도 안 죽게
+	// (ADR-016: "실패한 하트비트 하나는 중단 신호가 아니다").
+	leaseTTL := time.Duration(s.cfg.Lease.RenewSeconds*s.cfg.Lease.NotAfterFactor) * time.Second
+	leases, err := s.st.RenewLeases(r.Context(), a.NodeID, leaseTTL)
+	if err != nil {
+		s.log.Error("임대 갱신 실패", "node", a.NodeID, "err", err)
+		fail(w, 503, "갱신 실패")
+		return
+	}
+	write(w, 200, advertResponse{Leases: leases})
+}
+
+// ── POST /v1/nodes/{id}/claim — ★ 유일한 비멱등 지점 ★ ────────────────────
+//
+// 롱폴이다. 할 일이 없으면 시간이 다 될 때까지 기다렸다가 204 로 답한다.
+// enode 는 204 를 정상으로 보고 즉시 다시 건다.
+//
+// ※ MVP 는 짧은 주기로 DB 를 다시 본다. ADR-015 가 적어둔 LISTEN/NOTIFY 는
+//
+//	노드가 늘어 폴링이 부담이 될 때의 최적화다. 지금은 넷이다.
+func (s *Server) postClaim(w http.ResponseWriter, r *http.Request) {
+	nodeID := r.PathValue("id")
+	deadline := time.Now().Add(time.Duration(s.cfg.Claim.LongPollSeconds) * time.Second)
+	tick := time.NewTicker(time.Second)
+	defer tick.Stop()
+
+	for {
+		c, err := s.st.ClaimStep(r.Context(), nodeID)
+		switch {
+		case err == nil:
+			write(w, 200, c)
+			return
+		case !errors.Is(err, store.ErrNoWork):
+			s.log.Error("claim 실패", "node", nodeID, "err", err)
+			fail(w, 503, "claim 실패")
+			return
+		}
+		if time.Now().After(deadline) {
+			w.WriteHeader(204)
+			return
+		}
+		select {
+		case <-r.Context().Done(): // 클라이언트가 끊었다 — 정상이다 (ADR-015 §5)
+			return
+		case <-tick.C:
+		}
+	}
+}
+
+// ── POST /v1/runs/{run}/steps/{seq}/result ───────────────────────────────
+//
+// ★ 이 보고를 받은 Mediator 가 다음 단계를 만든다 ★ (ADR-014 결정 1).
+// INVARIANTS §2 의 RUNNING → RUNNING 이 여기서 일어나며 주체는 Mediator 다.
+//
+// ★ 경로가 두 세그먼트인 이유 ★ — step_id 를 run_id#NN 한 덩어리로 URL 에 넣으면
+// '#' 이 프래그먼트 구분자라 서버까지 오지 않는다. 이스케이프 규칙을 넷이 기억하게
+// 하는 것보다 복합키를 경로로 쪼개는 편이 틀릴 여지가 없다.
+// run_id#NN 은 ★ 사람이 읽고 Record 에 남는 표기 ★ 로만 쓴다.
+func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
+	runID := r.PathValue("run")
+	seq, err := strconv.Atoi(r.PathValue("seq"))
+	if err != nil || seq <= 0 {
+		fail(w, 400, "단계 순번이 이상하다: "+r.PathValue("seq"))
+		return
+	}
+	var body struct {
+		Node string `json:"node"`
+		store.StepResult
+		Produced []string `json:"produced"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		fail(w, 400, "결과를 읽을 수 없다: "+err.Error())
+		return
+	}
+	res := body.StepResult
+	res.Produced = body.Produced
+
+	// 성패 판정. exit_code 는 ★ 명령 단계만 ★, produced 는 둘 다 (ADR-019 · ADR-020).
+	ok := true
+	if res.ExitCode != nil && *res.ExitCode != 0 {
+		ok = false
+	}
+	if err := s.st.ReportStep(r.Context(), runID, seq, body.Node, ok, res); err != nil {
+		fail(w, 409, err.Error())
+		return
+	}
+	state, err := s.st.SettleIfDone(r.Context(), runID)
+	if err != nil {
+		s.log.Error("정산 실패", "run", runID, "err", err)
+		fail(w, 503, "정산 실패")
+		return
+	}
+	if state != "" {
+		s.log.Info("Run 종료", "run", runID, "state", state)
+	}
+	write(w, 200, map[string]any{"run_id": runID, "seq": seq, "run_state": state})
 }
 
 // ── POST /v1/runs ────────────────────────────────────────────────────────

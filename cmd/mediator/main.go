@@ -49,10 +49,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	// ★ 시간이 감시자다 ★ (ADR-008) — 시작할 때 한 번 먼저 돈다(재시작 스캔).
+	// Mediator 가 죽어 있는 동안 갱신이 멈추고, 재시작하면 not_after 가 지나
+	// 여기서 회수된다. 이것이 O6 의 구현이다.
+	go st.RunReaper(ctx, time.Duration(cfg.Lease.RenewSeconds)*time.Second, log)
+
 	srv := &http.Server{
 		Addr:              cfg.Listen,
 		Handler:           api.New(st, cfg, log).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
+		// ★ WriteTimeout 을 걸지 않는다 ★ — claim 이 최대 2시간 매달리는
+		// 롱폴이기 때문이다 (ADR-015 §5). 걸면 정상 대기가 끊긴다.
 	}
 	go func() {
 		log.Info("Mediator 시작", "listen", cfg.Listen)

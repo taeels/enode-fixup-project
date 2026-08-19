@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -79,7 +80,22 @@ func main() {
 		"node", ident.NodeID, "label", ident.Label,
 		"config", ident.Config, "caps", caps)
 
-	adv := &enode.Advertiser{Client: client, Ident: ident, Local: local, Every: *every, Log: log}
-	adv.Run(ctx)
+	// ★ 두 연결을 동시에 든다 ★ (ADR-016)
+	//   claim   롱폴 최대 2시간   — 일을 기다린다
+	//   nodes   짧은 주기         — 살아 있다고 말하고 권한을 받는다
+	// 합치면 롱폴이 걸린 2시간 동안 임대 갱신이 멈춘다.
+	held := enode.NewHeld()
+
+	adv := &enode.Advertiser{
+		Client: client, Ident: ident, Local: local, Every: *every, Log: log,
+		OnLeases: held.Set, // ★ 응답이 임대의 갱신이자 취소 통보다 ★ 통째로 교체한다
+	}
+	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() { defer wg.Done(); adv.Run(ctx) }()
+	go func() { defer wg.Done(); worker.Run(ctx) }()
+	wg.Wait()
 	log.Info("종료")
 }

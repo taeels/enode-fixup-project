@@ -206,14 +206,23 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 			return err
 		}
 	}
+	// 역할 → 노드. 매처가 이미 정했으므로 단계 행에 박아둔다.
+	// claim 이 jsonb 를 뒤지지 않아도 되고, Record 의 노드 귀속이 처음부터 산다.
+	nodeOf := map[string]string{}
+	for _, a := range r.Assigned {
+		if len(a.Nodes) > 0 {
+			nodeOf[a.As] = a.Nodes[0].Node // count>1 은 아직 (run-contract §4.5)
+		}
+	}
 	for i, st := range steps {
 		kind, err := st.Kind()
 		if err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO steps (run_id, seq, name, uses, kind, state) VALUES ($1,$2,$3,$4,$5,'PENDING')`,
-			r.RunID, i+1, st.ID, st.Uses, kind.String()); err != nil {
+			`INSERT INTO steps (run_id, seq, name, uses, kind, state, node_id)
+			 VALUES ($1,$2,$3,$4,$5,'PENDING',$6)`,
+			r.RunID, i+1, st.ID, st.Uses, kind.String(), nodeOf[st.Uses]); err != nil {
 			return err
 		}
 	}
@@ -265,5 +274,11 @@ func isUniqueViolation(err error) bool {
 // Truncate 는 테스트 전용이다. 순서는 외래키를 따른다.
 func (s *Store) Truncate(ctx context.Context) error {
 	_, err := s.pool.Exec(ctx, `TRUNCATE steps, leases, runs, nodes`)
+	return err
+}
+
+// ForceExpire 는 테스트 전용이다 — 하트비트가 끊긴 상황을 만든다.
+func (s *Store) ForceExpire(ctx context.Context, runID string) error {
+	_, err := s.pool.Exec(ctx, `UPDATE leases SET not_after = now() - interval '1s' WHERE run_id=$1`, runID)
 	return err
 }

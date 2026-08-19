@@ -22,8 +22,8 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 | **S1** | 계약 타입 + 매처 (순수 함수) | — I/O 0. 넷의 공통 어휘 |
 | **S2** | Mediator: DB 스키마 + `POST /v1/runs` | **`I5` · `I1`(=`O7`)** |
 | **S3** | enode: 신원 + 로컬 잠금 + 광고 루프 | **`O8` · `O9`** |
-| S4 | ★ 두 연결 ★ 하트비트 + `claim` 롱폴 | `O6` — **가장 안 검증된 것** |
-| S5 | 명령 단계 실행 + `result` + 상태기계 |  |
+| **S4** | ★ 두 연결 ★ 하트비트 + `claim` 롱폴 + 명령 실행 | **`O6` · `I2`** |
+| S5 | 계약 조건 대조(⑩) — `success_when` |  |
 | S6 | Record 봉인 + `GET record` (tar) | `O1` |
 | S7 | `runctl` — 제출 · 상태 · Record 읽기 | `O7` |
 | ══ | **여기까지가 스켈레톤** | |
@@ -42,7 +42,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
    internal/config     ADR-015 §4 의 우선순위. ★ 사용자 경로가 /etc 를 이긴다 ★
    internal/store      PostgreSQL. ★ 매칭 로직은 여기 없다 ★
    internal/api        HTTP 표면. 라우팅은 표준 라이브러리만 (Go 1.22+ ServeMux)
-   internal/enode      신원 · 잠금(unix/windows) · 능력 탐지 · 광고 루프
+   internal/enode      신원 · 잠금(unix/windows) · 탐지 · ★ 광고 루프 + claim 루프 ★
    cmd/mediator  cmd/enode        (cmd/runctl 는 아직)
 ```
 
@@ -89,6 +89,30 @@ CREATE TABLE leases (
 
 중복 실행은 **로컬 잠금**이 막는다 (`flock` / `LockFileEx`). Mediator 에게 재시작과
 중복은 똑같이 "같은 node_id 의 새 광고" 라 구분할 정보가 없기 때문이다.
+
+### ★ 시간이 감시자다 — 실측 ★
+
+```text
+   12:09:50  Run RUNNING · 임대 1건        Mediator kill
+   12:10:05  ★ enode 가 실행 중인 단계를 스스로 중단 ★   not_after 가 지났다
+   12:10:15  Mediator 재시작 → 재시작 스캔이 회수
+             run=FAILED  why="임대 만료 — 갱신이 끊겼다"  leases=0
+             그리고 새 Run 이 같은 자원을 201 로 받는다
+```
+
+**감시자를 새로 만들지 않았다** (`ADR-008`). 갱신이 끊기면 `not_after` 가 지나고,
+Mediator 쪽은 회수 스캔이, enode 쪽은 워치독이 각자 멈춘다.
+
+#### 실측이 구멍 하나를 쟀다
+
+`ADR-010` 은 *단계를 **시작하기 전에** `not_after` 를 확인한다* 였는데,
+그것만으로는 **긴 단계가 임대보다 오래 산다.** 첫 시험에서 임대 회수 후
+**7초를 더 돌았고**, 그동안 Mediator 는 그 자원을 새 Run 에 줄 수 있었다 —
+`ADR-008` 이 *옛 Run 의 flash 가 아직 돌고 있다* 로 이름 붙인 충돌이다.
+
+→ **실행 중에도 임대를 감시해 만료되면 그 단계를 죽인다.** 창이 단계 길이가
+아니라 워치독 주기(1초)로 유계가 됐다. 권위는 여전히 `not_after` 이므로
+하트비트 한 번 실패로는 안 죽는다 (`ADR-016`).
 
 ## 테스트
 

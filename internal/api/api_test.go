@@ -12,6 +12,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/taeels/enode/internal/api"
 	"github.com/taeels/enode/internal/config"
@@ -303,5 +304,182 @@ func TestGetRunNotFound(t *testing.T) {
 	srv := newServer(t)
 	if code, _ := do(t, srv, "GET", "/v1/runs/nope", "", nil); code != 404 {
 		t.Fatalf("code=%d 기대 404", code)
+	}
+}
+
+// ═══ S4 — 하트비트가 임대를 나른다 · claim · 회수 ════════════════════════
+
+func newServerFast(t *testing.T) (*httptest.Server, *store.Store) {
+	t.Helper()
+	url := os.Getenv("ENODE_TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("ENODE_TEST_DATABASE_URL 이 없다")
+	}
+	ctx := context.Background()
+	st, err := store.Open(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Truncate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.Default()
+	cfg.Token = token
+	cfg.Claim.LongPollSeconds = 0 // 테스트에서는 즉시 204
+	cfg.Lease.RenewSeconds, cfg.Lease.NotAfterFactor = 1, 2
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	srv := httptest.NewServer(api.New(st, cfg, log).Handler())
+	t.Cleanup(srv.Close)
+	return srv, st
+}
+
+func oneStepRun(id, node string) string {
+	return contractJSON(id, []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{runStep("s1", "b"), runStep("s2", "b")})
+}
+
+// ★ ADR-016 — 하트비트 응답이 임대의 갱신이자 취소 통보다 ★
+func TestHeartbeatCarriesLease(t *testing.T) {
+	srv, _ := newServerFast(t)
+	adv := advert("n1", "box", map[string]string{"role": "x"})
+
+	_, body := do(t, srv, "POST", "/v1/nodes", adv, nil)
+	if l, _ := body["leases"].([]any); len(l) != 0 {
+		t.Fatalf("아직 아무것도 안 잡았는데 임대가 있다: %v", body)
+	}
+
+	if code, _ := do(t, srv, "POST", "/v1/runs", oneStepRun("hb", "n1"), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+
+	_, body = do(t, srv, "POST", "/v1/nodes", adv, nil)
+	leases, _ := body["leases"].([]any)
+	if len(leases) != 1 {
+		t.Fatalf("★ 임대가 하트비트 응답에 안 실렸다 ★: %v", body)
+	}
+	first := leases[0].(map[string]any)["not_after"].(string)
+
+	// 갱신 — not_after 가 앞으로 밀려야 한다
+	time.Sleep(1100 * time.Millisecond)
+	_, body = do(t, srv, "POST", "/v1/nodes", adv, nil)
+	leases, _ = body["leases"].([]any)
+	if len(leases) != 1 {
+		t.Fatalf("갱신에서 임대가 사라졌다: %v", body)
+	}
+	if second := leases[0].(map[string]any)["not_after"].(string); second <= first {
+		t.Fatalf("★ not_after 가 안 밀렸다 ★ %s → %s", first, second)
+	}
+}
+
+// ★ ADR-015 §3 — SELECT … FOR UPDATE SKIP LOCKED 가 배분 그 자체다 ★
+// 여러 노드가 동시에 당겨도 한 단계는 정확히 한 노드에만 간다.
+func TestClaimGoesToExactlyOneNode(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs", oneStepRun("c1", "n1"), nil); code != 201 {
+		t.Fatal("제출 실패")
+	}
+
+	const n = 8
+	got := make([]int, n)
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) { defer wg.Done(); got[i], _ = do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil) }(i)
+	}
+	wg.Wait()
+	won := 0
+	for _, c := range got {
+		if c == 200 {
+			won++
+		} else if c != 204 {
+			t.Fatalf("claim code=%d — 200 이나 204 여야 한다", c)
+		}
+	}
+	if won != 1 {
+		t.Fatalf("★ 한 단계가 %d 번 배분됐다 ★", won)
+	}
+}
+
+// Mediator 가 시퀀서다 (ADR-014 결정 1) — 앞 단계가 끝나야 다음이 나온다.
+func TestClaimRespectsOrder(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/runs", oneStepRun("ord", "n1"), nil)
+
+	code, first := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	if code != 200 || first["name"] != "s1" {
+		t.Fatalf("첫 단계가 안 나왔다: %d %v", code, first)
+	}
+	// 1 단계가 끝나기 전에는 2 단계가 안 나온다
+	if code, _ := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil); code != 204 {
+		t.Fatalf("★ 순서를 어기고 다음 단계를 줬다 ★: %d", code)
+	}
+	// 보고하면 나온다
+	if code, _ := do(t, srv, "POST", "/v1/runs/ord/steps/1/result",
+		`{"node":"n1","exit_code":0,"produced":["s1"]}`, nil); code != 200 {
+		t.Fatalf("보고 실패: %d", code)
+	}
+	code, second := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	if code != 200 || second["name"] != "s2" {
+		t.Fatalf("다음 단계가 안 나왔다: %d %v", code, second)
+	}
+}
+
+// ★ I2 — 종료 상태에서 점유 장부가 비어 있다 ★
+func TestLeasesReleasedOnCompletion(t *testing.T) {
+	srv, _ := newServerFast(t)
+	adv := advert("n1", "a", map[string]string{"role": "x"})
+	do(t, srv, "POST", "/v1/nodes", adv, nil)
+	do(t, srv, "POST", "/v1/runs", oneStepRun("done", "n1"), nil)
+
+	for seq := 1; seq <= 2; seq++ {
+		do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+		do(t, srv, "POST", fmt.Sprintf("/v1/runs/done/steps/%d/result", seq),
+			fmt.Sprintf(`{"node":"n1","exit_code":0,"produced":["s%d"]}`, seq), nil)
+	}
+	_, run := do(t, srv, "GET", "/v1/runs/done", "", nil)
+	if run["state"] != "SUCCEEDED" {
+		t.Fatalf("state=%v 기대 SUCCEEDED", run["state"])
+	}
+	_, body := do(t, srv, "POST", "/v1/nodes", adv, nil)
+	if l, _ := body["leases"].([]any); len(l) != 0 {
+		t.Fatalf("★ I2 위반 ★ 종료했는데 임대가 남았다: %v", l)
+	}
+	// 자원이 다시 쓸 수 있어야 한다
+	if code, _ := do(t, srv, "POST", "/v1/runs", oneStepRun("next", "n1"), nil); code != 201 {
+		t.Fatalf("★ 자원이 안 풀렸다 ★: %d", code)
+	}
+}
+
+// ★ O6 — 갱신이 끊기면 시간이 회수한다 (ADR-008: 시간이 감시자다) ★
+func TestReapReleasesExpiredLease(t *testing.T) {
+	srv, st := newServerFast(t)
+	adv := advert("n1", "a", map[string]string{"role": "x"})
+	do(t, srv, "POST", "/v1/nodes", adv, nil)
+	do(t, srv, "POST", "/v1/runs", oneStepRun("expire", "n1"), nil)
+
+	// 하트비트가 끊긴 상황을 만든다 — not_after 를 과거로 민다
+	if err := st.ForceExpire(context.Background(), "expire"); err != nil {
+		t.Fatal(err)
+	}
+	n, err := st.Reap(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("회수된 Run=%d 기대 1", n)
+	}
+	_, run := do(t, srv, "GET", "/v1/runs/expire", "", nil)
+	if run["state"] != "FAILED" {
+		t.Fatalf("state=%v 기대 FAILED", run["state"])
+	}
+	// ★ 그리고 자원을 다시 쓸 수 있다 — 409 → 201 ★
+	if code, _ := do(t, srv, "POST", "/v1/runs", oneStepRun("after", "n1"), nil); code != 201 {
+		t.Fatalf("★ O6 실패 ★ 회수 뒤에도 자원이 안 풀렸다: %d", code)
 	}
 }
