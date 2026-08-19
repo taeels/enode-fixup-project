@@ -23,7 +23,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 | **S2** | Mediator: DB 스키마 + `POST /v1/runs` | **`I5` · `I1`(=`O7`)** |
 | **S3** | enode: 신원 + 로컬 잠금 + 광고 루프 | **`O8` · `O9`** |
 | **S4** | ★ 두 연결 ★ 하트비트 + `claim` 롱폴 + 명령 실행 | **`O6` · `I2`** |
-| S5 | 계약 조건 대조(⑩) — `success_when` |  |
+| **S5** | 계약 조건 대조(⑩) — `success_when` | **`O4`** |
 | S6 | Record 봉인 + `GET record` (tar) | `O1` |
 | S7 | `runctl` — 제출 · 상태 · Record 읽기 | `O7` |
 | ══ | **여기까지가 스켈레톤** | |
@@ -113,6 +113,46 @@ Mediator 쪽은 회수 스캔이, enode 쪽은 워치독이 각자 멈춘다.
 → **실행 중에도 임대를 감시해 만료되면 그 단계를 죽인다.** 창이 단계 길이가
 아니라 워치독 주기(1초)로 유계가 됐다. 권위는 여전히 `not_after` 이므로
 하트비트 한 번 실패로는 안 죽는다 (`ADR-016`).
+
+### ★ 완주와 성공은 다르다 ★
+
+이 구분이 `ADR-004` 를 지탱한다.
+
+```text
+   DONE    프로세스가 끝나고 결과를 보고했다. ★ 종료코드가 무엇이든 ★
+   FAILED  아예 못 돌았다 — 프로세스를 못 띄웠거나 임대가 끝나 중단됐다
+```
+
+`exit 2` 로 끝난 빌드는 **완주한 것**이고, 그게 성공인지는 `success_when` 이 판정한다.
+enode 나 핸들러가 종료코드로 미리 판정하면 **계약이 할 일을 코드가 가로채고**,
+그러면 `O4` 가 성립하지 않는다.
+
+#### O4 — 실측
+
+```jsonc
+// 단계는 exit 0 으로 완주했고 test_result 를 냈다. 내용은 "not ok 1 - spi cdiv".
+"success_when": [{"step":"parent_observe","produced":["test_result"]}]
+```
+
+```json
+{"state":"SUCCEEDED",
+ "verdict":{"state":"SUCCEEDED","checks":[
+   {"step":"parent_observe","what":"produced",
+    "want":["test_result"],"got":["serial_log","test_result"],"ok":true}]}}
+```
+
+**테스트는 실패했는데 Run 은 성공이다.** 결과값을 통과 기준에 넣으면
+**회귀를 증명한 Run 이 `FAILED`** 가 되어 `ADR-004` 의 네 결과표가 뒤집힌다.
+
+반대로 `exit_code: 0` 을 물은 계약에서 빌드가 `exit 2` 면:
+
+```json
+{"state":"FAILED","verdict":{"checks":[
+  {"step":"b","what":"exit_code","want":0,"got":2,"ok":false},
+  {"step":"b","what":"produced","want":["build_log"],"got":["build_log"],"ok":true}]}}
+```
+
+**`verdict` 가 무엇을 왜 로 남는다** — `ADR-005` 의 *실패 원인이 Record 에 있다*.
 
 ## 테스트
 

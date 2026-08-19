@@ -27,9 +27,11 @@ CREATE TABLE IF NOT EXISTS runs (
                                         -- ADR-020 이 스키마를 인라인으로 둔 덕에 여기 다 들어온다.
     assigned   jsonb,                   -- [{as, nodes:[{node,label}]}] — ALLOCATING 을 지난 뒤
     reject     jsonb,                   -- 거절 사유 (422/409). FAILED 의 원인이 남는다.
+    verdict    jsonb,                   -- ⑩ 의 대조 결과. Record 의 verdict.json 이 된다.
     created_at timestamptz NOT NULL DEFAULT now(),
     ended_at   timestamptz
 );
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS verdict jsonb;
 
 -- ★ 점유 장부 — I1 이 여기서 스키마로 강제된다 ★
 --

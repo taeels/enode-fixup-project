@@ -100,6 +100,7 @@ type Run struct {
 	Contract  contract.Contract
 	Assigned  []Assigned
 	Reject    *match.Reject
+	Verdict   *Verdict
 	CreatedAt time.Time
 }
 
@@ -128,11 +129,12 @@ var ErrNotFound = errors.New("없다")
 // GetRun 은 없으면 ErrNotFound 다.
 func (s *Store) GetRun(ctx context.Context, runID string) (*Run, error) {
 	var r Run
-	var contractJSON, assignedJSON, rejectJSON []byte
+	var contractJSON, assignedJSON, rejectJSON, verdictJSON []byte
 	err := s.pool.QueryRow(ctx,
-		`SELECT run_id, state, principal, contract, assigned, reject, created_at
+		`SELECT run_id, state, principal, contract, assigned, reject, verdict, created_at
 		 FROM runs WHERE run_id = $1`, runID).
-		Scan(&r.RunID, &r.State, &r.Principal, &contractJSON, &assignedJSON, &rejectJSON, &r.CreatedAt)
+		Scan(&r.RunID, &r.State, &r.Principal, &contractJSON, &assignedJSON, &rejectJSON,
+			&verdictJSON, &r.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -149,6 +151,11 @@ func (s *Store) GetRun(ctx context.Context, runID string) (*Run, error) {
 	}
 	if len(rejectJSON) > 0 {
 		if err := json.Unmarshal(rejectJSON, &r.Reject); err != nil {
+			return nil, err
+		}
+	}
+	if len(verdictJSON) > 0 {
+		if err := json.Unmarshal(verdictJSON, &r.Verdict); err != nil {
 			return nil, err
 		}
 	}

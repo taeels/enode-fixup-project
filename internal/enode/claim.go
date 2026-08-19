@@ -61,6 +61,9 @@ type Result struct {
 	Node     string   `json:"node"`
 	ExitCode *int     `json:"exit_code,omitempty"`
 	Produced []string `json:"produced,omitempty"`
+	// Error 는 ★ 완주하지 못한 ★ 경우에만 채운다.
+	// 종료코드가 0 이 아닌 것은 완주다 — 그게 성공인지는 success_when 이 판정한다.
+	Error string `json:"error,omitempty"`
 }
 
 func (c *Client) Report(ctx context.Context, runID string, seq int, res Result) error {
@@ -136,8 +139,8 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	if step.Kind != "run" {
 		// agent 단계는 S9. 지금 실행하면 판정 없이 성공으로 보이게 된다.
 		log.Warn("agent 단계는 아직 구현하지 않았다")
-		code := 70
-		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{Node: w.Ident.NodeID, ExitCode: &code})
+		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+			Node: w.Ident.NodeID, Error: "agent 단계 미구현 (S9)"})
 		return
 	}
 
@@ -193,19 +196,27 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	code := cmd.ProcessState.ExitCode()
 
 	produced := harvest(out)
-	log.Info("단계 끝", "exit", code, "produced", produced,
-		"took", time.Since(start).Round(time.Millisecond))
-	if runErr != nil && code <= 0 {
-		code = 1 // 시작조차 못 했거나 신호로 죽었다
+	res := Result{Node: w.Ident.NodeID, Produced: produced}
+
+	switch {
+	case runCtx.Err() != nil && ctx.Err() == nil:
+		// ★ 임대가 끝나 중단됐다 — 완주가 아니다 ★
+		res.Error = "임대 만료로 중단됨"
+		log.Warn("임대 만료로 중단됨")
+	case runErr != nil && code < 0:
+		// 프로세스를 못 띄웠다 (실행 파일 없음 등) — 완주가 아니다
+		res.Error = runErr.Error()
+		log.Error("실행할 수 없다", "err", runErr)
+	default:
+		// ★ 완주했다. 종료코드가 무엇이든. ★
+		// exit 2 로 끝난 빌드도 완주한 것이고, 성공 여부는 success_when 이 판정한다
+		// (ADR-004 · I3). 여기서 판정하면 O4 가 성립하지 않는다.
+		res.ExitCode = &code
+		log.Info("단계 끝", "exit", code, "produced", produced,
+			"took", time.Since(start).Round(time.Millisecond))
 	}
-	if runCtx.Err() != nil && ctx.Err() == nil {
-		// 임대가 끝나 중단됐다. 보고는 해보되 거절당해도 정상이다 —
-		// Mediator 쪽에서는 이미 Run 이 FAILED 이기 때문이다.
-		log.Warn("임대 만료로 중단됨", "step", step.StepID)
-	}
-	if err := w.Client.Report(ctx, step.RunID, step.Seq, Result{
-		Node: w.Ident.NodeID, ExitCode: &code, Produced: produced,
-	}); err != nil && ctx.Err() == nil {
+
+	if err := w.Client.Report(ctx, step.RunID, step.Seq, res); err != nil && ctx.Err() == nil {
 		log.Error("결과 보고 실패", "err", err)
 	}
 }

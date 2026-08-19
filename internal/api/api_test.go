@@ -483,3 +483,92 @@ func TestReapReleasesExpiredLease(t *testing.T) {
 		t.Fatalf("★ O6 실패 ★ 회수 뒤에도 자원이 안 풀렸다: %d", code)
 	}
 }
+
+// ═══ S5 — 계약 조건 대조 ═════════════════════════════════════════════════
+
+// ★ O4 — 시연에서 가장 설명이 필요한 장면 ★
+// 단계가 exit 0 으로 완주하고 test_result 를 냈다. 그 내용이 FAIL 이어도
+// 계약이 "나왔는가" 만 물었으므로 Run 은 SUCCEEDED 다.
+func TestVerdictO4(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	body, _ := json.Marshal(map[string]any{
+		"run_id":   "o4",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{
+			{"id": "observe", "uses": "b", "run": []string{"true"}, "out": []string{"test_result"}},
+		},
+		"success_when": []map[string]any{{"step": "observe", "produced": []string{"test_result"}}},
+	})
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(body), nil); code != 201 {
+		t.Fatal("제출 실패")
+	}
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	// 테스트는 FAIL 이지만 단계는 완주했고 산출물이 나왔다
+	do(t, srv, "POST", "/v1/runs/o4/steps/1/result",
+		`{"node":"n1","exit_code":0,"produced":["test_result","serial_log"]}`, nil)
+
+	_, run := do(t, srv, "GET", "/v1/runs/o4", "", nil)
+	if run["state"] != "SUCCEEDED" {
+		t.Fatalf("★ O4 실패 ★ state=%v — 결과값이 통과 기준에 새어들었다", run["state"])
+	}
+	if run["verdict"] == nil {
+		t.Fatal("verdict 가 안 남았다")
+	}
+}
+
+// ★ 완주와 성공은 다르다 ★
+// exit 2 로 끝난 것도 완주다. 성공 여부는 success_when 이 판정한다.
+func TestNonZeroExitIsStillCompletion(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	mk := func(id string, cond map[string]any) string {
+		b, _ := json.Marshal(map[string]any{
+			"run_id":   id,
+			"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+			"steps": []map[string]any{
+				{"id": "build", "uses": "b", "run": []string{"false"}, "out": []string{"build_log"}},
+			},
+			"success_when": []map[string]any{cond},
+		})
+		return string(b)
+	}
+	// exit_code 를 물으면 실패한다
+	do(t, srv, "POST", "/v1/runs", mk("strict", map[string]any{"step": "build", "exit_code": 0}), nil)
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/strict/steps/1/result",
+		`{"node":"n1","exit_code":2,"produced":["build_log"]}`, nil)
+	_, run := do(t, srv, "GET", "/v1/runs/strict", "", nil)
+	if run["state"] != "FAILED" {
+		t.Fatalf("exit 2 인데 통과했다: %v", run["state"])
+	}
+
+	// ★ 안 물으면 안 본다 ★ (I3)
+	do(t, srv, "POST", "/v1/runs", mk("loose", map[string]any{"step": "build", "produced": []string{"build_log"}}), nil)
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/loose/steps/1/result",
+		`{"node":"n1","exit_code":2,"produced":["build_log"]}`, nil)
+	_, run = do(t, srv, "GET", "/v1/runs/loose", "", nil)
+	if run["state"] != "SUCCEEDED" {
+		t.Fatalf("★ I3 위반 ★ 계약이 안 물은 것으로 판정했다: %v", run["state"])
+	}
+}
+
+// 완주하지 못한 단계는 VERIFYING 을 안 거친다 — 대조할 재료가 없다.
+func TestStepThatCouldNotRun(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/runs", oneStepRun("broke", "n1"), nil)
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/broke/steps/1/result",
+		`{"node":"n1","error":"임대 만료로 중단됨"}`, nil)
+
+	_, run := do(t, srv, "GET", "/v1/runs/broke", "", nil)
+	if run["state"] != "FAILED" {
+		t.Fatalf("state=%v 기대 FAILED", run["state"])
+	}
+	// ★ 두 번째 단계는 돌지 않는다 ★ — RUNNING → RUNNING 이 멱등이 아니므로 재개하지 않는다
+	if code, _ := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil); code != 204 {
+		t.Fatalf("★ 실패한 Run 의 다음 단계가 배분됐다 ★: %d", code)
+	}
+}

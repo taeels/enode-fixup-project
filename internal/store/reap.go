@@ -69,27 +69,54 @@ func (s *Store) RunReaper(ctx context.Context, every time.Duration, log *slog.Lo
 
 // SettleIfDone 은 모든 단계가 끝났으면 Run 을 종료시킨다.
 //
-// S4 는 여기까지만 한다 — 계약 조건 대조(⑩)와 Record 봉인(⑪)은 S5·S6 이다.
-// 지금은 ★ 단계가 하나라도 실패하면 FAILED, 전부 DONE 이면 SUCCEEDED ★ 로 두고,
-// 종료 시 임대를 해제해 I2 를 지킨다.
+// 상태 전이는 INVARIANTS §1.1 그대로다:
+//
+//	RUNNING → FAILED     ★ 단계가 완주하지 못했다 ★ (못 띄웠거나 중단됐다)
+//	                     계약을 대조할 재료가 없으므로 VERIFYING 을 안 거친다
+//	RUNNING → VERIFYING  마지막 단계까지 전부 완주했다
+//	VERIFYING → SUCCEEDED / FAILED   ⑩ 의 대조 결과
+//
+// 종료 시 임대를 해제한다 — ★ I2 ★
 func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) {
-	var pending, failed int
+	var pending, broke int
 	if err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FILTER (WHERE state IN ('PENDING','CLAIMED')),
 		       count(*) FILTER (WHERE state = 'FAILED')
-		  FROM steps WHERE run_id = $1`, runID).Scan(&pending, &failed); err != nil {
+		  FROM steps WHERE run_id = $1`, runID).Scan(&pending, &broke); err != nil {
 		return "", err
 	}
-	switch {
-	case failed > 0:
-		// 실패한 단계가 있으면 남은 단계를 돌릴 이유가 없다.
-		// RUNNING → RUNNING 이 멱등이 아니므로 재개하지 않는다 (INVARIANTS §2).
-	case pending > 0:
+	if broke == 0 && pending > 0 {
 		return "", nil // 아직 진행 중
 	}
-	state := StateSucceeded
-	if failed > 0 {
-		state = StateFailed
+
+	var v Verdict
+	if broke > 0 {
+		// 완주하지 못한 단계가 있다. 재개하지 않는다 —
+		// RUNNING → RUNNING 이 멱등이 아니기 때문이다 (INVARIANTS §2).
+		v = Verdict{State: StateFailed, Checks: []Check{{
+			What: "ran", OK: false, Note: "단계가 완주하지 못했다",
+		}}}
+	} else {
+		run, err := s.GetRun(ctx, runID)
+		if err != nil {
+			return "", err
+		}
+		results, err := s.StepResults(ctx, runID)
+		if err != nil {
+			return "", err
+		}
+		// ★ VERIFYING — 계약 조건을 대조한다 ★
+		if _, err := s.pool.Exec(ctx,
+			`UPDATE runs SET state=$2 WHERE run_id=$1 AND state='RUNNING'`,
+			runID, StateVerifying); err != nil {
+			return "", err
+		}
+		v = Verify(run.Contract, results)
+	}
+
+	verdictJSON, err := json.Marshal(v)
+	if err != nil {
+		return "", err
 	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -97,13 +124,14 @@ func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) 
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 	if _, err := tx.Exec(ctx,
-		`UPDATE runs SET state=$2, ended_at=now() WHERE run_id=$1 AND state NOT IN ('SUCCEEDED','FAILED')`,
-		runID, state); err != nil {
+		`UPDATE runs SET state=$2, verdict=$3, ended_at=now()
+		  WHERE run_id=$1 AND state NOT IN ('SUCCEEDED','FAILED')`,
+		runID, v.State, verdictJSON); err != nil {
 		return "", err
 	}
 	// ★ I2 — 종료 상태에서 점유 장부가 비어 있다 ★
 	if _, err := tx.Exec(ctx, `DELETE FROM leases WHERE run_id = $1`, runID); err != nil {
 		return "", err
 	}
-	return state, tx.Commit(ctx)
+	return v.State, tx.Commit(ctx)
 }

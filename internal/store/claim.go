@@ -166,9 +166,21 @@ type StepResult struct {
 	ExitCode *int            `json:"exit_code,omitempty"` // ★ 명령 단계만 ★ (ADR-019)
 	Produced []string        `json:"produced,omitempty"`
 	Harness  json.RawMessage `json:"harness,omitempty"` // agent 단계만 (ADR-020)
+	// Error 는 ★ 완주하지 못한 ★ 경우다 — 프로세스를 못 띄웠거나 임대가 끝나
+	// 중단됐거나. 비어 있으면 완주한 것이고, 종료코드가 무엇이든 DONE 이다.
+	Error string `json:"error,omitempty"`
 }
 
-// ReportStep 은 단계를 끝낸다. 성공이면 DONE, 아니면 FAILED 다.
+// ReportStep 은 단계를 끝낸다.
+//
+// ★ "완주" 와 "성공" 은 다르다 ★
+//
+//	DONE    프로세스가 끝나고 결과를 보고했다. ★ 종료코드가 무엇이든 ★.
+//	FAILED  아예 못 돌았다 — 프로세스를 못 띄웠거나 임대가 끝나 중단됐다.
+//
+// exit_code 2 로 끝난 빌드는 ★ 완주한 것 ★ 이고, 그게 성공인지는
+// success_when 이 판정한다 (ADR-004 · I3). 여기서 판정하면 계약이 할 일을
+// 코드가 가로채는 것이고, 그러면 O4("테스트가 실패했는데 Run 은 성공")가 성립하지 않는다.
 // ★ 이 보고를 받은 Mediator 가 다음 단계를 만든다 ★ (ADR-014 결정 1) —
 // 다음 claim 이 집을 수 있게 되는 것이 그 형태다.
 func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID string, ok bool, res StepResult) error {

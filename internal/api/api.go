@@ -100,10 +100,12 @@ type runView struct {
 	State    string           `json:"state"`
 	Assigned []store.Assigned `json:"assigned,omitempty"`
 	Reject   *match.Reject    `json:"reject,omitempty"`
+	Verdict  *store.Verdict   `json:"verdict,omitempty"` // ⑩ 의 대조 결과
 }
 
 func view(r *store.Run) runView {
-	return runView{RunID: r.RunID, State: r.State, Assigned: r.Assigned, Reject: r.Reject}
+	return runView{RunID: r.RunID, State: r.State, Assigned: r.Assigned,
+		Reject: r.Reject, Verdict: r.Verdict}
 }
 
 // ── POST /v1/nodes — 광고 + 하트비트 ──────────────────────────────────────
@@ -201,20 +203,20 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 		Node string `json:"node"`
 		store.StepResult
 		Produced []string `json:"produced"`
+		Error    string   `json:"error"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		fail(w, 400, "결과를 읽을 수 없다: "+err.Error())
 		return
 	}
 	res := body.StepResult
-	res.Produced = body.Produced
+	res.Produced, res.Error = body.Produced, body.Error
 
-	// 성패 판정. exit_code 는 ★ 명령 단계만 ★, produced 는 둘 다 (ADR-019 · ADR-020).
-	ok := true
-	if res.ExitCode != nil && *res.ExitCode != 0 {
-		ok = false
-	}
-	if err := s.st.ReportStep(r.Context(), runID, seq, body.Node, ok, res); err != nil {
+	// ★ 여기서 성패를 판정하지 않는다 ★ — 완주했는지만 본다.
+	// exit_code 2 로 끝난 빌드도 완주한 것이고, 그게 성공인지는 success_when 이
+	// 판정한다 (ADR-004 · I3). 여기서 가로채면 O4 가 성립하지 않는다.
+	completed := res.Error == ""
+	if err := s.st.ReportStep(r.Context(), runID, seq, body.Node, completed, res); err != nil {
 		fail(w, 409, err.Error())
 		return
 	}
