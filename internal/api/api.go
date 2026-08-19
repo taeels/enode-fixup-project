@@ -6,21 +6,25 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/taeels/enode/internal/config"
 	"github.com/taeels/enode/internal/contract"
 	"github.com/taeels/enode/internal/match"
 	"github.com/taeels/enode/internal/record"
+	"github.com/taeels/enode/internal/schema"
 	"github.com/taeels/enode/internal/store"
 )
 
@@ -35,6 +39,16 @@ func New(st *store.Store, cfg config.Config, log *slog.Logger) *Server {
 	return &Server{st: st, records: st.Records, cfg: cfg, log: log}
 }
 
+// needRecords 는 Record 저장소 없이 호출된 경우를 막는다.
+// cmd/mediator 는 항상 붙이지만, 없으면 ★ 패닉이 아니라 503 ★ 이어야 한다.
+func (s *Server) needRecords(w http.ResponseWriter) bool {
+	if s.records == nil {
+		fail(w, 503, "Record 저장소가 설정되지 않았다")
+		return false
+	}
+	return true
+}
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/nodes", s.auth(s.postNodes))
@@ -46,6 +60,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/runs/{id}/record", s.auth(s.getRecord))
 	mux.HandleFunc("POST /v1/runs/{id}/cancel", s.auth(s.postCancel))
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/log", s.auth(s.putLog))
+	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/blob/{name}", s.auth(s.putBlob))
+	mux.HandleFunc("GET /v1/runs/{run}/blob/{name}", s.auth(s.getBlob))
 	return mux
 }
 
@@ -387,6 +403,9 @@ func (s *Server) postCancel(w http.ResponseWriter, r *http.Request) {
 //
 // result 보다 ★ 먼저 ★ 올린다 — 단계가 실패해도 로그는 남아야 한다.
 func (s *Server) putLog(w http.ResponseWriter, r *http.Request) {
+	if !s.needRecords(w) {
+		return
+	}
 	runID := r.PathValue("run")
 	seq, err := strconv.Atoi(r.PathValue("seq"))
 	if err != nil || seq <= 0 {
@@ -419,6 +438,119 @@ func (s *Server) putLog(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
+// ── blob — 단계 사이를 오가는 산출물 (run-contract §4 별 모양) ────────────
+//
+// ★ 경로가 비대칭인 이유 ★
+//
+//	PUT  /v1/runs/{run}/steps/{seq}/blob/{name}   생산자는 자기가 몇 번째인지 안다
+//	GET  /v1/runs/{run}/blob/{name}               소비자는 이름만 안다 — 최신을 준다
+//
+// 계약에서 parent_build 와 patch_build 가 ★ 둘 다 artifact 를 낸다 ★.
+// 이름만으로 키를 잡으면 뒤엣것이 앞엣것을 덮어 차분 반증의 두 아티팩트를
+// 봉인된 기록에서 구분할 수 없게 된다.
+//
+// ★ 그리고 여기가 스키마를 검증하는 자리다 ★ (ADR-020) —
+// 어긴 산출물은 저장하지 않으므로 produced 가 불만족이 되고,
+// success_when 에 schema_ok 같은 새 조건이 생기지 않는다.
+func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
+	if !s.needRecords(w) {
+		return
+	}
+	runID, name := r.PathValue("run"), r.PathValue("name")
+	seq, err := strconv.Atoi(r.PathValue("seq"))
+	if err != nil || seq <= 0 {
+		fail(w, 400, "단계 순번이 이상하다")
+		return
+	}
+	run, err := s.st.GetRun(r.Context(), runID)
+	if errors.Is(err, store.ErrNotFound) {
+		fail(w, 404, "그런 Run 이 없다")
+		return
+	}
+	if err != nil {
+		fail(w, 503, "조회 실패")
+		return
+	}
+	// ★ I4 — 봉인된 것에는 못 쓴다 ★
+	if run.State == store.StateSucceeded || run.State == store.StateFailed {
+		fail(w, 410, "Run 이 이미 종료됐다")
+		return
+	}
+
+	limit := s.cfg.Artifacts.MaxBlobBytes
+	sch := schemaFor(run.Contract, seq, name)
+	if sch != nil {
+		// 스키마가 걸린 산출물은 검증해야 하므로 먼저 읽는다.
+		// 형식 검증 대상이라 상한 안쪽이라는 전제가 있다.
+		body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
+		if err != nil {
+			fail(w, 503, "읽기 실패")
+			return
+		}
+		if int64(len(body)) > limit {
+			fail(w, 413, "산출물이 상한을 넘는다")
+			return
+		}
+		if vs := schema.Validate(sch, body); len(vs) > 0 {
+			// ★ 어긴 산출물은 저장하지 않는다 ★ → produced 불만족 → 단계 실패
+			// 위반 내역이 feedback 으로 되먹여진다 (ADR-013 의 루프)
+			parts := make([]string, 0, len(vs))
+			for _, v := range vs {
+				parts = append(parts, v.String())
+			}
+			fail(w, 422, "스키마 위반 — "+strings.Join(parts, " / "))
+			return
+		}
+		if _, err := s.records.WriteBlob(runID, seq, name, bytes.NewReader(body), limit); err != nil {
+			s.log.Error("산출물 저장 실패", "run", runID, "name", name, "err", err)
+			fail(w, 503, "저장 실패")
+			return
+		}
+		w.WriteHeader(204)
+		return
+	}
+
+	if _, err := s.records.WriteBlob(runID, seq, name, r.Body, limit); err != nil {
+		if errors.Is(err, record.ErrTooBig) {
+			// ★ 잘라 저장하지 않는다 ★ — 잘린 산출물은 산출물이 아니다.
+			// (로그는 잘라 표시한다. 자리가 다르다.)
+			fail(w, 413, "산출물이 상한을 넘는다")
+			return
+		}
+		s.log.Error("산출물 저장 실패", "run", runID, "name", name, "err", err)
+		fail(w, 503, "저장 실패")
+		return
+	}
+	w.WriteHeader(204)
+}
+
+func (s *Server) getBlob(w http.ResponseWriter, r *http.Request) {
+	if !s.needRecords(w) {
+		return
+	}
+	runID, name := r.PathValue("run"), r.PathValue("name")
+	// ★ ADR-018 — 나중에 여기서 302 로 저장소를 가리킨다 ★
+	// 클라이언트는 리다이렉트를 따라야 하고, 상한과 저장 위치는 표면의 약속이 아니다.
+	// 지금은 직접 서빙한다. enode 코드는 그때도 안 바뀐다.
+	f, size, err := s.records.OpenBlob(runID, name)
+	if err != nil {
+		fail(w, 404, "그런 산출물이 없다")
+		return
+	}
+	defer f.Close()
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+	_, _ = io.Copy(w, f)
+}
+
+// schemaFor 는 그 단계가 그 이름에 스키마를 달았는지 본다 (ADR-020).
+func schemaFor(c contract.Contract, seq int, name string) any {
+	if seq-1 < 0 || seq-1 >= len(c.Steps) {
+		return nil
+	}
+	return c.Steps[seq-1].Schema[name]
+}
+
 // ── GET /v1/runs/{id}/record ─────────────────────────────────────────────
 //
 // 봉인된 Record 를 tar 로 돌려준다.
@@ -426,6 +558,9 @@ func (s *Server) putLog(w http.ResponseWriter, r *http.Request) {
 //
 // 종료 전에 부르면 409 다 — ★ 봉인되지 않은 것은 Record 가 아니다 ★ (I4).
 func (s *Server) getRecord(w http.ResponseWriter, r *http.Request) {
+	if !s.needRecords(w) {
+		return
+	}
 	runID := r.PathValue("id")
 	if _, err := s.st.GetRun(r.Context(), runID); errors.Is(err, store.ErrNotFound) {
 		fail(w, 404, "그런 Run 이 없다")

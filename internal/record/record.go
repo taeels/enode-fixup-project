@@ -106,6 +106,14 @@ func (s *Store) Seal(runID string, manifest, verdict any, steps []StepFile) erro
 	if err := writeJSON(filepath.Join(d, "verdict.json"), verdict); err != nil {
 		return err
 	}
+	// 중단된 업로드의 임시 파일이 봉인에 섞이지 않게 한다.
+	if ents, err := os.ReadDir(filepath.Join(d, "blobs")); err == nil {
+		for _, e := range ents {
+			if strings.HasPrefix(e.Name(), ".tmp-") {
+				_ = os.Remove(filepath.Join(d, "blobs", e.Name()))
+			}
+		}
+	}
 	return seal(d)
 }
 
@@ -226,4 +234,70 @@ func (s *Store) Tar(runID string, w io.Writer) error {
 		_, err = io.Copy(tw, f)
 		return err
 	})
+}
+
+// ── blob — 단계 사이를 오가는 산출물 (run-contract §4 별 모양) ────────────
+//
+// ★ 왜 <seq>-<name> 인가 ★
+// 계약에서 parent_build 와 patch_build 가 ★ 둘 다 artifact 를 낸다 ★.
+// 이름만으로 키를 잡으면 뒤엣것이 앞엣것을 덮고, 봉인된 기록에 하나만 남아
+// 차분 반증의 두 아티팩트를 구분할 수 없게 된다 (성질 4 자기충족이 깨진다).
+//
+// 그래서 저장은 단계별로 하고, 조회는 이름으로 ★ 가장 최근 것 ★ 을 준다 —
+// 생산자는 자기가 몇 번째인지 알고, 소비자는 이름만 안다.
+func (s *Store) blobPath(runID string, seq int, name string) string {
+	return filepath.Join(s.dir(runID), "blobs", fmt.Sprintf("%02d-%s", seq, safe(name)))
+}
+
+// WriteBlob 은 그 단계의 산출물을 저장한다. 상한을 넘으면 ★ 저장하지 않는다 ★.
+func (s *Store) WriteBlob(runID string, seq int, name string, r io.Reader, limit int64) (int64, error) {
+	p := s.blobPath(runID, seq, name)
+	f, err := os.CreateTemp(filepath.Dir(p), ".tmp-*")
+	if err != nil {
+		return 0, err
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp) //nolint:errcheck // 이름이 바뀌었으면 무해하다
+
+	// limit+1 까지 읽어 초과를 감지한다 — 자르지 않는다.
+	// ★ 잘린 산출물은 산출물이 아니다 ★ (로그와 다른 점이다. 로그는 잘라 표시한다.)
+	n, err := io.Copy(f, io.LimitReader(r, limit+1))
+	f.Close()
+	if err != nil {
+		return n, err
+	}
+	if n > limit {
+		return n, ErrTooBig
+	}
+	return n, os.Rename(tmp, p)
+}
+
+var (
+	ErrTooBig = errors.New("산출물이 상한을 넘는다")
+	ErrNoBlob = errors.New("그런 산출물이 없다")
+)
+
+// OpenBlob 은 이름으로 ★ 가장 최근 단계의 것 ★ 을 연다.
+func (s *Store) OpenBlob(runID, name string) (io.ReadCloser, int64, error) {
+	ents, err := os.ReadDir(filepath.Join(s.dir(runID), "blobs"))
+	if err != nil {
+		return nil, 0, ErrNoBlob
+	}
+	suffix := "-" + safe(name)
+	best := ""
+	for _, e := range ents {
+		if strings.HasSuffix(e.Name(), suffix) && e.Name() > best {
+			best = e.Name() // 접두가 %02d 라 문자열 비교가 곧 순번 비교다
+		}
+	}
+	if best == "" {
+		return nil, 0, ErrNoBlob
+	}
+	p := filepath.Join(s.dir(runID), "blobs", best)
+	fi, err := os.Stat(p)
+	if err != nil {
+		return nil, 0, ErrNoBlob
+	}
+	f, err := os.Open(p)
+	return f, fi.Size(), err
 }

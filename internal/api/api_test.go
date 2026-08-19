@@ -10,12 +10,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/taeels/enode/internal/api"
 	"github.com/taeels/enode/internal/config"
+	"github.com/taeels/enode/internal/record"
 	"github.com/taeels/enode/internal/store"
 )
 
@@ -42,12 +45,32 @@ func newServer(t *testing.T) *httptest.Server {
 	if err := st.Truncate(ctx); err != nil {
 		t.Fatal(err)
 	}
+	st.Records = newRecords(t)
 	cfg := config.Default()
 	cfg.Token = token
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := httptest.NewServer(api.New(st, cfg, log).Handler())
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+// newRecords 는 봉인된 디렉터리를 t.TempDir 이 지울 수 있게 정리를 걸어둔다.
+// ★ 봉인은 삭제까지 막는다 ★ — 그 자체가 I4 가 작동한다는 증거다.
+func newRecords(t *testing.T) *record.Store {
+	t.Helper()
+	root := t.TempDir()
+	t.Cleanup(func() {
+		_ = filepath.Walk(root, func(p string, fi os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if fi.IsDir() {
+				return os.Chmod(p, 0o755)
+			}
+			return os.Chmod(p, 0o644)
+		})
+	})
+	return record.New(root)
 }
 
 func do(t *testing.T, srv *httptest.Server, method, path, body string, hdr map[string]string) (int, map[string]any) {
@@ -327,6 +350,7 @@ func newServerFast(t *testing.T) (*httptest.Server, *store.Store) {
 	if err := st.Truncate(ctx); err != nil {
 		t.Fatal(err)
 	}
+	st.Records = newRecords(t)
 	cfg := config.Default()
 	cfg.Token = token
 	cfg.Claim.LongPollSeconds = 0 // 테스트에서는 즉시 204
@@ -619,5 +643,119 @@ func TestCancelUnknownRun(t *testing.T) {
 	srv, _ := newServerFast(t)
 	if code, _ := do(t, srv, "POST", "/v1/runs/nope/cancel", "", nil); code != 404 {
 		t.Fatalf("code=%d 기대 404", code)
+	}
+}
+
+// ═══ S8 — blob 별 모양 · 스키마 검증 ═════════════════════════════════════
+
+func schemaRun(id string, sch map[string]any) string {
+	b, _ := json.Marshal(map[string]any{
+		"run_id":   id,
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{{"id": "hypothesis", "uses": "b",
+			"run": []string{"true"}, "out": []string{"hypothesis"},
+			"schema": map[string]any{"hypothesis": sch}}},
+		"success_when": []map[string]any{{"step": "hypothesis", "produced": []string{"hypothesis"}}},
+	})
+	return string(b)
+}
+
+var okSchema = map[string]any{
+	"type": "object", "required": []string{"status"},
+	"properties": map[string]any{
+		"status": map[string]any{"enum": []string{"found", "none"}},
+		"reason": map[string]any{"type": "string"},
+	},
+}
+
+// ★ ADR-020 의 경계선이 400 이다 ★
+// 산문으로 두면 새어나가고, 그 순간 ADR-004 가 스키마를 통해 무너진다.
+func TestJudgmentKeywordRejectedAtSubmit(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	bad := map[string]any{"type": "object", "properties": map[string]any{
+		"confidence": map[string]any{"type": "number", "minimum": 0.8}}}
+	code, body := do(t, srv, "POST", "/v1/runs", schemaRun("judge", bad), nil)
+	if code != 400 {
+		t.Fatalf("★ 판정 키워드가 통과했다 ★ code=%d", code)
+	}
+	if e, _ := body["error"].(map[string]any); e == nil ||
+		!strings.Contains(e["reason"].(string), "minimum") {
+		t.Fatalf("어느 키워드가 문제인지가 안 나온다: %v", body)
+	}
+}
+
+// ★ 스키마를 어긴 산출물은 산출물이 아니다 ★
+// 422 로 거절되고 저장되지 않으므로 produced 가 불만족이 된다 —
+// success_when 에 schema_ok 같은 새 조건이 생기지 않는다.
+func TestBlobSchemaViolationIsNotStored(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/runs", schemaRun("sv", okSchema), nil)
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+
+	code, body := do(t, srv, "PUT", "/v1/runs/sv/steps/1/blob/hypothesis",
+		`{"status":"maybe"}`, nil)
+	if code != 422 {
+		t.Fatalf("code=%d 기대 422", code)
+	}
+	if e, _ := body["error"].(map[string]any); e == nil ||
+		!strings.Contains(e["reason"].(string), "enum") {
+		t.Fatalf("위반 내역이 부실하다: %v", body) // feedback 으로 되먹여져야 한다
+	}
+	// 저장되지 않았다
+	if code, _ := do(t, srv, "GET", "/v1/runs/sv/blob/hypothesis", "", nil); code != 404 {
+		t.Fatalf("★ 어긴 산출물이 저장됐다 ★ code=%d", code)
+	}
+	// 정직한 답은 통과한다 — ★ 부재가 아니라 값으로 "못 하겠다" 를 말한다 ★
+	if code, _ := do(t, srv, "PUT", "/v1/runs/sv/steps/1/blob/hypothesis",
+		`{"status":"none","reason":"패치가 주석만 바꾼다"}`, nil); code != 204 {
+		t.Fatalf("정직한 답이 거절됐다: %d", code)
+	}
+}
+
+// ★ 별 모양 ★ — 노드끼리 직접 주고받지 않고 Mediator 를 경유한다.
+func TestBlobRoundTrip(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/runs", oneStepRun("bl", "n1"), nil)
+
+	if code, _ := do(t, srv, "PUT", "/v1/runs/bl/steps/1/blob/artifact", "ELF-parent", nil); code != 204 {
+		t.Fatalf("업로드 실패: %d", code)
+	}
+	req, _ := http.NewRequest("GET", srv.URL+"/v1/runs/bl/blob/artifact", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	if string(b) != "ELF-parent" {
+		t.Fatalf("받은 것: %q", b)
+	}
+	// 다음 단계가 같은 이름을 다시 내면 ★ 최신이 온다 ★
+	do(t, srv, "PUT", "/v1/runs/bl/steps/2/blob/artifact", "ELF-patch", nil)
+	req, _ = http.NewRequest("GET", srv.URL+"/v1/runs/bl/blob/artifact", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp2, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp2.Body.Close()
+	b, _ = io.ReadAll(resp2.Body)
+	if string(b) != "ELF-patch" {
+		t.Fatalf("최신이 아니다: %q", b)
+	}
+}
+
+// ★ I4 — 종료된 Run 에는 못 쓴다 ★
+func TestBlobRefusedAfterTerminal(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/runs", oneStepRun("term", "n1"), nil)
+	do(t, srv, "POST", "/v1/runs/term/cancel", "", nil)
+	if code, _ := do(t, srv, "PUT", "/v1/runs/term/steps/1/blob/x", "late", nil); code != 410 {
+		t.Fatalf("★ 봉인된 뒤에 써졌다 ★ code=%d", code)
 	}
 }

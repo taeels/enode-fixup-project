@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -27,8 +28,11 @@ type Step struct {
 	Agent     json.RawMessage `json:"agent,omitempty"`
 	Run       []string        `json:"run,omitempty"`
 	Workspace json.RawMessage `json:"workspace,omitempty"`
-	Out       []string        `json:"out,omitempty"`
-	Lease     Lease           `json:"lease"`
+	In        struct {
+		From []string `json:"from"`
+	} `json:"in,omitempty"`
+	Out   []string `json:"out,omitempty"`
+	Lease Lease    `json:"lease"`
 }
 
 var errNoWork = errors.New("204")
@@ -77,6 +81,57 @@ func (c *Client) UploadLog(ctx context.Context, runID string, seq int, name stri
 		return fmt.Errorf("로그 거절: %s", resp.Status)
 	}
 	return nil
+}
+
+// PutBlob 은 산출물을 Mediator 로 올린다 (run-contract §4 별 모양).
+//
+// ★ 노드끼리 직접 전송하지 않는다 ★ — 서로 다른 기계라 공유 작업공간이 없고,
+// 직접 보내려면 enode 가 서로를 알아야 한다. Mediator 는 이미 전부와 말한다.
+//
+// 422 는 ★ 스키마 위반 ★ 이다 (ADR-020) — 저장되지 않았으므로 그 이름을
+// produced 에 넣으면 안 된다. 어긴 산출물은 산출물이 아니다.
+func (c *Client) PutBlob(ctx context.Context, runID string, seq int, name string, body []byte) error {
+	url := fmt.Sprintf("%s/v1/runs/%s/steps/%d/blob/%s", c.Base, runID, seq, name)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/octet-stream")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("X-Enode-Principal", c.Principal)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(b)))
+	}
+	return nil
+}
+
+// GetBlob 은 이전 단계의 산출물을 받는다. 이름으로 ★ 가장 최근 것 ★ 이 온다.
+// ★ 리다이렉트는 http.Client 가 알아서 따른다 ★ — 나중에 Mediator 가 302 로
+// 저장소를 가리켜도 이 코드는 안 바뀐다 (ADR-018).
+func (c *Client) GetBlob(ctx context.Context, runID, name string, w io.Writer) error {
+	url := fmt.Sprintf("%s/v1/runs/%s/blob/%s", c.Base, runID, name)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("X-Enode-Principal", c.Principal)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("산출물을 못 받았다: %s", resp.Status)
+	}
+	_, err = io.Copy(w, resp.Body)
+	return err
 }
 
 type Result struct {
@@ -173,6 +228,28 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	}
 	defer os.RemoveAll(out)
 
+	// ★ ①사출 ★ (ADR-013) — 이전 단계의 산출물을 $IN 에 이름별 파일로 깐다.
+	// 별 모양이므로 노드끼리 직접 주고받지 않고 Mediator 를 경유한다.
+	in, err := os.MkdirTemp("", "enode-in-")
+	if err != nil {
+		log.Error("$IN 을 만들 수 없다", "err", err)
+		return
+	}
+	defer os.RemoveAll(in)
+	for _, name := range step.In.From {
+		f, err := os.Create(filepath.Join(in, name))
+		if err == nil {
+			err = w.Client.GetBlob(ctx, step.RunID, name, f)
+			f.Close()
+		}
+		if err != nil {
+			log.Error("이전 단계 산출물을 못 받았다", "name", name, "err", err)
+			_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+				Node: w.Ident.NodeID, Error: "산출물 " + name + " 을 못 받았다"})
+			return
+		}
+	}
+
 	dir := w.Local.Workspace
 	if dir == "" {
 		dir = os.TempDir()
@@ -209,7 +286,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	cmd.Dir = dir
 	// $OUT 에 이름별 파일로 배출한다 (ADR-013) — stdout JSON 은 로그와 섞이고
 	// 구조화 출력 API 는 하네스마다 다르다. 파일은 어떤 하네스든 쓸 수 있다.
-	cmd.Env = append(os.Environ(), "OUT="+out)
+	cmd.Env = append(os.Environ(), "OUT="+out, "IN="+in)
 	var buf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &buf, &buf
 
@@ -217,7 +294,22 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	runErr := cmd.Run()
 	code := cmd.ProcessState.ExitCode()
 
-	produced := harvest(out)
+	// ★ ④수확 ★ 그리고 업로드. 올라간 것만 produced 다 —
+	// 스키마를 어긴 것은 422 로 거절되어 저장되지 않았고,
+	// ★ 어긴 산출물은 산출물이 아니다 ★ (ADR-020).
+	var produced []string
+	for _, name := range harvest(out) {
+		body, err := os.ReadFile(filepath.Join(out, name))
+		if err != nil {
+			log.Error("산출물을 못 읽었다", "name", name, "err", err)
+			continue
+		}
+		if err := w.Client.PutBlob(ctx, step.RunID, step.Seq, name, body); err != nil {
+			log.Warn("산출물이 거절됐다 — produced 에 넣지 않는다", "name", name, "err", err)
+			continue
+		}
+		produced = append(produced, name)
+	}
 	res := Result{Node: w.Ident.NodeID, Produced: produced}
 
 	// ★ 로그를 먼저 올린다 ★ — 단계가 실패해도 원문은 남아야 한다.

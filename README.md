@@ -27,7 +27,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 | **S6** | Record 봉인 + `GET record` (tar) | **`O1`·`O2`·`O3` · `I4`** |
 | **S7** | `runctl` — 제출 · 상태 · Record · 취소 | **`O5`·`O7`** |
 | ══ | **여기까지가 스켈레톤** | |
-| S8 | blob 별 모양 (2단계 Run) |  |
+| **S8** | blob 별 모양 + ★ 스키마 검증 ★ | **`I4`** |
 | S9 | agent 어댑터 (하네스 봉투 + `$OUT` 수확) |  |
 | S10 | 워크스페이스 · 스키마 검증 · `dry-run` · `capabilities` |  |
 
@@ -41,7 +41,8 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
    internal/match      요구 → 노드. ★ 순수 함수 ★ (ADR-014 결정 3)
    internal/config     ADR-015 §4 의 우선순위. ★ 사용자 경로가 /etc 를 이긴다 ★
    internal/store      PostgreSQL. ★ 매칭 로직은 여기 없다 ★
-   internal/record     ★ Run Record — DB 가 아니라 파일시스템 ★ 봉인 · tar
+   internal/record     ★ Run Record — DB 가 아니라 파일시스템 ★ 봉인 · blob · tar
+   internal/schema     ★ 형식만 ★ 검증한다. 판정 키워드는 계약을 400 으로 거절.
    internal/runctl     제출 · 상태 · Record · 취소. ★ 무상태다 ★
    internal/api        HTTP 표면. 라우팅은 표준 라이브러리만 (Go 1.22+ ServeMux)
    internal/enode      신원 · 잠금(unix/windows) · 탐지 · ★ 광고 루프 + claim 루프 ★
@@ -244,6 +245,58 @@ runctl 은 **해석되는 형태**를 쓴다. 저장소 안에서 실행되므�
 
 **목록에서 빠지는 것이 곧 통보다** (`ADR-016`) — 별도의 취소 신호가 없다.
 
+### ★ ADR-020 의 경계선을 400 으로 만들었다 ★
+
+ADR-020 이 그은 선은 산문이었다 — *에이전트가 정직하게 답했을 때 통과하지 못할 수
+있으면 그건 판정이다.* **산문으로 두면 새어나간다.** 누군가 `confidence >= 0.8` 을
+쓰는 순간 `ADR-004`(기계적 판정만)가 스키마를 통해 무너진다.
+
+그래서 허용 어휘를 좁히고 **나머지는 계약 검증에서 400 으로 거절한다.**
+
+```text
+   ○ type · required · properties · enum · items · additionalProperties
+   ✗ minimum · maxLength · pattern · format · minItems …
+
+   400 step "hypothesis" 의 hypothesis: 스키마 confidence 의 minimum 는 쓸 수 없다
+       — 값의 크기로 판정한다 (ADR-020: 스키마는 형식만 제약한다)
+```
+
+`I1` 을 기본키로, `I4` 를 chmod 로 강제한 것과 같은 결이다.
+
+### ★ 어긴 산출물은 산출물이 아니다 ★
+
+```text
+   PUT blob ──▶ 스키마 위반 ──▶ 422 · ★ 저장하지 않는다 ★
+                                    ▼
+                          produced 에 그 이름이 없다
+                                    ▼
+                          success_when 이 불만족 → Run FAILED
+```
+
+**`success_when` 에 `schema_ok` 같은 새 조건이 안 생긴다.** 판정 기준은 여전히
+`produced` 하나다. 위반 내역은 `feedback` 으로 되먹여진다 — 되먹이는 것이
+LLM 의 의견이 아니라 **검증기의 출력**이라는 것이 OpenHands 와의 차이다.
+
+### 별 모양 — 노드끼리 직접 주고받지 않는다
+
+```text
+   PUT  /v1/runs/{run}/steps/{seq}/blob/{name}   생산자는 자기가 몇 번째인지 안다
+   GET  /v1/runs/{run}/blob/{name}               소비자는 이름만 안다 — ★ 최신 ★ 을 준다
+```
+
+경로가 비대칭인 이유가 있다. 계약에서 `parent_build` 와 `patch_build` 가
+**둘 다 `artifact` 를 낸다.** 이름만으로 키를 잡으면 뒤엣것이 앞엣것을 덮어
+**차분 반증의 두 아티팩트를 봉인된 기록에서 구분할 수 없게 된다.**
+
+```text
+   실측:  blobs/01-artifact  ELF-parent-…      ┐ ★ 둘 다 남는다 ★
+          blobs/03-artifact  ELF-patch         ┘
+          board 노드의 로그: "받은 것: ELF-parent-…" → "받은 것: ELF-patch"
+```
+
+`GET` 은 `ADR-018` 대로 나중에 302 로 저장소를 가리킬 수 있다 — `http.Client` 가
+리다이렉트를 따르므로 **enode 코드는 그때도 안 바뀐다.**
+
 ## 테스트
 
 ```bash
@@ -252,6 +305,10 @@ go test ./...
 ```
 
 `ENODE_TEST_DATABASE_URL` 이 없으면 DB 테스트는 `t.Skip` 한다.
+
+**단위 테스트는 자기 데이터베이스(`enode_test`)를 쓴다.** 손으로 띄워둔 enode 와
+같은 DB 를 공유하면 그 enode 가 계속 광고해서 *"함대에 없다(422)"* 를 기대한
+테스트가 **조용히 201 을 받는다** — 실제로 밟았다.
 **CI 에는 그 스킵을 잡는 단계가 따로 있다** — 조용히 안 도는 것이 가장 나쁘다.
 
 ## 테스트가 곧 명세다

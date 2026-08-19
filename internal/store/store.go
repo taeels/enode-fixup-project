@@ -239,17 +239,17 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 			return err
 		}
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
 	// ★ 실행 중에는 붙이기만 한다 ★ (성질 1: append-only) —
 	// 디렉터리를 지금 열어두고 로그가 쌓이게 한다. 봉인은 종료 시 한 번뿐이다.
+	//
+	// ★ 커밋 전에 연다 ★ — 커밋 뒤에 열다 실패하면 Run 은 이미 있는데
+	// 호출자는 에러를 받아 상태가 갈린다.
 	if s.Records != nil {
 		if err := s.Records.Open(r.RunID); err != nil {
 			return err
 		}
 	}
-	return nil
+	return tx.Commit(ctx)
 }
 
 // CreateRejectedRun 은 매칭이 거절된 Run 을 기록한다.

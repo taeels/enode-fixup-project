@@ -185,3 +185,54 @@ func TestPathTraversalIsBlocked(t *testing.T) {
 		t.Fatal("★ 경로를 탈출했다 ★")
 	}
 }
+
+// ★ 계약에서 parent_build 와 patch_build 가 둘 다 artifact 를 낸다 ★
+// 이름만으로 키를 잡으면 뒤엣것이 앞엣것을 덮어 차분 반증의 두 아티팩트를
+// 봉인된 기록에서 구분할 수 없게 된다 (성질 4 자기충족이 깨진다).
+func TestBlobKeepsEveryStepButServesLatest(t *testing.T) {
+	s := newStore(t)
+	if err := s.Open("r"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.WriteBlob("r", 1, "artifact", strings.NewReader("ELF-parent"), 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.WriteBlob("r", 3, "artifact", strings.NewReader("ELF-patch"), 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	// 조회는 ★ 가장 최근 ★ 을 준다 — 소비자는 이름만 안다
+	f, _, err := s.OpenBlob("r", "artifact")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(f)
+	f.Close()
+	if string(b) != "ELF-patch" {
+		t.Fatalf("최신이 아니다: %q", b)
+	}
+	// 그런데 ★ 둘 다 남아 있어야 한다 ★
+	for _, name := range []string{"01-artifact", "03-artifact"} {
+		if _, err := os.Stat(filepath.Join(s.dir("r"), "blobs", name)); err != nil {
+			t.Fatalf("★ 단계별 산출물이 덮어써졌다 ★: %s 가 없다", name)
+		}
+	}
+}
+
+// ★ 잘린 산출물은 산출물이 아니다 ★ (로그와 다른 점이다 — 로그는 잘라 표시한다)
+func TestBlobRefusesOversize(t *testing.T) {
+	s := newStore(t)
+	if err := s.Open("r"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.WriteBlob("r", 1, "big", strings.NewReader(strings.Repeat("x", 100)), 10); err != ErrTooBig {
+		t.Fatalf("err=%v 기대 ErrTooBig", err)
+	}
+	if _, _, err := s.OpenBlob("r", "big"); err != ErrNoBlob {
+		t.Fatal("★ 상한을 넘었는데 저장됐다 ★")
+	}
+	// 임시 파일도 안 남아야 한다
+	ents, _ := os.ReadDir(filepath.Join(s.dir("r"), "blobs"))
+	if len(ents) != 0 {
+		t.Fatalf("찌꺼기가 남았다: %v", ents)
+	}
+}

@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/taeels/enode/internal/schema"
 )
 
 // CapabilityAgentReason 은 MVP 의 유일한 capability 다 (ADR-019).
@@ -198,6 +200,15 @@ type Condition struct {
 	WithinAttempts bool `json:"within_attempts,omitempty"`
 }
 
+func contains(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
+
 var (
 	ErrNoRunID       = errors.New("run_id 가 없다")
 	ErrNoRequires    = errors.New("requires 가 비어 있다")
@@ -251,6 +262,17 @@ func (c Contract) Validate() error {
 		kinds[s.ID] = k
 		if !roles[s.Uses] {
 			return fmt.Errorf("step %q 가 없는 역할 %q 를 쓴다", s.ID, s.Uses)
+		}
+		// ★ ADR-020 의 경계선을 여기서 400 으로 만든다 ★
+		// "스키마는 형식만 제약한다" 를 산문으로 두면 새어나가고,
+		// 그 순간 ADR-004(기계적 판정만)가 스키마를 통해 무너진다.
+		for name, sch := range s.Schema {
+			if err := schema.CheckBoundary(sch); err != nil {
+				return fmt.Errorf("step %q 의 %s: %w", s.ID, name, err)
+			}
+			if !contains(s.Out, name) {
+				return fmt.Errorf("step %q 가 내지 않는 산출물 %q 에 스키마를 달았다", s.ID, name)
+			}
 		}
 	}
 
