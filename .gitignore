@@ -1,0 +1,8 @@
+# Go
+/bin/
+*.exe
+*.test
+*.out
+
+# 로컬 설정 (신원이 되는 파일 — ADR-015 §2)
+/local/
