@@ -57,6 +57,18 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 				v.State = StateFailed
 			}
 		}
+		if cond.WithinAttempts {
+			// ★ 재시도 소진이 verdict 로 잡힌다 ★ — 루프는 제어 흐름이고
+			// 성패는 여기서 정해진다 (ADR-004: 계약에 선언된 기계적 조건으로만).
+			ok := !res.Exhausted
+			v.Checks = append(v.Checks, Check{
+				Step: cond.Step, What: "within_attempts", Want: true, Got: ok, OK: ok,
+				Note: noteIf(!ok, "재시도를 소진했다"),
+			})
+			if !ok {
+				v.State = StateFailed
+			}
+		}
 		if len(cond.Produced) > 0 {
 			have := map[string]bool{}
 			for _, p := range res.Produced {
@@ -83,10 +95,17 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 	return v
 }
 
+func noteIf(cond bool, s string) string {
+	if cond {
+		return s
+	}
+	return ""
+}
+
 // StepResults 는 대조에 쓸 결과를 모은다. 이름(계약의 steps[].id)으로 색인한다.
 func (s *Store) StepResults(ctx context.Context, runID string) (map[string]StepResult, error) {
 	rows, err := s.pool.Query(ctx,
-		`SELECT name, result FROM steps WHERE run_id=$1 AND result IS NOT NULL`, runID)
+		`SELECT name, result, attempt FROM steps WHERE run_id=$1 AND result IS NOT NULL`, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -95,13 +114,15 @@ func (s *Store) StepResults(ctx context.Context, runID string) (map[string]StepR
 	for rows.Next() {
 		var name string
 		var raw []byte
-		if err := rows.Scan(&name, &raw); err != nil {
+		var attempt int
+		if err := rows.Scan(&name, &raw, &attempt); err != nil {
 			return nil, err
 		}
 		var r StepResult
 		if err := json.Unmarshal(raw, &r); err != nil {
 			return nil, err
 		}
+		r.Attempt = attempt
 		out[name] = r
 	}
 	return out, rows.Err()

@@ -194,10 +194,10 @@ func TestBlobKeepsEveryStepButServesLatest(t *testing.T) {
 	if err := s.Open("r"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.WriteBlob("r", 1, "artifact", strings.NewReader("ELF-parent"), 1<<20); err != nil {
+	if _, err := s.WriteBlob("r", 1, 0, "artifact", strings.NewReader("ELF-parent"), 1<<20); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.WriteBlob("r", 3, "artifact", strings.NewReader("ELF-patch"), 1<<20); err != nil {
+	if _, err := s.WriteBlob("r", 3, 0, "artifact", strings.NewReader("ELF-patch"), 1<<20); err != nil {
 		t.Fatal(err)
 	}
 	// 조회는 ★ 가장 최근 ★ 을 준다 — 소비자는 이름만 안다
@@ -211,7 +211,7 @@ func TestBlobKeepsEveryStepButServesLatest(t *testing.T) {
 		t.Fatalf("최신이 아니다: %q", b)
 	}
 	// 그런데 ★ 둘 다 남아 있어야 한다 ★
-	for _, name := range []string{"01-artifact", "03-artifact"} {
+	for _, name := range []string{"01.0-artifact", "03.0-artifact"} {
 		if _, err := os.Stat(filepath.Join(s.dir("r"), "blobs", name)); err != nil {
 			t.Fatalf("★ 단계별 산출물이 덮어써졌다 ★: %s 가 없다", name)
 		}
@@ -224,7 +224,7 @@ func TestBlobRefusesOversize(t *testing.T) {
 	if err := s.Open("r"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.WriteBlob("r", 1, "big", strings.NewReader(strings.Repeat("x", 100)), 10); err != ErrTooBig {
+	if _, err := s.WriteBlob("r", 1, 0, "big", strings.NewReader(strings.Repeat("x", 100)), 10); err != ErrTooBig {
 		t.Fatalf("err=%v 기대 ErrTooBig", err)
 	}
 	if _, _, err := s.OpenBlob("r", "big"); err != ErrNoBlob {
@@ -234,5 +234,43 @@ func TestBlobRefusesOversize(t *testing.T) {
 	ents, _ := os.ReadDir(filepath.Join(s.dir("r"), "blobs"))
 	if len(ents) != 0 {
 		t.Fatalf("찌꺼기가 남았다: %v", ents)
+	}
+}
+
+// ★ "가장 큰 seq" 가 아니라 "가장 최근" 이다 ★
+//
+// 순번으로 고르면 재시도가 깨진다 — write_test(1) 를 다시 돌려 좋은 것을 냈는데,
+// 앞 회차에 parent_build(2) 가 같은 이름으로 남긴 나쁜 것이 순번이 크다는 이유로
+// 이긴다. ★ 순번 순서는 전진만 할 때의 규칙이고 재시도 루프는 뒤로 돌아간다. ★
+func TestBlobRecencyBeatsSequence(t *testing.T) {
+	s := newStore(t)
+	if err := s.Open("r"); err != nil {
+		t.Fatal(err)
+	}
+	// 1회차: agent(1) 이 나쁜 것 → builder(2) 가 같은 이름으로 복사
+	if _, err := s.WriteBlob("r", 1, 0, "test_source", strings.NewReader("BROKEN"), 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.WriteBlob("r", 2, 0, "test_source", strings.NewReader("BROKEN"), 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	// 2회차: agent(1) 이 고친 것 — ★ 순번은 작지만 회차가 높다 ★
+	if _, err := s.WriteBlob("r", 1, 1, "test_source", strings.NewReader("GOOD"), 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	f, _, err := s.OpenBlob("r", "test_source")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(f)
+	f.Close()
+	if string(b) != "GOOD" {
+		t.Fatalf("★ 재시도가 가려졌다 ★ 받은 것: %q", b)
+	}
+	// ★ 회차별로 전부 남아야 한다 ★ — "왜 두 번 시도했는가" 가 재구성되어야 한다
+	for _, n := range []string{"01.0-test_source", "01.1-test_source", "02.0-test_source"} {
+		if _, err := os.Stat(filepath.Join(s.dir("r"), "blobs", n)); err != nil {
+			t.Fatalf("회차 기록이 사라졌다: %s", n)
+		}
 	}
 }

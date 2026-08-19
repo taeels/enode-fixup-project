@@ -24,6 +24,10 @@ type Local struct {
 	// 크로스 툴체인 탐지가 애매할 때만 명시한다. 비우면 자동 탐지한다.
 	Arch string `yaml:"arch,omitempty"`
 
+	// HarnessBin 은 하네스 실행 파일이다. 비우면 claude.
+	// 시험용 스텁을 가리키게 할 수 있다.
+	HarnessBin string `yaml:"harness_bin,omitempty"`
+
 	// 이 값 아래로 떨어지면 빌드 능력을 ★ 광고에서 뺀다 ★ (ADR-017 결정 3).
 	// 매칭 조건이 아니라 광고 조건이다 — "할 수 있는가" 는 노드가 판단한다.
 	MinFreeGB int `yaml:"min_free_gb,omitempty"`

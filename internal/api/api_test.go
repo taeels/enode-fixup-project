@@ -759,3 +759,95 @@ func TestBlobRefusedAfterTerminal(t *testing.T) {
 		t.Fatalf("★ 봉인된 뒤에 써졌다 ★ code=%d", code)
 	}
 }
+
+// ═══ S9 — ⑥ 의 재시도 루프 (ADR-013 · ADR-014 결정 1) ════════════════════
+
+func loopRun(id string, maxAttempts int) string {
+	b, _ := json.Marshal(map[string]any{
+		"run_id":   id,
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{
+			{"id": "write_test", "uses": "b", "agent": map[string]any{"ask": "never"},
+				"out": []string{"test_source"}, "validate_with": "build",
+				"max_attempts": maxAttempts, "feedback": []string{"build_log"}},
+			{"id": "build", "uses": "b", "run": []string{"true"},
+				"in": map[string]any{"from": []string{"test_source"}}, "out": []string{"build_log"}},
+		},
+		"success_when": []map[string]any{
+			{"step": "write_test", "within_attempts": true, "produced": []string{"test_source"}},
+			{"step": "build", "exit_code": 0},
+		},
+	})
+	return string(b)
+}
+
+// ★ 루프를 도는 주체는 Mediator 다 ★ — agent 노드와 build 노드는 서로를 모른다.
+func TestRetryLoopIsDrivenByMediator(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/runs", loopRun("loop", 3), nil)
+
+	// 1회차 — agent 는 내고, 검증자가 실패한다
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/loop/steps/1/result", `{"node":"n1","produced":["test_source"]}`, nil)
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	code, body := do(t, srv, "POST", "/v1/runs/loop/steps/2/result",
+		`{"node":"n1","exit_code":2,"produced":["build_log"]}`, nil)
+	if code != 200 || body["retried"] != true {
+		t.Fatalf("★ 되먹여 재시도하지 않았다 ★: %d %v", code, body)
+	}
+
+	// ★ agent 단계가 다시 나와야 하고 회차가 올라 있어야 한다 ★
+	code, step := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	if code != 200 || step["name"] != "write_test" {
+		t.Fatalf("재시도 단계가 안 나왔다: %d %v", code, step)
+	}
+	if a, _ := step["attempt"].(float64); a != 1 {
+		t.Fatalf("attempt=%v 기대 1 — 되먹임을 프롬프트에 실을 근거가 없다", step["attempt"])
+	}
+	if fb, _ := step["feedback"].([]any); len(fb) != 1 {
+		t.Fatalf("feedback 이름이 안 실렸다: %v", step["feedback"])
+	}
+
+	// 2회차 — 이번엔 검증자가 통과한다
+	do(t, srv, "POST", "/v1/runs/loop/steps/1/result", `{"node":"n1","produced":["test_source"]}`, nil)
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/loop/steps/2/result",
+		`{"node":"n1","exit_code":0,"produced":["build_log"]}`, nil)
+
+	_, run := do(t, srv, "GET", "/v1/runs/loop", "", nil)
+	if run["state"] != "SUCCEEDED" {
+		t.Fatalf("state=%v 기대 SUCCEEDED · %v", run["state"], run["verdict"])
+	}
+}
+
+// ★ 소진은 verdict 가 잡는다 ★ — 루프는 제어 흐름이고 성패는 success_when 이 정한다.
+func TestRetryExhaustionFailsViaWithinAttempts(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/runs", loopRun("ex", 2), nil)
+
+	for i := 0; i < 2; i++ {
+		do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+		do(t, srv, "POST", "/v1/runs/ex/steps/1/result", `{"node":"n1","produced":["test_source"]}`, nil)
+		do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+		do(t, srv, "POST", "/v1/runs/ex/steps/2/result",
+			`{"node":"n1","exit_code":2,"produced":["build_log"]}`, nil)
+	}
+	_, run := do(t, srv, "GET", "/v1/runs/ex", "", nil)
+	if run["state"] != "FAILED" {
+		t.Fatalf("state=%v 기대 FAILED", run["state"])
+	}
+	v, _ := run["verdict"].(map[string]any)
+	checks, _ := v["checks"].([]any)
+	found := false
+	for _, c := range checks {
+		m := c.(map[string]any)
+		if m["what"] == "within_attempts" && m["ok"] == false {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("★ 소진이 verdict 에 안 잡혔다 ★: %v", v)
+	}
+}

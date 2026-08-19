@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -245,13 +246,17 @@ func (s *Store) Tar(runID string, w io.Writer) error {
 //
 // 그래서 저장은 단계별로 하고, 조회는 이름으로 ★ 가장 최근 것 ★ 을 준다 —
 // 생산자는 자기가 몇 번째인지 알고, 소비자는 이름만 안다.
-func (s *Store) blobPath(runID string, seq int, name string) string {
-	return filepath.Join(s.dir(runID), "blobs", fmt.Sprintf("%02d-%s", seq, safe(name)))
+// ★ 파일 이름에 시도 회차가 들어간다 ★
+// 재시도 루프가 같은 단계를 다시 돌리므로, 회차를 안 넣으면 앞 회차의 산출물을
+// 덮어써 "왜 3번 시도했는가" 를 봉인된 기록에서 재구성할 수 없다.
+func (s *Store) blobPath(runID string, seq, attempt int, name string) string {
+	return filepath.Join(s.dir(runID), "blobs",
+		fmt.Sprintf("%02d.%d-%s", seq, attempt, safe(name)))
 }
 
 // WriteBlob 은 그 단계의 산출물을 저장한다. 상한을 넘으면 ★ 저장하지 않는다 ★.
-func (s *Store) WriteBlob(runID string, seq int, name string, r io.Reader, limit int64) (int64, error) {
-	p := s.blobPath(runID, seq, name)
+func (s *Store) WriteBlob(runID string, seq, attempt int, name string, r io.Reader, limit int64) (int64, error) {
+	p := s.blobPath(runID, seq, attempt, name)
 	f, err := os.CreateTemp(filepath.Dir(p), ".tmp-*")
 	if err != nil {
 		return 0, err
@@ -277,17 +282,47 @@ var (
 	ErrNoBlob = errors.New("그런 산출물이 없다")
 )
 
-// OpenBlob 은 이름으로 ★ 가장 최근 단계의 것 ★ 을 연다.
+// parseBlobName 은 "%02d.%d-이름" 에서 순번과 회차를 뽑는다.
+func parseBlobName(n string) (seq, attempt int, ok bool) {
+	dot := strings.IndexByte(n, '.')
+	dash := strings.IndexByte(n, '-')
+	if dot < 0 || dash < 0 || dot > dash {
+		return 0, 0, false
+	}
+	s, err1 := strconv.Atoi(n[:dot])
+	a, err2 := strconv.Atoi(n[dot+1 : dash])
+	return s, a, err1 == nil && err2 == nil
+}
+
+// OpenBlob 은 이름으로 ★ 가장 최근에 만들어진 것 ★ 을 연다.
+//
+// ★ "가장 큰 순번" 이 아니라 "(회차, 순번) 이 가장 큰 것" 이다 ★
+//
+// 순번만으로 고르면 ★ 재시도가 깨진다 ★ — write_test(1) 를 다시 돌려 좋은 것을
+// 냈는데, 앞 회차에 parent_build(2) 가 같은 이름으로 남긴 나쁜 것이 순번이
+// 크다는 이유로 이긴다. 순번 순서는 ★ 전진만 할 때 ★ 의 규칙이고 재시도 루프는
+// 뒤로 돌아간다. 실측에서 밟았다.
+//
+// mtime 을 쓰면 같은 순간에 쓰인 둘의 순서가 안 정해진다. 그래서 회차를 앞에 둔다 —
+// ★ 재시도는 대상과 검증자의 회차를 함께 올리므로 ★ 한 회차 안에서는 순번이 순서다.
 func (s *Store) OpenBlob(runID, name string) (io.ReadCloser, int64, error) {
 	ents, err := os.ReadDir(filepath.Join(s.dir(runID), "blobs"))
 	if err != nil {
 		return nil, 0, ErrNoBlob
 	}
 	suffix := "-" + safe(name)
-	best := ""
+	best, bestSeq, bestAtt := "", -1, -1
 	for _, e := range ents {
-		if strings.HasSuffix(e.Name(), suffix) && e.Name() > best {
-			best = e.Name() // 접두가 %02d 라 문자열 비교가 곧 순번 비교다
+		if !strings.HasSuffix(e.Name(), suffix) {
+			continue
+		}
+		seq, att, ok := parseBlobName(e.Name())
+		if !ok {
+			continue
+		}
+		// ★ (회차, 순번) 순서다 ★ — mtime 은 같은 순간에 쓰이면 순서가 안 정해진다.
+		if att > bestAtt || (att == bestAtt && seq > bestSeq) {
+			best, bestSeq, bestAtt = e.Name(), seq, att
 		}
 	}
 	if best == "" {

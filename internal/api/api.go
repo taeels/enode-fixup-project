@@ -241,6 +241,14 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, err.Error())
 		return
 	}
+	// ★ 재시도 루프를 먼저 본다 ★ (ADR-013 · ADR-014 결정 1) —
+	// 되돌려졌으면 아직 진행 중이므로 정산하지 않는다.
+	if retried, err := s.st.MaybeRetry(r.Context(), runID, seq, s.log); err != nil {
+		s.log.Error("재시도 판단 실패", "run", runID, "err", err)
+	} else if retried {
+		write(w, 200, map[string]any{"run_id": runID, "seq": seq, "retried": true})
+		return
+	}
 	state, err := s.st.SettleIfDone(r.Context(), runID)
 	if err != nil {
 		s.log.Error("정산 실패", "run", runID, "err", err)
@@ -478,6 +486,12 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	limit := s.cfg.Artifacts.MaxBlobBytes
+	// 회차는 ★ Mediator 가 안다 ★ — 클라이언트가 보내지 않는다.
+	attempt, err := s.st.StepAttempt(r.Context(), runID, seq)
+	if err != nil {
+		fail(w, 404, "그런 단계가 없다")
+		return
+	}
 	sch := schemaFor(run.Contract, seq, name)
 	if sch != nil {
 		// 스키마가 걸린 산출물은 검증해야 하므로 먼저 읽는다.
@@ -501,7 +515,7 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 			fail(w, 422, "스키마 위반 — "+strings.Join(parts, " / "))
 			return
 		}
-		if _, err := s.records.WriteBlob(runID, seq, name, bytes.NewReader(body), limit); err != nil {
+		if _, err := s.records.WriteBlob(runID, seq, attempt, name, bytes.NewReader(body), limit); err != nil {
 			s.log.Error("산출물 저장 실패", "run", runID, "name", name, "err", err)
 			fail(w, 503, "저장 실패")
 			return
@@ -510,7 +524,7 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := s.records.WriteBlob(runID, seq, name, r.Body, limit); err != nil {
+	if _, err := s.records.WriteBlob(runID, seq, attempt, name, r.Body, limit); err != nil {
 		if errors.Is(err, record.ErrTooBig) {
 			// ★ 잘라 저장하지 않는다 ★ — 잘린 산출물은 산출물이 아니다.
 			// (로그는 잘라 표시한다. 자리가 다르다.)

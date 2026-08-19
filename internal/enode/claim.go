@@ -29,10 +29,14 @@ type Step struct {
 	Run       []string        `json:"run,omitempty"`
 	Workspace json.RawMessage `json:"workspace,omitempty"`
 	In        struct {
-		From []string `json:"from"`
+		Prompt string   `json:"prompt"`
+		From   []string `json:"from"`
 	} `json:"in,omitempty"`
-	Out   []string `json:"out,omitempty"`
-	Lease Lease    `json:"lease"`
+	Out      []string                   `json:"out,omitempty"`
+	Schema   map[string]json.RawMessage `json:"schema,omitempty"`
+	Attempt  int                        `json:"attempt,omitempty"`
+	Feedback []string                   `json:"feedback,omitempty"`
+	Lease    Lease                      `json:"lease"`
 }
 
 var errNoWork = errors.New("204")
@@ -135,9 +139,10 @@ func (c *Client) GetBlob(ctx context.Context, runID, name string, w io.Writer) e
 }
 
 type Result struct {
-	Node     string   `json:"node"`
-	ExitCode *int     `json:"exit_code,omitempty"`
-	Produced []string `json:"produced,omitempty"`
+	Node     string         `json:"node"`
+	ExitCode *int           `json:"exit_code,omitempty"`
+	Produced []string       `json:"produced,omitempty"`
+	Harness  *HarnessResult `json:"harness,omitempty"` // agent 단계만 (ADR-020)
 	// Error 는 ★ 완주하지 못한 ★ 경우에만 채운다.
 	// 종료코드가 0 이 아닌 것은 완주다 — 그게 성공인지는 success_when 이 판정한다.
 	Error string `json:"error,omitempty"`
@@ -198,8 +203,21 @@ func (w *Worker) Run(ctx context.Context) {
 			continue
 		}
 		w.Held.Add(step.Lease)
-		w.execute(ctx, step)
+		w.safeExecute(ctx, step)
 	}
+}
+
+// safeExecute 는 ★ 한 단계의 패닉이 노드를 죽이지 않게 한다 ★.
+// 죽으면 그 노드가 든 다른 임대까지 갱신이 끊겨 무관한 Run 이 회수된다.
+func (w *Worker) safeExecute(ctx context.Context, step *Step) {
+	defer func() {
+		if r := recover(); r != nil {
+			w.Log.Error("단계 실행 중 패닉", "step", step.StepID, "panic", r)
+			_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+				Node: w.Ident.NodeID, Error: fmt.Sprintf("어댑터 패닉: %v", r)})
+		}
+	}()
+	w.execute(ctx, step)
 }
 
 func (w *Worker) execute(ctx context.Context, step *Step) {
@@ -210,14 +228,6 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// 실행이 멈추는 장치가 이것이다.
 	if _, ok := w.Held.Valid(step.RunID); !ok {
 		log.Warn("임대가 유효하지 않다 — 실행하지 않는다")
-		return
-	}
-
-	if step.Kind != "run" {
-		// agent 단계는 S9. 지금 실행하면 판정 없이 성공으로 보이게 된다.
-		log.Warn("agent 단계는 아직 구현하지 않았다")
-		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
-			Node: w.Ident.NodeID, Error: "agent 단계 미구현 (S9)"})
 		return
 	}
 
@@ -282,6 +292,18 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		}
 	}()
 
+	// ★ 단계는 두 종류다 ★ (ADR-019 결정 3) — 노드는 합쳤지만 단계는 안 합쳤다.
+	// agent 단계는 produced 로, 명령 단계는 exit_code 로 판정한다.
+	if step.Kind == "agent" {
+		w.runAgentStep(runCtx, ctx, step, dir, in, out, log)
+		return
+	}
+	if len(step.Run) == 0 {
+		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+			Node: w.Ident.NodeID, Error: "명령 단계인데 run 이 비었다"})
+		return
+	}
+
 	cmd := exec.CommandContext(runCtx, step.Run[0], step.Run[1:]...)
 	cmd.Dir = dir
 	// $OUT 에 이름별 파일로 배출한다 (ADR-013) — stdout JSON 은 로그와 섞이고
@@ -294,23 +316,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	runErr := cmd.Run()
 	code := cmd.ProcessState.ExitCode()
 
-	// ★ ④수확 ★ 그리고 업로드. 올라간 것만 produced 다 —
-	// 스키마를 어긴 것은 422 로 거절되어 저장되지 않았고,
-	// ★ 어긴 산출물은 산출물이 아니다 ★ (ADR-020).
-	var produced []string
-	for _, name := range harvest(out) {
-		body, err := os.ReadFile(filepath.Join(out, name))
-		if err != nil {
-			log.Error("산출물을 못 읽었다", "name", name, "err", err)
-			continue
-		}
-		if err := w.Client.PutBlob(ctx, step.RunID, step.Seq, name, body); err != nil {
-			log.Warn("산출물이 거절됐다 — produced 에 넣지 않는다", "name", name, "err", err)
-			continue
-		}
-		produced = append(produced, name)
-	}
-	res := Result{Node: w.Ident.NodeID, Produced: produced}
+	res := Result{Node: w.Ident.NodeID, Produced: w.uploadProduced(ctx, step, out, log)}
 
 	// ★ 로그를 먼저 올린다 ★ — 단계가 실패해도 원문은 남아야 한다.
 	// 여기서 실패해도 결과 보고는 계속한다. 로그가 없다고 Run 을 멈출 이유는 없다.
@@ -332,13 +338,89 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		// exit 2 로 끝난 빌드도 완주한 것이고, 성공 여부는 success_when 이 판정한다
 		// (ADR-004 · I3). 여기서 판정하면 O4 가 성립하지 않는다.
 		res.ExitCode = &code
-		log.Info("단계 끝", "exit", code, "produced", produced,
+		log.Info("단계 끝", "exit", code, "produced", res.Produced,
 			"took", time.Since(start).Round(time.Millisecond))
 	}
 
 	if err := w.Client.Report(ctx, step.RunID, step.Seq, res); err != nil && ctx.Err() == nil {
 		log.Error("결과 보고 실패", "err", err)
 	}
+}
+
+// runAgentStep 은 ADR-013 의 어댑터 넷 중 ②기동을 부르고 ④수확으로 잇는다.
+// ①사출은 위에서 이미 했다 ($IN + 프롬프트 조립).
+func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, log *slog.Logger) {
+	p, err := parseAgentParams(step.Agent)
+	if err != nil {
+		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+			Node: w.Ident.NodeID, Error: err.Error()})
+		return
+	}
+	bin := w.Local.HarnessBin
+	if bin == "" {
+		bin = "claude"
+	}
+
+	// 되먹임 — 앞 시도의 산출물을 프롬프트에 싣는다 (ADR-013 의 루프).
+	// ★ 되먹이는 것이 LLM 의 의견이 아니라 검증기·빌드의 출력이다 ★
+	feedback := map[string]string{}
+	if step.Attempt > 0 {
+		for _, n := range step.Feedback {
+			var buf bytes.Buffer
+			if err := w.Client.GetBlob(ctx, step.RunID, n, &buf); err == nil {
+				feedback[n] = buf.String()
+			}
+		}
+	}
+
+	log.Debug("agent 단계 준비", "attempt", step.Attempt,
+		"feedback_names", step.Feedback, "feedback_got", len(feedback),
+		"out", step.Out, "schema", len(step.Schema))
+	prompt := buildPrompt(step.In.Prompt, step.Out, step.Schema, feedback, step.Attempt)
+	writePromptFile(out, prompt)
+
+	logBytes, h := runAgent(runCtx, bin, p, prompt, dir, in, out)
+	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
+
+	res := Result{Node: w.Ident.NodeID, Harness: &h}
+	if !h.Reason.Completed() {
+		// ★ 크래시는 완주가 아니다 ★ — 반쯤 쓴 파일을 믿을 수 없다
+		res.Error = "하네스: " + string(h.Reason) + " " + h.Message
+		log.Warn("하네스가 완주하지 못했다", "reason", h.Reason, "msg", h.Message)
+		_ = w.Client.Report(ctx, step.RunID, step.Seq, res)
+		return
+	}
+	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
+	res.Produced = w.uploadProduced(ctx, step, out, log)
+	log.Info("agent 단계 끝", "reason", h.Reason, "turns", h.Turns,
+		"cost_usd", h.CostUSD, "produced", res.Produced)
+	if err := w.Client.Report(ctx, step.RunID, step.Seq, res); err != nil && ctx.Err() == nil {
+		log.Error("결과 보고 실패", "err", err)
+	}
+}
+
+// uploadProduced 는 ④수확이다 — $OUT 을 걷어 올린다.
+//
+// ★ 올라간 것만 produced 다 ★ — 스키마를 어긴 것은 422 로 거절되어
+// 저장되지 않았고, ★ 어긴 산출물은 산출물이 아니다 ★ (ADR-020).
+func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, log *slog.Logger) []string {
+	var produced []string
+	for _, name := range harvest(out) {
+		if strings.HasPrefix(name, ".enode-") {
+			continue // 어댑터가 남긴 것 (프롬프트 등) 은 산출물이 아니다
+		}
+		body, err := os.ReadFile(filepath.Join(out, name))
+		if err != nil {
+			log.Error("산출물을 못 읽었다", "name", name, "err", err)
+			continue
+		}
+		if err := w.Client.PutBlob(ctx, step.RunID, step.Seq, name, body); err != nil {
+			log.Warn("산출물이 거절됐다 — produced 에 넣지 않는다", "name", name, "err", err)
+			continue
+		}
+		produced = append(produced, name)
+	}
+	return produced
 }
 
 // harvest 는 $OUT 에 이름별로 놓인 것을 걷는다 (ADR-013 ④수확).

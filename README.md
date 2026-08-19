@@ -28,7 +28,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 | **S7** | `runctl` — 제출 · 상태 · Record · 취소 | **`O5`·`O7`** |
 | ══ | **여기까지가 스켈레톤** | |
 | **S8** | blob 별 모양 + ★ 스키마 검증 ★ | **`I4`** |
-| S9 | agent 어댑터 (하네스 봉투 + `$OUT` 수확) |  |
+| **S9** | agent 어댑터 + ★ ⑥ 의 재시도 루프 ★ |  |
 | S10 | 워크스페이스 · 스키마 검증 · `dry-run` · `capabilities` |  |
 
 **S4 가 최대 위험이다.** `ADR-016`(하트비트가 임대를 나른다)은 설계만 있고
@@ -43,6 +43,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
    internal/store      PostgreSQL. ★ 매칭 로직은 여기 없다 ★
    internal/record     ★ Run Record — DB 가 아니라 파일시스템 ★ 봉인 · blob · tar
    internal/schema     ★ 형식만 ★ 검증한다. 판정 키워드는 계약을 400 으로 거절.
+   internal/enode      … + agent 어댑터(사출·기동·수확) · 하네스 봉투 정규화
    internal/runctl     제출 · 상태 · Record · 취소. ★ 무상태다 ★
    internal/api        HTTP 표면. 라우팅은 표준 라이브러리만 (Go 1.22+ ServeMux)
    internal/enode      신원 · 잠금(unix/windows) · 탐지 · ★ 광고 루프 + claim 루프 ★
@@ -296,6 +297,70 @@ LLM 의 의견이 아니라 **검증기의 출력**이라는 것이 OpenHands �
 
 `GET` 은 `ADR-018` 대로 나중에 302 로 저장소를 가리킬 수 있다 — `http.Client` 가
 리다이렉트를 따르므로 **enode 코드는 그때도 안 바뀐다.**
+
+### agent 어댑터 — 넷으로 쪼갠 것 중 셋
+
+```text
+   ① 사출   $IN 에 이전 산출물 · 프롬프트에 ★ 배출 규약 + 스키마 + 되먹임 ★
+   ② 기동   claude -p --output-format json --max-turns N
+   ③ 되묻기 ★ 비어 있다 ★ — ask:never (ADR-013 이 --interactive 를 400 으로 거절했다)
+   ④ 수확   $OUT 파일 → blob 업로드. 올라간 것만 produced.
+```
+
+`ADR-013` 이 [미정] 으로 남긴 **프롬프트에 배출 규약을 어떻게 심나**를 닫았다 —
+규약 · 스키마 · 되먹임 · 요청 순서로 쌓는다. **되먹임을 요청 바로 앞에** 두면
+무엇을 고쳐야 하는지가 가장 가깝게 놓인다.
+
+#### 하네스 봉투는 계약이 될 수 있다
+
+`ADR-013` 결정 3 의 부분 정정(`ADR-020`)이 코드가 됐다.
+
+```text
+   harness_error · timeout   ★ 완주가 아니다 ★ — 크래시는 반쯤 쓴 파일을 남긴다
+   max_turns · max_tokens    ★ 완주다 ★ — produced 가 판정. 단 Record 에 남긴다.
+   ok                        produced 가 판정
+
+   Record:  {"reason":"ok","turns":3,"cost_usd":0.42}   ← 예산 신호
+```
+
+봉투를 **줄 단위로 찾으면 안 된다** — 여러 줄로 예쁘게 찍혀 올 수 있다.
+출력 끝의 마지막 유효 JSON 객체를 집는다.
+
+### ★ ⑥ 의 재시도 루프 — Mediator 가 돈다 ★
+
+```text
+   write_test(agent) ──▶ Mediator ──▶ parent_build(builder)
+          ▲                                 │ exit 2
+          └───── feedback: build_log ───────┘
+```
+
+**두 노드는 서로를 모른다.** 이것이 `ADR-014` 결정 1(Mediator 가 시퀀서)의
+결정적 근거였고, 여기가 그것이 실물이 되는 자리다.
+
+`INVARIANTS` §2 의 *재실행하지 않는다* 와 부딪히지 않는다 — 그건 **크래시 후 재개**에
+대한 것이고, 이 루프는 **계약이 미리 선언한 것**이다. 계약 작성자가 반복해도 안전한
+단계만 넣을 책임을 진다(보드를 두 번 flash 하는 단계를 검증자로 쓰면 안 된다).
+
+**소진은 `verdict` 가 잡는다** — 루프는 제어 흐름이고 성패는 `within_attempts` 가 정한다.
+
+#### ★ 실측이 의미 버그를 잡았다 ★
+
+blob 최신성을 **가장 큰 순번**으로 정했더니 재시도가 깨졌다.
+
+```text
+   1회차   write_test(1) BROKEN → parent_build(2) 가 같은 이름으로 복사
+   2회차   write_test(1) GOOD   → ★ 순번이 작아서 앞 회차의 BROKEN 이 이긴다 ★
+```
+
+**순번 순서는 전진만 할 때의 규칙이고 재시도 루프는 뒤로 돌아간다.**
+→ 파일 이름에 회차를 넣고(`01.1-test_source`) **(회차, 순번)** 순서로 고른다.
+mtime 은 같은 순간에 쓰이면 순서가 안 정해져 쓰지 않는다. 재시도는 대상과
+검증자의 회차를 **함께** 올리므로 한 회차 안에서는 순번이 순서다.
+
+```text
+   blobs/  01.0-test_source  01.1-test_source     ★ 회차가 전부 남는다 ★
+           02.0-build_log    02.1-build_log       "왜 두 번 시도했는가" 가 재구성된다
+```
 
 ## 테스트
 

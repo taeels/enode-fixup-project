@@ -68,7 +68,12 @@ type Claimed struct {
 	Workspace json.RawMessage `json:"workspace,omitempty"`
 	In        json.RawMessage `json:"in,omitempty"`
 	Out       []string        `json:"out,omitempty"`
-	Lease     LeaseRow        `json:"lease"`
+	// Schema 는 어댑터가 ★ 프롬프트에 심는 데 ★ 쓴다 (ADR-020).
+	// 최종 검증은 Mediator 가 PUT blob 에서 한다 — 강제 지점은 하나다.
+	Schema   json.RawMessage `json:"schema,omitempty"`
+	Attempt  int             `json:"attempt,omitempty"` // 0 부터. 재시도면 1 이상.
+	Feedback []string        `json:"feedback,omitempty"`
+	Lease    LeaseRow        `json:"lease"`
 }
 
 var ErrNoWork = errors.New("할 일이 없다")
@@ -96,7 +101,7 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 	var c Claimed
 	var contractJSON []byte
 	err = tx.QueryRow(ctx, `
-		SELECT s.run_id, s.seq, s.name, s.uses, s.kind, r.contract
+		SELECT s.run_id, s.seq, s.name, s.uses, s.kind, s.attempt, r.contract
 		  FROM steps s
 		  JOIN runs r ON r.run_id = s.run_id
 		 WHERE s.node_id = $1
@@ -108,7 +113,7 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 		 ORDER BY s.run_id, s.seq
 		   FOR UPDATE OF s SKIP LOCKED
 		 LIMIT 1`, nodeID).
-		Scan(&c.RunID, &c.Seq, &c.Name, &c.Uses, &c.Kind, &contractJSON)
+		Scan(&c.RunID, &c.Seq, &c.Name, &c.Uses, &c.Kind, &c.Attempt, &contractJSON)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNoWork
 	}
@@ -152,6 +157,8 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 			Workspace json.RawMessage `json:"workspace"`
 			In        json.RawMessage `json:"in"`
 			Out       []string        `json:"out"`
+			Schema    json.RawMessage `json:"schema"`
+			Feedback  []string        `json:"feedback"`
 		} `json:"steps"`
 	}
 	if json.Unmarshal(contractJSON, &raw) != nil || c.Seq-1 >= len(raw.Steps) {
@@ -159,6 +166,7 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 	}
 	st := raw.Steps[c.Seq-1]
 	c.Agent, c.Run, c.Workspace, c.In, c.Out = st.Agent, st.Run, st.Workspace, st.In, st.Out
+	c.Schema, c.Feedback = st.Schema, st.Feedback
 }
 
 // StepResult 는 enode 가 보고하는 것이다.
@@ -166,6 +174,9 @@ type StepResult struct {
 	ExitCode *int            `json:"exit_code,omitempty"` // ★ 명령 단계만 ★ (ADR-019)
 	Produced []string        `json:"produced,omitempty"`
 	Harness  json.RawMessage `json:"harness,omitempty"` // agent 단계만 (ADR-020)
+	// Attempt · Exhausted 는 재시도 루프의 결과다 (DB 에서 채운다).
+	Attempt   int  `json:"attempt,omitempty"`
+	Exhausted bool `json:"-"`
 	// Error 는 ★ 완주하지 못한 ★ 경우다 — 프로세스를 못 띄웠거나 임대가 끝나
 	// 중단됐거나. 비어 있으면 완주한 것이고, 종료코드가 무엇이든 DONE 이다.
 	Error string `json:"error,omitempty"`
@@ -203,4 +214,12 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 		return fmt.Errorf("집지 않은 단계를 보고했다 (%s#%d)", runID, seq)
 	}
 	return nil
+}
+
+// StepAttempt 는 그 단계가 몇 번째 시도인지다. 산출물 이름에 들어간다.
+func (s *Store) StepAttempt(ctx context.Context, runID string, seq int) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx,
+		`SELECT attempt FROM steps WHERE run_id=$1 AND seq=$2`, runID, seq).Scan(&n)
+	return n, err
 }

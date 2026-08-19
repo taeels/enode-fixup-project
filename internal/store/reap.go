@@ -210,6 +210,20 @@ func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) 
 		if err != nil {
 			return "", err
 		}
+		// 재시도 소진 여부를 계약과 맞춰 표시한다 — within_attempts 가 이것을 본다.
+		for i, st := range run.Contract.Steps {
+			if st.MaxAttempts <= 0 {
+				continue
+			}
+			r, ok := results[st.ID]
+			if !ok {
+				continue
+			}
+			_ = i
+			r.Exhausted = r.Attempt+1 >= st.MaxAttempts
+			results[st.ID] = r
+		}
+
 		// ★ VERIFYING — 계약 조건을 대조한다 ★
 		if _, err := s.pool.Exec(ctx,
 			`UPDATE runs SET state=$2 WHERE run_id=$1 AND state='RUNNING'`,
