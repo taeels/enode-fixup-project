@@ -25,7 +25,7 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 | **S4** | ★ 두 연결 ★ 하트비트 + `claim` 롱폴 + 명령 실행 | **`O6` · `I2`** |
 | **S5** | 계약 조건 대조(⑩) — `success_when` | **`O4`** |
 | **S6** | Record 봉인 + `GET record` (tar) | **`O1`·`O2`·`O3` · `I4`** |
-| S7 | `runctl` — 제출 · 상태 · Record 읽기 | `O7` |
+| **S7** | `runctl` — 제출 · 상태 · Record · 취소 | **`O5`·`O7`** |
 | ══ | **여기까지가 스켈레톤** | |
 | S8 | blob 별 모양 (2단계 Run) |  |
 | S9 | agent 어댑터 (하네스 봉투 + `$OUT` 수확) |  |
@@ -42,9 +42,10 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
    internal/config     ADR-015 §4 의 우선순위. ★ 사용자 경로가 /etc 를 이긴다 ★
    internal/store      PostgreSQL. ★ 매칭 로직은 여기 없다 ★
    internal/record     ★ Run Record — DB 가 아니라 파일시스템 ★ 봉인 · tar
+   internal/runctl     제출 · 상태 · Record · 취소. ★ 무상태다 ★
    internal/api        HTTP 표면. 라우팅은 표준 라이브러리만 (Go 1.22+ ServeMux)
    internal/enode      신원 · 잠금(unix/windows) · 탐지 · ★ 광고 루프 + claim 루프 ★
-   cmd/mediator  cmd/enode        (cmd/runctl 는 아직)
+   cmd/mediator  cmd/enode  cmd/runctl        ★ 셋이 다 있다 ★
 ```
 
 ### ★ I1 은 애플리케이션 로직이 아니라 기본키가 강제한다 ★
@@ -194,6 +195,54 @@ enode 나 핸들러가 종료코드로 미리 판정하면 **계약이 할 일�
 
 **봉인은 삭제까지 막는다.** 그것이 `I4` 의 값이지만 디스크가 차면 사람이 지우지도
 못한다. `ADR-005` 가 *장기 보관 정책은 MVP 밖, 쌓아두기만 한다* 로 미뤄둔 자리다.
+
+### runctl — CLI 종료코드는 0~3 이다
+
+와이어는 HTTP 를 쓰고 CLI 는 넷을 쓴다. **경계가 둘이라 하나로 통일하지 않는다**
+(`INVARIANTS` §4). 셸이 필요로 하는 구분은 *일이 실패했나 / 내 요청이 틀렸나 /
+시스템이 죽었나* 다.
+
+```text
+   0  Run 이 SUCCEEDED (또는 아직 진행 중)
+   1  ★ Run 이 FAILED ★ — 요청은 정상이었다
+   2  ★ 요청이 거절됐다 ★ — 계약을 고치거나(400·422) 나중에 다시(409)
+   3  ★ Mediator 에 못 닿았다 ★
+```
+
+```console
+$ runctl submit s6.json --wait
+gerrit-12345-ps3  SUCCEEDED
+  builder    8d73234fac52  taeels@CT103:ws-a
+  board      7a02313b8c10  taeels@CT103:ws-b
+  ok  baseline_build exit_code
+  ok  parent_observe produced
+$ echo $?
+0
+```
+
+**신원은 `git config user.email` 에서 읽는다** — enode 는 `--global` 이지만
+runctl 은 **해석되는 형태**를 쓴다. 저장소 안에서 실행되므로 *그 저장소에서
+커밋할 신원*과 같아야 자연스럽고, ⑫ 의 코멘트가 그 이름으로 달린다 (`ADR-015` §1).
+
+#### ★ 조용한 무시가 가장 나쁘다 ★
+
+표준 `flag` 는 첫 위치인자에서 파싱을 멈춘다. 그런데 사람은
+`runctl submit x.json --wait` 라고 쓴다. 그 순서를 안 받으면 플래그가
+**조용히 무시된다** — 인자를 재배열해서 받는다.
+
+### 취소 — 하트비트가 통보한다
+
+```text
+   runctl cancel <run-id>
+        ▼  Mediator: * → FAILED · 단계 FAILED · ★ 임대 삭제 ★ (I2)
+        ▼  다음 하트비트 응답의 임대 목록에서 ★ 빠진다 ★
+        ▼  enode 워치독이 실행 중인 단계를 중단한다
+
+   실측: 취소 → enode "임대가 끝났다" → leases=0 → 자원 재사용 가능
+         verdict 에 "사람이 취소했다: taeels@gmail.com" 이 봉인된다
+```
+
+**목록에서 빠지는 것이 곧 통보다** (`ADR-016`) — 별도의 취소 신호가 없다.
 
 ## 테스트
 
