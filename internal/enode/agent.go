@@ -31,7 +31,8 @@ type AgentParams struct {
 // ★ 파일은 어떤 하네스든 쓸 수 있고 셸로 검사된다 ★.
 const outContract = `## 배출 규약 (이 형식을 지켜야 결과가 채택된다)
 
-산출물은 $OUT 디렉터리에 ★ 이름별 파일 ★ 로 쓴다. 표준출력으로 내지 않는다.
+★ 다른 무엇보다 먼저 ★ 아래 파일들을 만들어라. 표준출력으로 내지 않는다.
+경로는 ★ 있는 그대로 ★ 쓴다 — 환경변수가 아니라 실제 경로다.
 `
 
 // buildPrompt 는 ①사출의 일부다 — 규약 · 스키마 · 되먹임 · 요청을 이 순서로 쌓는다.
@@ -39,13 +40,16 @@ const outContract = `## 배출 규약 (이 형식을 지켜야 결과가 채택�
 // 순서에 이유가 있다: 규약을 먼저 두면 모델이 마지막 지시(요청)를 수행하면서도
 // 형식을 유지하고, ★ 되먹임을 요청 바로 앞에 두면 ★ 무엇을 고쳐야 하는지가
 // 가장 가깝게 놓인다.
-func buildPrompt(req string, outNames []string, schema map[string]json.RawMessage, feedback map[string]string, attempt int) string {
+func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage, feedback map[string]string, attempt int) string {
 	var b strings.Builder
 	b.WriteString(outContract)
 	for _, n := range outNames {
-		b.WriteString("  $OUT/" + n)
+		// ★ 실제 경로를 박는다 ★ — $OUT 을 문자 그대로 주면 모델이 확장하지 않는다.
+		// 실물 claude 에서 밟았다: 6턴을 쓰고도 아무 파일도 안 만들었다.
+		// ★ 어댑터는 경로를 아는데 모델은 모른다. 아는 쪽이 적어준다. ★
+		b.WriteString("  " + filepath.Join(outDir, n))
 		if _, ok := schema[n]; ok {
-			b.WriteString("   ← 아래 스키마를 만족하는 JSON")
+			b.WriteString("   ← 아래 스키마를 만족하는 JSON 한 덩어리")
 		}
 		b.WriteString("\n")
 	}
@@ -57,7 +61,7 @@ func buildPrompt(req string, outNames []string, schema map[string]json.RawMessag
 		}
 		sortStrings(names)
 		for _, n := range names {
-			b.WriteString("$OUT/" + n + ":\n```json\n" + string(schema[n]) + "\n```\n")
+			b.WriteString(filepath.Join(outDir, n) + ":\n```json\n" + string(schema[n]) + "\n```\n")
 		}
 		// ★ 스키마가 있으면 "못 하겠다" 를 값으로 말할 수 있어야 한다 ★ (ADR-020)
 		b.WriteString("\n결론이 없으면 ★ 파일을 안 내는 것이 아니라 ★ 스키마가 허용하는\n" +

@@ -392,7 +392,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	log.Debug("agent 단계 준비", "attempt", step.Attempt,
 		"feedback_names", step.Feedback, "feedback_got", len(feedback),
 		"out", step.Out, "schema", len(step.Schema))
-	prompt := buildPrompt(step.In.Prompt, step.Out, step.Schema, feedback, step.Attempt)
+	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback, step.Attempt)
 	writePromptFile(out, prompt)
 
 	logBytes, h := runAgent(runCtx, bin, p, prompt, dir, in, out)
