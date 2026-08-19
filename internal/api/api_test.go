@@ -572,3 +572,52 @@ func TestStepThatCouldNotRun(t *testing.T) {
 		t.Fatalf("★ 실패한 Run 의 다음 단계가 배분됐다 ★: %d", code)
 	}
 }
+
+// ═══ S7 — 취소 (ADR-009) ═════════════════════════════════════════════════
+
+func TestCancel(t *testing.T) {
+	srv, _ := newServerFast(t)
+	adv := advert("n1", "a", map[string]string{"role": "x"})
+	do(t, srv, "POST", "/v1/nodes", adv, nil)
+	do(t, srv, "POST", "/v1/runs", oneStepRun("cx", "n1"), nil)
+
+	code, body := do(t, srv, "POST", "/v1/runs/cx/cancel", "", nil)
+	if code != 200 || body["state"] != "FAILED" {
+		t.Fatalf("취소 실패: %d %v", code, body)
+	}
+
+	// ★ 멱등이다 ★ — 이미 종료면 조용히 200
+	if code, _ := do(t, srv, "POST", "/v1/runs/cx/cancel", "", nil); code != 200 {
+		t.Fatalf("두 번째 취소가 %d", code)
+	}
+
+	// ★ I2 ★ 그리고 이 삭제가 곧 enode 에 대한 취소 통보다 (ADR-016) —
+	// 다음 하트비트 응답의 목록에서 빠지는 것이 통보다.
+	_, hb := do(t, srv, "POST", "/v1/nodes", adv, nil)
+	if l, _ := hb["leases"].([]any); len(l) != 0 {
+		t.Fatalf("★ 취소했는데 임대가 남았다 ★: %v", l)
+	}
+
+	// 취소된 Run 의 단계는 배분되지 않는다
+	if code, _ := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil); code != 204 {
+		t.Fatalf("★ 취소된 Run 의 단계가 배분됐다 ★: %d", code)
+	}
+	// 자원을 다시 쓸 수 있다
+	if code, _ := do(t, srv, "POST", "/v1/runs", oneStepRun("after-cx", "n1"), nil); code != 201 {
+		t.Fatalf("★ 취소 뒤 자원이 안 풀렸다 ★: %d", code)
+	}
+	// ★ 왜 끝났는지가 Record 에 남는다 ★ (ADR-005)
+	_, run := do(t, srv, "GET", "/v1/runs/cx", "", nil)
+	v, _ := run["verdict"].(map[string]any)
+	checks, _ := v["checks"].([]any)
+	if len(checks) == 0 || checks[0].(map[string]any)["what"] != "cancelled" {
+		t.Fatalf("취소 사유가 안 남았다: %v", run["verdict"])
+	}
+}
+
+func TestCancelUnknownRun(t *testing.T) {
+	srv, _ := newServerFast(t)
+	if code, _ := do(t, srv, "POST", "/v1/runs/nope/cancel", "", nil); code != 404 {
+		t.Fatalf("code=%d 기대 404", code)
+	}
+}

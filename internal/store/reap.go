@@ -118,6 +118,60 @@ func (s *Store) RunReaper(ctx context.Context, every time.Duration, log *slog.Lo
 	}
 }
 
+// Cancel 은 사람이 Run 을 세우는 것이다 (ADR-009).
+//
+// ★ 새 상태를 만들지 않는다 ★ — * → FAILED 로 간다. 상태가 늘면 크래시 복구
+// 검증 대상이 늘어난다는 QUEUED 기각 사유가 그대로 적용된다.
+//
+// ★ 취소는 회수가 아니다 ★ — 회수는 임대 만료가 한다. 다만 종료 상태이므로
+// I2 를 지키려면 장부를 비워야 하고, 그 결과 ★ 다음 하트비트 응답의 임대 목록에서
+// 빠지는 것이 곧 enode 에 대한 취소 통보 ★ 가 된다 (ADR-016).
+// 그래서 취소가 enode 에 닿는 데 하트비트 주기만큼 지연되며, 그 창은 유계이되 0 이 아니다.
+//
+// 멱등이다 — 이미 종료됐으면 아무것도 하지 않고 그 상태를 돌려준다.
+func (s *Store) Cancel(ctx context.Context, runID, by string) (string, error) {
+	run, err := s.GetRun(ctx, runID)
+	if err != nil {
+		return "", err
+	}
+	if run.State == StateSucceeded || run.State == StateFailed {
+		return run.State, nil
+	}
+	v := Verdict{State: StateFailed, Checks: []Check{{
+		What: "cancelled", OK: false, Note: "사람이 취소했다: " + by,
+	}}}
+	verdictJSON, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+	if _, err := tx.Exec(ctx,
+		`UPDATE runs SET state='FAILED', verdict=$2, ended_at=now()
+		  WHERE run_id=$1 AND state NOT IN ('SUCCEEDED','FAILED')`, runID, verdictJSON); err != nil {
+		return "", err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE steps SET state='FAILED', ended_at=now()
+		  WHERE run_id=$1 AND state IN ('PENDING','CLAIMED')`, runID); err != nil {
+		return "", err
+	}
+	// ★ I2 ★ 그리고 이 삭제가 곧 enode 에 대한 취소 통보다 (ADR-016)
+	if _, err := tx.Exec(ctx, `DELETE FROM leases WHERE run_id=$1`, runID); err != nil {
+		return "", err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+	if err := s.sealRecord(ctx, runID, v); err != nil {
+		return StateFailed, err
+	}
+	return StateFailed, nil
+}
+
 // SettleIfDone 은 모든 단계가 끝났으면 Run 을 종료시킨다.
 //
 // 상태 전이는 INVARIANTS §1.1 그대로다:

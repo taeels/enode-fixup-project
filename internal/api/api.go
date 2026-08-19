@@ -44,6 +44,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
 	mux.HandleFunc("GET /v1/runs/{id}", s.auth(s.getRun))
 	mux.HandleFunc("GET /v1/runs/{id}/record", s.auth(s.getRecord))
+	mux.HandleFunc("POST /v1/runs/{id}/cancel", s.auth(s.postCancel))
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/log", s.auth(s.putLog))
 	return mux
 }
@@ -355,6 +356,27 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, view(run))
+}
+
+// ── POST /v1/runs/{id}/cancel ────────────────────────────────────────────
+//
+// ADR-009. 멱등이며 이미 종료면 200 이다.
+// X-Enode-Principal 은 ★ 누가 취소했는지 기록 ★ 하는 데만 쓴다 —
+// MVP 는 신뢰 경계가 하나라 유효한 토큰을 가진 자는 누구나 취소할 수 있다.
+func (s *Server) postCancel(w http.ResponseWriter, r *http.Request) {
+	runID := r.PathValue("id")
+	state, err := s.st.Cancel(r.Context(), runID, principal(r))
+	if errors.Is(err, store.ErrNotFound) {
+		fail(w, 404, "그런 Run 이 없다")
+		return
+	}
+	if err != nil {
+		s.log.Error("취소 실패", "run", runID, "err", err)
+		fail(w, 503, "취소 실패")
+		return
+	}
+	s.log.Info("취소", "run", runID, "by", principal(r))
+	write(w, 200, map[string]any{"run_id": runID, "state": state})
 }
 
 // ── PUT /v1/runs/{run}/steps/{seq}/log ───────────────────────────────────
