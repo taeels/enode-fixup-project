@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # go-version-file 로 go.mod 의 toolchain 을 그대로 쓴다.
+      # ★ 버전을 두 곳에 적지 않는다 ★ (ADR-012 의 원칙을 CI 에 적용)
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: false
+
+      - run: go version
+      - name: 포맷
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - name: vet
+        run: go vet ./...
+      - name: 테스트
+        run: go test ./... -count=1
+
+  # ★ ADR-015 가 Go 를 고른 핵심 이유를 검증한다 ★
+  # "리눅스 CI 에서 GOOS=windows 로 exe 가 나온다" 가 깨지면
+  # 윈도우 enode 배포 계획이 통째로 무너진다. 그때 가서 알면 늦다.
+  cross:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: false
+      - name: 크로스 빌드 — windows/amd64 · linux/arm (Pi 2)
+        run: |
+          GOOS=windows GOARCH=amd64 go build ./...
+          GOOS=linux   GOARCH=arm GOARM=7 go build ./...
+          GOOS=darwin  GOARCH=arm64 go build ./...

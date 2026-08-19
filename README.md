@@ -54,11 +54,43 @@ go test ./...
 ## 도구
 
 ```text
-   Go        현재 1.19 (/usr/lib/go/bin). ★ S2 전에 올린다 ★ —
-             데몬에 log/slog(1.21+)가 필요하고 1.19 는 EOL 이다.
-             go.mod 의 go 지시어는 1.19 로 두어 최소 버전만 말한다.
+   Go        1.26.6 — ~/sdk/go1.26.6, ~/.local/bin 에 심링크 (.profile 이 이미 PATH 에 둔다)
+             apt 의 1.19 는 안 건드렸다. 사용자 로컬 설치라 sudo 가 필요 없다.
    Postgres  S2 부터 (ADR-015 §3)
 ```
+
+### ★ 버전은 저장소가 강제한다 ★
+
+```text
+   go 1.26            이보다 낮은 툴체인은 ★ 빌드를 거절한다 ★ (하한 + 언어 버전)
+   toolchain go1.26.6 실제로 쓸 것. GOTOOLCHAIN=auto(기본) 면 ★ 자동으로 받아온다 ★
+```
+
+**둘을 같은 버전으로 묶어 슬랙을 없앴다.** 넷이 서로 다른 컴파일러로 짜면
+"내 기계에서는 되는데" 가 나온다. **명시적 실패가 조용한 드리프트보다 낫다** —
+`ADR-015` 가 `user.email` 이 없으면 그 자리에서 죽기로 한 것과 같은 판단이다.
+
+확인된 동작:
+
+```text
+   go1.19  → go: errors parsing go.mod: unknown directive: toolchain   ★ 거절 ★
+   go1.26.6 → ok
+```
+
+**한 가지 대가** — `GOTOOLCHAIN=auto` 는 네트워크를 전제한다. 프록시 뒤에서
+모듈 프록시에 못 닿으면 받아오지 못한다. 그런 환경에서는 `GOTOOLCHAIN=local` 로
+두면 `go 1.26` 이 하한만 강제하고 정확한 고정은 풀린다. **사내 배포 때 확인할 것.**
+
+## CI
+
+```text
+   test    gofmt -l 이 비어 있는가 · go vet · go test
+   cross   ★ ADR-015 가 Go 를 고른 이유를 검증한다 ★
+           GOOS=windows · linux/arm(Pi 2) · darwin/arm64 크로스 빌드
+           "리눅스 CI 에서 exe 가 나온다" 가 깨지면 윈도우 enode 배포가 무너진다
+```
+
+버전은 `go-version-file: go.mod` 로 읽는다 — **버전을 두 곳에 적지 않는다.**
 
 ## 정해진 것 — 설계 문서의 미정을 닫은 것
 
