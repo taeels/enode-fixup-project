@@ -74,7 +74,7 @@ func workspaceDiff(ctx context.Context, dir string, limit int64) ([]byte, error)
 	if _, err := gitOut(ctx, dir, env, "add", "-N", "."); err != nil {
 		return nil, fmt.Errorf("intent-to-add: %w", err)
 	}
-	d, err := gitOut(ctx, dir, env, quotePathOff("diff", "--binary", "HEAD")...)
+	d, err := gitOut(ctx, dir, env, "diff", "--binary", "HEAD")
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func workspaceDiff(ctx context.Context, dir string, limit int64) ([]byte, error)
 	if int64(len(d)) <= limit {
 		return d, nil
 	}
-	stat, err := gitOut(ctx, dir, env, quotePathOff("diff", "HEAD", "--stat")...)
+	stat, err := gitOut(ctx, dir, env, "diff", "HEAD", "--stat")
 	if err != nil {
 		return nil, err
 	}
@@ -121,20 +121,24 @@ func repoDiff(ctx context.Context, dir string, limit int64) ([]byte, error) {
 	return append([]byte(fmt.Sprintf(diffNote, len(out), limit)), stat...), nil
 }
 
-// quotePathOff 는 ★ 한글 경로가 이스케이프되는 것을 막는다 ★.
-//
-// git 은 core.quotePath 가 기본 true 라 ASCII 밖 경로를 "\354\247\204..." 로
-// 찍는다. 실측에서 diff 전체가 그렇게 나왔다. ★ 우리 사용자는 한국어 커널
-// 개발자다 ★ — 사람이 못 읽는 기록은 ADR-005 성질 4(자기충족)를 못 지킨다.
-func quotePathOff(args ...string) []string {
-	return append([]string{"-c", "core.quotePath=false"}, args...)
-}
-
 func gitOut(ctx context.Context, dir string, env []string, args ...string) ([]byte, error) {
 	return gitOutName(ctx, dir, env, "git", args...)
 }
 
+// gitOutName 은 git(또는 repo)을 돌리고 stdout 을 돌려준다.
+//
+// ★ core.quotePath=false 를 여기서 붙인다 ★ — 호출부마다 붙이면 새 git 호출을
+// 더할 때 다시 밟는다. 실제로 밟았다: diff 에서 고쳐놓고 `git status` 를 쓰는
+// 훅에서 똑같이 깨졌다. ★ 한 곳에서 지킨다 ★ — exec 을 runner 하나로 모은 것과
+// 같은 원칙이다.
+//
+// git 은 이 설정이 기본 true 라 ASCII 밖 경로를 "\354\247\204…" 로 찍는다.
+// ★ 우리 사용자는 한국어 커널 개발자다 ★ — 사람이 못 읽는 기록은
+// ADR-005 성질 4(자기충족)를 못 지킨다.
 func gitOutName(ctx context.Context, dir string, env []string, name string, args ...string) ([]byte, error) {
+	if name == "git" {
+		args = append([]string{"-c", "core.quotePath=false"}, args...)
+	}
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
 	if len(env) > 0 {

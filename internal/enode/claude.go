@@ -71,6 +71,14 @@ func (claudeHarness) Probe(ctx context.Context, bin string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
+// Instrument 는 enode 전용 종료 훅을 심는다 (R5③ · R6).
+//
+// ★ claude 는 --settings 로 받는다 ★ — 훅 하나뿐이라 플러그인 디렉터리까지
+// 만들 필요가 없고, 파일이 적을수록 정리도 확실하다.
+func (claudeHarness) Instrument(dir, self string, a HookArgs) ([]string, error) {
+	return WriteHookSettings(dir, self, a)
+}
+
 // Argv 는 ★ 순수 함수다 ★ — 프로세스를 안 띄운다. 그래서 시험이 싸다.
 func (claudeHarness) Argv(p AgentParams, _ IOPaths) []string {
 	args := []string{"-p", "--output-format", "json"}

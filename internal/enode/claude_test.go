@@ -62,8 +62,8 @@ func Test어댑터_버전이_결과에_실린다(t *testing.T) {
 	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	_, h := runHarness(context.Background(), claudeHarness{}, fake, AgentParams{},
-		"x", IOPaths{Dir: dir, In: dir, Out: dir}, nil, nil)
+	_, h := runHarness(context.Background(), claudeHarness{}, fake, Job{
+		Prompt: "x", IO: IOPaths{Dir: dir, In: dir, Out: dir}})
 	if h.Version != "9.9.9 (가짜)" {
 		t.Fatalf("★ 버전이 기록에 안 실렸다 ★: %q", h.Version)
 	}

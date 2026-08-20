@@ -450,9 +450,13 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		// 사람이 이 줄을 보고 화이트리스트를 의심할 수 있어야 한다.
 		log.Debug("환경변수를 안 넘겼다", "names", d)
 	}
-	logBytes, h := runHarness(runCtx, ha, bin, p, prompt,
-		IOPaths{Dir: dir, In: in, Out: out}, inject,
-		func(e Event) { log.Debug("하네스 사건", "kind", e.Kind) })
+	logBytes, h := runHarness(runCtx, ha, bin, Job{
+		Params: p, Prompt: prompt,
+		IO:     IOPaths{Dir: dir, In: in, Out: out},
+		Expect: step.Out, // ★ 훅이 짚을 이름 ★ — 계약이 요구한 산출물
+		Inject: inject,
+		Emit:   func(e Event) { log.Debug("하네스 사건", "kind", e.Kind) },
+	})
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
 	res := Result{Node: w.Ident.NodeID, Harness: &h}

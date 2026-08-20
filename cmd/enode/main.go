@@ -21,6 +21,12 @@ import (
 )
 
 func main() {
+	// ★ 하위 명령이 하나 있다 — `enode hook stop` ★ (R5③ · R6).
+	// 훅을 별도 스크립트로 두지 않고 enode 자신이 되는 이유는 hook.go 에 적었다.
+	if len(os.Args) > 1 && os.Args[1] == "hook" {
+		os.Exit(runHookCmd(os.Args[2:]))
+	}
+
 	cfgPath := flag.String("config", "/etc/enode/local.yaml", "설정 파일. ★ 이 경로가 신원의 일부다 ★")
 	mediator := flag.String("mediator", "", "Mediator 주소 (설정을 덮어쓴다)")
 	token := flag.String("token", "", "토큰 (설정을 덮어쓴다)")

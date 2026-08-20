@@ -167,6 +167,16 @@ type Harness interface {
 	Name() string  // 광고의 harness 속성이 된다
 	Env() []string // 추가로 통과시킬 환경변수 ★ 이름 ★ (R1)
 	Probe(ctx context.Context, bin string) (version string, err error)
+	// Instrument 는 ★ 훅·플러그인을 심고 플래그를 돌려준다 ★ (R6).
+	//
+	// 하네스마다 심는 방법이 다르다 — claude 는 --settings 로 훅을 받고,
+	// 다른 하네스는 다른 방식일 것이다. ★ 그 차이가 여기서만 보이게 한다 ★.
+	// 심을 것이 없는 하네스는 빈 것을 돌려주면 된다.
+	//
+	// dir 은 ★ 하네스에 안 보이는 곳 ★ 이어야 한다 — $OUT 에 두면 ④수확이 걷는다.
+	// self 는 enode 자기 실행경로다 — 훅이 곧 enode 자신이기 때문이다.
+	Instrument(dir, self string, a HookArgs) ([]string, error)
+
 	Argv(p AgentParams, io IOPaths) []string                          // ★ 순수 함수 ★
 	Decode(r io.Reader, exitCode int, emit func(Event)) HarnessResult // ★ 순수 함수 ★
 }

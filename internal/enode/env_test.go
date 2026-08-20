@@ -150,8 +150,8 @@ func Test환경_runner가_화이트리스트를_쓴다(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, h := runHarness(context.Background(), claudeHarness{}, fake, AgentParams{},
-		"안녕", IOPaths{Dir: dir, In: dir, Out: dir}, nil, nil)
+	_, h := runHarness(context.Background(), claudeHarness{}, fake, Job{
+		Prompt: "안녕", IO: IOPaths{Dir: dir, In: dir, Out: dir}})
 	if h.Reason != ReasonOK {
 		t.Fatalf("가짜 하네스가 완주 안 했다: %+v", h)
 	}
