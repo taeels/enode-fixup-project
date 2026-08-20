@@ -345,7 +345,19 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		return
 	}
 
-	cmd := exec.CommandContext(runCtx, step.Run[0], step.Run[1:]...)
+	// ★ argv 의 $OUT · $IN 을 푼다 ★ (argv.go)
+	//
+	// 셸을 안 거치므로 그대로 두면 리터럴로 넘어간다. 이게 풀려야
+	// `make modules_install INSTALL_MOD_PATH=$OUT` 처럼 ★ 빌드가 직접 $OUT 에
+	// 놓게 ★ 시킬 수 있고, 그러면 ★ 아무도 산출물 경로를 미리 몰라도 된다 ★.
+	argv := expandIO(step.Run, IOPaths{Dir: dir, In: in, Out: out})
+	if left := unexpandedVars(argv); len(left) > 0 {
+		// ★ 조용히 틀리게 두지 않는다 ★ — 셸이 없어 안 풀린 이름을 알려준다.
+		// 막지는 않는다: 판정은 success_when 몫이다 (ADR-004 · I3).
+		log.Warn("argv 에 안 풀린 변수가 있다 — 셸을 안 거친다", "names", left)
+	}
+
+	cmd := exec.CommandContext(runCtx, argv[0], argv[1:]...)
 	cmd.Dir = dir
 	// ★ 명령 단계도 화이트리스트다 ★ (R1)
 	//
