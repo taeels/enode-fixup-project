@@ -901,3 +901,23 @@ func TestCapabilitiesDoesNotLeakAvailability(t *testing.T) {
 		t.Fatal("★ 여유를 노출했다 ★ 확인-후-행동 경쟁을 부른다")
 	}
 }
+
+// ★ claim 이 요청자를 싣는다 ★ (R1/R2)
+//
+// 지금은 아무도 이 값을 안 본다 — MVP 인증은 transparent 다. 그래서
+// ★ 시험이 없으면 비어 있어도 아무도 모른다 ★. R2 에서 「요청자 신원으로
+// 하네스를 돌린다」를 켤 때 그제서야 발견되는 종류의 구멍이다.
+func TestClaim이_요청자를_싣는다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs", oneStepRun("c-req", "n1"), nil); code != 201 {
+		t.Fatal("제출 실패")
+	}
+	code, body := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	if code != 200 {
+		t.Fatalf("claim code=%d", code)
+	}
+	if got, _ := body["requester"].(string); got != "taeels@gmail.com" {
+		t.Fatalf("★ 요청자가 안 실렸다 ★: %q (runs.principal 이어야 한다)", got)
+	}
+}
