@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"github.com/taeels/enode/internal/contract"
 	"io"
 	"log/slog"
 	"os"
@@ -126,6 +127,45 @@ func TestDetectDropsBuildWhenDiskLow(t *testing.T) {
 		if _, ok := c.Attrs["arch"]; ok {
 			t.Fatal("★ 디스크가 모자란데 빌드 능력을 광고했다 ★")
 		}
+	}
+}
+
+// ★ 오케스트레이션 노드는 agent.reason 도 arch 도 광고하지 않는다 ★ (ADR-022 §5)
+//
+// ① agent.reason 을 안 내는 이유 — 어휘를 나눈 목적이 ★ 배제 ★ 다.
+//
+//	속성은 부분집합 매칭이라 평범한 Run 이 이 노드를 잡아가고,
+//	임대 키가 (노드)라 그 순간 오케스트레이션이 막힌다.
+//
+// ② arch 를 안 내는 이유 — 이 노드는 Mediator 머신에 놓인다.
+//
+//	"명령 단계에는 파일시스템 경계가 없다"(INVARIANTS)이므로 거기서 명령 단계가
+//	돌면 ★ DB·아티팩트·토큰에 무경계 argv 가 닿는다 ★.
+func TestDetect_오케스트레이션은_배제되게_광고한다(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ws := t.TempDir()
+
+	l := Local{Workspace: ws, Arch: "armv7", Orchestration: true}
+	caps := Detect(l, log)
+	if len(caps) == 0 {
+		t.Skip("하네스도 저장소도 없어 광고할 것이 없다")
+	}
+	for _, c := range caps {
+		if c.Capability != contract.CapabilityOrchestration {
+			t.Fatalf("★ %q 를 광고했다 — 평범한 Run 이 잡아간다 ★: %+v",
+				c.Capability, caps)
+		}
+		if _, ok := c.Attrs["arch"]; ok {
+			t.Fatalf("★ arch 를 광고했다 — 명령 단계가 Mediator 머신에서 돈다 ★: %+v", caps)
+		}
+	}
+
+	// ★ 음성 대조 ★ — 같은 설정에서 플래그만 끄면 arch 가 돌아온다
+	l.Orchestration = false
+	caps = Detect(l, log)
+	if len(caps) == 0 || caps[0].Capability != contract.CapabilityAgentReason ||
+		caps[0].Attrs["arch"] != "armv7" {
+		t.Fatalf("플래그를 껐는데 평범한 노드가 아니다: %+v", caps)
 	}
 }
 

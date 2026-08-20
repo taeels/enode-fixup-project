@@ -167,3 +167,49 @@ func TestCapabilitySatisfies(t *testing.T) {
 		})
 	}
 }
+
+// ★ orchestration 은 평범한 Run 에 안 끌려간다 ★ (ADR-022 §5.2)
+//
+// 어휘를 나눈 목적이 ★ 배제 ★ 다. capability 는 완전일치라 서로를 안 만족시킨다.
+func TestCapability_어휘가_서로를_배제한다(t *testing.T) {
+	orch := Capability{Capability: CapabilityOrchestration,
+		Attrs: map[string]string{"harness": "claude"}}
+	agent := Capability{Capability: CapabilityAgentReason,
+		Attrs: map[string]string{"harness": "claude"}}
+
+	// ★ 핵심 ★ — 평범한 Run 이 오케스트레이터를 못 잡는다
+	if orch.Satisfies(Require{Capability: CapabilityAgentReason}) {
+		t.Fatal("★ 평범한 Run 이 오케스트레이터를 잡아간다 ★")
+	}
+	// 속성까지 같아도 마찬가지다 — 부분집합 매칭이 capability 를 못 넘는다
+	if orch.Satisfies(Require{Capability: CapabilityAgentReason,
+		Attrs: map[string]string{"harness": "claude"}}) {
+		t.Fatal("★ 속성 매칭이 capability 경계를 넘었다 ★")
+	}
+	// 반대도 성립한다
+	if agent.Satisfies(Require{Capability: CapabilityOrchestration}) {
+		t.Fatal("평범한 노드가 오케스트레이션 요구를 만족시켰다")
+	}
+	// 제 짝은 만족시킨다
+	if !orch.Satisfies(Require{Capability: CapabilityOrchestration,
+		Attrs: map[string]string{"harness": "claude"}}) {
+		t.Fatal("제 짝을 못 만족시킨다")
+	}
+}
+
+// ★ 모르는 capability 는 거절한다 ★ — 열린 어휘가 아니다.
+// 오타가 조용히 통과하면 계약 저자가 422 대신 "후보 없음" 을 보게 된다.
+func TestValidate_모르는_capability는_거절한다(t *testing.T) {
+	c := Contract{
+		RunID:    "r1",
+		Requires: []Require{{As: "x", Capability: "orchestraton"}}, // 오타
+		Steps:    []Step{{ID: "s", Uses: "x", Run: []string{"true"}}},
+	}
+	if err := c.Validate(); err == nil {
+		t.Fatal("★ 오타가 통과했다 ★")
+	}
+	c.Requires[0].Capability = CapabilityOrchestration
+	if err := c.Validate(); err != nil {
+		t.Fatalf("정상 어휘가 거절됐다: %v", err)
+	}
+}

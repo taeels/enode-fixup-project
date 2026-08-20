@@ -67,6 +67,26 @@ func Detect(l Local, log *slog.Logger) []contract.Capability {
 	if len(attrs) == 0 {
 		return nil // 아무것도 못 하면 아무것도 광고하지 않는다
 	}
+
+	// ★ 오케스트레이션 노드는 agent.reason 을 광고하지 않는다 ★ (ADR-022 §5)
+	//
+	// 어휘를 나눈 이유가 ★ 배제 ★ 이기 때문이다 — 속성은 부분집합 매칭이라
+	// 평범한 Run 의 requires: agent.reason 이 통과해 이 노드를 잡아가고,
+	// 임대 키가 (노드)라 그 순간 오케스트레이션이 막힌다.
+	//
+	// ★ 그리고 arch 를 뺀다 ★ — 이 노드는 Mediator 머신에 놓이는 것을 전제하는데
+	// INVARIANTS 가 "명령 단계에는 파일시스템 경계가 없다" 이므로 그 기계에서
+	// 명령 단계가 돌면 ★ DB·아티팩트·토큰에 무경계 argv 가 닿는다 ★.
+	// arch 가 없으면 빌드 계약이 이 노드를 ★ 못 고른다 ★ — 광고를 좁히는 것으로
+	// 배치 위험이 닫힌다. ★ 새 코드 0 개 ★ 인 방어다.
+	if l.Orchestration {
+		delete(attrs, "arch")
+		if len(attrs) == 0 {
+			return nil // 하네스도 없으면 오케스트레이션도 못 한다
+		}
+		return []contract.Capability{{
+			Capability: contract.CapabilityOrchestration, Attrs: attrs}}
+	}
 	return []contract.Capability{{Capability: contract.CapabilityAgentReason, Attrs: attrs}}
 }
 

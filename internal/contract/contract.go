@@ -12,9 +12,46 @@ import (
 	"github.com/taeels/enode/internal/schema"
 )
 
-// CapabilityAgentReason 은 MVP 의 유일한 capability 다 (ADR-019).
-// 노드는 한 종류이고 능력은 속성의 존재로 표현된다.
-const CapabilityAgentReason = "agent.reason"
+// capability 어휘는 ★ 둘 ★ 이다 (ADR-019 · ADR-022 §5.2).
+//
+// ★ 왜 orchestration 을 속성이 아니라 별도 capability 로 두는가 ★
+//
+// 매처의 의미론 때문이다 — ★ 속성은 포함(부분집합)이고 capability 는 배제(완전일치) ★:
+//
+//	Capability.Satisfies:  c.Capability != r.Capability  → 탈락   ★ 배제 ★
+//	                       r.Attrs 의 각 키가 c.Attrs 에  → 통과   ★ 포함 ★
+//
+// 속성으로 표현하면(agent.reason { role: orchestrator }) 평범한 Run 의
+// requires: agent.reason 이 ★ 부분집합 매칭으로 통과해 오케스트레이터를 잡아간다 ★.
+// 임대 키가 (노드)이므로(ADR-019 결정 2) 그 순간 오케스트레이션이 막힌다.
+//
+// ★ 두 번째 어휘의 존재 이유가 「매칭되기 위해」가 아니라 「매칭 안 되기 위해」다 ★.
+// 그래서 세 번째를 더할 압력이 안 생긴다 — ADR-019 가 막으려던 어휘 팽창과 다르다.
+//
+// ADR-019 의 기각 사유 둘 다 안 걸린다:
+//   - "결정론적 작업을 별도 cap 으로 내면 그냥 원격 실행으로 읽힌다"
+//     → orchestration 은 결정론적 작업이 아니다
+//   - "어휘를 하나로 줄이면 requires 가 순수 속성 매칭이 된다"
+//     → 이름을 하나 더해도 매칭은 완전일치+부분집합 그대로다. 표현식이 안 생긴다.
+const (
+	// CapabilityAgentReason 은 ★ 일을 하는 능력 ★ 이다 — 함대의 대부분.
+	// 노드는 한 종류이고 능력은 속성의 존재로 표현된다.
+	CapabilityAgentReason = "agent.reason"
+	// CapabilityOrchestration 은 ★ 계약을 짓는 능력 ★ 이다 (ADR-022 §5).
+	//
+	// ★ 이 노드는 arch 를 광고하지 않는다 ★ — Mediator 머신에 놓이는 것을
+	// 전제하는데, INVARIANTS 가 "명령 단계에는 파일시스템 경계가 없다" 이므로
+	// 그 기계에서 명령 단계가 돌면 ★ DB·아티팩트·토큰에 무경계 argv 가 닿는다 ★.
+	// 광고를 좁히는 것으로 닫는다 (detect.go).
+	CapabilityOrchestration = "orchestration"
+)
+
+// knownCapability 는 계약이 요구할 수 있는 어휘다.
+// ★ 열린 어휘가 아니다 ★ — 모르는 이름은 422 로 떨어져야 계약 저자가
+// 오타를 즉시 안다 (ADR-014 결정 3 의 영구 거절).
+func knownCapability(name string) bool {
+	return name == CapabilityAgentReason || name == CapabilityOrchestration
+}
 
 // Contract 는 runctl 이 제출하는 것 전체다.
 type Contract struct {
@@ -248,7 +285,7 @@ func (c Contract) Validate() error {
 
 	roles := map[string]bool{}
 	for _, r := range c.Requires {
-		if r.Capability != CapabilityAgentReason {
+		if !knownCapability(r.Capability) {
 			return fmt.Errorf("%w: %q", ErrUnknownCap, r.Capability)
 		}
 		if r.As == "" {
