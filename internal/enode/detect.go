@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"context"
 	"log/slog"
 	"os/exec"
 
@@ -17,9 +18,25 @@ import (
 func Detect(l Local, log *slog.Logger) []contract.Capability {
 	attrs := map[string]string{}
 
-	// 추론 하네스가 있나
-	if _, err := exec.LookPath("claude"); err == nil {
-		attrs["harness"] = "claude"
+	// 추론 하네스가 있나 — ★ Probe() 가 곧 executable resolve 다 ★ (R3).
+	// 없으면 광고에 안 실리고 → 후보에서 빠지고 → 계약이 요구하면 422 다.
+	// "설치 안 된 하네스는 실행 안 한다" 가 ★ 별도 코드 없이 ★ 성립한다.
+	for _, h := range harnesses {
+		bin := l.HarnessBin
+		if h.Name() != "claude" {
+			bin = "" // 지금은 claude 만 덮어쓸 수 있다
+		}
+		ver, err := h.Probe(context.Background(), bin)
+		if err != nil {
+			continue
+		}
+		attrs["harness"] = h.Name()
+		// ★ 버전은 광고에 안 싣는다 ★ — 매처는 동등 비교뿐이라
+		// "2.1.236 (Claude Code)" 같은 문자열은 매칭에 못 쓰고 공간만 더럽힌다.
+		// 버전이 필요한 이유는 ★ 기록 ★ 이므로 HarnessResult 로 간다
+		// (ADR-005 성질 4 — 봉인된 묶음만 보고 알 수 있어야 한다).
+		_ = ver
+		break
 	}
 
 	// 워크스페이스가 있으면 저장소를 유도한다. ★ 사람이 주소를 안 적는다 ★

@@ -162,8 +162,11 @@ func droppedNotable() []string {
 			allow[k] = true
 		}
 	}
-	for _, k := range claudeEnv {
-		allow[k] = true
+	// ★ 등록된 하네스 전부의 선언을 본다 ★ — 어댑터가 늘어도 여기를 안 고친다.
+	for _, h := range harnesses {
+		for _, k := range h.Env() {
+			allow[k] = true
+		}
 	}
 
 	var out []string

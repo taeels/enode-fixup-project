@@ -1,7 +1,9 @@
 package enode
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"strings"
 )
 
@@ -58,6 +60,17 @@ type HarnessResult struct {
 	// 첫 호출 $0.1066 → 재개 $0.0099 로 ★ 왕복이 1/10 ★ 이다 (시스템 프롬프트·툴
 	// 정의를 다시 안 문다). 대화가 예산에서 새 단계보다 훨씬 싼 항목이라는 뜻이다.
 	Session string `json:"session,omitempty"`
+
+	// Version 은 ★ 이 결과를 낸 하네스의 버전 ★ 이다.
+	//
+	// 우리가 의존하는 건 문서화된 프로토콜이 아니라 CLI 출력 형태이고,
+	// claude 의 봉투는 ★ 비공개 계약 ★ 이다. 낯선 subtype 은 harness_error 로
+	// 떨어져 닫히는 쪽으로 틀리지만, ★ 필드명이 바뀌면 Turns=0 이 되어
+	// 예산 신호가 조용히 죽는다 ★ — 우리가 계속 금지해온 「조용한 무시」다.
+	//
+	// 버전이 기록에 있어야 봉인된 묶음만 보고 드리프트를 알 수 있다
+	// (ADR-005 성질 4 — 자기충족). 비용은 --version 한 번과 이 한 줄이다.
+	Version string `json:"version,omitempty"`
 }
 
 // claudeEnvelope 는 `claude -p --output-format json` 이 내는 것이다.
@@ -139,4 +152,51 @@ func itoa(n int) string {
 		b[i] = '-'
 	}
 	return string(b[i:])
+}
+
+// ★ R3 — 하네스 어댑터 ★
+//
+// 「하네스마다 어댑터」를 고른 근거는 우리가 만든 것이 좋아서가 아니라
+// ★ 우리 계약이 사는 층에 외부 프로토콜이 없어서 ★ 다 (claude.go 주석 참조).
+// 어댑터 한 개는 argv 조립 + 봉투 정규화로 ★ 50 줄 안팎 ★ 이고,
+// 그게 얇은 이유는 위층(워크스페이스·blob·봉인·임대)을 이미 가지고 있어서다.
+//
+// ★ exec 이 여기 없다 ★ — runner.go 하나가 띄운다. R1 의 환경 화이트리스트를
+// 어댑터 수와 무관하게 한 번만 지키기 위해서다.
+type Harness interface {
+	Name() string  // 광고의 harness 속성이 된다
+	Env() []string // 추가로 통과시킬 환경변수 ★ 이름 ★ (R1)
+	Probe(ctx context.Context, bin string) (version string, err error)
+	Argv(p AgentParams, io IOPaths) []string                          // ★ 순수 함수 ★
+	Decode(r io.Reader, exitCode int, emit func(Event)) HarnessResult // ★ 순수 함수 ★
+}
+
+// EventKind 는 스트림 사건의 종류다.
+//
+// 지금은 final 하나만 난다 — 배치 봉투에는 중간 사건이 없기 때문이다.
+// ★ 미리 여러 종류를 만들지 않는다 ★. 시그니처가 사건을 나를 수 있다는 것이
+// 요점이고, 종류는 stream-json 을 켤 때 실물을 보고 늘린다.
+type EventKind string
+
+const (
+	EventFinal EventKind = "final"
+)
+
+type Event struct {
+	Kind EventKind
+	Text string
+}
+
+// harnesses 는 등록된 어댑터다. ★ 지금은 하나뿐이고 그게 맞다 ★ —
+// 붙일 두 번째 하네스가 없어서 acp.go 를 안 만들었다 (protocol/agent-runtime.md).
+var harnesses = []Harness{claudeHarness{}}
+
+// harnessFor 는 이름으로 어댑터를 찾는다.
+func harnessFor(name string) (Harness, bool) {
+	for _, h := range harnesses {
+		if h.Name() == name {
+			return h, true
+		}
+	}
+	return nil, false
 }

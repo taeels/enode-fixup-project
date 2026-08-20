@@ -126,13 +126,15 @@ func Test환경_실제_프로세스에_안_샌다(t *testing.T) {
 
 // ★ 구멍이 있던 바로 그 줄을 막는다 ★
 //
-// 위 시험은 harnessEnv 가 옳다는 것만 보인다. 정작 고친 곳은 runAgent 의
+// 위 시험은 harnessEnv 가 옳다는 것만 보인다. 정작 고친 곳은 exec 지점의
 //
 //	cmd.Env = append(os.Environ(), …)   →   cmd.Env = env
 //
 // 이므로, 누가 여기에 os.Environ() 을 다시 얹는 회귀를 잡으려면
-// ★ runAgent 를 통과시켜야 한다 ★. 가짜 하네스를 세워 그 구간을 덮는다.
-func Test환경_runAgent가_화이트리스트를_쓴다(t *testing.T) {
+// ★ runner 를 통과시켜야 한다 ★. 가짜 하네스를 세워 그 구간을 덮는다.
+//
+// R3 로 exec 이 runner.go 한 곳에 모였으므로 ★ 이 시험 하나가 모든 어댑터를 덮는다 ★.
+func Test환경_runner가_화이트리스트를_쓴다(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("sh 가 없다")
 	}
@@ -148,8 +150,8 @@ func Test환경_runAgent가_화이트리스트를_쓴다(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	env := harnessEnv(claudeEnv, map[string]string{"OUT": dir, "IN": dir}, nil)
-	_, h := runAgent(context.Background(), fake, AgentParams{}, "안녕", dir, env)
+	_, h := runHarness(context.Background(), claudeHarness{}, fake, AgentParams{},
+		"안녕", IOPaths{Dir: dir, In: dir, Out: dir}, nil, nil)
 	if h.Reason != ReasonOK {
 		t.Fatalf("가짜 하네스가 완주 안 했다: %+v", h)
 	}

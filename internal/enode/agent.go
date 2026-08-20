@@ -1,12 +1,9 @@
 package enode
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -23,6 +20,10 @@ type AgentParams struct {
 	// Ask 는 ★ 계약이 못 박는다 ★ — 무인 실행이므로 하네스가 권한을 물으면
 	// 타임아웃까지 매달린다. ACP 가 기본으로 묻는 프로토콜이라 명시해야 한다.
 	Ask string `json:"ask,omitempty"`
+	// Harness 는 ★ 어느 어댑터로 돌릴지 ★ 다. 비면 claude.
+	// 광고의 harness 속성과 같은 어휘를 쓴다 — 매처가 노드를 고르고,
+	// 이 값이 그 노드 위에서 어느 어댑터를 부를지 고른다.
+	Harness string `json:"harness,omitempty"`
 }
 
 // ★ 배출 규약을 프롬프트에 심는다 ★ — ADR-013 이 [미정] 으로 남긴 자리다.
@@ -98,65 +99,6 @@ func trimTo(s string, n int) string {
 		return s
 	}
 	return "… (앞부분 생략)\n" + s[len(s)-n:]
-}
-
-// runAgent 는 ②기동이다 — 하네스를 띄우고 봉투를 정규화해 돌려준다.
-//
-// ★ 하네스별 코드다 ★ (ADR-013 결정 2) — 선언적 매핑은 기각했다.
-// OpenHands 는 플래그가 아니라 Python API 라 설정으로 안 덮인다.
-// 넷으로 쪼갠 어댑터 중 ①②④ 는 하네스가 뭐든 같고 ③(되묻기)만 다른데,
-// MVP 는 ask:never 라 ③ 이 비어 있다.
-// claudeEnv 는 ★ claude 가 추가로 필요로 하는 이름 ★ 이다 (R1 화이트리스트에 더해진다).
-//
-// MVP 는 transparent 인증이라 보통 ~/.claude 의 로그인을 쓴다 — 그건 HOME 이
-// 통과하는 것으로 이미 된다. 아래는 ★ 그 대신 환경변수로 붙이는 구성 ★ 을 위한 것이다.
-//
-// ★ 여기 없는 이름은 안 넘어간다 ★. 그래서 하네스가 인증을 못 찾으면
-// droppedNotable() 이 무엇을 버렸는지 로그에 남긴다 — 조용히 실패하지 않게.
-var claudeEnv = []string{
-	"ANTHROPIC_API_KEY",
-	"ANTHROPIC_AUTH_TOKEN",
-	"ANTHROPIC_BASE_URL", // 사내 게이트웨이를 거치는 구성
-	"CLAUDE_CODE_USE_BEDROCK",
-	"CLAUDE_CODE_USE_VERTEX",
-}
-
-func runAgent(ctx context.Context, bin string, p AgentParams, prompt, dir string, env []string) ([]byte, HarnessResult) {
-	args := []string{"-p", "--output-format", "json"}
-	if p.Model != "" {
-		args = append(args, "--model", p.Model)
-	}
-	if p.MaxTurns > 0 {
-		args = append(args, "--max-turns", strconv.Itoa(p.MaxTurns))
-	}
-	// ask 는 계약이 못 박는다. 무인 실행이므로 물으면 매달린다.
-	if p.Ask == "" || p.Ask == "never" {
-		args = append(args, "--permission-mode", "bypassPermissions")
-	}
-
-	cmd := exec.CommandContext(ctx, bin, args...)
-	cmd.Dir = dir
-	cmd.Stdin = strings.NewReader(prompt)
-	// ★ 화이트리스트로 조립된 것만 넘어간다 ★ (R1, env.go).
-	// os.Environ() 을 얹지 않는다 — 그 한 줄이 ENODE_TOKEN 을 새게 했다.
-	cmd.Env = env
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	err := cmd.Run()
-
-	code := -1
-	if cmd.ProcessState != nil {
-		code = cmd.ProcessState.ExitCode()
-	}
-	h := ParseClaude(stdout.Bytes(), code)
-	if ctx.Err() != nil {
-		h = HarnessResult{Reason: ReasonTimeout, Message: "임대 만료 또는 중단"}
-	} else if err != nil && h.Reason == ReasonError && h.Message == "" {
-		h.Message = err.Error()
-	}
-	// 로그는 stdout + stderr 를 합쳐 원문 그대로 남긴다 (ADR-005 의 logs/).
-	log := append(stdout.Bytes(), stderr.Bytes()...)
-	return log, h
 }
 
 // writePromptFile 은 프롬프트를 작업 폴더에도 남긴다 — 무엇을 물었는지가

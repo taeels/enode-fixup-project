@@ -32,12 +32,12 @@ type Step struct {
 		Prompt string   `json:"prompt"`
 		From   []string `json:"from"`
 	} `json:"in,omitempty"`
-	Out      []string                   `json:"out,omitempty"`
-	Schema   map[string]json.RawMessage `json:"schema,omitempty"`
-	Attempt   int    `json:"attempt,omitempty"`
-	Requester string `json:"requester,omitempty"` // ★ 요청한 사람 ★ (R2 재료)
-	Feedback []string                   `json:"feedback,omitempty"`
-	Lease    Lease                      `json:"lease"`
+	Out       []string                   `json:"out,omitempty"`
+	Schema    map[string]json.RawMessage `json:"schema,omitempty"`
+	Attempt   int                        `json:"attempt,omitempty"`
+	Requester string                     `json:"requester,omitempty"` // ★ 요청한 사람 ★ (R2 재료)
+	Feedback  []string                   `json:"feedback,omitempty"`
+	Lease     Lease                      `json:"lease"`
 }
 
 var errNoWork = errors.New("204")
@@ -385,9 +385,23 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 			Node: w.Ident.NodeID, Error: err.Error()})
 		return
 	}
+	// ★ 어댑터를 고른다 ★ — 계약의 harness 속성이 곧 이름이다 (ADR-019:
+	// capability 어휘는 agent.reason 하나뿐이고 구별은 전부 속성이 한다).
+	name := p.Harness
+	if name == "" {
+		name = "claude"
+	}
+	ha, ok := harnessFor(name)
+	if !ok {
+		// ★ 조용히 claude 로 떨어뜨리지 않는다 ★ — 계약이 요구한 하네스가
+		// 아닌 것으로 돌면 Record 가 거짓을 남긴다.
+		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+			Node: w.Ident.NodeID, Error: "모르는 하네스: " + name})
+		return
+	}
 	bin := w.Local.HarnessBin
 	if bin == "" {
-		bin = "claude"
+		bin = ha.Name()
 	}
 
 	// 되먹임 — 앞 시도의 산출물을 프롬프트에 싣는다 (ADR-013 의 루프).
@@ -421,13 +435,14 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 			Node: w.Ident.NodeID, Error: "자격증명 준비 실패: " + err.Error()})
 		return
 	}
-	env := harnessEnv(claudeEnv, map[string]string{"OUT": out, "IN": in}, inject)
 	if d := droppedNotable(); len(d) > 0 {
 		// ★ 조용히 버리지 않는다 ★ — 하네스가 인증을 못 찾을 때
 		// 사람이 이 줄을 보고 화이트리스트를 의심할 수 있어야 한다.
 		log.Debug("환경변수를 안 넘겼다", "names", d)
 	}
-	logBytes, h := runAgent(runCtx, bin, p, prompt, dir, env)
+	logBytes, h := runHarness(runCtx, ha, bin, p, prompt,
+		IOPaths{Dir: dir, In: in, Out: out}, inject,
+		func(e Event) { log.Debug("하네스 사건", "kind", e.Kind) })
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
 	res := Result{Node: w.Ident.NodeID, Harness: &h}
