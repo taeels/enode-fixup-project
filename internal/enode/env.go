@@ -189,3 +189,22 @@ func droppedNotable() []string {
 	sort.Strings(out)
 	return out
 }
+
+// commandEnv 는 ★ 명령 단계 ★ 가 흔히 필요로 하는 이름이다.
+//
+// 에이전트와 명령은 위협은 같지만 필요한 환경의 폭이 다르다 —
+// 빌드는 툴체인 변수를 요구한다. 그래서 기본 목록이 따로 있고,
+// ★ 부족한 것은 계약이 steps[].env 로 이름을 적어 더한다 ★.
+//
+// ★ 값이 아니라 이름인 이유 ★ — 값을 계약에 적으면 그 계약이 Run Record 의
+// manifest 로 봉인되어(ADR-005) 자격증명이 영구히 남는다.
+var commandEnv = []string{
+	// 커널 크로스 빌드
+	"ARCH", "CROSS_COMPILE", "KBUILD_OUTPUT", "KBUILD_BUILD_TIMESTAMP",
+	"CC", "CXX", "LD", "AR", "NM", "OBJCOPY", "OBJDUMP", "STRIP",
+	"CFLAGS", "LDFLAGS", "MAKEFLAGS", "JOBS",
+	// 캐시 — ★ 없으면 증분 빌드가 느려진다 ★ (ADR-007 이 준비물로 잡은 것)
+	"CCACHE_DIR", "SCCACHE_DIR",
+	// 흔한 도구
+	"SHELL", "PWD",
+}

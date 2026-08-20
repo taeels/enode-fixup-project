@@ -37,6 +37,10 @@ const diffNote = "# ★ 워크스페이스 diff 가 상한을 넘어 요약으�
 // `add -N` 한다. 진짜 인덱스를 쓰면 에이전트가 일부러 stage 해둔 것을
 // 우리가 지우게 되고, 뒤따르는 명령 단계의 `git commit` 이 조용히 달라진다.
 //
+// ★ --binary 를 준다 ★ — 없으면 추적 바이너리가 "Binary files … differ" 한 줄로
+// 줄어 ★ 내용이 봉인된 기록에서 사라진다 ★. 실측에서 확인했다. diff 라고
+// 이름 붙여놓고 적용 불가능한 것을 남기면 그건 기록이 아니다.
+//
 //	add -N (intent-to-add)  추적 안 된 ★ 새 파일 ★ 도 diff 에 실린다.
 //	                        .gitignore 는 그대로 지켜진다.
 //	git diff                추적 파일의 수정·삭제 + 위의 새 파일
@@ -70,7 +74,7 @@ func workspaceDiff(ctx context.Context, dir string, limit int64) ([]byte, error)
 	if _, err := gitOut(ctx, dir, env, "add", "-N", "."); err != nil {
 		return nil, fmt.Errorf("intent-to-add: %w", err)
 	}
-	d, err := gitOut(ctx, dir, env, quotePathOff("diff", "HEAD")...)
+	d, err := gitOut(ctx, dir, env, quotePathOff("diff", "--binary", "HEAD")...)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +100,7 @@ func repoDiff(ctx context.Context, dir string, limit int64) ([]byte, error) {
 	// 이유는 단일 git 쪽과 같다.
 	const script = `i=$(mktemp); export GIT_INDEX_FILE="$i"; ` +
 		`git read-tree HEAD 2>/dev/null && git add -N . >/dev/null 2>&1; ` +
-		`d=$(git -c core.quotePath=false diff HEAD); rm -f "$i"; ` +
+		`d=$(git -c core.quotePath=false diff --binary HEAD); rm -f "$i"; ` +
 		`if [ -n "$d" ]; then echo "### $REPO_PATH"; echo "$d"; fi`
 	out, err := gitOutName(ctx, dir, nil, "repo", "forall", "-c", script)
 	if err != nil {

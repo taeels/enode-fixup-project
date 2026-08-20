@@ -157,6 +157,12 @@ type Step struct {
 	// ★ 판별자 두 개 ★ 정확히 하나만 있어야 한다 (ADR-019).
 	Agent map[string]interface{} `json:"agent,omitempty"` // 하네스 실행 파라미터
 	Run   []string               `json:"run,omitempty"`   // argv 배열. 셸을 거치지 않는다.
+	// Env 는 노드 환경에서 ★ 통과시킬 이름 ★ 이다. ★ 값이 아니라 이름이다 ★ —
+	// 값을 계약에 적으면 자격증명이 Run Record 에 봉인되어 영구히 남는다.
+	//
+	// 기본 목록(PATH·HOME·프록시·흔한 빌드 변수)은 노드가 갖고 있고,
+	// 여기 적는 것은 ★ 그 위에 더하는 것 ★ 이다. 적지 않은 이름은 안 넘어간다.
+	Env []string `json:"env,omitempty"`
 
 	In  map[string]interface{} `json:"in,omitempty"`
 	Out []string               `json:"out,omitempty"`

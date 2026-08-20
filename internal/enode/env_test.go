@@ -170,3 +170,39 @@ func Test환경_runner가_화이트리스트를_쓴다(t *testing.T) {
 		t.Fatalf("OUT 이 안 갔다\n%s", seen)
 	}
 }
+
+// ★ 명령 단계도 화이트리스트다 ★
+//
+// R1 을 처음 고칠 때 agent 쪽만 막았는데, 계약은 ★ 노드 주인이 아닌 사람 ★ 이
+// 낼 수 있고 argv 는 무엇이든 된다 — `sh -c 'env > $OUT/leak'` 이면 끝난다.
+// 위협이 같으므로 규칙도 같다.
+func Test환경_명령단계도_막힌다(t *testing.T) {
+	t.Setenv("ENODE_TOKEN", "비밀")
+	t.Setenv("ARCH", "arm")
+	t.Setenv("사내_비밀_변수", "새면_안됨")
+
+	env := harnessEnv(commandEnv, map[string]string{"OUT": "/o"}, nil)
+	if _, ok := has(env, "ENODE_TOKEN"); ok {
+		t.Fatal("★ 명령 단계에 토큰이 갔다 ★")
+	}
+	if _, ok := has(env, "사내_비밀_변수"); ok {
+		t.Fatal("선언 안 한 이름이 통과했다")
+	}
+	if _, ok := has(env, "ARCH"); !ok {
+		t.Fatal("★ ARCH 가 막혔다 ★ — 크로스 빌드가 안 된다")
+	}
+}
+
+// ★ 계약이 이름을 더할 수 있다 ★ — 값이 아니라 이름이다.
+// 값을 계약에 적으면 Run Record 의 manifest 로 봉인되어 영구히 남는다.
+func Test환경_계약이_이름을_더한다(t *testing.T) {
+	t.Setenv("사내_툴체인_경로", "/opt/tc")
+
+	if _, ok := has(harnessEnv(commandEnv, nil, nil), "사내_툴체인_경로"); ok {
+		t.Fatal("선언 없이 통과했다")
+	}
+	declared := append(append([]string{}, commandEnv...), "사내_툴체인_경로")
+	if _, ok := has(harnessEnv(declared, nil, nil), "사내_툴체인_경로"); !ok {
+		t.Fatal("★ 계약이 선언했는데 안 통과했다 ★")
+	}
+}

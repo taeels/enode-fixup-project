@@ -27,6 +27,7 @@ type Step struct {
 	Kind      string          `json:"kind"`
 	Agent     json.RawMessage `json:"agent,omitempty"`
 	Run       []string        `json:"run,omitempty"`
+	Env       []string        `json:"env,omitempty"`
 	Workspace json.RawMessage `json:"workspace,omitempty"`
 	In        struct {
 		Prompt string   `json:"prompt"`
@@ -335,9 +336,18 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 
 	cmd := exec.CommandContext(runCtx, step.Run[0], step.Run[1:]...)
 	cmd.Dir = dir
-	// $OUT 에 이름별 파일로 배출한다 (ADR-013) — stdout JSON 은 로그와 섞이고
-	// 구조화 출력 API 는 하네스마다 다르다. 파일은 어떤 하네스든 쓸 수 있다.
-	cmd.Env = append(os.Environ(), "OUT="+out, "IN="+in)
+	// ★ 명령 단계도 화이트리스트다 ★ (R1)
+	//
+	// 처음엔 agent 쪽만 고쳤는데, 계약은 ★ 노드 주인이 아닌 사람 ★ 이 낼 수 있고
+	// argv 는 무엇이든 될 수 있다 — `sh -c 'env > $OUT/leak'` 이면 끝난다.
+	// 위협이 같으므로 규칙도 같다.
+	//
+	// 다만 빌드는 환경이 더 필요하다. 기본 목록(commandEnv)에 흔한 것을 담고,
+	// 나머지는 ★ 계약이 이름으로 선언한다 ★ (steps[].env) — 값이 아니라 이름이라
+	// 자격증명이 Run Record 에 봉인되는 일이 없다.
+	// $OUT 에 이름별 파일로 배출한다 (ADR-013).
+	cmd.Env = harnessEnv(append(commandEnv, step.Env...),
+		map[string]string{"OUT": out, "IN": in}, nil)
 	var buf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &buf, &buf
 
@@ -453,24 +463,6 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		_ = w.Client.Report(ctx, step.RunID, step.Seq, res)
 		return
 	}
-	// ★ R5② — 워크스페이스 변경을 diff 로 걷는다 ★ (ADR-017 결정 6)
-	//
-	// ④수확 ★ 앞 ★ 에 놓는다 — $OUT 에 써두면 기존 수확이 그대로 걷어 올린다.
-	// 새 전송 경로를 안 만드는 것이 요점이다.
-	//
-	// ★ 실패해도 단계를 죽이지 않는다 ★ — diff 는 안전망이지 판정 재료가 아니다.
-	// 판정은 success_when 이 한다 (ADR-004 · I3). 여기서 단계를 실패시키면
-	// 안전망이 정규 경로를 무너뜨린다.
-	if w.Local.Workspace != "" && len(step.Workspace) > 0 {
-		n, err := writeWorkspaceDiff(runCtx, w.Local.Workspace, out, maxBlobBytes)
-		switch {
-		case err != nil:
-			log.Warn("워크스페이스 diff 를 못 걷었다", "err", err)
-		case n > 0:
-			log.Info("워크스페이스 diff", "bytes", n)
-		}
-	}
-
 	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
 	res.Produced = w.uploadProduced(ctx, step, out, log)
 	log.Info("agent 단계 끝", "reason", h.Reason, "turns", h.Turns,
@@ -485,6 +477,26 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 // ★ 올라간 것만 produced 다 ★ — 스키마를 어긴 것은 422 로 거절되어
 // 저장되지 않았고, ★ 어긴 산출물은 산출물이 아니다 ★ (ADR-020).
 func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, log *slog.Logger) []string {
+	// ★ R5② — 워크스페이스 변경을 걷는다 ★ (ADR-017 결정 6)
+	//
+	// ★ 여기 두는 이유 ★ — agent 단계와 명령 단계가 ★ 둘 다 ★ 이 함수를 지난다.
+	// 처음엔 agent 쪽에만 붙였는데, 그건 ADR 문장의 「에이전트 산출물」을
+	// 그대로 조건문으로 옮긴 것이었다. 명령 단계도 `git apply` 를 하거나
+	// make 가 추적 파일을 재생성하면 ★ 같은 흔적을 남긴다 ★.
+	//
+	// $OUT 에 놓으면 아래 수확이 그대로 걷는다 — 새 전송 경로가 없다.
+	//
+	// ★ 실패해도 단계를 죽이지 않는다 ★ — 판정은 success_when 이 한다
+	// (ADR-004 · I3). 기록 수단이 정규 경로를 무너뜨리면 안 된다.
+	if w.Local.Workspace != "" && len(step.Workspace) > 0 {
+		switch n, err := writeWorkspaceDiff(ctx, w.Local.Workspace, out, maxBlobBytes); {
+		case err != nil:
+			log.Warn("워크스페이스 diff 를 못 걷었다", "err", err)
+		case n > 0:
+			log.Info("워크스페이스 diff", "bytes", n)
+		}
+	}
+
 	var produced []string
 	for _, name := range harvest(out) {
 		if strings.HasPrefix(name, ".enode-") {

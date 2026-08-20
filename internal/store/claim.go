@@ -65,19 +65,20 @@ type Claimed struct {
 	Kind      string          `json:"kind"`
 	Agent     json.RawMessage `json:"agent,omitempty"`
 	Run       []string        `json:"run,omitempty"`
+	Env       []string        `json:"env,omitempty"` // 통과시킬 환경변수 ★ 이름 ★
 	Workspace json.RawMessage `json:"workspace,omitempty"`
 	In        json.RawMessage `json:"in,omitempty"`
 	Out       []string        `json:"out,omitempty"`
 	// Schema 는 어댑터가 ★ 프롬프트에 심는 데 ★ 쓴다 (ADR-020).
 	// 최종 검증은 Mediator 가 PUT blob 에서 한다 — 강제 지점은 하나다.
-	Schema   json.RawMessage `json:"schema,omitempty"`
-	Attempt  int             `json:"attempt,omitempty"` // 0 부터. 재시도면 1 이상.
+	Schema  json.RawMessage `json:"schema,omitempty"`
+	Attempt int             `json:"attempt,omitempty"` // 0 부터. 재시도면 1 이상.
 	// Requester 는 ★ runctl 로 요청한 사람 ★ 이다 (runs.principal, ADR-015 §1).
 	// 지금은 아무도 안 본다 — R2(하네스가 누구 신원으로 도는가)가 쓸 재료다.
 	// 미리 싣는 이유는, 나중에 필요해졌을 때 ★ 이 표면을 고치지 않기 위해서 ★ 다.
-	Requester string `json:"requester,omitempty"`
-	Feedback []string        `json:"feedback,omitempty"`
-	Lease    LeaseRow        `json:"lease"`
+	Requester string   `json:"requester,omitempty"`
+	Feedback  []string `json:"feedback,omitempty"`
+	Lease     LeaseRow `json:"lease"`
 }
 
 var ErrNoWork = errors.New("할 일이 없다")
@@ -158,6 +159,7 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 			ID        string          `json:"id"`
 			Agent     json.RawMessage `json:"agent"`
 			Run       []string        `json:"run"`
+			Env       []string        `json:"env"`
 			Workspace json.RawMessage `json:"workspace"`
 			In        json.RawMessage `json:"in"`
 			Out       []string        `json:"out"`
@@ -170,7 +172,7 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 	}
 	st := raw.Steps[c.Seq-1]
 	c.Agent, c.Run, c.Workspace, c.In, c.Out = st.Agent, st.Run, st.Workspace, st.In, st.Out
-	c.Schema, c.Feedback = st.Schema, st.Feedback
+	c.Schema, c.Feedback, c.Env = st.Schema, st.Feedback, st.Env
 }
 
 // StepResult 는 enode 가 보고하는 것이다.

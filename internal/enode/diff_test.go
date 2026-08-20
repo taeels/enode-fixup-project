@@ -218,3 +218,29 @@ func mustDiff(t *testing.T, dir string) []byte {
 	}
 	return d
 }
+
+// ★ 추적 바이너리의 내용이 사라지면 안 된다 ★
+//
+// --binary 없이는 "Binary files a/x and b/x differ" 한 줄로 줄어
+// ★ 봉인된 기록에서 내용이 사라진다 ★. diff 라고 이름 붙여놓고
+// 적용 불가능한 것을 남기면 그건 기록이 아니다.
+func TestDiff_바이너리가_안_사라진다(t *testing.T) {
+	dir := gitInit(t)
+	bin := filepath.Join(dir, "fw.bin")
+	if err := os.WriteFile(bin, []byte{0, 1, 2, 'f', 'w', 0}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, dir, "add", "fw.bin")
+	git(t, dir, "commit", "--quiet", "-m", "펌웨어")
+	if err := os.WriteFile(bin, []byte{0, 1, 2, 'F', 'W', '2', 0}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := string(mustDiff(t, dir))
+	if strings.Contains(s, "Binary files") {
+		t.Fatalf("★ 바이너리 내용이 사라졌다 ★ — --binary 가 빠졌나:\n%s", s)
+	}
+	if !strings.Contains(s, "GIT binary patch") {
+		t.Fatalf("적용 가능한 바이너리 패치가 아니다:\n%s", s)
+	}
+}
