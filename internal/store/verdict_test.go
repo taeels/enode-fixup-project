@@ -106,3 +106,64 @@ func TestVerdictRecordsWantAndGot(t *testing.T) {
 		t.Fatalf("★ 왜 실패했는지가 안 남았다 ★: %+v", v.Checks)
 	}
 }
+
+// ★ 건너뛴 단계의 조건은 공허하게 참이다 ★ (ADR-022 §7.2 · B2)
+//
+// dispatch 로 경로가 갈리면 안 간 쪽의 단계는 실행되지 않는다. 그 조건을 실패로
+// 치면 ★ 안 간 경로가 Run 을 죽인다 ★ — 계약 저자가 경로별로 조건을 나눠 쓸
+// 방법이 없다(경로는 실행 시 정해진다).
+func TestVerify_건너뛴_단계는_안_묻는다(t *testing.T) {
+	con := contract.Contract{SuccessWhen: []contract.Condition{
+		{Step: "taken", Produced: []string{"report"}},
+		{Step: "not_taken", ExitCode: i(0)},
+	}}
+	v := Verify(con, map[string]StepResult{
+		"taken":     {Produced: []string{"report"}},
+		"not_taken": {Skipped: true},
+	})
+	if v.State != StateSucceeded {
+		t.Fatalf("★ 안 간 경로가 Run 을 죽였다 ★: %+v", v)
+	}
+	var skipped *Check
+	for i := range v.Checks {
+		if v.Checks[i].What == "skipped" {
+			skipped = &v.Checks[i]
+		}
+	}
+	if skipped == nil || !skipped.OK {
+		t.Fatalf("건너뛴 것이 기록에 안 남았다: %+v", v.Checks)
+	}
+}
+
+// ★ 크래시와 건너뜀은 다르다 ★ — 결과가 없는 것은 여전히 실패다.
+func TestVerify_결과_없음은_여전히_실패다(t *testing.T) {
+	con := contract.Contract{SuccessWhen: []contract.Condition{
+		{Step: "ran", Produced: []string{"x"}},
+		{Step: "crashed", ExitCode: i(0)},
+	}}
+	v := Verify(con, map[string]StepResult{"ran": {Produced: []string{"x"}}})
+	if v.State != StateFailed {
+		t.Fatalf("★ 크래시를 건너뜀으로 봤다 ★: %+v", v)
+	}
+}
+
+// ★ 공허한 참을 막는다 ★ — 전부 건너뛰면 SUCCEEDED 가 되면 안 된다.
+//
+// 「검증이 불필요한 패치」도 ★ 그 경로에 보고 단계가 있어야 ★ 하고
+// 거기에 조건이 걸려야 한다. 그게 이 규칙이 요구하는 것이다.
+func TestVerify_전부_건너뛰면_실패다(t *testing.T) {
+	con := contract.Contract{SuccessWhen: []contract.Condition{
+		{Step: "a", ExitCode: i(0)},
+		{Step: "b", ExitCode: i(0)},
+	}}
+	v := Verify(con, map[string]StepResult{
+		"a": {Skipped: true}, "b": {Skipped: true},
+	})
+	if v.State != StateFailed {
+		t.Fatalf("★ 아무것도 안 하고 SUCCEEDED 가 됐다 ★: %+v", v)
+	}
+	last := v.Checks[len(v.Checks)-1]
+	if last.What != "any" || last.OK {
+		t.Fatalf("이유가 안 남았다: %+v", v.Checks)
+	}
+}

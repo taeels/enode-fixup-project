@@ -57,7 +57,10 @@ CREATE TABLE IF NOT EXISTS steps (
     name     text        NOT NULL,      -- 계약의 steps[].id
     uses     text        NOT NULL,      -- 역할 이름
     kind     text        NOT NULL,      -- agent | run  (ADR-019 결정 3)
-    state    text        NOT NULL,      -- PENDING | CLAIMED | DONE | FAILED
+    state    text        NOT NULL,      -- PENDING | CLAIMED | DONE | FAILED | SKIPPED
+                                    -- SKIPPED 는 dispatch 가 안 간 경로다 (ADR-022 §7.2).
+                                    -- 종료 상태이면서 실패가 아니다. CHECK 를 안 거는 이유는
+                                    -- 어휘가 늘 때 마이그레이션을 강요하지 않기 위해서다.
     node_id  text,                      -- 배정된 노드. claim 이 채운다 (S4).
     attempt  int         NOT NULL DEFAULT 0,
     started_at timestamptz,

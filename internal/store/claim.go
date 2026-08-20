@@ -185,6 +185,11 @@ type StepResult struct {
 	// Attempt · Exhausted 는 재시도 루프의 결과다 (DB 에서 채운다).
 	Attempt   int  `json:"attempt,omitempty"`
 	Exhausted bool `json:"-"`
+	// Skipped 는 ★ 그 단계가 실행되지 않았다 ★ 는 뜻이다 (dispatch — ADR-022 §7.2).
+	// 결과가 없는 것과 ★ 다르다 ★ — 결과가 없으면 크래시일 수 있고,
+	// 건너뛴 것은 경로가 갈렸을 뿐이다. Verify 가 둘을 갈라 본다.
+	// 와이어로 안 나간다 — 노드가 보고하는 값이 아니라 DB 에서 채우는 것이다.
+	Skipped bool `json:"-"`
 	// Error 는 ★ 완주하지 못한 ★ 경우다 — 프로세스를 못 띄웠거나 임대가 끝나
 	// 중단됐거나. 비어 있으면 완주한 것이고, 종료코드가 무엇이든 DONE 이다.
 	Error string `json:"error,omitempty"`
