@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/taeels/enode/internal/schema"
 )
@@ -159,6 +160,29 @@ func (r Require) Wanted() int {
 // 노드는 한 종류로 합쳤지만 단계는 합치지 않는다. 전부 agent 단계가 되면
 // 하네스가 쓸모없는 소리를 하고도 종료코드 0 으로 끝나므로 성패를 기계적으로
 // 물을 수 없게 되고, 그러면 ADR-004 가 무너진다.
+// Dispatch 는 한 단계가 고를 수 있는 갈림길이다 (ADR-022 §7.2).
+//
+//	"out": ["route"],
+//	"schema": { "route": { … "next": { "enum": ["full","quick","skip"] } … } },
+//	"dispatch": { "from": "route.next", "to": ["full","quick","skip"] }
+//
+// ★ 왜 to 를 계약이 적는가 ★ — 적지 않으면 ★ 아무도 형제를 모른다 ★.
+// 값만 있으면 "무엇을 골랐나" 는 알아도 "무엇을 안 골랐나" 를 알 수 없고,
+// 그러면 안 간 쪽을 SKIPPED 로 못 만든다. 그리고 to 가 있어야
+// ★ 검증기가 DAG 를 정적으로 확인 ★ 해서 종료를 보장할 수 있다.
+//
+// ★ 값은 스키마가 한 번 더 막는다 ★ — enum 을 벗어나면 PUT blob 이 422 고
+// 저장되지 않아 produced 가 불만족이 된다 (ADR-020). 즉 ★ 검사가 두 겹 ★ 이다.
+//
+// ★ 지금은 목적지가 단계 하나다 ★ — 구간(여러 단계)으로 갈리는 분기는
+// P2 의 block(repeat.body) 위에 앉는다. 그때 to 가 블록을 가리키면 된다.
+type Dispatch struct {
+	// From 은 산출물 안의 경로다 — "<out 이름>.<필드>[.<필드>…]".
+	From string `json:"from"`
+	// To 는 가능한 목적지 단계 id 들이다. ★ 전부 이 단계보다 뒤여야 한다 ★.
+	To []string `json:"to"`
+}
+
 type StepKind int
 
 const (
@@ -214,6 +238,14 @@ type Step struct {
 	// Schema 는 산출물 이름 → JSON Schema (ADR-020). ★ 인라인이다 ★ —
 	// 경로면 Record 를 열었을 때 무엇으로 검증했는지 알 수 없다 (성질 4).
 	Schema map[string]interface{} `json:"schema,omitempty"`
+
+	// Dispatch 는 ★ 분기다 — 식을 평가하지 않고 이름을 고른다 ★ (ADR-022 §7.2).
+	//
+	// 기각한 것은 「결과가 X 면 A」 라는 ★ 표현식 ★ 이지 분기 자체가 아니다.
+	// 에이전트가 이름 하나를 산출물로 내고 Mediator 는 ★ 그 이름의 단계를
+	// 찾아 실행할 뿐 ★ 이므로, ★ Mediator 는 여전히 아무것도 판정하지 않는다 ★
+	// (ADR-004). ADR-011 의 라벨 매칭 계열과 같은 정신 — 표현식이 아니라 값 일치다.
+	Dispatch *Dispatch `json:"dispatch,omitempty"`
 
 	// 재시도 루프 (ADR-013). 스키마 위반도 이 루프의 입력이 된다.
 	ValidateWith string   `json:"validate_with,omitempty"`
@@ -322,6 +354,50 @@ func (c Contract) Validate() error {
 			}
 			if !contains(s.Out, name) {
 				return fmt.Errorf("step %q 가 내지 않는 산출물 %q 에 스키마를 달았다", s.ID, name)
+			}
+		}
+	}
+
+	// ★ dispatch 는 단계 목록이 다 모인 뒤에 본다 ★ — 뒤를 가리킬 수 있어야 하므로.
+	index := map[string]int{}
+	for i, st := range c.Steps {
+		index[st.ID] = i
+	}
+	for i, st := range c.Steps {
+		d := st.Dispatch
+		if d == nil {
+			continue
+		}
+		if d.From == "" {
+			return fmt.Errorf("step %q: dispatch.from 이 비었다", st.ID)
+		}
+		// from 의 첫 조각은 ★ 이 단계가 실제로 내는 산출물 ★ 이어야 한다.
+		// 아니면 실행 시에 "고를 값이 없다" 로 조용히 죽는다.
+		blob, _, _ := strings.Cut(d.From, ".")
+		if !contains(st.Out, blob) {
+			return fmt.Errorf("step %q: dispatch.from 이 내지 않는 산출물 %q 를 가리킨다",
+				st.ID, blob)
+		}
+		// ★ 갈림길이 하나면 갈림길이 아니다 ★ — 순차로 쓰면 될 것을
+		// 분기로 쓰면 읽는 사람이 경로가 갈린다고 오해한다.
+		if len(d.To) < 2 {
+			return fmt.Errorf("step %q: dispatch.to 가 둘 미만이다", st.ID)
+		}
+		seen := map[string]bool{}
+		for _, t := range d.To {
+			if seen[t] {
+				return fmt.Errorf("step %q: dispatch.to 에 %q 가 두 번 있다", st.ID, t)
+			}
+			seen[t] = true
+			j, ok := index[t]
+			if !ok {
+				return fmt.Errorf("step %q: dispatch.to 가 없는 단계 %q 를 가리킨다", st.ID, t)
+			}
+			// ★ 뒤로 못 간다 = DAG = 종료가 정적으로 보장된다 ★ (ADR-022 §7.2).
+			// 뒤로 가야 하는 것은 분기가 아니라 ★ 반복 ★ 이고 그건 repeat 의 자리다.
+			if j <= i {
+				return fmt.Errorf("step %q: dispatch.to 의 %q 가 자기보다 앞이다 — "+
+					"분기는 뒤로 못 간다 (뒤로 가야 하면 repeat 다)", st.ID, t)
 			}
 		}
 	}

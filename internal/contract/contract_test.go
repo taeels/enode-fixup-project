@@ -213,3 +213,38 @@ func TestValidate_모르는_capability는_거절한다(t *testing.T) {
 		t.Fatalf("정상 어휘가 거절됐다: %v", err)
 	}
 }
+
+// ★ dispatch 검증 — DAG 를 정적으로 확인한다 ★ (ADR-022 §7.2)
+//
+// 뒤로 못 가면 ★ 종료가 계약 검증 단계에서 보장된다 ★. 실행 중에 무한 루프를
+// 발견하는 것과 제출 시점에 400 을 받는 것은 다르다.
+func TestValidate_dispatch(t *testing.T) {
+	mk := func(d *Dispatch) Contract {
+		return Contract{
+			RunID:    "r1",
+			Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+			Steps: []Step{
+				{ID: "triage", Uses: "b", Agent: map[string]interface{}{}, Out: []string{"route"}, Dispatch: d},
+				{ID: "full", Uses: "b", Run: []string{"true"}},
+				{ID: "quick", Uses: "b", Run: []string{"true"}},
+			},
+		}
+	}
+	ok := &Dispatch{From: "route.next", To: []string{"full", "quick"}}
+	if err := mk(ok).Validate(); err != nil {
+		t.Fatalf("정상 dispatch 가 거절됐다: %v", err)
+	}
+
+	for name, d := range map[string]*Dispatch{
+		"from 이 비었다":     {To: []string{"full", "quick"}},
+		"안 내는 산출물을 가리킨다": {From: "없는것.next", To: []string{"full", "quick"}},
+		"갈림길이 하나다":       {From: "route.next", To: []string{"full"}},
+		"없는 단계를 가리킨다":    {From: "route.next", To: []string{"full", "없는것"}},
+		"중복이 있다":         {From: "route.next", To: []string{"full", "full"}},
+		"★ 자기를 가리킨다 ★":   {From: "route.next", To: []string{"full", "triage"}},
+	} {
+		if err := mk(d).Validate(); err == nil {
+			t.Fatalf("%s — 통과했다: %+v", name, d)
+		}
+	}
+}

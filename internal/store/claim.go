@@ -114,8 +114,11 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 		   AND s.state = 'PENDING'
 		   AND r.state = 'RUNNING'
 		   AND NOT EXISTS (
+		       -- ★ SKIPPED 도 끝난 것이다 ★ (ADR-022 §7.2) — dispatch 가 안 간 쪽을
+		       -- 여기 남겨두면 뒤 단계가 ★ 영원히 안 집힌다 ★.
 		       SELECT 1 FROM steps p
-		        WHERE p.run_id = s.run_id AND p.seq < s.seq AND p.state <> 'DONE')
+		        WHERE p.run_id = s.run_id AND p.seq < s.seq
+		          AND p.state NOT IN ('DONE','SKIPPED'))
 		 ORDER BY s.run_id, s.seq
 		   FOR UPDATE OF s SKIP LOCKED
 		 LIMIT 1`, nodeID).
@@ -212,11 +215,19 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 	if err != nil {
 		return err
 	}
-	state := "FAILED"
+	state := StepFailed
 	if ok {
-		state = "DONE"
+		state = StepDone
 	}
-	tag, err := s.pool.Exec(ctx, `
+	// ★ 트랜잭션이다 ★ — 단계를 끝내는 것과 갈림길을 닫는 것이 함께 일어나야 한다.
+	// 따로 하면 그 사이에 claim 이 들어와 ★ 안 간 경로가 집힌다 ★.
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	tag, err := tx.Exec(ctx, `
 		UPDATE steps SET state=$4, ended_at=now(), result=$5
 		 WHERE run_id=$1 AND seq=$2 AND node_id=$3 AND state='CLAIMED'`,
 		runID, seq, nodeID, state, resJSON)
@@ -226,7 +237,29 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 	if tag.RowsAffected() == 0 {
 		return fmt.Errorf("집지 않은 단계를 보고했다 (%s#%d)", runID, seq)
 	}
-	return nil
+	if ok {
+		// ★ 이름을 못 고르면 그 단계가 FAILED 다 ★ — 결과가 나쁜 것이 아니라
+		// 계약이 요구한 것을 못 낸 것이므로 "완주하지 못함" 과 같은 자리다.
+		if err := s.applyDispatch(ctx, tx, runID, seq); err != nil {
+			if _, e := tx.Exec(ctx, `
+				UPDATE steps SET state=$3, result = coalesce(result,'{}'::jsonb) || $4::jsonb
+				 WHERE run_id=$1 AND seq=$2`,
+				runID, seq, StepFailed,
+				mustJSON(map[string]string{"error": err.Error()})); e != nil {
+				return e
+			}
+			if err := tx.Commit(ctx); err != nil {
+				return err
+			}
+			return nil // ★ 보고 자체는 받았다 ★ — 노드에 오류를 되던지지 않는다
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func mustJSON(v any) []byte {
+	b, _ := json.Marshal(v)
+	return b
 }
 
 // StepAttempt 는 그 단계가 몇 번째 시도인지다. 산출물 이름에 들어간다.

@@ -921,3 +921,79 @@ func TestClaim이_요청자를_싣는다(t *testing.T) {
 		t.Fatalf("★ 요청자가 안 실렸다 ★: %q (runs.principal 이어야 한다)", got)
 	}
 }
+
+// ═══ 분기 — ★ 식을 평가하지 않고 이름을 고른다 ★ (ADR-022 §7.2) ═══════════
+//
+// 에이전트가 이름 하나를 산출물로 내고, Mediator 는 ★ 그 이름의 단계를 찾아
+// 실행할 뿐 ★ 이다. 안 간 쪽은 SKIPPED 가 되고 뒤 단계는 그것을 넘어 진행한다.
+func TestDispatch_이름을_골라_한쪽만_돈다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+
+	triage := map[string]any{
+		"id": "triage", "uses": "b",
+		"agent": map[string]any{"ask": "never"},
+		"out":   []string{"route"},
+		// ★ enum 이 어휘를 못 박는다 ★ — 벗어나면 PUT blob 이 422 다 (ADR-020).
+		"schema": map[string]any{"route": map[string]any{
+			"type": "object", "required": []string{"next"},
+			"properties": map[string]any{
+				"next": map[string]any{"enum": []string{"full", "quick"}}}}},
+		"dispatch": map[string]any{"from": "route.next", "to": []string{"full", "quick"}},
+	}
+	body := contractJSON("br", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{triage, runStep("full", "b"), runStep("quick", "b")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+
+	if code, c := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil); code != 200 || c["name"] != "triage" {
+		t.Fatalf("triage 가 안 나왔다: %d %v", code, c)
+	}
+	if code, _ := do(t, srv, "PUT", "/v1/runs/br/steps/1/blob/route",
+		`{"next":"quick"}`, nil); code != 200 && code != 201 && code != 204 {
+		t.Fatalf("산출물 저장 실패: %d", code)
+	}
+	if code, _ := do(t, srv, "POST", "/v1/runs/br/steps/1/result",
+		`{"node":"n1","produced":["route"]}`, nil); code != 200 {
+		t.Fatalf("보고 실패: %d", code)
+	}
+
+	// ★ 고른 쪽이 나온다 — 안 간 쪽(full, seq 2)을 넘어서 ★
+	code, next := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	if code != 200 || next["name"] != "quick" {
+		t.Fatalf("★ 고른 경로가 안 나왔다 ★: %d %v", code, next)
+	}
+}
+
+// ★ 이름을 못 고르면 그 단계가 FAILED 다 ★
+//
+// 결과가 나쁜 것이 아니라 ★ 계약이 요구한 것을 못 낸 것 ★ 이므로
+// "완주하지 못함" 과 같은 자리다 (ADR-004 를 안 건드린다).
+// 그리고 ★ 안 간 쪽이 열린 채로 남지 않는다 ★ — 아무 경로도 안 돈다.
+func TestDispatch_이름을_못_고르면_그_단계가_실패한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+
+	triage := map[string]any{
+		"id": "triage", "uses": "b",
+		"agent": map[string]any{"ask": "never"},
+		"out":   []string{"route"},
+		// ★ 스키마를 일부러 안 단다 ★ — 그래야 엉뚱한 값이 PUT 을 통과해
+		// 라우터까지 온다. 두 겹 중 ★ 두 번째 겹 ★ 만 시험하는 것이다.
+		"dispatch": map[string]any{"from": "route.next", "to": []string{"full", "quick"}},
+	}
+	body := contractJSON("bad", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{triage, runStep("full", "b"), runStep("quick", "b")})
+	do(t, srv, "POST", "/v1/runs", body, nil)
+	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/bad/steps/1/blob/route", `{"next":"없는것"}`, nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs/bad/steps/1/result",
+		`{"node":"n1","produced":["route"]}`, nil); code != 200 {
+		t.Fatalf("보고는 받아야 한다: %d", code)
+	}
+	// 그 단계가 실패했으므로 ★ 아무 경로도 안 나온다 ★
+	if code, c := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil); code == 200 {
+		t.Fatalf("★ 라우팅이 실패했는데 경로가 돌았다 ★: %v", c)
+	}
+}
