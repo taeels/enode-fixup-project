@@ -268,6 +268,16 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		}
 	}
 
+	// ★ 여기서 기준 시각을 잡는다 ★ (R5②' — changed.go)
+	//
+	// sanitize ★ 직후 ★ 여야 한다. 그래야 "원래 있던 것" 과 "이 단계가 만든 것" 이
+	// 갈린다. 데워둔 빌드 캐시는 sanitize 가 남기므로 기준보다 오래됐고,
+	// 이 단계가 새로 빌드한 것만 새 것이 된다.
+	//
+	// ★ git 이 못 보는 것을 여기서 본다 ★ — .gitignore 가 빌드 산출물을 정확히
+	// 가리므로, git status 만으로는 훅이 zImage 도 .ko 도 못 본다.
+	stamp := stampNow(w.Local.Workspace)
+
 	// 이전 단계의 산출물을 $IN 에 이름별 파일로 깐다.
 	// 별 모양이므로 노드끼리 직접 주고받지 않고 Mediator 를 경유한다.
 	in, err := os.MkdirTemp("", "enode-in-")
@@ -325,7 +335,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// ★ 단계는 두 종류다 ★ (ADR-019 결정 3) — 노드는 합쳤지만 단계는 안 합쳤다.
 	// agent 단계는 produced 로, 명령 단계는 exit_code 로 판정한다.
 	if step.Kind == "agent" {
-		w.runAgentStep(runCtx, ctx, step, dir, in, out, log)
+		w.runAgentStep(runCtx, ctx, step, dir, in, out, stamp, log)
 		return
 	}
 	if len(step.Run) == 0 {
@@ -355,7 +365,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	runErr := cmd.Run()
 	code := cmd.ProcessState.ExitCode()
 
-	res := Result{Node: w.Ident.NodeID, Produced: w.uploadProduced(ctx, step, out, log)}
+	res := Result{Node: w.Ident.NodeID, Produced: w.uploadProduced(ctx, step, out, stamp, log)}
 
 	// ★ 로그를 먼저 올린다 ★ — 단계가 실패해도 원문은 남아야 한다.
 	// 여기서 실패해도 결과 보고는 계속한다. 로그가 없다고 Run 을 멈출 이유는 없다.
@@ -388,7 +398,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 
 // runAgentStep 은 ADR-013 의 어댑터 넷 중 ②기동을 부르고 ④수확으로 잇는다.
 // ①사출은 위에서 이미 했다 ($IN + 프롬프트 조립).
-func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, log *slog.Logger) {
+func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, log *slog.Logger) {
 	p, err := parseAgentParams(step.Agent)
 	if err != nil {
 		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
@@ -454,6 +464,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		Params: p, Prompt: prompt,
 		IO:     IOPaths{Dir: dir, In: in, Out: out},
 		Expect: step.Out, // ★ 훅이 짚을 이름 ★ — 계약이 요구한 산출물
+		Stamp:  stamp,    // ★ 훅이 볼 기준 시각 ★ — git 이 못 보는 것까지
 		Inject: inject,
 		Emit:   func(e Event) { log.Debug("하네스 사건", "kind", e.Kind) },
 	})
@@ -468,7 +479,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		return
 	}
 	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
-	res.Produced = w.uploadProduced(ctx, step, out, log)
+	res.Produced = w.uploadProduced(ctx, step, out, stamp, log)
 	log.Info("agent 단계 끝", "reason", h.Reason, "turns", h.Turns,
 		"cost_usd", h.CostUSD, "produced", res.Produced)
 	if err := w.Client.Report(ctx, step.RunID, step.Seq, res); err != nil && ctx.Err() == nil {
@@ -480,7 +491,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 //
 // ★ 올라간 것만 produced 다 ★ — 스키마를 어긴 것은 422 로 거절되어
 // 저장되지 않았고, ★ 어긴 산출물은 산출물이 아니다 ★ (ADR-020).
-func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, log *slog.Logger) []string {
+func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, stamp Stamp, log *slog.Logger) []string {
 	// ★ R5② — 워크스페이스 변경을 걷는다 ★ (ADR-017 결정 6)
 	//
 	// ★ 여기 두는 이유 ★ — agent 단계와 명령 단계가 ★ 둘 다 ★ 이 함수를 지난다.
@@ -501,6 +512,21 @@ func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, log
 		}
 	}
 
+	// ★ 기록이 스스로 설명하게 한다 ★ (R5②')
+	//
+	// ★ 명령 단계에는 훅이 없다 ★ — 되물을 상대가 스크립트다. 그런데 빌드·플래시가
+	// 전부 명령 단계이고, ADR-019 로 그것들이 같은 노드의 cap 아래 들어왔다.
+	// agent 단계는 훅이 모델에게 되묻지만, 명령 단계는 ★ 기록이 말해야 한다 ★:
+	//
+	//	"vmlinux 와 .ko 12개를 만들었는데 계약이 요구한 artifact 는 $OUT 에 없다"
+	//
+	// 이 한 문장이 없으면 사람이 로그를 뒤져 스스로 이어붙여야 하고,
+	// 그건 우리가 없애려던 바로 그 상태다 (ADR-005 이유 2).
+	//
+	// diff 로는 안 된다 — .gitignore 가 빌드 산출물을 정확히 가려서
+	// ★ 빌드 단계는 diff 만 보면 아무 일도 안 한 것처럼 보인다 ★.
+	writeChangedNote(out, step.Out, stamp, log)
+
 	var produced []string
 	for _, name := range harvest(out) {
 		if strings.HasPrefix(name, ".enode-") {
@@ -518,6 +544,54 @@ func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, log
 		produced = append(produced, name)
 	}
 	return produced
+}
+
+// writeChangedNote 는 「무엇을 만들었고 무엇을 안 냈나」를 한 파일로 남긴다.
+//
+// ★ 판정하지 않는다 ★ — 판정은 success_when 이 한다 (ADR-004 · I3).
+// 여기서는 사실만 적는다. 실패해도 단계를 죽이지 않는다.
+func writeChangedNote(out string, want []string, stamp Stamp, log *slog.Logger) {
+	have := map[string]bool{}
+	for _, n := range harvest(out) {
+		have[n] = true
+	}
+	var missing []string
+	for _, n := range want {
+		if !have[n] {
+			missing = append(missing, n)
+		}
+	}
+
+	var found []Changed
+	var total int
+	if stamp.Root != "" {
+		var err error
+		if found, total, err = changedSince(stamp, 2000); err != nil {
+			log.Warn("변경 목록을 못 걷었다", "err", err)
+		}
+	}
+	if total == 0 && len(missing) == 0 {
+		return // 적을 것이 없다
+	}
+
+	var b strings.Builder
+	if len(missing) > 0 {
+		b.WriteString("계약이 요구했는데 $OUT 에 없는 것: ")
+		b.WriteString(strings.Join(missing, ", "))
+		b.WriteString("\n\n")
+		log.Warn("요구된 산출물이 $OUT 에 없다", "missing", missing, "changed", total)
+	}
+	if total > 0 {
+		b.WriteString(summarize(found, total, 40))
+	} else {
+		// ★ 이 경우가 보드 단계다 ★ — 파일시스템에 흔적이 없다.
+		// 시리얼 출력이 산출물이므로 단계가 직접 $OUT 에 옮겨야 한다.
+		b.WriteString("워크스페이스에 바뀐 파일이 없다.\n" +
+			"(보드·시리얼처럼 파일로 남지 않는 단계라면 정상이다 — 단계가 $OUT 에 옮겨야 한다.)\n")
+	}
+	if err := os.WriteFile(filepath.Join(out, changedName), []byte(b.String()), 0o644); err != nil {
+		log.Warn("변경 기록을 못 남겼다", "err", err)
+	}
 }
 
 // harvest 는 $OUT 에 이름별로 놓인 것을 걷는다 (ADR-013 ④수확).

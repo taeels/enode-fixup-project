@@ -1,9 +1,7 @@
 package enode
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -66,6 +64,12 @@ type HookArgs struct {
 	Out       string   // $OUT — 여기에 이름별로 낸다
 	Workspace string   // 변경을 살필 곳. 비면 안 본다.
 	Expect    []string // 계약이 요구한 산출물 이름
+	// Stamp 는 기준 시각이 든 파일 경로다 (R5②').
+	//
+	// ★ 이게 있어야 훅이 빌드 산출물을 본다 ★ — git status 는 .gitignore 를
+	// 지켜서 zImage 도 .ko 도 안 보여준다. 빌드 단계는 산출물이 전부
+	// 무시 목록에 있어 ★ git 만 보면 아무 일도 안 한 것처럼 보인다 ★.
+	Stamp string
 }
 
 // RunStopHook 은 `enode hook stop` 의 본체다.
@@ -91,10 +95,9 @@ func RunStopHook(a HookArgs, in io.Reader, out io.Writer) error {
 		return nil // 다 냈다. 통과.
 	}
 
-	changed := changedFiles(a.Workspace)
 	return json.NewEncoder(out).Encode(StopOutput{
 		Decision: "block",
-		Reason:   stopReason(a.Out, missing, changed),
+		Reason:   stopReason(a, missing),
 	})
 }
 
@@ -114,47 +117,26 @@ func missingOutputs(outDir string, expect []string) []string {
 	return missing
 }
 
-// changedFiles 는 워크스페이스에서 무엇이 바뀌었는지다.
-//
-// ★ diff 를 만들지 않는다 ★ — 훅은 알리기만 하므로 이름이면 충분하고,
-// 훅이 도는 동안 하네스가 기다린다. 비싼 일을 여기서 하면 안 된다.
-func changedFiles(dir string) []string {
-	if dir == "" {
-		return nil
-	}
-	// ★ nil 컨텍스트를 넘기면 exec.CommandContext 가 패닉한다 ★
-	out, err := gitOut(context.Background(), dir, nil, "status", "--porcelain", "-uall")
-	if err != nil {
-		return nil // ★ 못 봐도 막지 않는다 ★
-	}
-	var names []string
-	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
-		if len(line) > 3 {
-			names = append(names, strings.TrimSpace(line[3:]))
-		}
-	}
-	if len(names) > 20 {
-		names = append(names[:20], fmt.Sprintf("… 외 %d개", len(names)-20))
-	}
-	return names
-}
-
 // stopReason 은 모델에게 ★ 알리는 ★ 문장이다.
 //
 // ★ 새 지시를 주지 않는다 ★ — 실측에서 계약 밖을 시키자 모델이 거절했고,
 // 계약을 상기시키자 따랐다(위 표). 그게 옳은 순서다. 새 일을 시키면
 // 모델이 거절하거나, ★ 더 나쁘게는 계약을 어긴다 ★.
-func stopReason(outDir string, missing, changed []string) string {
+func stopReason(a HookArgs, missing []string) string {
 	var b strings.Builder
 	b.WriteString("계약이 요구한 산출물 중 아직 없는 것: ")
 	b.WriteString(strings.Join(missing, ", "))
 	b.WriteString("\n$OUT = ")
-	b.WriteString(outDir)
-	b.WriteString(" 에 그 이름 그대로 파일로 쓰면 된다.")
-	if len(changed) > 0 {
-		b.WriteString("\n\n참고 — 워크스페이스에서 바뀐 것:\n")
-		for _, c := range changed {
-			b.WriteString("  " + c + "\n")
+	b.WriteString(a.Out)
+	b.WriteString(" 에 그 이름 그대로 파일로 쓰면 된다.\n")
+
+	// ★ git 이 못 보는 것까지 보여준다 ★ — 빌드 산출물은 .gitignore 안에 있다.
+	if a.Stamp != "" && a.Workspace != "" {
+		if s, err := readStamp(a.Stamp, a.Workspace); err == nil {
+			if found, total, err := changedSince(s, 2000); err == nil && total > 0 {
+				b.WriteString("\n참고 — ")
+				b.WriteString(summarize(found, total, 25))
+			}
 		}
 	}
 	b.WriteString("\n낼 것이 없다면 그 이유를 담아서라도 파일을 만들어라.")
@@ -168,6 +150,9 @@ func WriteHookSettings(dir string, self string, a HookArgs) ([]string, error) {
 	cmd := []string{self, "hook", "stop", "--out", a.Out}
 	if a.Workspace != "" {
 		cmd = append(cmd, "--workspace", a.Workspace)
+	}
+	if a.Stamp != "" {
+		cmd = append(cmd, "--stamp", a.Stamp)
 	}
 	if len(a.Expect) > 0 {
 		cmd = append(cmd, "--expect", strings.Join(a.Expect, ","))

@@ -80,7 +80,7 @@ func (claudeHarness) Instrument(dir, self string, a HookArgs) ([]string, error) 
 }
 
 // Argv 는 ★ 순수 함수다 ★ — 프로세스를 안 띄운다. 그래서 시험이 싸다.
-func (claudeHarness) Argv(p AgentParams, _ IOPaths) []string {
+func (claudeHarness) Argv(p AgentParams, io IOPaths) []string {
 	args := []string{"-p", "--output-format", "json"}
 	if p.Model != "" {
 		args = append(args, "--model", p.Model)
@@ -88,9 +88,40 @@ func (claudeHarness) Argv(p AgentParams, _ IOPaths) []string {
 	if p.MaxTurns > 0 {
 		args = append(args, "--max-turns", strconv.Itoa(p.MaxTurns))
 	}
-	// ask 는 계약이 못 박는다. 무인 실행이므로 물으면 매달린다 (ADR-013 결정 5).
+	// ★ 되묻기를 끄는 것과 권한을 다 여는 것은 다르다 ★ (R7 실측, 2026-08-20)
+	//
+	// 예전 코드는 ask:never 를 --permission-mode bypassPermissions 로 옮겼다.
+	// ADR-013 이 ask:never 를 못 박은 근거는 "물으면 타임아웃까지 매달린다" 인데,
+	// ★ -p 모드에는 그 전제가 해당되지 않는다 ★ — 실측에서 승인 안 된 동작은
+	// 묻지 않고 거부되고, 오류로 돌아와 subtype:success 로 끝났다.
+	//
+	// 그리고 bypassPermissions 는 ★ 워크스페이스 밖 읽기까지 연다 ★.
+	// 실측에서 밖의 파일 내용이 그대로 나왔고 --disallowed-tools 로도 못 막았다.
+	//
+	// ★ 이게 왜 중요한가 — 훅의 검토가 거기 걸린다 ★
+	//
+	//	모델이 쓸 수 있는 곳  ⊆  훅이 볼 수 있는 곳
+	//
+	// 이어야 검토가 성립한다. 훅은 워크스페이스(git status)와 $OUT(harvest)만 본다.
+	// bypassPermissions 면 모델이 그 밖에 쓸 수 있고 ★ 훅이 못 보는 쓰기가 생긴다 ★.
+	// acceptEdits + --add-dir 로 두 집합을 같게 만든다.
+	//
+	// 다른 모드는 왜 아닌가 (전부 실측):
+	//
+	//	기본 · manual   쓰기를 거부한다 → 산출물을 못 낸다. 재시도하다 턴만 태운다.
+	//	auto            바깥 읽기가 열린다. bypass 와 사실상 같다.
+	//	--allowed-tools ★ 제한이 아니라 자동승인 목록이다 ★ — "Read" 를 넣으면
+	//	                경로 조건 없이 Read 가 승인돼 ★ --add-dir 경계를 덮어쓴다 ★.
+	//	                그래서 도구를 나열하지 않는다.
 	if p.Ask == "" || p.Ask == "never" {
-		args = append(args, "--permission-mode", "bypassPermissions")
+		args = append(args, "--permission-mode", "acceptEdits")
+	}
+	// ★ 쓸 수 있는 곳을 명시한다 ★ — cwd(워크스페이스)는 기본으로 열리고,
+	// $OUT · $IN 은 그 밖이므로 안 열면 산출물을 못 낸다.
+	for _, d := range []string{io.Out, io.In} {
+		if d != "" && d != io.Dir {
+			args = append(args, "--add-dir", d)
+		}
 	}
 	return args
 }

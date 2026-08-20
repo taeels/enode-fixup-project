@@ -19,13 +19,15 @@ import (
 // 안전망이 정규 경로를 무너뜨리는 것이 가장 나쁘다. 그래서 무슨 일이 있어도 0 이다.
 func runHookCmd(args []string) int {
 	if len(args) == 0 || args[0] != "stop" {
-		fmt.Fprintln(os.Stderr, "쓰임: enode hook stop --out <dir> [--workspace <dir>] [--expect a,b]")
+		fmt.Fprintln(os.Stderr,
+			"쓰임: enode hook stop --out <dir> [--workspace <dir>] [--expect a,b] [--stamp <file>]")
 		return 2
 	}
 	fs := flag.NewFlagSet("hook stop", flag.ContinueOnError)
 	out := fs.String("out", "", "$OUT 경로")
 	ws := fs.String("workspace", "", "워크스페이스 경로")
 	expect := fs.String("expect", "", "계약이 요구한 산출물 이름 (쉼표)")
+	stamp := fs.String("stamp", "", "기준 시각 파일 — ★ 이게 있어야 빌드 산출물이 보인다 ★")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 0 // ★ 인자가 이상해도 하네스를 막지 않는다 ★
 	}
@@ -36,7 +38,7 @@ func runHookCmd(args []string) int {
 			names = append(names, n)
 		}
 	}
-	a := enode.HookArgs{Out: *out, Workspace: *ws, Expect: names}
+	a := enode.HookArgs{Out: *out, Workspace: *ws, Expect: names, Stamp: *stamp}
 	if err := enode.RunStopHook(a, os.Stdin, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "훅 실패(무시하고 통과):", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func hookRun(t *testing.T, a HookArgs, in StopInput) StopOutput {
@@ -84,10 +85,21 @@ func TestHook_깨진_입력은_통과(t *testing.T) {
 }
 
 // 바뀐 파일을 참고로 보여준다 — ★ 판정이 아니라 알림이다 ★.
+//
+// ★ git status 로 하지 않는다 ★ — .gitignore 를 지켜서 빌드 산출물을 가린다.
+// 기준 시각(stamp) 이 있어야 zImage 도 .ko 도 보인다. changed_test.go 참조.
 func TestHook_바뀐_것을_알려준다(t *testing.T) {
-	dir := gitInit(t)
+	dir, inst := gitInit(t), t.TempDir()
+	time.Sleep(1100 * time.Millisecond)
+	s := stampNow(dir)
+	time.Sleep(1100 * time.Millisecond)
 	write(t, dir, "고쳤다.c", "int q;\n")
-	o := hookRun(t, HookArgs{Out: t.TempDir(), Workspace: dir, Expect: []string{"결과"}},
+
+	sp := filepath.Join(inst, "stamp")
+	if err := writeStamp(sp, s); err != nil {
+		t.Fatal(err)
+	}
+	o := hookRun(t, HookArgs{Out: t.TempDir(), Workspace: dir, Expect: []string{"결과"}, Stamp: sp},
 		StopInput{})
 	if !strings.Contains(o.Reason, "고쳤다.c") {
 		t.Fatalf("바뀐 것을 안 알려줬다: %q", o.Reason)

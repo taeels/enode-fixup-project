@@ -9,10 +9,46 @@ import (
 
 // Argv 가 ★ 순수 함수 ★ 라 프로세스 없이 시험된다 — 그게 exec 을 뺀 이유다.
 func Test어댑터_Argv는_순수하다(t *testing.T) {
-	got := claudeHarness{}.Argv(AgentParams{Model: "opus", MaxTurns: 12}, IOPaths{})
-	want := "-p --output-format json --model opus --max-turns 12 --permission-mode bypassPermissions"
+	got := claudeHarness{}.Argv(AgentParams{Model: "opus", MaxTurns: 12},
+		IOPaths{Dir: "/ws", Out: "/o", In: "/i"})
+	want := "-p --output-format json --model opus --max-turns 12 " +
+		"--permission-mode acceptEdits --add-dir /o --add-dir /i"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("\n얻음: %s\n원함: %s", strings.Join(got, " "), want)
+	}
+}
+
+// ★ 모델이 쓸 수 있는 곳 ⊆ 훅이 볼 수 있는 곳 ★
+//
+// 이 포함관계가 깨지면 훅의 검토가 뚫린다 — 훅은 워크스페이스(git status)와
+// $OUT(harvest)만 보는데, 모델이 그 밖에 쓸 수 있으면 못 보는 쓰기가 생긴다.
+// bypassPermissions 는 실측에서 워크스페이스 밖 읽기·쓰기를 다 열었다.
+func Test어댑터_쓸수있는곳이_볼수있는곳과_같다(t *testing.T) {
+	got := strings.Join(claudeHarness{}.Argv(AgentParams{},
+		IOPaths{Dir: "/ws", Out: "/o", In: "/i"}), " ")
+	if strings.Contains(got, "bypassPermissions") {
+		t.Fatal("★ bypassPermissions 는 워크스페이스 밖을 연다 — 훅이 못 보는 쓰기가 생긴다 ★")
+	}
+	if !strings.Contains(got, "--permission-mode acceptEdits") {
+		t.Fatalf("acceptEdits 가 아니다: %s", got)
+	}
+	for _, d := range []string{"--add-dir /o", "--add-dir /i"} {
+		if !strings.Contains(got, d) {
+			t.Fatalf("★ %s 가 없다 — 산출물을 못 낸다 ★: %s", d, got)
+		}
+	}
+	// cwd 는 기본으로 열리므로 중복해서 열지 않는다.
+	if strings.Contains(got, "--add-dir /ws") {
+		t.Fatalf("cwd 를 중복으로 열었다: %s", got)
+	}
+}
+
+// ★ 도구를 나열하지 않는다 ★ — --allowed-tools 는 제한이 아니라 자동승인 목록이라
+// "Read" 를 넣으면 경로 조건 없이 승인돼 --add-dir 경계를 덮어쓴다 (실측).
+func Test어댑터_도구를_나열하지_않는다(t *testing.T) {
+	got := strings.Join(claudeHarness{}.Argv(AgentParams{}, IOPaths{Dir: "/ws", Out: "/o"}), " ")
+	if strings.Contains(got, "--allowed-tools") {
+		t.Fatal("★ 도구를 나열하면 --add-dir 경계가 덮어써진다 ★")
 	}
 }
 
@@ -20,7 +56,7 @@ func Test어댑터_Argv는_순수하다(t *testing.T) {
 func Test어댑터_무인이면_안_묻는다(t *testing.T) {
 	for _, ask := range []string{"", "never"} {
 		if !strings.Contains(strings.Join(claudeHarness{}.Argv(AgentParams{Ask: ask}, IOPaths{}), " "),
-			"bypassPermissions") {
+			"acceptEdits") {
 			t.Fatalf("ask=%q 인데 권한을 물으려 한다", ask)
 		}
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -39,6 +40,7 @@ type Job struct {
 	Prompt string
 	IO     IOPaths
 	Expect []string          // 계약이 요구한 산출물 이름 — 훅이 이걸 짚는다
+	Stamp  Stamp             // ★ git 이 못 보는 변경의 기준 시각 ★ (R5②')
 	Inject map[string]string // Credentials 가 돌려준 것 (R1)
 	Emit   func(Event)       // 스트림 사건. nil 이면 버린다.
 }
@@ -52,9 +54,16 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		defer os.RemoveAll(tmp) //nolint:errcheck
 		self, _ := os.Executable()
 		if self != "" {
-			flags, err := h.Instrument(tmp, self, HookArgs{
-				Out: j.IO.Out, Workspace: j.IO.Dir, Expect: j.Expect,
-			})
+			a := HookArgs{Out: j.IO.Out, Workspace: j.IO.Dir, Expect: j.Expect}
+			// ★ 훅은 별도 프로세스라 기준 시각을 파일로 넘긴다 ★.
+			// 워크스페이스 밖(계장 임시 폴더)에 둔다 — 안에 두면 자기가 걷힌다.
+			if !j.Stamp.At.IsZero() {
+				p := filepath.Join(tmp, "stamp")
+				if writeStamp(p, j.Stamp) == nil {
+					a.Stamp = p
+				}
+			}
+			flags, err := h.Instrument(tmp, self, a)
 			if err == nil {
 				args = append(args, flags...)
 			}
