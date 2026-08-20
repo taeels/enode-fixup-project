@@ -71,7 +71,13 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 			// 진짜 안전망은 워크스페이스 diff 다 (모델 협조가 필요 없다).
 		}
 	}
-	env := harnessEnv(h.Env(), map[string]string{"OUT": j.IO.Out, "IN": j.IO.In}, j.Inject)
+	// ★ 우리가 못 박는 값 ★ — 구조적인 것(OUT·IN)과 하네스가 정하는 것(Fixed)을
+	// 한 자리에서 합친다. Fixed 는 재현성용이고 OUT·IN 과 이름이 겹칠 일이 없다.
+	fixed := map[string]string{"OUT": j.IO.Out, "IN": j.IO.In}
+	for k, v := range h.Fixed() {
+		fixed[k] = v
+	}
+	env := harnessEnv(h.Env(), fixed, j.Inject)
 
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = j.IO.Dir

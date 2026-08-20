@@ -44,6 +44,28 @@ func (claudeHarness) Name() string { return "claude" }
 // Env 는 claude 가 ★ 추가로 ★ 필요로 하는 이름이다 (R1 화이트리스트에 더해진다).
 func (claudeHarness) Env() []string { return claudeEnv }
 
+// Fixed 는 ★ 재현성을 위해 우리가 값으로 박는 것 ★ 이다.
+//
+// ★ --setting-sources ” 만으로는 개인 설정이 안 막힌다 ★ (2026-08-20)
+//
+// R6 이 재현성 방어로 --setting-sources ” 를 걸었는데(hook.go), Agent SDK 호스팅
+// 문서가 그것만으로 부족하다고 명시한다 — ★ 자동 메모리는 settingSources 와
+// 무관하게 시스템 프롬프트로 들어간다 ★:
+//
+//	~/.claude/projects/<워크스페이스 경로 인코딩>/memory/
+//	     │
+//	     ├─ R1 이 HOME 을 통과시킨다 (MVP 의 transparent 인증이 곧 그것이다)
+//	     └─ 노드 주인이 그 워크스페이스에서 claude 를 한 번이라도 썼으면 파일이 있다
+//	     ▼
+//	★ 노드마다 시스템 프롬프트가 달라진다 ★ = Run 이 재현 불가능
+//	  그리고 ★ Record 에는 그 사실이 안 남는다 ★ — 조용히 갈린다.
+//
+// ★ 이름이 아니라 값인 것이 핵심이다 ★ — Env 에 넣으면 노드 환경에 그 변수가
+// 없을 때 안 걸리고, 그건 「기본이 통과」라서 막은 R1 의 실수를 되풀이하는 것이다.
+func (claudeHarness) Fixed() map[string]string {
+	return map[string]string{"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+}
+
 // Probe 는 ★ 설치 확인이자 executable resolve 다 ★.
 //
 // 없으면 광고에 안 실리고 → 후보에서 빠지고 → 계약이 요구하면 422 다.

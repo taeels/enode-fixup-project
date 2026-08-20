@@ -171,6 +171,42 @@ func Test환경_runner가_화이트리스트를_쓴다(t *testing.T) {
 	}
 }
 
+// ★ 자동 메모리를 값으로 끈다 ★
+//
+// --setting-sources ” 는 설정만 막고 ~/.claude/projects/<cwd>/memory/ 는 못 막는다
+// (Agent SDK 호스팅 문서: 자동 메모리는 settingSources 와 무관하게 로드된다).
+// R1 이 HOME 을 통과시키므로 노드 주인의 메모리가 시스템 프롬프트에 섞이고,
+// ★ 노드마다 결과가 달라지는데 Record 에는 안 남는다 ★.
+//
+// ★ 통과 이름이 아니라 값이어야 한다 ★ — 이름이면 노드 환경에 없을 때 안 걸린다.
+func Test환경_자동메모리를_값으로_끈다(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sh 가 없다")
+	}
+	// ★ 노드 환경에 그 변수가 아예 없어도 ★ 걸려야 한다.
+	os.Unsetenv("CLAUDE_CODE_DISABLE_AUTO_MEMORY") //nolint:errcheck
+
+	dir := t.TempDir()
+	fake := dir + "/fake-harness"
+	script := "#!/bin/sh\nenv > \"$OUT/env.txt\"\n" +
+		`printf '{"type":"result","subtype":"success","num_turns":1,"session_id":"s1"}` + "\n'\n"
+	if err := os.WriteFile(fake, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, h := runHarness(context.Background(), claudeHarness{}, fake, Job{
+		Prompt: "안녕", IO: IOPaths{Dir: dir, In: dir, Out: dir}}); h.Reason != ReasonOK {
+		t.Fatalf("가짜 하네스가 완주 안 했다: %+v", h)
+	}
+	seen, err := os.ReadFile(dir + "/env.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(seen), "CLAUDE_CODE_DISABLE_AUTO_MEMORY=1") {
+		t.Fatalf("★ 자동 메모리가 안 꺼졌다 ★\n%s", seen)
+	}
+}
+
 // ★ 명령 단계도 화이트리스트다 ★
 //
 // R1 을 처음 고칠 때 agent 쪽만 막았는데, 계약은 ★ 노드 주인이 아닌 사람 ★ 이

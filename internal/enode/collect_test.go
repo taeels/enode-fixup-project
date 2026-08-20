@@ -213,3 +213,39 @@ func TestCollect_이유가_기록에_실린다(t *testing.T) {
 		t.Fatalf("이유가 안 실렸다:\n%s", got)
 	}
 }
+
+// ★ $IN 은 읽기 전용이다 ★
+//
+// --add-dir 이 $IN 에도 걸리는데 읽기/쓰기를 안 가르므로, 훅이 못 보는 쓰기가
+// 생긴다. 시연에 대입하면 ④의 리뷰 대상 diff · ⑥의 되먹인 빌드 로그다.
+func Test입력_잠금_고칠_수_없다(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root 는 권한을 무시한다")
+	}
+	in := t.TempDir()
+	if err := os.WriteFile(filepath.Join(in, "diff"), []byte("원본"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if why := sealInput(in); why != "" {
+		t.Fatalf("잠그지 못했다: %s", why)
+	}
+	t.Cleanup(func() { _ = os.Chmod(in, 0o700) })
+
+	// ① 내용을 못 바꾼다
+	if err := os.WriteFile(filepath.Join(in, "diff"), []byte("위조"), 0o644); err == nil {
+		t.Fatal("★ 입력을 고쳐 썼다 ★")
+	}
+	// ② 새 파일을 못 만든다
+	if err := os.WriteFile(filepath.Join(in, "새것"), []byte("x"), 0o644); err == nil {
+		t.Fatal("★ $IN 에 새 파일을 만들었다 ★")
+	}
+	// ③ ★ 지우고 다시 만들기도 막힌다 ★ — 파일만 잠그면 이 길이 열린다
+	if err := os.Remove(filepath.Join(in, "diff")); err == nil {
+		t.Fatal("★ 입력을 지웠다 ★")
+	}
+	// ④ 읽기는 된다 — 잠금이 단계를 깨면 안 된다
+	b, err := os.ReadFile(filepath.Join(in, "diff"))
+	if err != nil || string(b) != "원본" {
+		t.Fatalf("읽기가 깨졌다: %q %v", b, err)
+	}
+}

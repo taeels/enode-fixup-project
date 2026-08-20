@@ -166,6 +166,13 @@ func itoa(n int) string {
 type Harness interface {
 	Name() string  // 광고의 harness 속성이 된다
 	Env() []string // 추가로 통과시킬 환경변수 ★ 이름 ★ (R1)
+	// Fixed 는 하네스가 ★ 값으로 박는 ★ 환경변수다.
+	//
+	// ★ Env 와 다르다 ★ — Env 는 노드 환경에 ★ 있으면 ★ 통과시킬 이름이고,
+	// Fixed 는 노드 환경에 ★ 무엇이 있든 ★ 우리가 정하는 값이다.
+	// 통과 목록에 넣으면 노드에 그 변수가 없을 때 ★ 조용히 안 걸린다 ★.
+	// 재현성을 위해 꺼야 하는 것들이 여기 온다.
+	Fixed() map[string]string
 	Probe(ctx context.Context, bin string) (version string, err error)
 	// Instrument 는 ★ 훅·플러그인을 심고 플래그를 돌려준다 ★ (R6).
 	//

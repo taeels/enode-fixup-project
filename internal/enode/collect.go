@@ -197,3 +197,47 @@ func copyFile(src, dst string) error {
 	// ★ 이름 바꾸기로 마무리한다 ★ — 반쯤 쓴 파일이 산출물로 걷히면 안 된다.
 	return os.Rename(tmp, dst)
 }
+
+// sealInput 은 ★ $IN 을 읽기 전용으로 잠근다 ★ (2026-08-20).
+//
+// ★ 왜 필요한가 — R7 의 포함관계가 $IN 만큼 깨져 있었다 ★
+//
+//	모델이 쓸 수 있는 곳  { 워크스페이스, $OUT, ★$IN★ }   claude.go 의 --add-dir
+//	훅이 볼 수 있는 곳    { 워크스페이스, $OUT       }   hook.go 의 HookArgs
+//	                                        ▲
+//	                                        └── 여기서 포함관계가 깨진다
+//
+// --add-dir 은 ★ 읽기와 쓰기를 안 가른다 ★. 그런데 $IN 은 읽기만 필요하다 —
+// 이전 단계 산출물이 깔리는 곳이고, 시연에 대입하면 ④의 리뷰 대상 diff 와
+// ⑥의 되먹인 빌드 오류 로그다. ★ 에이전트가 자기가 반증할 증거를 고쳐 쓸 수 있다 ★.
+//
+// ★ 관측을 늘리는 대신 집합을 좁힌다 ★ — 훅이 $IN 도 보게 하면 "변했다" 를
+// 알아챌 뿐이지만, 잠그면 애초에 안 변한다. Agent SDK 보안 문서가 읽기 전용
+// 마운트(-v …:ro)로 같은 답을 낸다. 우리는 마운트가 아니라 임시 디렉터리라 권한으로 한다.
+//
+//	파일     0444   Write · Edit 가 실패한다
+//	디렉터리 0555   ★ 새 파일 생성과 unlink 를 막는다 ★ — 파일만 잠그면
+//	                지우고 다시 만들 수 있어 잠금이 무의미해진다
+//
+// ★ 사정거리를 과장하지 않는다 ★ — 우리와 같은 uid 로 도는 Bash 는 chmod 로
+// 되돌릴 수 있다. 이 잠금이 확실히 덮는 것은 ★ --add-dir 이 관장하는 그 집합 ★,
+// 즉 하네스의 파일 도구다. Bash 가 경계를 넘는지는 별도 실측 대상이다.
+func sealInput(dir string) string {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return err.Error()
+	}
+	for _, e := range ents {
+		if e.IsDir() {
+			continue // MVP 의 $IN 은 평평하다 — 트리가 생기면 그때 재귀한다
+		}
+		if err := os.Chmod(filepath.Join(dir, e.Name()), 0o444); err != nil {
+			return err.Error()
+		}
+	}
+	// ★ 디렉터리는 마지막에 ★ — 먼저 잠그면 위의 Chmod 가 막힌다.
+	if err := os.Chmod(dir, 0o555); err != nil {
+		return err.Error()
+	}
+	return ""
+}

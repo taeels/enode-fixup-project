@@ -286,7 +286,11 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		log.Error("$IN 을 만들 수 없다", "err", err)
 		return
 	}
-	defer os.RemoveAll(in)
+	// ★ 지우려면 쓰기 권한을 돌려놔야 한다 ★ — sealInput 이 0555 로 잠근다.
+	defer func() {
+		_ = os.Chmod(in, 0o700)
+		_ = os.RemoveAll(in)
+	}()
 	for _, name := range step.In.From {
 		f, err := os.Create(filepath.Join(in, name))
 		if err == nil {
@@ -299,6 +303,11 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 				Node: w.Ident.NodeID, Error: "산출물 " + name + " 을 못 받았다"})
 			return
 		}
+	}
+	if why := sealInput(in); why != "" {
+		// ★ 막지는 않는다 ★ — 잠금은 방어이지 단계의 성립 조건이 아니다.
+		// 다만 조용히 넘어가면 훅의 시야 밖 쓰기가 생기므로 이유를 남긴다.
+		log.Warn("$IN 을 읽기 전용으로 못 만들었다", "why", why)
 	}
 
 	dir := w.Local.Workspace
