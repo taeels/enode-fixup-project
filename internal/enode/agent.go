@@ -106,7 +106,22 @@ func trimTo(s string, n int) string {
 // OpenHands 는 플래그가 아니라 Python API 라 설정으로 안 덮인다.
 // 넷으로 쪼갠 어댑터 중 ①②④ 는 하네스가 뭐든 같고 ③(되묻기)만 다른데,
 // MVP 는 ask:never 라 ③ 이 비어 있다.
-func runAgent(ctx context.Context, bin string, p AgentParams, prompt, dir, in, out string) ([]byte, HarnessResult) {
+// claudeEnv 는 ★ claude 가 추가로 필요로 하는 이름 ★ 이다 (R1 화이트리스트에 더해진다).
+//
+// MVP 는 transparent 인증이라 보통 ~/.claude 의 로그인을 쓴다 — 그건 HOME 이
+// 통과하는 것으로 이미 된다. 아래는 ★ 그 대신 환경변수로 붙이는 구성 ★ 을 위한 것이다.
+//
+// ★ 여기 없는 이름은 안 넘어간다 ★. 그래서 하네스가 인증을 못 찾으면
+// droppedNotable() 이 무엇을 버렸는지 로그에 남긴다 — 조용히 실패하지 않게.
+var claudeEnv = []string{
+	"ANTHROPIC_API_KEY",
+	"ANTHROPIC_AUTH_TOKEN",
+	"ANTHROPIC_BASE_URL", // 사내 게이트웨이를 거치는 구성
+	"CLAUDE_CODE_USE_BEDROCK",
+	"CLAUDE_CODE_USE_VERTEX",
+}
+
+func runAgent(ctx context.Context, bin string, p AgentParams, prompt, dir string, env []string) ([]byte, HarnessResult) {
 	args := []string{"-p", "--output-format", "json"}
 	if p.Model != "" {
 		args = append(args, "--model", p.Model)
@@ -122,7 +137,9 @@ func runAgent(ctx context.Context, bin string, p AgentParams, prompt, dir, in, o
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = dir
 	cmd.Stdin = strings.NewReader(prompt)
-	cmd.Env = append(os.Environ(), "OUT="+out, "IN="+in)
+	// ★ 화이트리스트로 조립된 것만 넘어간다 ★ (R1, env.go).
+	// os.Environ() 을 얹지 않는다 — 그 한 줄이 ENODE_TOKEN 을 새게 했다.
+	cmd.Env = env
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	err := cmd.Run()

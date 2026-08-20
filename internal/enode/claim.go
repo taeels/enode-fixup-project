@@ -34,7 +34,8 @@ type Step struct {
 	} `json:"in,omitempty"`
 	Out      []string                   `json:"out,omitempty"`
 	Schema   map[string]json.RawMessage `json:"schema,omitempty"`
-	Attempt  int                        `json:"attempt,omitempty"`
+	Attempt   int    `json:"attempt,omitempty"`
+	Requester string `json:"requester,omitempty"` // ★ 요청한 사람 ★ (R2 재료)
 	Feedback []string                   `json:"feedback,omitempty"`
 	Lease    Lease                      `json:"lease"`
 }
@@ -183,6 +184,18 @@ type Worker struct {
 	Local  Local
 	Held   *Held
 	Log    *slog.Logger
+
+	// Creds 는 ★ 인증 주입 자리 ★ 다 (R1). nil 이면 Transparent —
+	// 머신에 이미 있는 자격증명을 그대로 쓴다. 나중에 요청자 신원 / 팀 공용
+	// 신원을 넣을 때 ★ 이 필드만 갈아끼운다 ★.
+	Creds Credentials
+}
+
+func (w *Worker) creds() Credentials {
+	if w.Creds == nil {
+		return Transparent{}
+	}
+	return w.Creds
 }
 
 func (w *Worker) Run(ctx context.Context) {
@@ -395,7 +408,26 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback, step.Attempt)
 	writePromptFile(out, prompt)
 
-	logBytes, h := runAgent(runCtx, bin, p, prompt, dir, in, out)
+	// ★ R1 — 부모 환경을 통째로 물려주지 않는다 ★
+	// 고치기 전에는 os.Environ() 을 그대로 얹어 ENODE_TOKEN 이 에이전트 손에 갔다.
+	inject, err := w.creds().For(ctx, RunIdentity{
+		RunID: step.RunID, Step: step.Name,
+		Requester: step.Requester, NodeOwner: w.Ident.Principal,
+	})
+	if err != nil {
+		// ★ 자격증명을 못 만들었으면 안 돌린다 ★ — 조용히 없는 채로 돌리면
+		// 하네스가 엉뚱한 신원으로 붙거나 알 수 없는 이유로 실패한다.
+		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+			Node: w.Ident.NodeID, Error: "자격증명 준비 실패: " + err.Error()})
+		return
+	}
+	env := harnessEnv(claudeEnv, map[string]string{"OUT": out, "IN": in}, inject)
+	if d := droppedNotable(); len(d) > 0 {
+		// ★ 조용히 버리지 않는다 ★ — 하네스가 인증을 못 찾을 때
+		// 사람이 이 줄을 보고 화이트리스트를 의심할 수 있어야 한다.
+		log.Debug("환경변수를 안 넘겼다", "names", d)
+	}
+	logBytes, h := runAgent(runCtx, bin, p, prompt, dir, env)
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
 	res := Result{Node: w.Ident.NodeID, Harness: &h}

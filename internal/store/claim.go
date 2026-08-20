@@ -72,6 +72,10 @@ type Claimed struct {
 	// 최종 검증은 Mediator 가 PUT blob 에서 한다 — 강제 지점은 하나다.
 	Schema   json.RawMessage `json:"schema,omitempty"`
 	Attempt  int             `json:"attempt,omitempty"` // 0 부터. 재시도면 1 이상.
+	// Requester 는 ★ runctl 로 요청한 사람 ★ 이다 (runs.principal, ADR-015 §1).
+	// 지금은 아무도 안 본다 — R2(하네스가 누구 신원으로 도는가)가 쓸 재료다.
+	// 미리 싣는 이유는, 나중에 필요해졌을 때 ★ 이 표면을 고치지 않기 위해서 ★ 다.
+	Requester string `json:"requester,omitempty"`
 	Feedback []string        `json:"feedback,omitempty"`
 	Lease    LeaseRow        `json:"lease"`
 }
@@ -101,7 +105,7 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 	var c Claimed
 	var contractJSON []byte
 	err = tx.QueryRow(ctx, `
-		SELECT s.run_id, s.seq, s.name, s.uses, s.kind, s.attempt, r.contract
+		SELECT s.run_id, s.seq, s.name, s.uses, s.kind, s.attempt, r.contract, r.principal
 		  FROM steps s
 		  JOIN runs r ON r.run_id = s.run_id
 		 WHERE s.node_id = $1
@@ -113,7 +117,7 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 		 ORDER BY s.run_id, s.seq
 		   FOR UPDATE OF s SKIP LOCKED
 		 LIMIT 1`, nodeID).
-		Scan(&c.RunID, &c.Seq, &c.Name, &c.Uses, &c.Kind, &c.Attempt, &contractJSON)
+		Scan(&c.RunID, &c.Seq, &c.Name, &c.Uses, &c.Kind, &c.Attempt, &contractJSON, &c.Requester)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNoWork
 	}
