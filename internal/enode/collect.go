@@ -121,10 +121,24 @@ func badPattern(pat string) string {
 
 // onlyRegularInside 는 ★ 일반 파일 ★ 이면서 ★ 워크스페이스 안 ★ 인 것만 남긴다.
 //
-// 심링크를 따라가면 밖으로 나갈 수 있으므로 Lstat 으로 걸러낸다 —
-// 글롭이 워크스페이스 안이어도 그 심링크가 가리키는 곳은 밖일 수 있다.
+// ★ 어휘적 비교로는 부족하다 ★ — filepath.Abs 는 심링크를 안 푼다. 그래서
+// 최종 항목만 Lstat 으로 걸러내면 ★ 부모 디렉터리가 심링크인 경우가 통과한다 ★:
+//
+//	저장소 안에  x -> /etc  가 들어 있다        ★ git 은 심링크를 담는다 ★
+//	collect: { "leak": "x/shadow" }
+//	  ├ badPattern  ".." 이 없다                 통과
+//	  ├ Lstat       x/shadow 는 ★ 일반 파일 ★    통과 (심링크는 부모인 x 다)
+//	  └ Abs/Rel     "x/shadow"                   ★ 워크스페이스 안으로 판정 ★
+//	⇒ ★ 워크스페이스 밖 파일이 Record 에 봉인된다 ★
+//
+// 계약은 ★ 노드 주인이 아닌 사람 ★ 이 내고, 워크스페이스는 ★ 리뷰 대상 코드 ★ 다.
+// 둘 다 신뢰할 수 없으므로 ★ 실경로로 비교한다 ★.
+//
+// 실경로로 검사하고 ★ 원래 경로로 여는 것 ★ 은 여기서 안전하다 — collect 는
+// 명령이 ★ 끝난 뒤 ★ 에 돌아서 심링크를 바꿔칠 프로세스가 남아 있지 않다.
+// (그래서 검사-후-사용 경쟁이 성립하지 않는다.)
 func onlyRegularInside(ws string, hits []string) []string {
-	rootAbs, err := filepath.Abs(ws)
+	rootReal, err := realPath(ws)
 	if err != nil {
 		return nil
 	}
@@ -134,11 +148,11 @@ func onlyRegularInside(ws string, hits []string) []string {
 		if err != nil || !fi.Mode().IsRegular() { // 심링크·디렉터리·장치 제외
 			continue
 		}
-		abs, err := filepath.Abs(h)
+		resolved, err := realPath(h)
 		if err != nil {
 			continue
 		}
-		rel, err := filepath.Rel(rootAbs, abs)
+		rel, err := filepath.Rel(rootReal, resolved)
 		if err != nil || rel == ".." || strings.HasPrefix(filepath.ToSlash(rel), "../") {
 			continue
 		}
@@ -146,6 +160,18 @@ func onlyRegularInside(ws string, hits []string) []string {
 	}
 	sort.Strings(keep)
 	return keep
+}
+
+// realPath 는 절대경로로 만든 뒤 ★ 심링크를 푼다 ★.
+//
+// ★ 양쪽을 다 풀어야 한다 ★ — 워크스페이스 자신이 심링크 아래 있을 수 있어서
+// (/tmp → /private/tmp 같은 환경) 한쪽만 풀면 정상 산출물까지 떨어뜨린다.
+func realPath(p string) (string, error) {
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(abs)
 }
 
 func copyFile(src, dst string) error {

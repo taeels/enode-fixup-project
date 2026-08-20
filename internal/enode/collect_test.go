@@ -87,6 +87,50 @@ func TestCollect_심링크를_안_따라간다(t *testing.T) {
 	}
 }
 
+// ★ 부모가 심링크여도 안 걷는다 ★
+//
+// 최종 항목만 Lstat 으로 보면 통과해 버린다 — 심링크는 부모 쪽에 있기 때문이다.
+// git 이 심링크를 담을 수 있으므로 ★ 리뷰 대상 코드가 스스로 통로를 놓을 수 있다 ★.
+func TestCollect_심링크_부모를_안_따라간다(t *testing.T) {
+	ws, out := t.TempDir(), t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "shadow"), []byte("비밀-청록"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(ws, "x")); err != nil {
+		t.Skip("심링크를 못 만든다")
+	}
+
+	got, notes := collectDeclared(ws, out, map[string]string{"leak": "x/shadow"})
+	if len(got) != 0 {
+		b, _ := os.ReadFile(filepath.Join(out, "leak"))
+		t.Fatalf("★ 심링크 부모를 통과해 밖을 걷었다 ★: %q", b)
+	}
+	if len(notes) != 1 || !strings.Contains(notes[0].Why, "맞는 파일이 없다") {
+		t.Fatalf("이유: %+v", notes)
+	}
+}
+
+// ★ 워크스페이스 자신이 심링크 아래 있어도 걷는다 ★ — 음성 대조.
+// 양쪽을 다 풀지 않으면 실경로 비교가 ★ 정상 산출물까지 ★ 떨어뜨린다.
+func TestCollect_워크스페이스가_심링크여도_걷는다(t *testing.T) {
+	actual, out := t.TempDir(), t.TempDir()
+	mk(t, actual, "a.ko", "모듈")
+	link := filepath.Join(t.TempDir(), "ws")
+	if err := os.Symlink(actual, link); err != nil {
+		t.Skip("심링크를 못 만든다")
+	}
+
+	got, notes := collectDeclared(link, out, map[string]string{"m": "a.ko"})
+	if len(got) != 1 || len(notes) != 0 {
+		t.Fatalf("★ 정상 산출물을 떨어뜨렸다 ★: got=%v notes=%+v", got, notes)
+	}
+	b, err := os.ReadFile(filepath.Join(out, "m"))
+	if err != nil || string(b) != "모듈" {
+		t.Fatalf("내용이 안 맞다: %q %v", b, err)
+	}
+}
+
 // ★ 여럿이 맞으면 안 걷고 목록을 남긴다 ★ — 하나의 blob 이름에 여럿을 넣으면
 // 소비자가 예측을 못 한다 (어떨 땐 .ko, 어떨 땐 묶음).
 func TestCollect_여럿이면_안_걷고_알린다(t *testing.T) {
