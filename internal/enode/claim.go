@@ -453,6 +453,24 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		_ = w.Client.Report(ctx, step.RunID, step.Seq, res)
 		return
 	}
+	// ★ R5② — 워크스페이스 변경을 diff 로 걷는다 ★ (ADR-017 결정 6)
+	//
+	// ④수확 ★ 앞 ★ 에 놓는다 — $OUT 에 써두면 기존 수확이 그대로 걷어 올린다.
+	// 새 전송 경로를 안 만드는 것이 요점이다.
+	//
+	// ★ 실패해도 단계를 죽이지 않는다 ★ — diff 는 안전망이지 판정 재료가 아니다.
+	// 판정은 success_when 이 한다 (ADR-004 · I3). 여기서 단계를 실패시키면
+	// 안전망이 정규 경로를 무너뜨린다.
+	if w.Local.Workspace != "" && len(step.Workspace) > 0 {
+		n, err := writeWorkspaceDiff(runCtx, w.Local.Workspace, out, maxBlobBytes)
+		switch {
+		case err != nil:
+			log.Warn("워크스페이스 diff 를 못 걷었다", "err", err)
+		case n > 0:
+			log.Info("워크스페이스 diff", "bytes", n)
+		}
+	}
+
 	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
 	res.Produced = w.uploadProduced(ctx, step, out, log)
 	log.Info("agent 단계 끝", "reason", h.Reason, "turns", h.Turns,
