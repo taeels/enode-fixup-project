@@ -67,3 +67,24 @@ func TestHarnessRecordsBudget(t *testing.T) {
 		t.Fatalf("예산 신호가 안 남았다: %+v", h)
 	}
 }
+
+// 봉투의 session_id 를 ★ 읽어놓고 버리지 않는다 ★ — R4 가 여기 걸린다.
+func TestParseClaude_세션을_넘긴다(t *testing.T) {
+	env := `{"type":"result","subtype":"success","is_error":false,` +
+		`"num_turns":3,"total_cost_usd":0.01,"session_id":"abc-123","result":"ok"}`
+	h := ParseClaude([]byte(env), 0)
+	if h.Session != "abc-123" {
+		t.Fatalf("session 을 안 넘겼다: %q", h.Session)
+	}
+	if h.Reason != ReasonOK {
+		t.Fatalf("reason=%v", h.Reason)
+	}
+}
+
+// 봉투에 session_id 가 없어도 ★ 나머지는 그대로 산다 ★.
+func TestParseClaude_세션이_없어도_된다(t *testing.T) {
+	h := ParseClaude([]byte(`{"type":"result","subtype":"success","num_turns":1}`), 0)
+	if h.Session != "" || h.Reason != ReasonOK || h.Turns != 1 {
+		t.Fatalf("%+v", h)
+	}
+}

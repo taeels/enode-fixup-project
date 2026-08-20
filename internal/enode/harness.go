@@ -43,6 +43,21 @@ type HarnessResult struct {
 	Turns   int     `json:"turns,omitempty"`
 	CostUSD float64 `json:"cost_usd,omitempty"`
 	Message string  `json:"message,omitempty"`
+
+	// Session 은 ★ 대화를 이어붙일 손잡이 ★ 다 (R4).
+	//
+	// 되묻기를 「살아있는 stdin 파이프」로 처리하면 사람이 답할 때까지
+	// ★ 임대가 묶인다 ★ — 노드 하나가 사람을 기다리며 논다. ADR-014 가 pull 인 것과도
+	// 어긋난다(Mediator 는 enode 를 부를 수 없다).
+	//
+	// 그래서 ★ 되묻기는 단계를 끊는다 ★ — 프로세스를 끝내고 이 값을 기록에 남긴 뒤,
+	// 사람 답이 오면 --resume 으로 ★ 새 단계 ★ 를 연다. Run 은 원래 단계의 열이므로
+	// 대화 왕복이 또 하나의 단계가 될 뿐이고 봉인 성질(ADR-005)이 안 깨진다.
+	//
+	// 실측 (2026-08-20): --resume 이 별개 -p 호출 사이로 문맥을 물고 온다.
+	// 첫 호출 $0.1066 → 재개 $0.0099 로 ★ 왕복이 1/10 ★ 이다 (시스템 프롬프트·툴
+	// 정의를 다시 안 문다). 대화가 예산에서 새 단계보다 훨씬 싼 항목이라는 뜻이다.
+	Session string `json:"session,omitempty"`
 }
 
 // claudeEnvelope 는 `claude -p --output-format json` 이 내는 것이다.
@@ -70,7 +85,7 @@ func ParseClaude(stdout []byte, exitCode int) HarnessResult {
 	if err := json.Unmarshal([]byte(line), &e); err != nil {
 		return HarnessResult{Reason: ReasonError, Message: "봉투를 못 읽었다: " + err.Error()}
 	}
-	h := HarnessResult{Turns: e.NumTurns, CostUSD: e.TotalCost}
+	h := HarnessResult{Turns: e.NumTurns, CostUSD: e.TotalCost, Session: e.SessionID}
 	switch {
 	case strings.Contains(e.Subtype, "max_turns"):
 		h.Reason = ReasonMaxTurns
