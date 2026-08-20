@@ -57,18 +57,19 @@ func (s *Store) RenewLeases(ctx context.Context, nodeID string, ttl time.Duratio
 
 // Claimed 는 claim 이 돌려주는 할 일 하나다.
 type Claimed struct {
-	StepID    string          `json:"step_id"`
-	RunID     string          `json:"run_id"`
-	Seq       int             `json:"seq"`
-	Name      string          `json:"name"`
-	Uses      string          `json:"uses"`
-	Kind      string          `json:"kind"`
-	Agent     json.RawMessage `json:"agent,omitempty"`
-	Run       []string        `json:"run,omitempty"`
-	Env       []string        `json:"env,omitempty"` // 통과시킬 환경변수 ★ 이름 ★
-	Workspace json.RawMessage `json:"workspace,omitempty"`
-	In        json.RawMessage `json:"in,omitempty"`
-	Out       []string        `json:"out,omitempty"`
+	StepID    string            `json:"step_id"`
+	RunID     string            `json:"run_id"`
+	Seq       int               `json:"seq"`
+	Name      string            `json:"name"`
+	Uses      string            `json:"uses"`
+	Kind      string            `json:"kind"`
+	Agent     json.RawMessage   `json:"agent,omitempty"`
+	Run       []string          `json:"run,omitempty"`
+	Env       []string          `json:"env,omitempty"`     // 통과시킬 환경변수 ★ 이름 ★
+	Collect   map[string]string `json:"collect,omitempty"` // 이름 → 워크스페이스 상대경로
+	Workspace json.RawMessage   `json:"workspace,omitempty"`
+	In        json.RawMessage   `json:"in,omitempty"`
+	Out       []string          `json:"out,omitempty"`
 	// Schema 는 어댑터가 ★ 프롬프트에 심는 데 ★ 쓴다 (ADR-020).
 	// 최종 검증은 Mediator 가 PUT blob 에서 한다 — 강제 지점은 하나다.
 	Schema  json.RawMessage `json:"schema,omitempty"`
@@ -156,15 +157,16 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 func fillFromContract(c *Claimed, contractJSON []byte) {
 	var raw struct {
 		Steps []struct {
-			ID        string          `json:"id"`
-			Agent     json.RawMessage `json:"agent"`
-			Run       []string        `json:"run"`
-			Env       []string        `json:"env"`
-			Workspace json.RawMessage `json:"workspace"`
-			In        json.RawMessage `json:"in"`
-			Out       []string        `json:"out"`
-			Schema    json.RawMessage `json:"schema"`
-			Feedback  []string        `json:"feedback"`
+			ID        string            `json:"id"`
+			Agent     json.RawMessage   `json:"agent"`
+			Run       []string          `json:"run"`
+			Env       []string          `json:"env"`
+			Collect   map[string]string `json:"collect"`
+			Workspace json.RawMessage   `json:"workspace"`
+			In        json.RawMessage   `json:"in"`
+			Out       []string          `json:"out"`
+			Schema    json.RawMessage   `json:"schema"`
+			Feedback  []string          `json:"feedback"`
 		} `json:"steps"`
 	}
 	if json.Unmarshal(contractJSON, &raw) != nil || c.Seq-1 >= len(raw.Steps) {
@@ -172,7 +174,7 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 	}
 	st := raw.Steps[c.Seq-1]
 	c.Agent, c.Run, c.Workspace, c.In, c.Out = st.Agent, st.Run, st.Workspace, st.In, st.Out
-	c.Schema, c.Feedback, c.Env = st.Schema, st.Feedback, st.Env
+	c.Schema, c.Feedback, c.Env, c.Collect = st.Schema, st.Feedback, st.Env, st.Collect
 }
 
 // StepResult 는 enode 가 보고하는 것이다.

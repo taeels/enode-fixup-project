@@ -22,13 +22,14 @@ type Step struct {
 	RunID  string `json:"run_id"`
 	Seq    int    `json:"seq"` // 경로에 쓰는 것은 이쪽
 
-	Name      string          `json:"name"`
-	Uses      string          `json:"uses"`
-	Kind      string          `json:"kind"`
-	Agent     json.RawMessage `json:"agent,omitempty"`
-	Run       []string        `json:"run,omitempty"`
-	Env       []string        `json:"env,omitempty"`
-	Workspace json.RawMessage `json:"workspace,omitempty"`
+	Name      string            `json:"name"`
+	Uses      string            `json:"uses"`
+	Kind      string            `json:"kind"`
+	Agent     json.RawMessage   `json:"agent,omitempty"`
+	Run       []string          `json:"run,omitempty"`
+	Env       []string          `json:"env,omitempty"`
+	Collect   map[string]string `json:"collect,omitempty"`
+	Workspace json.RawMessage   `json:"workspace,omitempty"`
 	In        struct {
 		Prompt string   `json:"prompt"`
 		From   []string `json:"from"`
@@ -492,6 +493,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 // ★ 올라간 것만 produced 다 ★ — 스키마를 어긴 것은 422 로 거절되어
 // 저장되지 않았고, ★ 어긴 산출물은 산출물이 아니다 ★ (ADR-020).
 func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, stamp Stamp, log *slog.Logger) []string {
+	var collectNotes []collectNote
 	// ★ R5② — 워크스페이스 변경을 걷는다 ★ (ADR-017 결정 6)
 	//
 	// ★ 여기 두는 이유 ★ — agent 단계와 명령 단계가 ★ 둘 다 ★ 이 함수를 지난다.
@@ -525,7 +527,19 @@ func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, sta
 	//
 	// diff 로는 안 된다 — .gitignore 가 빌드 산출물을 정확히 가려서
 	// ★ 빌드 단계는 diff 만 보면 아무 일도 안 한 것처럼 보인다 ★.
-	writeChangedNote(out, step.Out, stamp, log)
+	// ★ collect 가 먼저다 ★ — 계약이 적은 경로를 $OUT 으로 옮긴 뒤라야
+	// "요구했는데 없는 것" 이 정확해진다.
+	if got, notes := collectDeclared(w.Local.Workspace, out, step.Collect); len(got) > 0 || len(notes) > 0 {
+		if len(got) > 0 {
+			log.Info("collect 로 걷었다", "names", got)
+		}
+		for _, n := range notes {
+			log.Warn("collect 실패", "name", n.Name, "why", n.Why)
+		}
+		collectNotes = notes
+	}
+
+	writeChangedNote(out, step.Out, stamp, collectNotes, log)
 
 	var produced []string
 	for _, name := range harvest(out) {
@@ -550,7 +564,7 @@ func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, sta
 //
 // ★ 판정하지 않는다 ★ — 판정은 success_when 이 한다 (ADR-004 · I3).
 // 여기서는 사실만 적는다. 실패해도 단계를 죽이지 않는다.
-func writeChangedNote(out string, want []string, stamp Stamp, log *slog.Logger) {
+func writeChangedNote(out string, want []string, stamp Stamp, cnotes []collectNote, log *slog.Logger) {
 	have := map[string]bool{}
 	for _, n := range harvest(out) {
 		have[n] = true
@@ -570,7 +584,7 @@ func writeChangedNote(out string, want []string, stamp Stamp, log *slog.Logger) 
 			log.Warn("변경 목록을 못 걷었다", "err", err)
 		}
 	}
-	if total == 0 && len(missing) == 0 {
+	if total == 0 && len(missing) == 0 && len(cnotes) == 0 {
 		return // 적을 것이 없다
 	}
 
@@ -580,6 +594,15 @@ func writeChangedNote(out string, want []string, stamp Stamp, log *slog.Logger) 
 		b.WriteString(strings.Join(missing, ", "))
 		b.WriteString("\n\n")
 		log.Warn("요구된 산출물이 $OUT 에 없다", "missing", missing, "changed", total)
+	}
+	// ★ collect 가 왜 못 걷었는지 ★ — 이게 없으면 "요구했는데 없다" 만 남고
+	// 사람이 계약과 트리를 대조해 스스로 알아내야 한다.
+	if len(cnotes) > 0 {
+		b.WriteString("collect 가 못 걷은 것:\n")
+		for _, n := range cnotes {
+			b.WriteString("  " + n.Name + " — " + n.Why + "\n")
+		}
+		b.WriteString("\n")
 	}
 	if total > 0 {
 		b.WriteString(summarize(found, total, 40))

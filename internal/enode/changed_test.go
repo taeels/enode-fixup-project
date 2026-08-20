@@ -162,7 +162,7 @@ func TestNote_만든것과_안낸것을_같이_적는다(t *testing.T) {
 	write(t, dir, "drivers/spi.o", "obj")
 	// 그런데 $OUT 으로 안 옮겼다
 
-	writeChangedNote(out, []string{"artifact", "build_log"}, s, testLog())
+	writeChangedNote(out, []string{"artifact", "build_log"}, s, nil, testLog())
 
 	b, err := os.ReadFile(filepath.Join(out, changedName))
 	if err != nil {
@@ -191,7 +191,7 @@ func TestNote_다_냈으면_안_짚는다(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 	write(t, dir, "build/x.o", "o")
 
-	writeChangedNote(out, []string{"artifact"}, s, testLog())
+	writeChangedNote(out, []string{"artifact"}, s, nil, testLog())
 	b, _ := os.ReadFile(filepath.Join(out, changedName))
 	if strings.Contains(string(b), "없는 것") {
 		t.Fatalf("다 냈는데 짚었다:\n%s", b)
@@ -208,7 +208,7 @@ func TestNote_흔적이_없는_단계도_설명한다(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir)
 
-	writeChangedNote(out, []string{"kunit_result"}, s, testLog())
+	writeChangedNote(out, []string{"kunit_result"}, s, nil, testLog())
 	b, err := os.ReadFile(filepath.Join(out, changedName))
 	if err != nil {
 		t.Fatal(err)

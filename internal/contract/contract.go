@@ -163,6 +163,13 @@ type Step struct {
 	// 기본 목록(PATH·HOME·프록시·흔한 빌드 변수)은 노드가 갖고 있고,
 	// 여기 적는 것은 ★ 그 위에 더하는 것 ★ 이다. 적지 않은 이름은 안 넘어간다.
 	Env []string `json:"env,omitempty"`
+	// Collect 는 「산출물 이름 → ★ 워크스페이스 상대경로 ★」 다.
+	//
+	// $OUT 이 유일한 보편 수거 채널이므로, 관측을 정교하게 하는 것보다
+	// ★ 선언을 쉽게 만드는 편이 낫다 ★. enode 가 그 경로를 $OUT 으로 옮긴다.
+	// ★ 절대경로 · .. 탈출 · 심링크는 거부된다 ★ — 계약이 노드의 경계를
+	// 우회하면 안 되고, 계약은 노드 주인이 아닌 사람이 낸다.
+	Collect map[string]string `json:"collect,omitempty"`
 
 	In  map[string]interface{} `json:"in,omitempty"`
 	Out []string               `json:"out,omitempty"`
