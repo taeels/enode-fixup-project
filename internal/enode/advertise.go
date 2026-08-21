@@ -29,6 +29,9 @@ type Client struct {
 // (채우는 것은 S4. 자리를 지금 만들어 enode 쪽 계약을 안 바꾼다.)
 type AdvertResponse struct {
 	Leases []Lease `json:"leases"`
+	// RenewSeconds 는 ★ Mediator 가 말하는 주기 ★ 다 (ADR-028).
+	// 0 이면 안 온 것이고 그때는 우리 기본값을 쓴다 — ★ 옛 Mediator 와도 돈다 ★.
+	RenewSeconds int `json:"renew_seconds"`
 }
 
 type Lease struct {
@@ -76,8 +79,10 @@ type Advertiser struct {
 	Client *Client
 	Ident  Identity
 	Local  Local
-	Every  time.Duration
-	Log    *slog.Logger
+	// Every 는 ★ 첫 광고 전까지의 기본값 ★ 이다 (ADR-028) —
+	// 응답이 오면 Mediator 가 말한 주기로 바뀐다. ★ Run 루프만 이 값을 만진다 ★.
+	Every time.Duration
+	Log   *slog.Logger
 
 	// OnLeases 는 응답의 임대 목록을 받는다. S4 가 여기에 붙는다.
 	OnLeases func([]Lease)
@@ -113,6 +118,16 @@ func (a *Advertiser) Run(ctx context.Context) {
 		case err == nil:
 			if a.OnLeases != nil {
 				a.OnLeases(resp.Leases)
+			}
+			// ★ 주기는 만료를 계산하는 쪽이 말한다 ★ (ADR-028) —
+			// 우리 플래그로 정하면 Mediator 의 만료 계산과 어긋날 수 있고,
+			// 어긋나면 ★ 조용히 함대에서 사라진다 ★ (claim 은 계속 도니까 안 보인다).
+			if n := resp.RenewSeconds; n > 0 {
+				if want := time.Duration(n) * time.Second; want != a.Every {
+					a.Log.Info("광고 주기를 Mediator 가 말한 값으로 바꾼다",
+						"was", a.Every, "now", want)
+					a.Every = want
+				}
 			}
 			a.Log.Debug("광고", "node", ad.NodeID, "caps", len(ad.Capabilities), "leases", len(resp.Leases))
 		}

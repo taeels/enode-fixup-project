@@ -149,6 +149,13 @@ func (s *Server) view(ctx context.Context, r *store.Run) runView {
 // 목록은 델타가 아니라 ★ 전부 ★ 이므로 목록에 없는 것이 곧 없는 것이다.
 type advertResponse struct {
 	Leases []store.LeaseRow `json:"leases"`
+	// RenewSeconds 는 ★ 다음에 언제 다시 말할지 ★ 다 (ADR-028).
+	//
+	// ★ 만료를 계산하는 쪽이 주기도 말한다 ★ — 그러지 않으면 같은 하나를
+	// 두 곳에서 정하게 되고, 어긋나면 ★ 노드가 조용히 함대에서 사라진다 ★:
+	// 광고는 만료됐는데 claim 은 롱폴이라 계속 돌아서 ★ 기존 Run 은 멀쩡하고
+	// 새 Run 만 422 ★ 를 받는다. 아무도 경고하지 않는다.
+	RenewSeconds int `json:"renew_seconds"`
 }
 
 func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +168,9 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "node_id 가 없다")
 		return
 	}
-	// 광고는 만료된다 (ADR-012). 만료 = 하트비트 주기와 같은 값이다 (ADR-016).
+	// 광고는 만료된다 (ADR-012). 만료 = 갱신 주기의 배수다 (ADR-016).
+	// ★ 그 주기를 응답으로 내려보낸다 ★ — 노드가 자기 플래그로 정하면
+	// 이 계산과 어긋날 수 있다 (ADR-028).
 	ttl := time.Duration(s.cfg.Lease.RenewSeconds*s.cfg.Lease.NotAfterFactor) * time.Second
 	if err := s.st.UpsertAdvert(r.Context(), a, principal(r), ttl); err != nil {
 		s.log.Error("광고 저장 실패", "node", a.NodeID, "err", err)
@@ -178,7 +187,7 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "갱신 실패")
 		return
 	}
-	write(w, 200, advertResponse{Leases: leases})
+	write(w, 200, advertResponse{Leases: leases, RenewSeconds: s.cfg.Lease.RenewSeconds})
 }
 
 // ── POST /v1/nodes/{id}/claim — ★ 유일한 비멱등 지점 ★ ────────────────────

@@ -1858,3 +1858,19 @@ func TestLoop_소진하면_실패가_아니라_진행이다(t *testing.T) {
 		}
 	}
 }
+
+// ★ 주기는 만료를 계산하는 쪽이 말한다 ★ (ADR-028)
+//
+// 노드가 자기 플래그로 정하면 Mediator 의 만료 계산과 어긋날 수 있고,
+// 어긋나면 ★ 노드가 조용히 함대에서 사라진다 ★ — 광고는 만료됐는데 claim 은
+// 롱폴이라 계속 돌아서 기존 Run 은 멀쩡하고 ★ 새 Run 만 422 ★ 다.
+func TestAdvert_주기를_응답으로_내려준다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	_, body := do(t, srv, "POST", "/v1/nodes",
+		advert("hb1", "a", map[string]string{"role": "x"}), nil)
+	got, ok := body["renew_seconds"].(float64)
+	if !ok || got <= 0 {
+		t.Fatalf("★ 주기가 안 왔다 ★: %v — 노드가 자기 플래그로 정하게 된다",
+			body["renew_seconds"])
+	}
+}
