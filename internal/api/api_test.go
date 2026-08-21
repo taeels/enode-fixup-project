@@ -1874,3 +1874,89 @@ func TestAdvert_주기를_응답으로_내려준다(t *testing.T) {
 			body["renew_seconds"])
 	}
 }
+
+// ═══ 잃어버린 답은 다시 물으면 돌아온다 (ADR-030) ═══════════════════════
+//
+// claim 응답이 유실되면 그 단계는 장부에 CLAIMED 로 남는데, 노드는 살아서
+// 하트비트를 보내므로 임대도 Run 도 안 죽고 ★ 회수가 손대지 않는다 ★.
+// 같은 「생」이 다시 물면 들고 있던 것을 돌려주는 것이 유일한 치유다.
+
+// ★ 같은 생 — 재전달 ★
+func TestClaim_같은_생이_다시_물으면_같은_단계를_받는다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	life := map[string]string{"X-Enode-Instance": "생-1"}
+	do(t, srv, "POST", "/v1/nodes", advert("i1", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("inst1", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{runStep("one", "b"), runStep("two", "b")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	code, c1 := do(t, srv, "POST", "/v1/nodes/i1/claim", "", life)
+	if code != 200 || c1["name"] != "one" {
+		t.Fatalf("첫 claim 실패: %d %v", code, c1)
+	}
+	// ★ 응답이 유실됐다고 치자 ★ — 보고 없이 같은 생이 다시 묻는다.
+	code, c2 := do(t, srv, "POST", "/v1/nodes/i1/claim", "", life)
+	if code != 200 || c2["name"] != "one" {
+		t.Fatalf("★ 같은 단계가 안 돌아왔다 ★: %d %v — 영구 CLAIMED 로 남는다", code, c2)
+	}
+	if c2["seq"] != c1["seq"] || c2["attempt"] != c1["attempt"] {
+		t.Fatalf("★ 다른 것이 돌아왔다 ★: %v vs %v", c1, c2)
+	}
+	// ★ 실행 정의도 함께 와야 한다 ★ — 이름만 오면 못 돌린다.
+	raw, _ := json.Marshal(c2["run"])
+	if !strings.Contains(string(raw), "true") {
+		t.Fatalf("재전달에 실행 정의가 없다: %s", raw)
+	}
+	// 보고하면 다음 것이 나온다 — 재전달이 진행을 안 막는다.
+	do(t, srv, "POST", "/v1/runs/inst1/steps/1/result", `{"node":"i1","exit_code":0}`, nil)
+	if code, c3 := do(t, srv, "POST", "/v1/nodes/i1/claim", "", life); code != 200 || c3["name"] != "two" {
+		t.Fatalf("보고 뒤 다음 단계가 안 나왔다: %d %v", code, c3)
+	}
+	// ★ 생이 없으면(옛 enode) 재전달도 없다 ★ — 오늘 그대로.
+	if code, c := do(t, srv, "POST", "/v1/nodes/i1/claim", "", nil); code == 200 && c["name"] == "two" {
+		t.Fatalf("★ 생 없이 재전달됐다 ★: %v", c)
+	}
+}
+
+// ★ 다른 생 — 재시작 판정 ★
+//
+// 옛 생이 집어둔 단계는 ★ 어디까지 실행됐는지 알 수 없다 ★ (재시작으로 기억이
+// 없다). 재실행 대신 실패시킨다 — 보드를 절반 구운 단계를 또 굽지 않는다.
+func TestClaim_다른_생이_나타나면_들고_있던_단계가_실패한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("i2", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("inst2", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{runStep("one", "b"), runStep("two", "b")})
+	do(t, srv, "POST", "/v1/runs", body, nil)
+	do(t, srv, "POST", "/v1/nodes/i2/claim", "", map[string]string{"X-Enode-Instance": "옛생"})
+
+	// ★ 새 생의 하트비트 ★ — 광고에 instance 가 실린다.
+	ad, _ := json.Marshal(map[string]any{
+		"node_id": "i2", "label": "a", "instance": "새생",
+		"capabilities": []map[string]any{{"capability": "agent.reason",
+			"attrs": map[string]string{"role": "x"}}},
+	})
+	code, hb := do(t, srv, "POST", "/v1/nodes", string(ad), nil)
+	if code != 200 {
+		t.Fatalf("하트비트 실패: %d", code)
+	}
+	// ★ 임대 목록이 비어서 온다 ★ — 정산이 임대를 풀었고, 그것이 곧 통보다 (ADR-016).
+	raw, _ := json.Marshal(hb["leases"])
+	if strings.Contains(string(raw), "inst2") {
+		t.Fatalf("★ 죽은 Run 의 임대가 남아 있다 ★: %s", raw)
+	}
+	_, v := do(t, srv, "GET", "/v1/runs/inst2", "", nil)
+	if v["state"] != "FAILED" {
+		t.Fatalf("★ Run 이 안 죽었다 ★: %v — 영구 CLAIMED 다", v["state"])
+	}
+	sraw, _ := json.Marshal(v["steps"])
+	var steps []struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(sraw, &steps)
+	if steps[0].State != "FAILED" {
+		t.Fatalf("집혔던 단계가 %q 다", steps[0].State)
+	}
+}

@@ -63,6 +63,10 @@ CREATE TABLE IF NOT EXISTS leases (
 );
 CREATE INDEX IF NOT EXISTS leases_run_idx ON leases (run_id);
 
+-- ★ 노드 프로세스의 「이번 생」 표식 ★ (ADR-030). 광고가 나른다.
+-- 재시작하면 달라진다 — claim 재전달(같은 생)과 재시작 판정(다른 생)을 가른다.
+ALTER TABLE nodes ADD COLUMN IF NOT EXISTS instance text;
+
 -- 단계. Mediator 가 시퀀서이므로(ADR-014 결정 1) 순서는 여기 있고 계약에서 온다.
 CREATE TABLE IF NOT EXISTS steps (
     run_id   text        NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE,
@@ -102,3 +106,7 @@ ALTER TABLE steps ALTER COLUMN needs SET NOT NULL;
 -- 「무엇을 볼 수 있었나」를 알 수 있어야 하고, 안 깔린 것도 여기 남는다.
 -- 항목은 blobs/ 의 파일 이름과 같은 형태라 (회차, 순번, 이름) 으로 유일하다.
 ALTER TABLE steps ADD COLUMN IF NOT EXISTS ledger_at text[];
+
+-- ★ 이 단계를 어느 「생」이 집었는가 ★ (ADR-030).
+-- 같은 생이 다시 물으면 재전달하고, 다른 생이 나타나면 실패시킨다.
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS claimed_instance text;

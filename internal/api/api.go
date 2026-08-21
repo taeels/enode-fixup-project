@@ -177,6 +177,25 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "저장 실패")
 		return
 	}
+	// ★ 재시작 판정이 임대 갱신보다 먼저다 ★ (ADR-030) — 다른 생이 집어둔
+	// 단계를 실패시키고 그 Run 을 정산하면 임대가 함께 풀리므로, 아래 갱신
+	// 응답에서 그 임대가 ★ 빠진 채로 ★ 나간다. 노드는 목록에 없는 것을 보고
+	// 남은 일이 없음을 안다 — 새 통보 채널이 아니라 ADR-016 의 그 규칙이다.
+	if a.Instance != "" {
+		runs, err := s.st.FailRestarted(r.Context(), a.NodeID, a.Instance)
+		if err != nil {
+			s.log.Error("재시작 판정 실패", "node", a.NodeID, "err", err)
+		}
+		for _, runID := range runs {
+			state, err := s.st.SettleIfDone(r.Context(), runID)
+			if err != nil {
+				s.log.Error("재시작 정산 실패", "run", runID, "err", err)
+				continue
+			}
+			s.log.Warn("노드 재시작 — 진행 중이던 단계를 실패시켰다",
+				"node", a.NodeID, "run", runID, "state", state)
+		}
+	}
 	// ★ 살아 있다고 말하면 살아 있을 권한을 받는다 ★
 	// not_after 는 갱신 주기의 배수로 준다 — 하트비트를 한 번 놓쳐도 안 죽게
 	// (ADR-016: "실패한 하트비트 하나는 중단 신호가 아니다").
@@ -200,12 +219,15 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 //	노드가 늘어 폴링이 부담이 될 때의 최적화다. 지금은 넷이다.
 func (s *Server) postClaim(w http.ResponseWriter, r *http.Request) {
 	nodeID := r.PathValue("id")
+	// ★ 어느 「생」이 묻는가 ★ (ADR-030) — 같은 생이 다시 물으면 들고 있던 것을
+	// 재전달한다. 헤더가 없으면 옛 enode 다: 오늘 그대로 동작한다.
+	instance := r.Header.Get("X-Enode-Instance")
 	deadline := time.Now().Add(time.Duration(s.cfg.Claim.LongPollSeconds) * time.Second)
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 
 	for {
-		c, err := s.st.ClaimStep(r.Context(), nodeID)
+		c, err := s.st.ClaimStep(r.Context(), nodeID, instance)
 		switch {
 		case err == nil:
 			write(w, 200, c)

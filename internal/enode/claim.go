@@ -75,6 +75,10 @@ func (c *Client) Claim(ctx context.Context, nodeID string) (*Step, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("X-Enode-Principal", c.Principal)
+	if c.Instance != "" {
+		// ★ 같은 생이 다시 물으면 들고 있던 것을 돌려받는다 ★ (ADR-030)
+		req.Header.Set("X-Enode-Instance", c.Instance)
+	}
 	resp, err := c.poll().Do(req)
 	if err != nil {
 		return nil, err
@@ -191,12 +195,26 @@ func (c *Client) Report(ctx context.Context, runID string, seq int, res Result) 
 		return err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+		// ★ 서버가 받고서 거절했다 ★ — 다시 보내도 같은 답이다.
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return &ReportRejected{Status: resp.Status, Body: string(b)}
+	}
 	if resp.StatusCode != 200 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("보고 거절: %s %s", resp.Status, b)
+		return fmt.Errorf("보고 실패: %s %s", resp.Status, b)
 	}
 	return nil
 }
+
+// ReportRejected 는 서버가 ★ 받고서 거절한 ★ 보고다 (4xx).
+// 유실이 아니므로 재시도 대상이 아니다 — 다시 보내도 같은 답이다.
+type ReportRejected struct {
+	Status string
+	Body   string
+}
+
+func (e *ReportRejected) Error() string { return "보고 거절: " + e.Status + " " + e.Body }
 
 // Worker 는 일을 당겨가서 실행한다.
 //
@@ -210,10 +228,53 @@ type Worker struct {
 	Held   *Held
 	Log    *slog.Logger
 
+	// ReportBackoff 는 보고 재시도 간격이다. 0 이면 2초 — 시험이 줄인다.
+	ReportBackoff time.Duration
+
 	// Creds 는 ★ 인증 주입 자리 ★ 다 (R1). nil 이면 Transparent —
 	// 머신에 이미 있는 자격증명을 그대로 쓴다. 나중에 요청자 신원 / 팀 공용
 	// 신원을 넣을 때 ★ 이 필드만 갈아끼운다 ★.
 	Creds Credentials
+}
+
+// report 는 보고가 ★ 닿을 때까지 ★ 다시 보낸다 (ADR-030).
+//
+// ★ 이것이 재전달의 안전을 받친다 ★ — 완주한 단계의 보고가 유실된 채 워커가
+// 다음 claim 을 걸면, 장부에는 그 단계가 CLAIMED 로 남아 있으므로 같은 생
+// 재전달이 그것을 돌려주고 ★ 완주한 단계가 두 번 돈다 ★. 그래서 완주한 단계를
+// 든 채로는 물러서지 않는다: 성공하거나, 서버가 거절하거나(4xx — 받긴 받았다),
+// ★ 임대가 죽을 때 ★ 까지 던진다. 임대가 죽으면 회수가 Run 을 정리하므로
+// 유실된 보고도 함께 정리된다 — ★ 여기서도 시간이 감시자다 ★ (ADR-008).
+func (w *Worker) report(ctx context.Context, step *Step, res Result) {
+	for {
+		err := w.Client.Report(ctx, step.RunID, step.Seq, res)
+		if err == nil || ctx.Err() != nil {
+			return
+		}
+		var rej *ReportRejected
+		if errors.As(err, &rej) {
+			w.Log.Error("보고 거절 — 재시도하지 않는다", "step", step.StepID, "err", err)
+			return
+		}
+		if _, ok := w.Held.Valid(step.RunID); !ok {
+			w.Log.Warn("보고를 못 전한 채 임대가 끝났다 — 회수가 정리한다",
+				"step", step.StepID, "err", err)
+			return
+		}
+		w.Log.Warn("보고 실패 — 다시 보낸다", "step", step.StepID, "err", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(w.backoff()):
+		}
+	}
+}
+
+func (w *Worker) backoff() time.Duration {
+	if w.ReportBackoff > 0 {
+		return w.ReportBackoff
+	}
+	return 2 * time.Second
 }
 
 func (w *Worker) creds() Credentials {
@@ -251,7 +312,7 @@ func (w *Worker) safeExecute(ctx context.Context, step *Step) {
 	defer func() {
 		if r := recover(); r != nil {
 			w.Log.Error("단계 실행 중 패닉", "step", step.StepID, "panic", r)
-			_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+			w.report(ctx, step, Result{
 				Node: w.Ident.NodeID, Error: fmt.Sprintf("어댑터 패닉: %v", r)})
 		}
 	}()
@@ -286,7 +347,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		}
 		if err != nil {
 			log.Error("워크스페이스를 세울 수 없다", "err", err)
-			_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+			w.report(ctx, step, Result{
 				Node: w.Ident.NodeID, Error: "워크스페이스: " + err.Error()})
 			return
 		}
@@ -322,7 +383,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		}
 		if err != nil {
 			log.Error("이전 단계 산출물을 못 받았다", "name", name, "err", err)
-			_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+			w.report(ctx, step, Result{
 				Node: w.Ident.NodeID, Error: "산출물 " + name + " 을 못 받았다"})
 			return
 		}
@@ -383,7 +444,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		return
 	}
 	if len(step.Run) == 0 {
-		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+		w.report(ctx, step, Result{
 			Node: w.Ident.NodeID, Error: "명령 단계인데 run 이 비었다"})
 		return
 	}
@@ -447,9 +508,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 			"took", time.Since(start).Round(time.Millisecond))
 	}
 
-	if err := w.Client.Report(ctx, step.RunID, step.Seq, res); err != nil && ctx.Err() == nil {
-		log.Error("결과 보고 실패", "err", err)
-	}
+	w.report(ctx, step, res)
 }
 
 // runAgentStep 은 ADR-013 의 어댑터 넷 중 ②기동을 부르고 ④수확으로 잇는다.
@@ -457,7 +516,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, log *slog.Logger) {
 	p, err := parseAgentParams(step.Agent)
 	if err != nil {
-		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+		w.report(ctx, step, Result{
 			Node: w.Ident.NodeID, Error: err.Error()})
 		return
 	}
@@ -471,7 +530,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	if !ok {
 		// ★ 조용히 claude 로 떨어뜨리지 않는다 ★ — 계약이 요구한 하네스가
 		// 아닌 것으로 돌면 Record 가 거짓을 남긴다.
-		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+		w.report(ctx, step, Result{
 			Node: w.Ident.NodeID, Error: "모르는 하네스: " + name})
 		return
 	}
@@ -507,7 +566,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	if err != nil {
 		// ★ 자격증명을 못 만들었으면 안 돌린다 ★ — 조용히 없는 채로 돌리면
 		// 하네스가 엉뚱한 신원으로 붙거나 알 수 없는 이유로 실패한다.
-		_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
+		w.report(ctx, step, Result{
 			Node: w.Ident.NodeID, Error: "자격증명 준비 실패: " + err.Error()})
 		return
 	}
@@ -531,16 +590,14 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		// ★ 크래시는 완주가 아니다 ★ — 반쯤 쓴 파일을 믿을 수 없다
 		res.Error = "하네스: " + string(h.Reason) + " " + h.Message
 		log.Warn("하네스가 완주하지 못했다", "reason", h.Reason, "msg", h.Message)
-		_ = w.Client.Report(ctx, step.RunID, step.Seq, res)
+		w.report(ctx, step, res)
 		return
 	}
 	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
 	res.Produced = w.uploadProduced(ctx, step, out, stamp, log)
 	log.Info("agent 단계 끝", "reason", h.Reason, "turns", h.Turns,
 		"cost_usd", h.CostUSD, "produced", res.Produced)
-	if err := w.Client.Report(ctx, step.RunID, step.Seq, res); err != nil && ctx.Err() == nil {
-		log.Error("결과 보고 실패", "err", err)
-	}
+	w.report(ctx, step, res)
 }
 
 // uploadProduced 는 ④수확이다 — $OUT 을 걷어 올린다.

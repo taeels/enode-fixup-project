@@ -10,6 +10,15 @@ type Advert struct {
 	NodeID string `json:"node_id"` // hash(email ∥ hostname ∥ realpath(config))
 	Label  string `json:"label"`   // 유도된 것. 사람이 안 적는다. Record 가 읽는다.
 
+	// Instance 는 ★ 이 프로세스의 「이번 생」 표식 ★ 이다 (ADR-030).
+	//
+	// NodeID 는 재시작해도 같다 — 신원이기 때문이다. Instance 는 기동마다
+	// 새로 뽑는 난수라 ★ 재시작하면 달라진다 ★. 이 차이가 둘을 가른다:
+	//   같은 생이 다시 묻는다   → 응답이 유실됐다  → ★ 재전달해도 안전하다 ★
+	//   다른 생이 나타났다      → 재시작했다      → 진행 중이던 단계를 믿을 수 없다
+	// 비었으면 옛 enode 다 — 재전달도 재시작 판정도 하지 않는다(오늘 그대로).
+	Instance string `json:"instance,omitempty"`
+
 	// ADR-019 이후 항목은 사실상 하나(agent.reason)지만 배열을 유지한다 —
 	// 나중에 키를 다시 쪼갤 여지를 남기기 위한 것이고, ADR-016 이 임대 목록을
 	// 배열로 남긴 것과 같은 이유다.

@@ -107,7 +107,22 @@ var ErrNoWork = errors.New("할 일이 없다")
 // 단계의 node_id 는 CreateRun 이 t=0 에 확정하고 이 질의는 WHERE s.node_id = $1 로
 // 자기 몫만 본다. 즉 ★ 당기기가 이미 배분이다 ★. 실행 가능한 단계가 셋인데
 // 노드가 둘이어도 고를 일이 없다 — 애초에 각자 자기 것만 보인다.
-func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) {
+func (s *Store) ClaimStep(ctx context.Context, nodeID, instance string) (*Claimed, error) {
+	// ★ 같은 생이 다시 물으면, 들고 있던 것을 먼저 돌려준다 ★ (ADR-030).
+	//
+	// 워커는 직렬이다 — claim 은 워커가 한가할 때만 온다. 그리고 완주한 단계의
+	// 보고는 ★ 닿을 때까지 다시 보내므로 ★ (enode 쪽 report 재시도), 보고가 밀린
+	// 동안에도 워커는 한가해지지 않는다. ⇒ ★ 한가한 워커가 같은 생으로 다시
+	// 물었는데 CLAIMED 가 남아 있다면, 그것은 「시작도 못 한 단계」다 ★ —
+	// claim 응답이 유실된 것이고, 재전달해도 두 번 실행이 아니다.
+	//
+	// 생이 다르면 재전달하지 않는다 — 그쪽은 재시작이고, 하트비트가 판정한다
+	// (FailRestarted). 생이 비었으면 옛 enode 다 — 오늘 그대로 동작한다.
+	if instance != "" {
+		if c, err := s.redeliver(ctx, nodeID, instance); err != nil || c != nil {
+			return c, err
+		}
+	}
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -158,9 +173,11 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 	}
 	c.Lease.Capability = "agent.reason"
 
+	// ★ 어느 생이 집었는지를 함께 적는다 ★ (ADR-030) — 재전달과 재시작 판정의 재료다.
 	if _, err := tx.Exec(ctx,
-		`UPDATE steps SET state='CLAIMED', started_at=now() WHERE run_id=$1 AND seq=$2`,
-		c.RunID, c.Seq); err != nil {
+		`UPDATE steps SET state='CLAIMED', started_at=now(), claimed_instance=$3
+		  WHERE run_id=$1 AND seq=$2`,
+		c.RunID, c.Seq, nullable(instance)); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -207,6 +224,91 @@ func (s *Store) stampLedger(ctx context.Context, c *Claimed, contractJSON []byte
 	if see := raw.Steps[c.Seq-1].See; see != nil && see.Ledger == contract.SeeList {
 		c.Ledger = entries
 	}
+}
+
+// redeliver 는 이 노드의 ★ 이번 생 ★ 이 집어놓고 못 받은 단계를 다시 준다 (ADR-030).
+//
+// ★ 상태를 안 바꾼다 ★ — 이미 CLAIMED 다. 그래서 몇 번을 다시 물어도 같은
+// 답이고, 죽은 연결에 전달돼 또 유실되어도 다음 물음이 또 받는다.
+// started_at 과 워터마크만 갱신한다 — 실행은 이 전달 뒤에 시작되므로
+// "시작할 때 원장에 있던 것" 이라는 뜻(성질 4)이 그대로 산다.
+func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claimed, error) {
+	var c Claimed
+	var contractJSON []byte
+	err := s.pool.QueryRow(ctx, `
+		SELECT s.run_id, s.seq, s.name, s.uses, s.kind, s.attempt,
+		       coalesce(r.contract_versions -> -1, r.contract), r.principal
+		  FROM steps s
+		  JOIN runs r ON r.run_id = s.run_id
+		  JOIN leases l ON l.node_id = s.node_id AND l.run_id = s.run_id
+		 WHERE s.node_id = $1 AND s.state = 'CLAIMED'
+		   AND s.claimed_instance = $2
+		   AND r.state = 'RUNNING' AND l.not_after > now()
+		 ORDER BY s.run_id, s.seq LIMIT 1`, nodeID, instance).
+		Scan(&c.RunID, &c.Seq, &c.Name, &c.Uses, &c.Kind, &c.Attempt, &contractJSON, &c.Requester)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := s.pool.QueryRow(ctx,
+		`SELECT run_id, node_id, not_after, nonce FROM leases WHERE node_id = $1 AND run_id = $2`,
+		nodeID, c.RunID).
+		Scan(&c.Lease.RunID, &c.Lease.Node, &c.Lease.NotAfter, &c.Lease.Nonce); err != nil {
+		return nil, err
+	}
+	c.Lease.Capability = "agent.reason"
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE steps SET started_at=now() WHERE run_id=$1 AND seq=$2`,
+		c.RunID, c.Seq); err != nil {
+		return nil, err
+	}
+	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
+	fillFromContract(&c, contractJSON)
+	s.stampLedger(ctx, &c, contractJSON)
+	s.log().Info("재전달 — 같은 생이 다시 물었다", "node", nodeID, "step", c.StepID)
+	return &c, nil
+}
+
+// FailRestarted 는 ★ 다른 생이 집어둔 단계 ★ 를 실패시킨다 (ADR-030).
+//
+// 하트비트에 새 생이 실려 오면, 옛 생이 집어둔 CLAIMED 단계는 ★ 어디까지
+// 실행됐는지 알 수 없다 ★ — 시작 전이었는지 절반 돌았는지 노드 자신도 모른다
+// (재시작으로 기억이 없다). INVARIANTS §2 의 "재실행하지 않는다" 그대로,
+// ★ 다시 돌리는 대신 실패시킨다 ★. 보드를 절반 구운 단계를 또 굽지 않는다.
+//
+// 반환값은 손댄 Run 들이다 — 호출자가 각각을 정산한다(SettleIfDone).
+// 이것이 없으면 그 단계는 ★ 영구히 CLAIMED ★ 다: 노드는 살아 하트비트를
+// 보내니 임대가 안 죽고, 임대가 살아 있으니 회수도 손대지 않는다.
+func (s *Store) FailRestarted(ctx context.Context, nodeID, instance string) ([]string, error) {
+	rows, err := s.pool.Query(ctx, `
+		UPDATE steps s SET state='FAILED', ended_at=now(),
+		       result = coalesce(result,'{}'::jsonb) || $3::jsonb
+		  FROM runs r
+		 WHERE r.run_id = s.run_id AND r.state = 'RUNNING'
+		   AND s.node_id = $1 AND s.state = 'CLAIMED'
+		   AND coalesce(s.claimed_instance,'') NOT IN ('', $2)
+		 RETURNING s.run_id`,
+		nodeID, instance,
+		mustJSON(map[string]string{"error": "노드가 재시작해 진행 중이던 단계를 신뢰할 수 없다"}))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	seen := map[string]bool{}
+	var runs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		if !seen[id] {
+			seen[id] = true
+			runs = append(runs, id)
+		}
+	}
+	return runs, rows.Err()
 }
 
 // fillFromContract 는 계약의 단계 정의를 응답에 싣는다.

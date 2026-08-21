@@ -19,6 +19,10 @@ type Client struct {
 	Token     string
 	Principal string
 	HTTP      *http.Client
+	// Instance 는 ★ 이번 생의 표식 ★ 이다 (ADR-030) — 기동마다 새로 뽑는 난수.
+	// 광고와 claim 에 함께 실려, 유실된 claim 응답의 재전달(같은 생)과
+	// 재시작 판정(다른 생)을 가른다.
+	Instance string
 	// Poll 은 ★ 롱폴 전용 ★ 이다 (ADR-029). 없으면 HTTP 를 쓴다.
 	//
 	// ★ 왜 갈라야 하나 ★ — claim 은 서버가 몇 시간을 기다렸다 답할 수 있는데,
@@ -117,6 +121,7 @@ func (a *Advertiser) Run(ctx context.Context) {
 		ad := contract.Advert{
 			NodeID:       a.Ident.NodeID,
 			Label:        a.Ident.Label,
+			Instance:     a.Client.Instance, // ★ 이번 생 ★ (ADR-030)
 			Capabilities: Detect(a.Local, a.Log),
 		}
 		resp, err := a.Client.Advertise(ctx, ad)

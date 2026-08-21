@@ -76,13 +76,14 @@ func (s *Store) UpsertAdvert(ctx context.Context, a contract.Advert, principal s
 		return err
 	}
 	_, err = s.pool.Exec(ctx, `
-		INSERT INTO nodes (node_id, label, principal, capabilities, expires_at, seen_at)
-		VALUES ($1,$2,$3,$4, now() + $5::interval, now())
+		INSERT INTO nodes (node_id, label, principal, capabilities, expires_at, seen_at, instance)
+		VALUES ($1,$2,$3,$4, now() + $5::interval, now(), $6)
 		ON CONFLICT (node_id) DO UPDATE SET
 			label = EXCLUDED.label, principal = EXCLUDED.principal,
 			capabilities = EXCLUDED.capabilities,
-			expires_at = EXCLUDED.expires_at, seen_at = now()`,
-		a.NodeID, a.Label, principal, caps, ttl.String())
+			expires_at = EXCLUDED.expires_at, seen_at = now(),
+			instance = EXCLUDED.instance`,
+		a.NodeID, a.Label, principal, caps, ttl.String(), nullable(a.Instance))
 	return err
 }
 

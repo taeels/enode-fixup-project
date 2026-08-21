@@ -8,6 +8,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"flag"
 	"log/slog"
 	"net/http"
@@ -77,9 +79,18 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// ★ 이번 생의 표식 ★ (ADR-030) — 기동마다 새로 뽑는다. NodeID 는 신원이라
+	// 재시작해도 같지만, 이것은 ★ 재시작하면 달라지는 것 ★ 이 존재 이유다.
+	inst := make([]byte, 8)
+	if _, err := rand.Read(inst); err != nil {
+		log.Error("생 표식을 못 뽑았다", "err", err)
+		os.Exit(1)
+	}
+
 	client := &enode.Client{
 		Base: local.Mediator, Token: local.Token, Principal: ident.Principal,
-		HTTP: &http.Client{Timeout: 30 * time.Second},
+		Instance: hex.EncodeToString(inst),
+		HTTP:     &http.Client{Timeout: 30 * time.Second},
 		// ★ 롱폴은 타임아웃을 두지 않는다 ★ (ADR-029) — 수명은 ctx 가 관리한다.
 		// 짧은 타임아웃으로 걸면 그 시간에 끊고, ★ 끊는 순간 서버가 집으면
 		// 응답이 유실되어 그 단계를 아무도 안 돌린다 ★ (claim 은 비멱등이다).
