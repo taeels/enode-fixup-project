@@ -1767,3 +1767,85 @@ func TestAcquire_못_잡으면_분기로_간다(t *testing.T) {
 		t.Fatalf("★ 획득 실패가 이미 쥔 자원을 놓았다 ★: %d %v — I5 를 잘못 읽은 것이다", code, c)
 	}
 }
+
+// ═══ 구간 반복 — ★ 뒤로 가는 간선 ★ (ADR-026) ════════════════════════════
+//
+// needs 와 dispatch 는 뒤로 못 간다. ★ 이것만 간다 ★. 구간은 블록을 안 적어도
+// [back_to … 이 단계] 로 정해지고, 종료는 max 가 준다.
+
+// ★ 구간이 조건이 찰 때까지 돈다 ★ — 두 단계가 함께 되돌아간다.
+func TestLoop_구간이_조건까지_돈다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("p1", "a", map[string]string{"role": "x"}), nil)
+	write := runStep("write", "b")
+	check := runStep("check", "b")
+	check["loop"] = map[string]any{
+		"back_to": "write", "max": 3, "until": map[string]any{"exit_code": 0}}
+	do(t, srv, "POST", "/v1/runs", contractJSON("lp1",
+		[]map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{write, check}), nil)
+
+	// 1 회차 — check 가 1 로 끝난다 ⇒ ★ 구간이 되돌아간다 ★
+	do(t, srv, "POST", "/v1/nodes/p1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/lp1/steps/1/result", `{"node":"p1","exit_code":0}`, nil)
+	do(t, srv, "POST", "/v1/nodes/p1/claim", "", nil)
+	_, r := do(t, srv, "POST", "/v1/runs/lp1/steps/2/result", `{"node":"p1","exit_code":1}`, nil)
+	if r["looped"] != true {
+		t.Fatalf("★ 조건이 안 찼는데 안 되돌아갔다 ★: %v", r)
+	}
+
+	// ★ 구간의 첫 단계부터 다시 집힌다 ★ — 회차가 올라간 채로.
+	code, c := do(t, srv, "POST", "/v1/nodes/p1/claim", "", nil)
+	if code != 200 || c["name"] != "write" {
+		t.Fatalf("★ 구간의 시작으로 안 돌아갔다 ★: %d %v", code, c)
+	}
+	if got, _ := c["attempt"].(float64); got != 1 {
+		t.Fatalf("★ 회차가 안 올랐다 ★: %v — 산출물 최신성이 (회차, 순번)이다", c["attempt"])
+	}
+
+	// 2 회차 — 이번엔 통과한다 ⇒ ★ 안 되돌아간다 ★
+	do(t, srv, "POST", "/v1/runs/lp1/steps/1/result", `{"node":"p1","exit_code":0}`, nil)
+	do(t, srv, "POST", "/v1/nodes/p1/claim", "", nil)
+	_, r2 := do(t, srv, "POST", "/v1/runs/lp1/steps/2/result", `{"node":"p1","exit_code":0}`, nil)
+	if r2["looped"] == true {
+		t.Fatalf("★ 조건이 찼는데 또 돌았다 ★: %v", r2)
+	}
+}
+
+// ★ 소진하면 그냥 진행한다 ★ — 성패는 success_when 이 정한다 (I3 를 안 건드린다).
+func TestLoop_소진하면_실패가_아니라_진행이다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("p2", "a", map[string]string{"role": "x"}), nil)
+	write := runStep("write", "b")
+	check := runStep("check", "b")
+	check["loop"] = map[string]any{
+		"back_to": "write", "max": 2, "until": map[string]any{"exit_code": 0}}
+	after := runStep("after", "b")
+	do(t, srv, "POST", "/v1/runs", contractJSON("lp2",
+		[]map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{write, check, after}), nil)
+
+	for i := 0; i < 2; i++ {
+		do(t, srv, "POST", "/v1/nodes/p2/claim", "", nil)
+		do(t, srv, "POST", "/v1/runs/lp2/steps/1/result", `{"node":"p2","exit_code":0}`, nil)
+		do(t, srv, "POST", "/v1/nodes/p2/claim", "", nil)
+		do(t, srv, "POST", "/v1/runs/lp2/steps/2/result", `{"node":"p2","exit_code":1}`, nil)
+	}
+	// ★ 소진했으므로 다음 단계로 간다 ★ — 되돌아가지 않는다.
+	code, c := do(t, srv, "POST", "/v1/nodes/p2/claim", "", nil)
+	if code != 200 || c["name"] != "after" {
+		t.Fatalf("★ 소진한 뒤 진행하지 않았다 ★: %d %v", code, c)
+	}
+	_, v := do(t, srv, "GET", "/v1/runs/lp2", "", nil)
+	raw, _ := json.Marshal(v["steps"])
+	var steps []struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(raw, &steps)
+	for _, st := range steps {
+		if st.ID == "check" && st.State != "DONE" {
+			t.Fatalf("★ 소진이 실패로 처리됐다 ★: %q — 판정은 success_when 이 한다", st.State)
+		}
+	}
+}

@@ -567,3 +567,86 @@ func TestValidate_acquire(t *testing.T) {
 		}
 	}
 }
+
+// ★ loop 검증 — 뒤로 가는 유일한 간선 ★ (ADR-026)
+func TestValidate_loop(t *testing.T) {
+	zero := 0
+	mk := func(f func([]Step) []Step) Contract {
+		steps := []Step{
+			{ID: "write", Uses: "b", Run: []string{"true"}},
+			{ID: "check", Uses: "b", Run: []string{"true"}},
+		}
+		return Contract{
+			RunID:    "r1",
+			Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+			Steps:    f(steps),
+		}
+	}
+	ok := mk(func(s []Step) []Step {
+		s[1].Loop = &Loop{BackTo: "write", Max: 3, Until: Condition{ExitCode: &zero}}
+		return s
+	})
+	if err := ok.Validate(); err != nil {
+		t.Fatalf("정상 loop 이 거절됐다: %v", err)
+	}
+
+	for name, f := range map[string]func([]Step) []Step{
+		"★ 앞으로 간다 ★": func(s []Step) []Step {
+			s[0].Loop = &Loop{BackTo: "check", Max: 3, Until: Condition{ExitCode: &zero}}
+			return s
+		},
+		"★ 없는 단계로 간다 ★": func(s []Step) []Step {
+			s[1].Loop = &Loop{BackTo: "없는것", Max: 3, Until: Condition{ExitCode: &zero}}
+			return s
+		},
+		"★ max 가 1 이다 ★": func(s []Step) []Step {
+			s[1].Loop = &Loop{BackTo: "write", Max: 1, Until: Condition{ExitCode: &zero}}
+			return s
+		},
+		"★ until 이 비었다 ★": func(s []Step) []Step {
+			s[1].Loop = &Loop{BackTo: "write", Max: 3}
+			return s
+		},
+		"★ until 에 step 을 적었다 ★": func(s []Step) []Step {
+			s[1].Loop = &Loop{BackTo: "write", Max: 3,
+				Until: Condition{Step: "write", ExitCode: &zero}}
+			return s
+		},
+		"★ validate_with 와 함께 ★": func(s []Step) []Step {
+			s[0].ValidateWith = "check"
+			s[1].Loop = &Loop{BackTo: "write", Max: 3, Until: Condition{ExitCode: &zero}}
+			s[1].ValidateWith = "write"
+			return s
+		},
+		"★ 구간 안에서 놓는다 ★": func(s []Step) []Step {
+			s[0].Release = []string{"b"}
+			s[1].Loop = &Loop{BackTo: "write", Max: 3, Until: Condition{ExitCode: &zero}}
+			return s
+		},
+		"★ agent 단계에 exit_code ★": func(s []Step) []Step {
+			s[1] = Step{ID: "check", Uses: "b", Agent: map[string]interface{}{},
+				Loop: &Loop{BackTo: "write", Max: 3, Until: Condition{ExitCode: &zero}}}
+			return s
+		},
+	} {
+		if err := mk(f).Validate(); err == nil {
+			t.Fatalf("%s — 통과했다", name)
+		}
+	}
+
+	// ★ 중첩은 아직 없다 ★
+	nested := Contract{
+		RunID:    "r1",
+		Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+		Steps: []Step{
+			{ID: "a", Uses: "b", Run: []string{"true"}},
+			{ID: "inner", Uses: "b", Run: []string{"true"},
+				Loop: &Loop{BackTo: "a", Max: 2, Until: Condition{ExitCode: &zero}}},
+			{ID: "outer", Uses: "b", Run: []string{"true"},
+				Loop: &Loop{BackTo: "a", Max: 2, Until: Condition{ExitCode: &zero}}},
+		},
+	}
+	if err := nested.Validate(); err == nil {
+		t.Fatal("★ 중첩 loop 이 통과했다 ★")
+	}
+}

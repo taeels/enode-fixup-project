@@ -466,6 +466,19 @@ type Step struct {
 	Feedback     []string `json:"feedback,omitempty"`
 
 	Repeat int `json:"repeat,omitempty"`
+
+	// Loop 은 ★ 뒤로 가는 간선 ★ 이다 (ADR-026).
+	//
+	// "이 단계가 끝났는데 until 이 불만족이면 ★ back_to 부터 다시 ★" 라는 뜻이고,
+	// 구간 [back_to … 이 단계] 가 ★ 블록을 안 적어도 정해진다 ★ (seq 가 위상순서다).
+	//
+	// ★ 새 종류가 안 는다 ★ — loop 을 든 단계는 여전히 agent 이거나 run 이다.
+	// ★ 이미 도는 기계를 넓히는 것이다 ★ — validate_with 루프가 대상과 검증자
+	// ★ 둘 ★ 을 되돌리는데, 여기서는 되돌릴 범위가 ★ 구간 ★ 이 된다.
+	//
+	// ★ repeat 과 다른 물건이다 ★ — repeat 은 같은 단계를 N 회 돌린다
+	// (run-contract §4.5, requires[].count 와 짝). 이쪽은 ★ 조건이 만족될 때까지 ★ 다.
+	Loop *Loop `json:"loop,omitempty"`
 }
 
 // ancestors 는 i 번째 단계보다 ★ 확실히 앞서는 ★ 단계들이다 — needs 간선을
@@ -604,6 +617,25 @@ func (s Step) Kind() (StepKind, error) {
 		return KindAcquire, nil
 	}
 	return KindUnknown, fmt.Errorf("step %q: agent 도 run 도 acquire 도 없다", s.ID)
+}
+
+// Loop 은 구간 반복 하나다 (ADR-026).
+type Loop struct {
+	// BackTo 는 구간의 ★ 시작 ★ 이다 — 자기보다 앞선 단계.
+	// ★ 뒤로 가는 유일한 간선 ★ 이고, needs 와 dispatch 는 뒤로 못 간다.
+	BackTo string `json:"back_to"`
+	// Max 는 ★ 회차 상한 ★ 이다. ★ 종료를 이것이 보장한다 ★ —
+	// loop 은 needs 가 아니므로 DAG 검사의 대상이 아니고, 유한성은 회차가 준다.
+	// 소진하면 ★ 그냥 진행한다 ★ — 성패는 success_when 이 정한다(I3).
+	Max int `json:"max"`
+	// Until 은 ★ 그만 돌 조건 ★ 이다. ★ 주어는 이 단계다 ★ —
+	// 구간의 끝이 여기이므로 조건도 여기 걸린다. 남의 결과로 내 루프를 돌리는 것은
+	// 반복이 아니라 ★ 재계획 ★ 이다(P6).
+	//
+	// ★ 식 언어가 아니다 ★ — exit_code · produced 는 success_when 이 이미 쓰는
+	// 어휘 그대로다(ADR-004). ★ 확장이 아니라 재사용 ★ 이고, 정규식이나 값 비교를
+	// 더하는 순간이 식 언어의 시작이므로 거기서 막는다.
+	Until Condition `json:"until"`
 }
 
 // Condition 은 success_when 의 항목 하나다 (ADR-004).
@@ -791,6 +823,56 @@ func (c Contract) Validate() error {
 		if _, ok := st.Schema[st.Out[0]]; !ok {
 			return fmt.Errorf("step %q: expands 단계의 산출물 %q 에 스키마가 없다 — "+
 				"형태가 틀린 계약이 함대로 들어온다", st.ID, st.Out[0])
+		}
+	}
+
+	// ★ loop 은 뒤로 가는 유일한 간선이다 ★ (ADR-026).
+	// needs 와 dispatch 는 뒤로 못 가고, 이것만 간다. 종료는 max 가 준다.
+	for i, st := range c.Steps {
+		lp := st.Loop
+		if lp == nil {
+			continue
+		}
+		if st.ValidateWith != "" {
+			return fmt.Errorf("step %q: loop 과 validate_with 를 함께 쓴다 — "+
+				"되돌리는 주체가 둘이면 회차가 어긋난다", st.ID)
+		}
+		j, ok := index[lp.BackTo]
+		if !ok {
+			return fmt.Errorf("step %q: loop.back_to 가 없는 단계 %q 를 가리킨다", st.ID, lp.BackTo)
+		}
+		if j >= i {
+			return fmt.Errorf("step %q: loop.back_to 의 %q 가 자기보다 뒤다 — "+
+				"반복은 ★ 뒤로 ★ 가는 것이다", st.ID, lp.BackTo)
+		}
+		if lp.Max < 2 {
+			return fmt.Errorf("step %q: loop.max 는 2 이상이어야 한다 — "+
+				"한 번만 돌 것이면 반복이 아니다", st.ID)
+		}
+		if lp.Until.ExitCode == nil && len(lp.Until.Produced) == 0 {
+			return fmt.Errorf("step %q: loop.until 이 비었다 — "+
+				"exit_code 나 produced 로 그만 돌 조건을 적는다", st.ID)
+		}
+		if lp.Until.Step != "" {
+			return fmt.Errorf("step %q: loop.until 에는 step 을 적지 않는다 — "+
+				"구간의 끝이 이 단계이므로 조건의 주어도 이 단계다", st.ID)
+		}
+		if lp.Until.ExitCode != nil && kinds[st.ID] == KindAgent {
+			return fmt.Errorf("%w: %q (loop.until)", ErrExitOnAgent, st.ID)
+		}
+		// ★ 구간 안에서 놓으면 안 된다 ★ — 다음 회차가 그 자원을 쓰는데
+		// 놓은 것은 되돌릴 수 없다.
+		for k := j; k <= i; k++ {
+			if len(c.Steps[k].Release) > 0 {
+				return fmt.Errorf("step %q: loop 구간 안의 step %q 가 자원을 놓는다 — "+
+					"놓은 것은 되돌릴 수 없고 다음 회차가 그것을 쓴다", st.ID, c.Steps[k].ID)
+			}
+			// ★ 중첩은 오늘 막는다 ★ — 여는 조건은 중첩이 필요한 실물 계약이
+			// 나올 때이고, 그때 깊이 상한이 따라온다 (ADR-026 §6).
+			if k != i && c.Steps[k].Loop != nil {
+				return fmt.Errorf("step %q: loop 구간 안에 또 loop 이 있다 — "+
+					"중첩은 아직 없다", st.ID)
+			}
 		}
 	}
 
