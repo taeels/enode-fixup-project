@@ -208,3 +208,52 @@ func TestMatchPermanentBeatsTransient(t *testing.T) {
 		t.Fatalf("어느 역할이 영구인지가 안 나온다: %+v", rej)
 	}
 }
+
+// ★ 속성이 적은 노드를 먼저 준다 ★ (ADR-027)
+//
+// 매칭이 부분집합이라 ★ 속성이 많은 노드일수록 더 많은 요구에 걸린다 ★.
+// 그것을 흔한 요구에 내주면 ★ 하나뿐인 자원이 묶인다 ★ — 실측에서 밟았다.
+func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
+	adverts := []contract.Advert{
+		// ★ node_id 순으로는 보드 노드가 먼저다 ★ — 옛 규칙이면 이것이 뽑힌다.
+		{NodeID: "a-board", Capabilities: []contract.Capability{{
+			Capability: "agent.reason",
+			Attrs:      map[string]string{"harness": "claude", "board": "SoC-X", "tag": "b-042"}}}},
+		{NodeID: "z-brain", Capabilities: []contract.Capability{{
+			Capability: "agent.reason",
+			Attrs:      map[string]string{"harness": "claude"}}}},
+	}
+	reqs := []contract.Require{{As: "brain", Capability: "agent.reason",
+		Attrs: map[string]string{"harness": "claude"}}}
+
+	got, rej := Match(reqs, adverts, map[string]bool{})
+	if rej != nil {
+		t.Fatalf("배정 실패: %v", rej)
+	}
+	if got[0].Nodes[0] != "z-brain" {
+		t.Fatalf("★ 희소한 노드를 내줬다 ★: %q — 보드가 하나뿐인데 추론에 잡혔다",
+			got[0].Nodes[0])
+	}
+
+	// ★ 보드 요구는 영향이 없다 ★ — 애초에 그 노드만 후보다.
+	boardReq := []contract.Require{{As: "board", Capability: "agent.reason",
+		Attrs: map[string]string{"board": "SoC-X"}}}
+	got2, rej2 := Match(boardReq, adverts, map[string]bool{})
+	if rej2 != nil || got2[0].Nodes[0] != "a-board" {
+		t.Fatalf("보드 요구가 어긋났다: %v %v", got2, rej2)
+	}
+
+	// ★ 동점은 node_id 가 가른다 ★ — 같은 입력이면 같은 배정이어야 한다.
+	tie := []contract.Advert{
+		{NodeID: "n2", Capabilities: []contract.Capability{{
+			Capability: "agent.reason", Attrs: map[string]string{"harness": "claude"}}}},
+		{NodeID: "n1", Capabilities: []contract.Capability{{
+			Capability: "agent.reason", Attrs: map[string]string{"harness": "claude"}}}},
+	}
+	for i := 0; i < 3; i++ {
+		g, _ := Match(reqs, tie, map[string]bool{})
+		if g[0].Nodes[0] != "n1" {
+			t.Fatalf("★ 동점 배정이 흔들린다 ★: %q — 매처는 순수 함수여야 한다", g[0].Nodes[0])
+		}
+	}
+}

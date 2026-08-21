@@ -25,6 +25,20 @@ const (
 	CodeAllBusy     = 409
 )
 
+// attrCount 는 그 노드가 광고한 ★ 속성의 개수 ★ 다.
+//
+// ★ 희소성의 대리 지표다 ★ (ADR-027 §4.2) — 오늘은 속성이 전부 실제 능력이라
+// (harness · arch · board · repo) 개수가 특별함과 같이 간다.
+// ★ 장식용 속성이 생기면 이 가정이 깨진다 ★. 그때의 답은 무게를 주는 것이
+// 아니라 ★ 장식용을 광고에 안 싣는 것 ★ 이다.
+func attrCount(a contract.Advert) int {
+	n := 0
+	for _, c := range a.Capabilities {
+		n += len(c.Attrs)
+	}
+	return n
+}
+
 // Assignment 는 역할 하나에 배정된 노드들이다.
 type Assignment struct {
 	As    string
@@ -50,11 +64,27 @@ func (r *Reject) Error() string {
 // 같은 Run 안에서는 한 노드가 여러 역할을 맡을 수 있다 — 임대가 하나이기
 // 때문이다. 다만 같은 역할의 count 안에서는 중복되지 않는다.
 func Match(reqs []contract.Require, adverts []contract.Advert, busy map[string]bool) ([]Assignment, *Reject) {
-	// first available (ADR-011). 선호 표현이 없으므로 순서만 결정적이면 된다.
-	// node_id 오름차순으로 고정한다 — 같은 입력이면 같은 배정이 나온다.
+	// ★ 속성이 적은 노드를 먼저 준다 ★ (ADR-027).
+	//
+	// 매칭이 부분집합이므로 ★ 속성이 많은 노드일수록 더 많은 요구에 걸린다 ★ —
+	// 보드를 가진 노드가 흔한 추론 요구에도 후보가 되고, 그것을 내주면
+	// ★ 하나뿐인 보드가 묶인다 ★ (실측에서 밟았다).
+	// 적은 쪽을 먼저 주면 ★ 희소한 것이 저절로 남는다 ★.
+	//
+	// ★ 이것이 Rank 는 아니다 ★ — 점수도 가중치도 없고 조건이 하나이며
+	// 계약이 그것을 못 건드린다. ★ 다만 두 번째 기준이 생기는 순간 ★
+	// 그것은 Rank 이고 ADR-011 이 두 번 기각한 자리다 (ADR-027 §4.1).
+	//
+	// 동점은 node_id 로 가른다 — ★ 같은 입력이면 같은 배정 ★ (ADR-014 결정 3).
 	sorted := make([]contract.Advert, len(adverts))
 	copy(sorted, adverts)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].NodeID < sorted[j].NodeID })
+	sort.Slice(sorted, func(i, j int) bool {
+		ai, aj := attrCount(sorted[i]), attrCount(sorted[j])
+		if ai != aj {
+			return ai < aj
+		}
+		return sorted[i].NodeID < sorted[j].NodeID
+	})
 
 	// ★ 1차 — 영구 불가를 ★ 전부 ★ 먼저 본다 ★
 	//
