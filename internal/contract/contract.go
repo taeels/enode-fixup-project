@@ -106,6 +106,17 @@ type Ask struct {
 	// Timeout 은 선택이다. ★ 없으면 무한 대기 ★ — 사람의 시간을 시스템이
 	// 짐작하지 않는다. 선언하면 행동(then)도 함께 선언한다.
 	Timeout *AskTimeout `json:"timeout,omitempty"`
+
+	// Adopts 는 ★ 목표 위임의 승인 지점 ★ 이다 (ADR-033).
+	//
+	// expands 단계 하나를 지목한다. 그 계획이 ★ 제안한 success_when ★ 은
+	// 효력이 없다가, 이 ask 의 답이 verdict:"approve" 일 때 ★ 계약의 열에
+	// 새 판으로 채택 ★ 된다 (by: "answer:<이 단계>").
+	//
+	// ★ 저자와 승인자를 가른다 ★ — 판정 기준의 저자는 기계(계획)일 수 있으나
+	// 그것이 효력을 얻는 유일한 길은 ★ 목표를 준 사람의 답 ★ 이다.
+	// 그래야 「판정 기준을 판정 대상이 정한다」가 안 된다 (ADR-004 개정).
+	Adopts string `json:"adopts,omitempty"`
 }
 
 // AskTimeout 은 기한과 그때의 행동이다.
@@ -546,6 +557,28 @@ func ancestors(steps []Step, i int) map[int]bool {
 	return seen
 }
 
+// hasVerdict 는 스키마에 verdict 필드가 있고 enum 에 approve·reject 가 있는지 본다.
+// ★ 채택의 어휘를 못 박는 검사다 ★ (ADR-033) — 값 일치이지 표현식이 아니다.
+func hasVerdict(sch interface{}) bool {
+	m, ok := sch.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	props, _ := m["properties"].(map[string]interface{})
+	v, ok := props["verdict"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	enum, _ := v["enum"].([]interface{})
+	has := map[string]bool{}
+	for _, e := range enum {
+		if s, ok := e.(string); ok {
+			has[s] = true
+		}
+	}
+	return has["approve"] && has["reject"]
+}
+
 // checkAskForm 은 ask 의 스키마가 ★ 평면 폼 부분집합 ★ 인지 본다 (ADR-032).
 //
 // 허용: 최상위 type:object · 속성은 원시형(string·number·integer·boolean)
@@ -928,6 +961,22 @@ func (c Contract) Validate() error {
 		// 단순화를 위해 중첩을 ★ 의도적으로 ★ 뺀다.
 		if err := checkAskForm(sch); err != nil {
 			return fmt.Errorf("step %q: %w", st.ID, err)
+		}
+		if a.Adopts != "" {
+			j, ok := index[a.Adopts]
+			if !ok {
+				return fmt.Errorf("step %q: adopts 가 없는 단계 %q 를 가리킨다", st.ID, a.Adopts)
+			}
+			if !c.Steps[j].Expands {
+				return fmt.Errorf("step %q: adopts 대상 %q 가 expands 단계가 아니다 — "+
+					"채택할 제안이 없다", st.ID, a.Adopts)
+			}
+			// ★ 승인의 어휘를 못 박는다 ★ — verdict 에 approve 와 reject 가 있어야
+			// 답이 채택인지 아닌지가 기계적으로 갈린다 (표현식이 아니라 값 일치).
+			if !hasVerdict(sch) {
+				return fmt.Errorf("step %q: adopts 하는 ask 의 스키마에는 verdict 필드가 "+
+					"있어야 하고 enum 에 approve 와 reject 가 있어야 한다", st.ID)
+			}
 		}
 		if t := a.Timeout; t != nil {
 			d, err := time.ParseDuration(t.After)

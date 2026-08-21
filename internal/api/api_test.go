@@ -2337,3 +2337,148 @@ func TestAsk_기한이_지나면_실패한다(t *testing.T) {
 		t.Fatalf("★ 죽은 질문에 답이 들어갔다 ★: %d", code)
 	}
 }
+
+// ═══ 목표 위임 — ★ 저자와 승인자를 가른다 ★ (ADR-033) ════════════════════
+//
+// 판정 기준의 저자는 기계(계획)일 수 있으나, 효력을 얻는 유일한 길은
+// ★ 목표를 준 사람의 답 ★ 이다. 저자(계획)·승인자(사람)·판정자(Mediator 의
+// 기계적 대조)가 전부 다르고, 셋 다 봉인에 남는다.
+
+func adoptingGate(id, adopts string) map[string]any {
+	return map[string]any{
+		"id": id, "needs": []string{adopts},
+		"ask": map[string]any{"prompt": "이 판정 기준으로 갈까요?",
+			"adopts": adopts},
+		"out": []string{"decision"},
+		"schema": map[string]any{"decision": map[string]any{
+			"type": "object", "required": []string{"verdict"},
+			"properties": map[string]any{
+				"verdict": map[string]any{"enum": []string{"approve", "reject"}}}}},
+	}
+}
+
+// ★ 목표만 준 계약이 끝까지 돈다 ★ — 계획이 단계와 기준을 짓고, 사람이 기준을
+// 승인하고, 기계가 그 기준으로 판정한다.
+func TestGoal_계획이_기준을_제안하고_사람이_채택한다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("g1", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "goal1",
+		"work":     map[string]any{"system": "gerrit", "change_id": "71", "patchset": 1},
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{
+			planStepN("plan", "b", "plan"),
+			adoptingGate("gate", "plan"),
+		},
+		// ★ 제출 시점 조건은 「계획을 냈는가」까지다 ★ — 나머지는 채택이 늘린다.
+		"success_when": []map[string]any{{"step": "plan", "produced": []string{"plan"}}},
+	}
+	b, _ := json.Marshal(c)
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	// 계획 — 단계 하나와 ★ 그 단계를 가리키는 판정 기준 ★ 을 함께 짓는다.
+	do(t, srv, "POST", "/v1/nodes/g1/claim", "", nil)
+	plan, _ := json.Marshal(map[string]any{
+		"steps": []map[string]any{
+			{"id": "probe", "uses": "b", "run": []string{"true"}, "out": []string{"probe"}}},
+		"success_when": []map[string]any{{"step": "probe", "exit_code": 0}},
+	})
+	if code, _ := do(t, srv, "PUT", "/v1/runs/goal1/steps/1/blob/plan", string(plan), nil); code >= 300 {
+		t.Fatalf("계획 저장 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/runs/goal1/steps/1/result", `{"node":"g1","produced":["plan"]}`, nil)
+
+	// ★ 인박스가 「무엇을 승인하는지」를 든다 ★
+	_, inbox := do(t, srv, "GET", "/v1/asks", "", nil)
+	iraw, _ := json.Marshal(inbox["asks"])
+	if !strings.Contains(string(iraw), `"probe"`) || !strings.Contains(string(iraw), "exit_code") {
+		t.Fatalf("★ 제안이 인박스에 없다 ★: %s — 보지 않고 승인하게 된다", iraw)
+	}
+
+	// ★ 채택 전에는 효력이 없다 ★ — probe 를 먼저 돌려도 판정에 안 들어간다…를
+	// 검증하기 위해 순서를 답 먼저로 둔다 (gate 가 probe 의 needs 가 아니므로 병렬이다).
+	if code, _ := do(t, srv, "POST", "/v1/runs/goal1/steps/2/answer",
+		`{"verdict":"approve"}`, nil); code != 200 {
+		t.Fatalf("답 실패: %d", code)
+	}
+	// probe 실행
+	if code, cc := do(t, srv, "POST", "/v1/nodes/g1/claim", "", nil); code != 200 || cc["name"] != "probe" {
+		t.Fatalf("지어진 단계가 안 나왔다: %d %v", code, cc)
+	}
+	do(t, srv, "POST", "/v1/runs/goal1/steps/3/result", `{"node":"g1","exit_code":0}`, nil)
+
+	_, v := do(t, srv, "GET", "/v1/runs/goal1", "", nil)
+	if v["state"] != "SUCCEEDED" {
+		t.Fatalf("★ Run 이 %v 다 ★", v["state"])
+	}
+	// ★ 판정이 채택된 기준을 봤다 ★ — verdict 에 probe 의 exit_code 검사가 있어야 한다.
+	vraw, _ := json.Marshal(v["verdict"])
+	if !strings.Contains(string(vraw), `"probe"`) {
+		t.Fatalf("★ 채택된 기준이 판정에 안 들어갔다 ★: %s", vraw)
+	}
+	// ★ 봉인 — 저자·승인자·판정자가 갈라져 남는다 ★
+	mraw, _ := os.ReadFile(filepath.Join(st.Records.Root, "run-goal1", "manifest.json"))
+	var m struct {
+		Contract []struct {
+			By       string   `json:"by"`
+			Proposed []any    `json:"proposed_success_when"`
+			Cause    []string `json:"cause"`
+		} `json:"contract"`
+	}
+	_ = json.Unmarshal(mraw, &m)
+	if len(m.Contract) != 3 {
+		t.Fatalf("판이 %d 개다 — v1 제출·v2 계획(제안)·v3 채택으로 셋이어야 한다", len(m.Contract))
+	}
+	if m.Contract[1].By != "step:plan" || len(m.Contract[1].Proposed) == 0 {
+		t.Fatalf("★ v2 에 제안이 안 남았다 ★: %+v", m.Contract[1])
+	}
+	if m.Contract[2].By != "answer:gate" || len(m.Contract[2].Cause) == 0 {
+		t.Fatalf("★ v3 이 사람의 답으로 채택된 판이 아니다 ★: %+v", m.Contract[2])
+	}
+}
+
+// ★ 거절하면 아무것도 채택되지 않는다 ★ — 제안은 제안으로만 남는다.
+func TestGoal_거절하면_기준이_효력을_얻지_않는다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("g2", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "goal2",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{
+			planStepN("plan", "b", "plan"),
+			adoptingGate("gate", "plan"),
+		},
+		"success_when": []map[string]any{{"step": "plan", "produced": []string{"plan"}}},
+	}
+	b, _ := json.Marshal(c)
+	do(t, srv, "POST", "/v1/runs", string(b), nil)
+	do(t, srv, "POST", "/v1/nodes/g2/claim", "", nil)
+	plan, _ := json.Marshal(map[string]any{
+		"steps": []map[string]any{
+			{"id": "probe", "uses": "b", "run": []string{"false"}, "out": []string{"probe"}}},
+		"success_when": []map[string]any{{"step": "probe", "exit_code": 0}},
+	})
+	do(t, srv, "PUT", "/v1/runs/goal2/steps/1/blob/plan", string(plan), nil)
+	do(t, srv, "POST", "/v1/runs/goal2/steps/1/result", `{"node":"g2","produced":["plan"]}`, nil)
+	do(t, srv, "POST", "/v1/runs/goal2/steps/2/answer", `{"verdict":"reject"}`, nil)
+	do(t, srv, "POST", "/v1/nodes/g2/claim", "", nil) // probe (exit 1 로 끝난다)
+	do(t, srv, "POST", "/v1/runs/goal2/steps/3/result", `{"node":"g2","exit_code":1}`, nil)
+
+	// ★ 거절됐으므로 probe 의 exit_code 조건은 효력이 없다 ★ — v1 조건만 대조되어
+	// SUCCEEDED 다 (probe 가 1 로 끝났어도).
+	_, v := do(t, srv, "GET", "/v1/runs/goal2", "", nil)
+	if v["state"] != "SUCCEEDED" {
+		t.Fatalf("★ 거절된 기준이 판정에 들어갔다 ★: %v", v["state"])
+	}
+	mraw, _ := os.ReadFile(filepath.Join(st.Records.Root, "run-goal2", "manifest.json"))
+	var m struct {
+		Contract []struct {
+			By string `json:"by"`
+		} `json:"contract"`
+	}
+	_ = json.Unmarshal(mraw, &m)
+	if len(m.Contract) != 2 {
+		t.Fatalf("★ 거절인데 판이 %d 개다 ★ — 채택 판이 붙으면 안 된다", len(m.Contract))
+	}
+}

@@ -73,12 +73,18 @@ type ContractVersion struct {
 	// "왜 이 경로로 갔나" 의 근거가 잘린다. 첫 판(v2)은 비운다 — 그때는
 	// 바꾼 것이 아니라 처음 지은 것이고, evidence 가 그 근거다.
 	Cause []string `json:"cause,omitempty"`
+	// Proposed 는 ★ 효력 없는 제안 ★ 이다 (ADR-033) — 계획이 지은 success_when.
+	// 이 판의 Contract.SuccessWhen 에는 ★ 안 들어 있다 ★. 채택하는 ask 의 답이
+	// approve 일 때 다음 판(by: "answer:<ask>")에서야 효력을 얻는다.
+	// ⇒ 봉인만 봐도 ★ 무엇이 제안됐고 누가 채택했는가 ★ 가 갈라져 남는다.
+	Proposed []contract.Condition `json:"proposed_success_when,omitempty"`
 	// ★ 임베드다 ★ — JSON 이 평평해져서 한 판이 그대로 계약으로 읽힌다.
 	contract.Contract
 }
 
-// 계약 한 판을 ★ 누가 지었나 ★ 의 어휘. 열린 어휘가 아니라 이 셋과
-// "step:<id>" 형태뿐이다 — Record 를 읽는 쪽이 문자열을 추측하면 안 된다.
+// 계약 한 판을 ★ 누가 지었나 ★ 의 어휘. 열린 어휘가 아니라 이것들과
+// "step:<id>" · "answer:<id>"(ADR-033 — 사람의 답이 채택한 판) 형태뿐이다 —
+// Record 를 읽는 쪽이 문자열을 추측하면 안 된다.
 const (
 	// ByRequester 는 ★ 제출본 ★ 이다. v1 은 언제나 이것이다.
 	ByRequester = "requester"

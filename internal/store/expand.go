@@ -17,16 +17,13 @@ import (
 // 것과 같은 결이고, 계획에 다른 것(근거·비용)을 붙일 자리가 남는다.
 type plan struct {
 	Steps []contract.Step `json:"steps"`
-	// SuccessWhen 은 ★ 받지 않는다 ★ — 여기 있으면 거절한다.
+	// SuccessWhen 은 ★ 제안 ★ 이다 (ADR-033) — 효력이 없다.
 	//
-	// ★ 판정 기준을 판정 대상이 정하게 되기 때문이다 ★ (ADR-022 §7.7).
-	// 계획을 짓는 것과 성패의 기준을 짓는 것은 다른 권한이고, 후자는
-	// ADR-004(기계적 판정만)의 뿌리를 건드린다 — 그것이 ⑦목표 위임(P7)이고
-	// 완화 장치(저자와 승인자를 가르는 자리)가 먼저 서야 한다.
-	//
-	// ★ 조용히 무시하지 않는다 ★ — 무시하면 계약 저자는 자기가 쓴 판정 기준이
-	// 걷힌 줄 알고, 그 사실은 Record 를 열어봐야 드러난다.
-	// ADR-013 이 --interactive 를 다룬 방식과 같다 (미구현은 400).
+	// 판정 기준의 저자는 기계(계획)일 수 있으나, 그것이 효력을 얻는 유일한
+	// 길은 ★ 목표를 준 사람의 답 ★ 이다 — 이 expands 단계를 adopts 로 지목한
+	// ask 가 계약에 있어야 하고, 그 답이 approve 여야 채택된다.
+	// ★ 승인할 ask 가 없으면 여전히 거절한다 ★ — 조용히 무시하면 계약 저자는
+	// 자기 기준이 걷힌 줄 알고, 그 사실이 Record 를 열어야 드러난다.
 	SuccessWhen []contract.Condition `json:"success_when,omitempty"`
 }
 
@@ -107,9 +104,9 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 	if len(p.Steps) == 0 {
 		return fmt.Errorf("step %q: 계획에 단계가 없다", st.ID)
 	}
-	if len(p.SuccessWhen) > 0 {
-		return fmt.Errorf("step %q: 계획이 success_when 을 지었다 — "+
-			"판정 기준은 계약 저자가 쓴다 (ADR-004 · ADR-022 §7.7 의 ⑦)", st.ID)
+	if len(p.SuccessWhen) > 0 && !hasAdopter(c.Steps, st.ID) {
+		return fmt.Errorf("step %q: 계획이 success_when 을 지었는데 ★ 승인할 ask 가 없다 ★ — "+
+			"판정 기준이 효력을 얻으려면 adopts 로 이 단계를 지목한 ask 가 필요하다 (ADR-033)", st.ID)
 	}
 
 	// ★ v2 를 만든다 — 차분이 아니라 전문이다 ★ (성질 4: 각 판이 그 자체로 완결).
@@ -127,6 +124,9 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		Evidence: fmt.Sprintf("blobs/%02d.%d-%s", seq, attempt, name),
 		Contract: next,
 	}
+	// ★ 계획이 지은 success_when 은 「제안」으로만 싣는다 ★ (ADR-033) —
+	// 이 판의 유효 조건(Contract.SuccessWhen)에는 안 들어간다. 채택은 답이 한다.
+	ver.Proposed = p.SuccessWhen
 	// ★ 재계획에서만 cause 를 채운다 ★ (ADR-031) — 첫 판은 「처음 지은 것」이라
 	// 바꾼 근거가 없다. 두 번째부터는 ★ 무엇을 보고 다시 짰나 ★ 가 남아야
 	// "왜 이 경로로 갔나" 를 봉인된 묶음만 보고 따라갈 수 있다 (성질 4).
@@ -205,6 +205,19 @@ func causeOf(steps []contract.Step, i int) []string {
 
 // byStep 은 계약 한 판을 지은 단계의 이름이다 (seal.go 의 By* 어휘와 같은 자리).
 func byStep(id string) string { return "step:" + id }
+
+// byAnswer 는 ★ 사람의 답이 채택한 판 ★ 이다 (ADR-033).
+func byAnswer(id string) string { return "answer:" + id }
+
+// hasAdopter 는 이 expands 단계를 adopts 로 지목한 ask 가 있는지 본다.
+func hasAdopter(steps []contract.Step, id string) bool {
+	for _, st := range steps {
+		if st.Ask != nil && st.Ask.Adopts == id {
+			return true
+		}
+	}
+	return false
+}
 
 func stepAttemptTx(ctx context.Context, tx pgx.Tx, runID string, seq int) (int, error) {
 	var n int

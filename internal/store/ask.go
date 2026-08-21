@@ -87,13 +87,17 @@ type AskView struct {
 	// CanAnswer 는 ★ 관점 필드 ★ 다 — 보는 사람 기준으로 서버가 채운다
 	// (GitHub 의 current_user_can_approve 모범). 저장되는 값이 아니다.
 	CanAnswer bool `json:"can_answer"`
+	// Proposes 는 이 ask 가 채택 여부를 묻는 ★ 제안된 판정 기준 ★ 이다 (ADR-033).
+	// ★ 무엇을 승인하는지 보지 않고 승인하게 만들면 안 된다 ★ — 그래서
+	// 인박스가 제안을 함께 든다.
+	Proposes []contract.Condition `json:"proposes,omitempty"`
 }
 
 // PendingAsks 는 답을 기다리는 되묻기 전부다 — 인박스의 정본 표면.
 func (s *Store) PendingAsks(ctx context.Context) ([]AskView, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT s.run_id, s.seq, s.name, s.started_at, s.ask_deadline,
-		       coalesce(r.contract_versions -> -1, r.contract)
+		       coalesce(r.contract_versions -> -1, r.contract), r.contract_versions
 		  FROM steps s JOIN runs r ON r.run_id = s.run_id
 		 WHERE s.state = 'ASKED' AND r.state = 'RUNNING'
 		 ORDER BY s.started_at`)
@@ -104,8 +108,9 @@ func (s *Store) PendingAsks(ctx context.Context) ([]AskView, error) {
 	out := []AskView{}
 	for rows.Next() {
 		var v AskView
-		var raw []byte
-		if err := rows.Scan(&v.RunID, &v.Seq, &v.Step, &v.AskedAt, &v.Deadline, &raw); err != nil {
+		var raw, versRaw []byte
+		if err := rows.Scan(&v.RunID, &v.Seq, &v.Step, &v.AskedAt, &v.Deadline,
+			&raw, &versRaw); err != nil {
 			return nil, err
 		}
 		var c contract.Contract
@@ -121,6 +126,18 @@ func (s *Store) PendingAsks(ctx context.Context) ([]AskView, error) {
 		if len(st.Out) == 1 {
 			if b, err := json.Marshal(st.Schema[st.Out[0]]); err == nil {
 				v.Schema = b
+			}
+		}
+		// ★ 무엇을 승인하는지 함께 든다 ★ — adopts 대상의 마지막 제안.
+		if st.Ask.Adopts != "" && len(versRaw) > 0 {
+			var vers []ContractVersion
+			if json.Unmarshal(versRaw, &vers) == nil {
+				for i := len(vers) - 1; i >= 0; i-- {
+					if vers[i].By == byStep(st.Ask.Adopts) && len(vers[i].Proposed) > 0 {
+						v.Proposes = vers[i].Proposed
+						break
+					}
+				}
 			}
 		}
 		out = append(out, v)
@@ -209,6 +226,23 @@ func (s *Store) AnswerStep(ctx context.Context, runID string, seq int,
 		return false, err
 	}
 	s.log().Info("되묻기 — 답을 받았다", "run", runID, "step", st.ID, "by", principal)
+	// ★ 채택 — 목표 위임의 승인 지점 ★ (ADR-033).
+	//
+	// 이 ask 가 expands 단계를 adopts 로 지목했고 답이 approve 면, 그 계획이
+	// 제안했던 success_when 이 ★ 여기서야 효력을 얻는다 ★ — 계약의 열에
+	// by: "answer:<이 단계>" 판이 붙는다. ★ 저자(기계)와 승인자(사람)가
+	// 봉인에 각각 남는다 ★. reject 면 아무것도 채택되지 않고, dispatch 가
+	// 선언돼 있으면 그 답대로 갈린다 (재계획 경로로 보낼 수 있다).
+	if st.Ask.Adopts != "" {
+		var ans struct {
+			Verdict string `json:"verdict"`
+		}
+		if json.Unmarshal(body, &ans) == nil && ans.Verdict == "approve" {
+			if err := s.adoptProposal(ctx, tx, runID, seq, attempt, st, c); err != nil {
+				return false, err
+			}
+		}
+	}
 	// ★ 보고와 같은 길이다 ★ — 되돌림을 먼저 보고, 안 되돌리면 효과를 적용한다.
 	rolled, err := s.rollBack(ctx, tx, runID, seq)
 	if err != nil {
@@ -221,6 +255,65 @@ func (s *Store) AnswerStep(ctx context.Context, runID string, seq int,
 		return false, err
 	}
 	return false, tx.Commit(ctx)
+}
+
+// adoptProposal 은 계획이 제안한 success_when 을 ★ 사람의 답으로 채택한다 ★ (ADR-033).
+func (s *Store) adoptProposal(ctx context.Context, tx pgx.Tx, runID string,
+	seq, attempt int, ask contract.Step, live contract.Contract) error {
+	var raw []byte
+	if err := tx.QueryRow(ctx,
+		`SELECT contract_versions FROM runs WHERE run_id=$1`, runID).Scan(&raw); err != nil {
+		return err
+	}
+	var vers []ContractVersion
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &vers); err != nil {
+			return err
+		}
+	}
+	// 제안은 ★ 그 단계가 지은 마지막 판 ★ 에 있다.
+	var proposal *ContractVersion
+	for i := len(vers) - 1; i >= 0; i-- {
+		if vers[i].By == byStep(ask.Ask.Adopts) && len(vers[i].Proposed) > 0 {
+			proposal = &vers[i]
+			break
+		}
+	}
+	if proposal == nil {
+		// 계획이 제안을 안 했으면 채택할 것이 없다 — 승인은 그냥 답이다.
+		return nil
+	}
+	next := live
+	next.SuccessWhen = append(
+		append([]contract.Condition{}, live.SuccessWhen...), proposal.Proposed...)
+	// ★ 채택 시점에 전체를 다시 검증한다 ★ — 제안이 지어진 단계를 가리켜도
+	// 지금은 그 단계가 live 에 있으므로 통과한다. 그것이 P4 가 그어둔
+	// 「지어진 단계의 성패는 판정에 안 들어간다」는 경계가 ★ 여기서 열리는 ★ 방식이다.
+	if err := next.Validate(); err != nil {
+		return fmt.Errorf("채택하면 계약이 유효하지 않다: %w", err)
+	}
+	ver := ContractVersion{
+		V:  len(vers) + 2, // v1 은 runs.contract
+		At: time.Now().UTC(),
+		By: byAnswer(ask.ID),
+		// ★ 무엇으로 채택했나 ★ — 사람의 답 blob 이다.
+		Evidence: fmt.Sprintf("blobs/%02d.%d-%s", seq, attempt, ask.Out[0]),
+		// ★ 무엇을 채택했나 ★ — 그 제안이 실린 계획의 산출물이다.
+		Cause:    []string{proposal.Evidence},
+		Contract: next,
+	}
+	vers = append(vers, ver)
+	nextJSON, err := json.Marshal(vers)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE runs SET contract_versions=$2 WHERE run_id=$1`, runID, nextJSON); err != nil {
+		return err
+	}
+	s.log().Info("제안 채택 — 판정 기준이 효력을 얻었다",
+		"run", runID, "by", byAnswer(ask.ID), "conditions", len(proposal.Proposed))
+	return nil
 }
 
 // liveContractIn 은 트랜잭션 안에서 지금 유효한 계약을 읽는다.

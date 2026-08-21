@@ -245,7 +245,13 @@ func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) 
 			runID, StateVerifying); err != nil {
 			return "", err
 		}
-		v = Verify(run.Contract, results)
+		// ★ 판정은 유효 계약을 본다 ★ (ADR-033) — 채택된 success_when 이 여기서
+		// 효력을 낸다. 제출본만 보면 사람이 승인한 조건이 대조에서 빠진다.
+		live, lerr := s.LiveContract(ctx, runID)
+		if lerr != nil {
+			return "", lerr
+		}
+		v = Verify(live, results)
 	}
 
 	verdictJSON, err := json.Marshal(v)

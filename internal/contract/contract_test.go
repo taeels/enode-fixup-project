@@ -758,3 +758,43 @@ func TestValidate_ask(t *testing.T) {
 		}
 	}
 }
+
+// ★ adopts 검증 — 채택의 어휘를 못 박는다 ★ (ADR-033)
+func TestValidate_adopts(t *testing.T) {
+	planSch := map[string]interface{}{"plan": map[string]interface{}{"type": "object"}}
+	verdictSch := func(opts ...string) map[string]interface{} {
+		e := make([]interface{}, len(opts))
+		for i, o := range opts {
+			e[i] = o
+		}
+		return map[string]interface{}{"decision": map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"verdict": map[string]interface{}{"enum": e}}}}
+	}
+	mk := func(adopts string, sch map[string]interface{}) Contract {
+		return Contract{
+			RunID:    "r1",
+			Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+			Steps: []Step{
+				{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
+					Out: []string{"plan"}, Schema: planSch, Expands: true},
+				{ID: "gate", Ask: &Ask{Prompt: "?", Adopts: adopts},
+					Out: []string{"decision"}, Schema: sch},
+			},
+		}
+	}
+	if err := mk("plan", verdictSch("approve", "reject")).Validate(); err != nil {
+		t.Fatalf("정상 adopts 가 거절됐다: %v", err)
+	}
+	if err := mk("없는것", verdictSch("approve", "reject")).Validate(); err == nil {
+		t.Fatal("없는 단계를 adopts 하는데 통과했다")
+	}
+	if err := mk("gate", verdictSch("approve", "reject")).Validate(); err == nil {
+		t.Fatal("expands 아닌 단계를 adopts 하는데 통과했다")
+	}
+	// ★ verdict 어휘가 없으면 채택이 기계적으로 못 갈린다 ★
+	if err := mk("plan", verdictSch("yes", "no")).Validate(); err == nil {
+		t.Fatal("approve/reject 없는 스키마가 통과했다")
+	}
+}
