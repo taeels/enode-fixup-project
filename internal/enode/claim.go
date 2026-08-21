@@ -52,9 +52,22 @@ type Step struct {
 // 런타임에 이름을 바꾸는 대신 검증으로 막는 이유는, 바꾸면 계약 저자가 모르기 때문이다.
 const ledgerFile = "_ledger.json"
 
+// poll 은 롱폴에 쓸 클라이언트다. 안 주어졌으면 일반 것을 쓴다 —
+// ★ 없다고 동작이 달라지면 안 된다 ★.
+func (c *Client) poll() *http.Client {
+	if c.Poll != nil {
+		return c.Poll
+	}
+	return c.HTTP
+}
+
 var errNoWork = errors.New("204")
 
 // Claim 은 롱폴이다. 할 일이 없으면 204 이고 그건 ★ 정상 ★ 이다.
+//
+// ★ 롱폴 전용 클라이언트를 쓴다 ★ (ADR-029) — 짧은 타임아웃으로 걸면
+// 그 시간에 끊고, 끊는 순간 서버가 집으면 ★ 응답이 유실되어 그 단계를
+// 아무도 안 돌린다 ★. 수명은 ctx 가 관리한다.
 func (c *Client) Claim(ctx context.Context, nodeID string) (*Step, error) {
 	req, err := http.NewRequestWithContext(ctx, "POST", c.Base+"/v1/nodes/"+nodeID+"/claim", nil)
 	if err != nil {
@@ -62,7 +75,7 @@ func (c *Client) Claim(ctx context.Context, nodeID string) (*Step, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("X-Enode-Principal", c.Principal)
-	resp, err := c.HTTP.Do(req)
+	resp, err := c.poll().Do(req)
 	if err != nil {
 		return nil, err
 	}

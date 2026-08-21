@@ -80,6 +80,10 @@ func main() {
 	client := &enode.Client{
 		Base: local.Mediator, Token: local.Token, Principal: ident.Principal,
 		HTTP: &http.Client{Timeout: 30 * time.Second},
+		// ★ 롱폴은 타임아웃을 두지 않는다 ★ (ADR-029) — 수명은 ctx 가 관리한다.
+		// 짧은 타임아웃으로 걸면 그 시간에 끊고, ★ 끊는 순간 서버가 집으면
+		// 응답이 유실되어 그 단계를 아무도 안 돌린다 ★ (claim 은 비멱등이다).
+		Poll: &http.Client{},
 	}
 	caps := enode.Detect(local, log)
 	log.Info("enode 시작",
@@ -87,9 +91,10 @@ func main() {
 		"config", ident.Config, "caps", caps)
 
 	// ★ 두 연결을 동시에 든다 ★ (ADR-016)
-	//   claim   롱폴 최대 2시간   — 일을 기다린다
-	//   nodes   짧은 주기         — 살아 있다고 말하고 권한을 받는다
-	// 합치면 롱폴이 걸린 2시간 동안 임대 갱신이 멈춘다.
+	//   claim   롱폴 — 일을 기다린다. ★ 서버가 대기 시간을 정한다 ★
+	//   nodes   짧은 주기 — 살아 있다고 말하고 권한을 받는다
+	// ★ 클라이언트도 둘이다 ★ (ADR-029) — 롱폴에 짧은 타임아웃을 걸면
+	// 그 시간에 끊고 응답이 유실된다.
 	held := enode.NewHeld()
 
 	adv := &enode.Advertiser{

@@ -19,6 +19,14 @@ type Client struct {
 	Token     string
 	Principal string
 	HTTP      *http.Client
+	// Poll 은 ★ 롱폴 전용 ★ 이다 (ADR-029). 없으면 HTTP 를 쓴다.
+	//
+	// ★ 왜 갈라야 하나 ★ — claim 은 서버가 몇 시간을 기다렸다 답할 수 있는데,
+	// 짧은 타임아웃을 가진 클라이언트로 걸면 ★ 그 시간에 끊는다 ★.
+	// 끊는 그 순간 서버가 단계를 CLAIMED 로 만들고 응답을 쓰면
+	// ★ 응답이 유실되고 그 단계는 아무도 안 돌린다 ★ — claim 은 비멱등이라
+	// 재시도가 되찾지도 못한다. ★ 실측에서 Run 이 영구히 멈췄다 ★.
+	Poll *http.Client
 }
 
 // AdvertResponse 는 광고의 응답이다.
