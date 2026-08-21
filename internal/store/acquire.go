@@ -68,7 +68,7 @@ func (s *Store) nextAcquire(ctx context.Context, tx pgx.Tx, runID string) (int, 
 func (s *Store) doAcquire(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
 	var raw, assignedJSON []byte
 	if err := tx.QueryRow(ctx,
-		`SELECT contract, assigned FROM runs WHERE run_id=$1`, runID).
+		`SELECT `+liveContract+`, assigned FROM runs WHERE run_id=$1`, runID).
 		Scan(&raw, &assignedJSON); err != nil {
 		return err
 	}

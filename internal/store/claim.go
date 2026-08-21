@@ -117,7 +117,8 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 	var c Claimed
 	var contractJSON []byte
 	err = tx.QueryRow(ctx, `
-		SELECT s.run_id, s.seq, s.name, s.uses, s.kind, s.attempt, r.contract, r.principal
+		SELECT s.run_id, s.seq, s.name, s.uses, s.kind, s.attempt,
+		       coalesce(r.contract_versions -> -1, r.contract), r.principal
 		  FROM steps s
 		  JOIN runs r ON r.run_id = s.run_id
 		 WHERE s.node_id = $1

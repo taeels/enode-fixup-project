@@ -54,7 +54,7 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 	var assignedJSON []byte
 	var versions []byte
 	if err := tx.QueryRow(ctx,
-		`SELECT contract, assigned, contract_versions FROM runs WHERE run_id=$1`, runID).
+		`SELECT `+liveContract+`, assigned, contract_versions FROM runs WHERE run_id=$1`, runID).
 		Scan(&raw, &assignedJSON, &versions); err != nil {
 		return err
 	}

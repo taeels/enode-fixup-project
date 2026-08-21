@@ -1169,6 +1169,15 @@ func TestExpands_계획이_단계를_늘린다(t *testing.T) {
 	if code != 200 || next["name"] != "built" {
 		t.Fatalf("★ 지어진 단계가 안 집혔다 ★: %d %v", code, next)
 	}
+	// ★ 이름만 오면 안 된다 ★ — 실행 정의가 함께 와야 노드가 돌린다.
+	// 이름은 steps 행에서 오고 정의는 ★ 계약 ★ 에서 오는데, 제출 전문만 보면
+	// 계획이 지은 단계의 정의가 ★ 비어서 온다 ★ (실측에서 밟았다:
+	// "명령 단계인데 run 이 비었다").
+	raw, _ := json.Marshal(next["run"])
+	if !strings.Contains(string(raw), "true") {
+		t.Fatalf("★ 지어진 단계의 실행 정의가 안 왔다 ★: run=%s — "+
+			"claim 이 늘어난 계약을 안 읽는다", raw)
+	}
 }
 
 // ★ 자원은 여전히 사용자가 선언한다 ★ (갈래 A) — 계획이 requires 에 없는

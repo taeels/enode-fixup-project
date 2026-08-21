@@ -26,7 +26,7 @@ import (
 //	저장되지 않는다 (ADR-020). ★ 검사가 두 겹인 것이 의도다 ★.
 func (s *Store) applyDispatch(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
 	var raw []byte
-	if err := tx.QueryRow(ctx, `SELECT contract FROM runs WHERE run_id=$1`, runID).
+	if err := tx.QueryRow(ctx, `SELECT `+liveContract+` FROM runs WHERE run_id=$1`, runID).
 		Scan(&raw); err != nil {
 		return err
 	}

@@ -101,6 +101,12 @@ func (s *Store) Ledger(ctx context.Context, runID string) ([]LedgerEntry, error)
 	if err != nil {
 		return nil, err
 	}
+	// ★ 이름을 붙이려면 지금 유효한 계약이 필요하다 ★ — 계획이 지은 단계가
+	// 낸 산출물은 제출 전문에 없는 이름이다.
+	live, err := s.liveContractOf(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
 	out := []LedgerEntry{}
 
 	// ★ 이전 Run 들이 먼저다 ★ — 시간 순서가 곧 목록의 순서다.
@@ -117,11 +123,22 @@ func (s *Store) Ledger(ctx context.Context, runID string) ([]LedgerEntry, error)
 			out = append(out, es...)
 		}
 	}
-	mine, err := s.entriesOf(runID, run.Contract, "")
+	mine, err := s.entriesOf(runID, live, "")
 	if err != nil {
 		return nil, err
 	}
 	return append(out, mine...), nil
+}
+
+// liveContractOf 는 지금 유효한 계약이다 (liveContract 참조).
+func (s *Store) liveContractOf(ctx context.Context, runID string) (contract.Contract, error) {
+	var raw []byte
+	var c contract.Contract
+	if err := s.pool.QueryRow(ctx,
+		`SELECT `+liveContract+` FROM runs WHERE run_id=$1`, runID).Scan(&raw); err != nil {
+		return c, err
+	}
+	return c, json.Unmarshal(raw, &c)
 }
 
 type priorRun struct {
@@ -139,7 +156,7 @@ func (s *Store) priorRuns(ctx context.Context, run *Run) ([]priorRun, error) {
 		return nil, nil
 	}
 	rows, err := s.pool.Query(ctx, `
-		SELECT run_id, contract FROM runs
+		SELECT run_id, coalesce(contract_versions -> -1, contract) FROM runs
 		 WHERE work_id = $1 AND run_id <> $2
 		 ORDER BY created_at`, key, run.RunID)
 	if err != nil {

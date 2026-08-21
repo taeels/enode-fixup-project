@@ -21,7 +21,7 @@ import (
 // 한 단계에 둘 다 있으면 계약 검증이 400 으로 막으므로 여기서는 순서만 정한다.
 func (s *Store) rollBack(ctx context.Context, tx pgx.Tx, runID string, seq int) (bool, error) {
 	var raw []byte
-	if err := tx.QueryRow(ctx, `SELECT contract FROM runs WHERE run_id=$1`, runID).
+	if err := tx.QueryRow(ctx, `SELECT `+liveContract+` FROM runs WHERE run_id=$1`, runID).
 		Scan(&raw); err != nil {
 		return false, err
 	}

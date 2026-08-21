@@ -146,6 +146,17 @@ const (
 var ErrNotFound = errors.New("없다")
 
 // GetRun 은 없으면 ErrNotFound 다.
+// liveContract 는 ★ 지금 유효한 계약 ★ 을 주는 SQL 조각이다.
+//
+// 계약은 실행 중에 자란다(expands · 재계획). ★ runs.contract 는 제출 전문 그대로 ★
+// 남고(성질 4), 붙은 판은 runs.contract_versions 에 쌓인다.
+// ⇒ ★ 실행하는 쪽은 마지막 판을 봐야 한다 ★ — 제출본만 보면 계획이 지은 단계를
+// 집을 때 "명령 단계인데 run 이 비었다" 가 된다. ★ 실측이 그렇게 밟았다 ★.
+//
+// ★ 봉인만 제출 전문을 본다 ★ (seal.go) — v1 이 제출본이어야 하기 때문이다.
+// 판이 평평하게 임베드돼 있어(ContractVersion) 그대로 계약으로 읽힌다.
+const liveContract = `coalesce(contract_versions -> -1, contract)`
+
 // nullable 은 빈 문자열을 NULL 로 보낸다 — ★ "" 와 "없다" 를 섞지 않는다 ★.
 func nullable(v string) any {
 	if v == "" {
