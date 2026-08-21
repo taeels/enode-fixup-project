@@ -705,3 +705,56 @@ func TestValidate_시연계약(t *testing.T) {
 			"보드가 둘이 되는 날 차분이 깨진다", needs["patch_observe"])
 	}
 }
+
+// ★ ask 검증 — 질문의 형태가 곧 스키마이고, 평면 폼만 허용한다 ★ (ADR-032)
+func TestValidate_ask(t *testing.T) {
+	form := map[string]interface{}{
+		"type": "object", "required": []interface{}{"verdict"},
+		"properties": map[string]interface{}{
+			"verdict": map[string]interface{}{"enum": []interface{}{"approve", "reject"}},
+			"note":    map[string]interface{}{"type": "string"}}}
+	mk := func(f func(*Step)) Contract {
+		st := Step{ID: "gate", Ask: &Ask{Prompt: "승인?"},
+			Out: []string{"decision"}, Schema: map[string]interface{}{"decision": form}}
+		f(&st)
+		return Contract{
+			RunID:    "r1",
+			Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+			Steps:    []Step{st, {ID: "next", Uses: "b", Run: []string{"true"}}},
+		}
+	}
+	if err := mk(func(*Step) {}).Validate(); err != nil {
+		t.Fatalf("정상 ask 가 거절됐다: %v", err)
+	}
+	if err := mk(func(st *Step) {
+		st.Ask.Timeout = &AskTimeout{After: "72h", Then: "fail"}
+	}).Validate(); err != nil {
+		t.Fatalf("기한 있는 ask 가 거절됐다: %v", err)
+	}
+
+	for name, f := range map[string]func(*Step){
+		"★ uses 가 있다 ★":   func(st *Step) { st.Uses = "b" },
+		"★ prompt 가 없다 ★": func(st *Step) { st.Ask.Prompt = "" },
+		"★ 스키마가 없다 ★":     func(st *Step) { st.Schema = nil },
+		"★ 중첩 객체 ★": func(st *Step) {
+			st.Schema = map[string]interface{}{"decision": map[string]interface{}{
+				"type": "object", "properties": map[string]interface{}{
+					"inner": map[string]interface{}{"type": "object"}}}}
+		},
+		"★ 배열 ★": func(st *Step) {
+			st.Schema = map[string]interface{}{"decision": map[string]interface{}{
+				"type": "object", "properties": map[string]interface{}{
+					"list": map[string]interface{}{"type": "array"}}}}
+		},
+		"★ then 이 default — 아직 없다 ★": func(st *Step) {
+			st.Ask.Timeout = &AskTimeout{After: "1h", Then: "default"}
+		},
+		"★ 기한을 못 읽는다 ★": func(st *Step) {
+			st.Ask.Timeout = &AskTimeout{After: "사흘", Then: "fail"}
+		},
+	} {
+		if err := mk(f).Validate(); err == nil {
+			t.Fatalf("%s — 통과했다", name)
+		}
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/taeels/enode/internal/schema"
 )
@@ -91,6 +92,28 @@ type Acquire struct {
 	// Run 이 죽지 않는다 — 다른 경로로 간다.
 	Acquired    string `json:"acquired"`
 	Unavailable string `json:"unavailable"`
+}
+
+// Ask 는 되묻기 하나다 (ADR-032).
+type Ask struct {
+	// Prompt 는 사람이 읽는 질문이다. 필드의 형태는 단계의 schema 가 정한다.
+	Prompt string `json:"prompt"`
+	// Answerers 는 ★ 답할 수 있는 사람 ★ 이다 — 선언은 스텝에, 집행은 서버에.
+	// 비었으면 아무나 답한다 (오늘 신뢰 경계가 하나라 감수한다).
+	// ★ 오늘 principal 은 식별이지 인증이 아니다 ★ (ADR-015 §1) — 웹 표면이
+	// 생기면 인증층과 함께 이 자리를 다시 본다.
+	Answerers []string `json:"answerers,omitempty"`
+	// Timeout 은 선택이다. ★ 없으면 무한 대기 ★ — 사람의 시간을 시스템이
+	// 짐작하지 않는다. 선언하면 행동(then)도 함께 선언한다.
+	Timeout *AskTimeout `json:"timeout,omitempty"`
+}
+
+// AskTimeout 은 기한과 그때의 행동이다.
+type AskTimeout struct {
+	After string `json:"after"` // Go duration ("72h")
+	// Then 은 ★ 오늘 "fail" 뿐 ★ 이다. "default"(기본 답으로 진행)와
+	// "escalate"(알림 후 계속 대기)는 순연 — 여는 조건은 ADR-032 §2.
+	Then string `json:"then"`
 }
 
 // See 는 한 단계의 시야를 줄인다 (ADR-023 §6.4 자리 3).
@@ -318,6 +341,9 @@ const (
 	KindUnknown StepKind = iota
 	KindAgent            // agent 가 있다 — 하네스를 띄운다. 판정은 produced.
 	KindRun              // run 이 있다 — 어댑터가 직접 돌리고 exit_code 를 잰다.
+	// KindAsk 는 ★ 사람이 수행하는 단계 ★ 다 (ADR-032).
+	// 노드도 Mediator 도 아닌 네 번째 실행 주체 — 답이 오면 끝난다.
+	KindAsk
 	// KindAcquire 는 ★ Mediator 가 수행하는 단계 ★ 다 (ADR-022 §7.5 · ADR-024).
 	//
 	// ★ 이것이 ADR-019 의 「두 종류」를 뒤집지 않는다 ★ — 그 결정이 가른 것은
@@ -335,6 +361,8 @@ func (k StepKind) String() string {
 		return "run"
 	case KindAcquire:
 		return "acquire"
+	case KindAsk:
+		return "ask"
 	}
 	return "unknown"
 }
@@ -430,6 +458,19 @@ type Step struct {
 	// uses 가 없고, claim 이 집지 않는다.
 	Acquire *Acquire `json:"acquire,omitempty"`
 
+	// Ask 는 ★ 사람에게 묻는 단계 ★ 다 (ADR-032).
+	//
+	// needs 가 차면 Mediator 가 이 단계를 ★ ASKED ★ 로 만들고, ★ 노드는 손 뗀다 ★ —
+	// uses 가 없고 claim 에 안 걸리며 자원을 안 잡는다 (조사에서 자원을 쥔 채
+	// 기다리는 것이 안티패턴의 교과서였다 — Jenkins 의 node 안 input).
+	//
+	// ★ 답은 산출물이다 ★ — POST …/answer 의 본문이 out 의 blob 이 되고,
+	// PUT blob 과 같은 스키마 검증을 받으며(422 면 저장 안 됨), dispatch 가
+	// 그것으로 분기한다. ★ 승인/거부가 이미 분기 문법이다 ★.
+	// 질문의 형태는 ★ 단계의 schema 그대로 ★ 다 — 새 폼 언어를 만들지 않는다.
+	// 다만 웹 폼 렌더를 위해 ★ 평면 부분집합 ★ 으로 제한한다 (askForm).
+	Ask *Ask `json:"ask,omitempty"`
+
 	// Release 는 ★ 여기서 놓는 역할들 ★ 이다 (ADR-022 §7.4).
 	//
 	// 분기가 생기면 어느 경로로 갈지 모르므로 ★ 모든 경로의 자원을 잡아야 한다 ★(I5).
@@ -503,6 +544,41 @@ func ancestors(steps []Step, i int) map[int]bool {
 	}
 	walk(i)
 	return seen
+}
+
+// checkAskForm 은 ask 의 스키마가 ★ 평면 폼 부분집합 ★ 인지 본다 (ADR-032).
+//
+// 허용: 최상위 type:object · 속성은 원시형(string·number·integer·boolean)
+// 또는 enum. 금지: 중첩 객체 · 배열. 웹 폼 렌더러의 계약이 이 부분집합이다 —
+// 조사(docs/input-required-survey.md §2③)의 수렴점을 그대로 쓴다.
+func checkAskForm(sch interface{}) error {
+	m, ok := sch.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("ask 스키마가 객체가 아니다")
+	}
+	if t, _ := m["type"].(string); t != "object" {
+		return fmt.Errorf("ask 스키마의 최상위는 type:\"object\" 여야 한다")
+	}
+	props, _ := m["properties"].(map[string]interface{})
+	for name, raw := range props {
+		p, ok := raw.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("ask 필드 %q 의 정의가 객체가 아니다", name)
+		}
+		if _, hasEnum := p["enum"]; hasEnum {
+			continue // 선택 필드
+		}
+		switch t, _ := p["type"].(string); t {
+		case "string", "number", "integer", "boolean":
+		case "object", "array":
+			return fmt.Errorf("ask 필드 %q: %s 는 안 된다 — 평면 폼만 허용한다 "+
+				"(웹 폼 렌더러 단순화를 위해 의도적으로 뺐다)", name, t)
+		default:
+			return fmt.Errorf("ask 필드 %q: type 이 없거나 모른다 — "+
+				"string·number·integer·boolean 또는 enum 이어야 한다", name)
+		}
+	}
+	return nil
 }
 
 // inFrom 은 in 의 from 목록을 꺼낸다. In 이 자유 형식 맵이라(프롬프트·참조 문법이
@@ -599,14 +675,15 @@ func (s Step) Kind() (StepKind, error) {
 	hasAgent := s.Agent != nil
 	hasRun := len(s.Run) > 0
 	hasAcq := s.Acquire != nil
+	hasAsk := s.Ask != nil
 	n := 0
-	for _, has := range []bool{hasAgent, hasRun, hasAcq} {
+	for _, has := range []bool{hasAgent, hasRun, hasAcq, hasAsk} {
 		if has {
 			n++
 		}
 	}
 	if n > 1 {
-		return KindUnknown, fmt.Errorf("step %q: agent · run · acquire 중 둘 이상이 있다", s.ID)
+		return KindUnknown, fmt.Errorf("step %q: agent · run · acquire · ask 중 둘 이상이 있다", s.ID)
 	}
 	switch {
 	case hasAgent:
@@ -615,8 +692,10 @@ func (s Step) Kind() (StepKind, error) {
 		return KindRun, nil
 	case hasAcq:
 		return KindAcquire, nil
+	case hasAsk:
+		return KindAsk, nil
 	}
-	return KindUnknown, fmt.Errorf("step %q: agent 도 run 도 acquire 도 없다", s.ID)
+	return KindUnknown, fmt.Errorf("step %q: agent 도 run 도 acquire 도 ask 도 없다", s.ID)
 }
 
 // Loop 은 구간 반복 하나다 (ADR-026).
@@ -724,8 +803,8 @@ func (c Contract) Validate() error {
 			return err
 		}
 		kinds[s.ID] = k
-		// ★ 획득 단계는 uses 가 없다 ★ — 잡기 전이고 Mediator 가 수행한다.
-		if k != KindAcquire && !roles[s.Uses] {
+		// ★ 획득·되묻기 단계는 uses 가 없다 ★ — 노드가 수행하지 않는다.
+		if k != KindAcquire && k != KindAsk && !roles[s.Uses] {
 			return fmt.Errorf("step %q 가 없는 역할 %q 를 쓴다", s.ID, s.Uses)
 		}
 		// ★ ADR-020 의 경계선을 여기서 400 으로 만든다 ★
@@ -823,6 +902,46 @@ func (c Contract) Validate() error {
 		}
 	}
 
+	// ★ ask 는 「사람이 수행하는」 단계다 ★ (ADR-032).
+	for _, st := range c.Steps {
+		a := st.Ask
+		if a == nil {
+			continue
+		}
+		if st.Uses != "" {
+			return fmt.Errorf("step %q: ask 단계에는 uses 가 없다 — 사람이 수행한다", st.ID)
+		}
+		if a.Prompt == "" {
+			return fmt.Errorf("step %q: ask.prompt 가 비었다 — 무엇을 묻는지 적는다", st.ID)
+		}
+		// ★ 답은 산출물이다 ★ — 이름과 형태가 있어야 검증하고 분기한다.
+		if len(st.Out) != 1 {
+			return fmt.Errorf("step %q: ask 단계는 산출물 이름이 정확히 하나여야 한다", st.ID)
+		}
+		sch, ok := st.Schema[st.Out[0]]
+		if !ok {
+			return fmt.Errorf("step %q: ask 단계의 산출물 %q 에 스키마가 없다 — "+
+				"질문의 형태가 곧 이 스키마다", st.ID, st.Out[0])
+		}
+		// ★ 평면 폼 부분집합 ★ (ADR-032 §1③) — 조사에서 여섯 시스템이 독립적으로
+		// 수렴한 형태이고, MCP 는 이유까지 적었다: 클라이언트(웹 폼 렌더러)
+		// 단순화를 위해 중첩을 ★ 의도적으로 ★ 뺀다.
+		if err := checkAskForm(sch); err != nil {
+			return fmt.Errorf("step %q: %w", st.ID, err)
+		}
+		if t := a.Timeout; t != nil {
+			d, err := time.ParseDuration(t.After)
+			if err != nil || d <= 0 {
+				return fmt.Errorf("step %q: ask.timeout.after %q 를 못 읽는다", st.ID, t.After)
+			}
+			// ★ 오늘 then 은 "fail" 뿐이다 ★ — default·escalate 는 순연 (ADR-032 §2).
+			// 모르는 값을 조용히 무시하지 않는다 (ADR-013 의 --interactive 와 같은 자세).
+			if t.Then != "fail" {
+				return fmt.Errorf("step %q: ask.timeout.then %q 는 아직 없다 — 오늘은 \"fail\" 뿐이다", st.ID, t.Then)
+			}
+		}
+	}
+
 	// ★ loop 은 뒤로 가는 유일한 간선이다 ★ (ADR-026).
 	// needs 와 dispatch 는 뒤로 못 가고, 이것만 간다. 종료는 max 가 준다.
 	for i, st := range c.Steps {
@@ -854,7 +973,7 @@ func (c Contract) Validate() error {
 			return fmt.Errorf("step %q: loop.until 에는 step 을 적지 않는다 — "+
 				"구간의 끝이 이 단계이므로 조건의 주어도 이 단계다", st.ID)
 		}
-		if lp.Until.ExitCode != nil && kinds[st.ID] == KindAgent {
+		if lp.Until.ExitCode != nil && (kinds[st.ID] == KindAgent || kinds[st.ID] == KindAsk) {
 			return fmt.Errorf("%w: %q (loop.until)", ErrExitOnAgent, st.ID)
 		}
 		// ★ 구간 안에서 놓으면 안 된다 ★ — 다음 회차가 그 자원을 쓰는데

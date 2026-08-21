@@ -110,3 +110,7 @@ ALTER TABLE steps ADD COLUMN IF NOT EXISTS ledger_at text[];
 -- ★ 이 단계를 어느 「생」이 집었는가 ★ (ADR-030).
 -- 같은 생이 다시 물으면 재전달하고, 다른 생이 나타나면 실패시킨다.
 ALTER TABLE steps ADD COLUMN IF NOT EXISTS claimed_instance text;
+
+-- ★ 되묻기의 기한 ★ (ADR-032). ASKED 로 만들 때 timeout.after 에서 계산해 박는다.
+-- NULL 이면 무한 대기 — 사람의 시간을 시스템이 짐작하지 않는다.
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS ask_deadline timestamptz;

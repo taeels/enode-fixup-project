@@ -59,6 +59,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
 	mux.HandleFunc("GET /v1/runs/{id}", s.auth(s.getRun))
 	mux.HandleFunc("GET /v1/capabilities", s.auth(s.getCapabilities))
+	mux.HandleFunc("GET /v1/asks", s.auth(s.getAsks))
+	mux.HandleFunc("POST /v1/runs/{run}/steps/{seq}/answer", s.auth(s.postAnswer))
 	mux.HandleFunc("GET /v1/runs/{id}/ledger", s.auth(s.getLedger))
 	mux.HandleFunc("GET /v1/runs/{id}/record", s.auth(s.getRecord))
 	mux.HandleFunc("POST /v1/runs/{id}/cancel", s.auth(s.postCancel))
@@ -452,6 +454,85 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	write(w, 200, s.view(r.Context(), run))
 }
 
+// ── GET /v1/asks — 인박스 ────────────────────────────────────────────────
+//
+// ★ 폴링 인박스가 정본이다 ★ (ADR-032 §4 · Airflow 모범). 대기 중인 것만 든다 —
+// 답한 것은 봉인에 있다. can_answer 는 ★ 관점 필드 ★ 다: 보는 사람 기준으로
+// 서버가 채운다 (GitHub 의 current_user_can_approve 모범).
+func (s *Server) getAsks(w http.ResponseWriter, r *http.Request) {
+	asks, err := s.st.PendingAsks(r.Context())
+	if err != nil {
+		s.log.Error("인박스 조회 실패", "err", err)
+		fail(w, 503, "조회 실패")
+		return
+	}
+	me := principal(r)
+	for i := range asks {
+		asks[i].CanAnswer = len(asks[i].Answerers) == 0
+		for _, a := range asks[i].Answerers {
+			if a == me {
+				asks[i].CanAnswer = true
+				break
+			}
+		}
+	}
+	write(w, 200, map[string]any{"asks": asks})
+}
+
+// ── POST /v1/runs/{run}/steps/{seq}/answer ───────────────────────────────
+//
+// ★ 답은 주소 있는 단일 쓰기다 ★ (ADR-032 §1②) — 본문이 곧 답이고 산출물이 된다.
+// 스키마 위반이면 422 로 저장되지 않고 ★ 질문은 열린 채 남는다 ★ — 다시 답하면 된다.
+func (s *Server) postAnswer(w http.ResponseWriter, r *http.Request) {
+	if !s.needRecords(w) {
+		return
+	}
+	runID := r.PathValue("run")
+	seq, err := strconv.Atoi(r.PathValue("seq"))
+	if err != nil || seq <= 0 {
+		fail(w, 400, "단계 순번이 이상하다")
+		return
+	}
+	limit := s.cfg.Artifacts.MaxBlobBytes
+	body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
+	if err != nil {
+		fail(w, 503, "읽기 실패")
+		return
+	}
+	if int64(len(body)) > limit {
+		fail(w, 413, "답이 상한을 넘는다")
+		return
+	}
+	rolled, err := s.st.AnswerStep(r.Context(), runID, seq, principal(r), body, limit)
+	var sv *store.SchemaViolation
+	switch {
+	case errors.Is(err, store.ErrNoAsk):
+		fail(w, 409, "답을 기다리는 단계가 아니다 — 없거나, 이미 답했거나, 기한이 지났다")
+		return
+	case errors.Is(err, store.ErrNotAnswerer):
+		fail(w, 403, "이 질문에 답할 수 있는 사람이 아니다")
+		return
+	case errors.As(err, &sv):
+		fail(w, 422, sv.Error())
+		return
+	case err != nil:
+		s.log.Error("답 처리 실패", "run", runID, "seq", seq, "err", err)
+		fail(w, 503, "답 처리 실패")
+		return
+	}
+	if rolled {
+		write(w, 200, map[string]any{"run_id": runID, "seq": seq, "rolled_back": true})
+		return
+	}
+	state, err := s.st.SettleIfDone(r.Context(), runID)
+	if err != nil {
+		s.log.Error("정산 실패", "run", runID, "err", err)
+		fail(w, 503, "정산 실패")
+		return
+	}
+	write(w, 200, map[string]any{"run_id": runID, "seq": seq, "run_state": state})
+}
+
 // ── GET /v1/runs/{id}/ledger ─────────────────────────────────────────────
 //
 // ★ 원장은 목록이다. 본문이 아니다 ★ (ADR-023 §6.3).
@@ -605,7 +686,15 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, "그런 단계가 없다")
 		return
 	}
-	sch := schemaFor(run.Contract, seq, name)
+	// ★ 늘어난 계약의 스키마도 본다 ★ — 제출본만 보면 계획이 지은 단계의
+	// 산출물이 ★ 검증 없이 ★ 저장된다 (「실행하는 쪽은 늘어난 계약을 봐야
+	// 한다」의 같은 계열 — ADR-030 커밋이 찾은 결의 연장).
+	live, err := s.st.LiveContract(r.Context(), runID)
+	if err != nil {
+		fail(w, 503, "조회 실패")
+		return
+	}
+	sch := schemaFor(live, seq, name)
 	if sch != nil {
 		// 스키마가 걸린 산출물은 검증해야 하므로 먼저 읽는다.
 		// 형식 검증 대상이라 상한 안쪽이라는 전제가 있다.

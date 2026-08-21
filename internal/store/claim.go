@@ -350,6 +350,9 @@ type StepResult struct {
 	// 건너뛴 것은 경로가 갈렸을 뿐이다. Verify 가 둘을 갈라 본다.
 	// 와이어로 안 나간다 — 노드가 보고하는 값이 아니라 DB 에서 채우는 것이다.
 	Skipped bool `json:"-"`
+	// AnsweredBy 는 ★ 누가 답했는가 ★ 다 (ADR-032) — ask 단계에만 채워진다.
+	// 조사에서 예외 없는 공통분모가 「답에는 항상 who/when」이었다.
+	AnsweredBy string `json:"answered_by,omitempty"`
 	// Error 는 ★ 완주하지 못한 ★ 경우다 — 프로세스를 못 띄웠거나 임대가 끝나
 	// 중단됐거나. 비어 있으면 완주한 것이고, 종료코드가 무엇이든 DONE 이다.
 	Error string `json:"error,omitempty"`
@@ -457,7 +460,12 @@ func (s *Store) afterStep(ctx context.Context, tx pgx.Tx, runID string, seq int)
 	if err := s.applyStepEffects(ctx, tx, runID, seq); err != nil {
 		return err
 	}
-	return s.runAcquires(ctx, tx, runID)
+	if err := s.runAcquires(ctx, tx, runID); err != nil {
+		return err
+	}
+	// ★ 되묻기는 맨 뒤다 ★ — 앞의 효과(전파·획득)가 반영된 그림을 보고
+	// needs 가 찬 질문을 올린다 (ADR-032).
+	return s.raiseAsks(ctx, tx, runID)
 }
 
 func (s *Store) applyStepEffects(ctx context.Context, tx pgx.Tx, runID string, seq int) error {

@@ -127,6 +127,42 @@ func (c *Client) Submit(ctx context.Context, contract []byte, dry bool) (*Run, e
 	return &r, json.NewDecoder(resp.Body).Decode(&r)
 }
 
+// AskItem 은 인박스의 항목 하나다 (ADR-032 §4).
+type AskItem struct {
+	RunID     string          `json:"run_id"`
+	Seq       int             `json:"seq"`
+	Step      string          `json:"step"`
+	Prompt    string          `json:"prompt"`
+	Schema    json.RawMessage `json:"schema"`
+	Answerers []string        `json:"answerers"`
+	Deadline  *time.Time      `json:"deadline"`
+	CanAnswer bool            `json:"can_answer"`
+}
+
+// Asks 는 답을 기다리는 되묻기 전부다 — 답한 것은 봉인에 있다.
+func (c *Client) Asks(ctx context.Context) ([]AskItem, error) {
+	resp, err := c.do(ctx, "GET", "/v1/asks", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	var out struct {
+		Asks []AskItem `json:"asks"`
+	}
+	return out.Asks, json.NewDecoder(resp.Body).Decode(&out)
+}
+
+// Answer 는 답을 보낸다 — ★ 본문이 곧 답이고 산출물이 된다 ★ (ADR-032).
+func (c *Client) Answer(ctx context.Context, runID string, seq int, body []byte) (*Run, error) {
+	resp, err := c.do(ctx, "POST", fmt.Sprintf("/v1/runs/%s/steps/%d/answer", runID, seq), body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	var r Run
+	return &r, json.NewDecoder(resp.Body).Decode(&r)
+}
+
 func (c *Client) Status(ctx context.Context, runID string) (*Run, error) {
 	resp, err := c.do(ctx, "GET", "/v1/runs/"+runID, nil)
 	if err != nil {

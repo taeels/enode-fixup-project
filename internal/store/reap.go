@@ -16,6 +16,21 @@ import (
 // 이것이 O6("Run 도중 Mediator 를 죽였다 살리면 자원이 풀린다")의 구현이고,
 // I2("종료 상태에서 점유 장부가 비어 있다")를 지키는 장치다.
 func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
+	// ★ 기한이 지난 되묻기를 먼저 정리한다 ★ (ADR-032 §2 — then:"fail").
+	// 만료된 질문의 Run 을 정산하면 임대도 함께 풀리므로 아래 스캔과 안 겹친다.
+	if runs, err := s.ExpireAsks(ctx); err != nil {
+		log.Error("되묻기 만료 처리 실패", "err", err)
+	} else {
+		for _, runID := range runs {
+			state, err := s.SettleIfDone(ctx, runID)
+			if err != nil {
+				log.Error("되묻기 만료 정산 실패", "run", runID, "err", err)
+				continue
+			}
+			log.Warn("되묻기 기한이 지났다 — 단계를 실패시켰다", "run", runID, "state", state)
+		}
+	}
+
 	// 만료된 임대를 가진 Run 을 먼저 실패시킨다. 이유를 남긴다 —
 	// 왜 안 돌았는지가 없으면 껍데기가 재시도를 못 정한다 (ADR-005).
 	reason, _ := json.Marshal(map[string]any{"code": 410, "reason": "임대 만료 — 갱신이 끊겼다"})

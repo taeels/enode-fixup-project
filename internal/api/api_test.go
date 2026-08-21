@@ -2180,3 +2180,160 @@ func TestWidthCap_획득이_상한에_막히면_분기로_간다(t *testing.T) {
 		t.Fatalf("대체 경로가 안 나왔다: %d %v", code, c)
 	}
 }
+
+// ═══ 되묻기 — ★ 답은 산출물이다 ★ (ADR-032) ══════════════════════════════
+//
+// needs 가 차면 Mediator 가 단계를 ASKED 로 올리고 ★ 노드는 손 뗀다 ★.
+// 답은 주소 있는 단일 쓰기이고, 스키마 검증을 통과해야 저장되며,
+// dispatch 가 그것으로 분기한다 — ★ 승인/거부가 이미 분기 문법이다 ★.
+
+func askStep(id string, answerers []string, timeout map[string]any) map[string]any {
+	ask := map[string]any{"prompt": "계획을 승인하시겠습니까?"}
+	if answerers != nil {
+		ask["answerers"] = answerers
+	}
+	if timeout != nil {
+		ask["timeout"] = timeout
+	}
+	return map[string]any{
+		"id": id, "ask": ask, "out": []string{"decision"},
+		"schema": map[string]any{"decision": map[string]any{
+			"type": "object", "required": []string{"verdict"},
+			"properties": map[string]any{
+				"verdict": map[string]any{"enum": []string{"approve", "reject"}},
+				"note":    map[string]any{"type": "string"}}}},
+		"dispatch": map[string]any{"from": "decision.verdict", "to": []string{"approve", "reject"}},
+	}
+}
+
+// ★ 전체 흐름 ★ — 대기 · 인박스 · 권한 · 스키마 · 답 · 분기 · 봉인.
+func TestAsk_묻고_답하면_그_답으로_갈린다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("q1", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "ask1",
+		"work":     map[string]any{"system": "gerrit", "change_id": "41", "patchset": 1},
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{
+			runStep("prep", "b"),
+			askStep("gate", []string{"boss@corp"}, nil),
+			runStep("approve", "b"), runStep("reject", "b"),
+		},
+		"success_when": []map[string]any{{"step": "prep", "exit_code": 0}},
+	}
+	b, _ := json.Marshal(c)
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+
+	// ★ needs 가 차기 전에는 안 물어본다 ★
+	_, inbox0 := do(t, srv, "GET", "/v1/asks", "", nil)
+	if raw, _ := json.Marshal(inbox0["asks"]); strings.Contains(string(raw), "ask1") {
+		t.Fatalf("★ prep 도 안 끝났는데 물었다 ★: %s", raw)
+	}
+
+	do(t, srv, "POST", "/v1/nodes/q1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/ask1/steps/1/result", `{"node":"q1","exit_code":0}`, nil)
+
+	// ★ ASKED 가 됐고 노드는 못 집는다 ★ — 대기는 중앙에, 노드는 손 뗌.
+	if code, cc := do(t, srv, "POST", "/v1/nodes/q1/claim", "", nil); code == 200 {
+		t.Fatalf("★ 노드가 되묻기를 집었다 ★: %v", cc)
+	}
+	_, v := do(t, srv, "GET", "/v1/runs/ask1", "", nil)
+	sraw, _ := json.Marshal(v["steps"])
+	if !strings.Contains(string(sraw), "ASKED") {
+		t.Fatalf("★ 대기가 상태로 안 보인다 ★: %s", sraw)
+	}
+
+	// ★ 인박스 — 관점 필드 ★ (기본 principal 은 taeels@gmail.com — answerers 밖)
+	_, inbox := do(t, srv, "GET", "/v1/asks", "", nil)
+	iraw, _ := json.Marshal(inbox["asks"])
+	var asks []struct {
+		RunID     string          `json:"run_id"`
+		Seq       int             `json:"seq"`
+		Prompt    string          `json:"prompt"`
+		Schema    json.RawMessage `json:"schema"`
+		CanAnswer bool            `json:"can_answer"`
+	}
+	_ = json.Unmarshal(iraw, &asks)
+	if len(asks) != 1 || asks[0].Prompt == "" || len(asks[0].Schema) == 0 {
+		t.Fatalf("★ 인박스가 질문을 못 든다 ★: %s", iraw)
+	}
+	if asks[0].CanAnswer {
+		t.Fatalf("★ answerers 밖인데 can_answer=true ★ — 관점 필드가 틀렸다")
+	}
+
+	// ★ answerers 집행 ★ — 목록 밖은 403.
+	if code, _ := do(t, srv, "POST", "/v1/runs/ask1/steps/2/answer",
+		`{"verdict":"approve"}`, nil); code != 403 {
+		t.Fatalf("★ 목록 밖의 답이 통과했다 ★: %d", code)
+	}
+	boss := map[string]string{"X-Enode-Principal": "boss@corp"}
+	// ★ 스키마 위반은 422 — 질문은 열린 채 남는다 ★
+	if code, _ := do(t, srv, "POST", "/v1/runs/ask1/steps/2/answer",
+		`{"verdict":"maybe"}`, boss); code != 422 {
+		t.Fatalf("★ 형태를 어긴 답이 저장됐다 ★: %d", code)
+	}
+	if code, _ := do(t, srv, "POST", "/v1/runs/ask1/steps/2/answer",
+		`{"verdict":"approve","note":"좋다"}`, boss); code != 200 {
+		t.Fatalf("정답이 거절됐다: %d", code)
+	}
+	// ★ 두 번째 답은 409 ★ — 이미 답했다.
+	if code, _ := do(t, srv, "POST", "/v1/runs/ask1/steps/2/answer",
+		`{"verdict":"reject"}`, boss); code != 409 {
+		t.Fatalf("★ 두 번째 답이 들어갔다 ★: %d", code)
+	}
+
+	// ★ 답으로 갈린다 ★ — approve 가 집히고 reject 는 SKIPPED.
+	if code, cc := do(t, srv, "POST", "/v1/nodes/q1/claim", "", nil); code != 200 || cc["name"] != "approve" {
+		t.Fatalf("★ 답의 경로가 안 열렸다 ★: %d %v", code, cc)
+	}
+	do(t, srv, "POST", "/v1/runs/ask1/steps/3/result", `{"node":"q1","exit_code":0}`, nil)
+
+	// ★ 봉인 — 답과 answered_by 가 남는다 ★
+	braw, err := os.ReadFile(filepath.Join(st.Records.Root, "run-ask1", "blobs", "02.0-decision"))
+	if err != nil || !strings.Contains(string(braw), "approve") {
+		t.Fatalf("★ 답이 봉인에 없다 ★: %v %s", err, braw)
+	}
+	sfraw, _ := os.ReadFile(filepath.Join(st.Records.Root, "run-ask1", "steps", "02-gate.json"))
+	if !strings.Contains(string(sfraw), "boss@corp") {
+		t.Fatalf("★ 누가 답했는지가 봉인에 없다 ★: %s", sfraw)
+	}
+	// ★ 인박스가 비었다 ★ — 답한 것은 봉인에 있다.
+	_, inbox2 := do(t, srv, "GET", "/v1/asks", "", nil)
+	if raw2, _ := json.Marshal(inbox2["asks"]); strings.Contains(string(raw2), "ask1") {
+		t.Fatalf("★ 답했는데 인박스에 남아 있다 ★: %s", raw2)
+	}
+}
+
+// ★ 기한 — then:"fail" ★ 사람의 시간은 짐작하지 않되, 선언한 기한은 지킨다.
+func TestAsk_기한이_지나면_실패한다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("q2", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "ask2",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{
+			askStep("gate", nil, map[string]any{"after": "50ms", "then": "fail"}),
+			runStep("approve", "b"), runStep("reject", "b"),
+		},
+	}
+	b, _ := json.Marshal(c)
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	time.Sleep(80 * time.Millisecond)
+	if _, err := st.Reap(context.Background(),
+		slog.New(slog.NewTextHandler(io.Discard, nil))); err != nil {
+		t.Fatal(err)
+	}
+	_, v := do(t, srv, "GET", "/v1/runs/ask2", "", nil)
+	if v["state"] != "FAILED" {
+		t.Fatalf("★ 기한이 지났는데 Run 이 살아 있다 ★: %v", v["state"])
+	}
+	// ★ 기한 지난 질문에 답하면 409 ★ — 옛 핸들은 무효다.
+	if code, _ := do(t, srv, "POST", "/v1/runs/ask2/steps/1/answer",
+		`{"verdict":"approve"}`, nil); code != 409 {
+		t.Fatalf("★ 죽은 질문에 답이 들어갔다 ★: %d", code)
+	}
+}

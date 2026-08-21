@@ -291,6 +291,10 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 	if err := s.runAcquires(ctx, tx, r.RunID); err != nil {
 		return err
 	}
+	// ★ 첫 단계가 되묻기일 수 있다 ★ — 제출 즉시 물을 것은 물어야 한다.
+	if err := s.raiseAsks(ctx, tx, r.RunID); err != nil {
+		return err
+	}
 	// ★ 실행 중에는 붙이기만 한다 ★ (성질 1: append-only) —
 	// 디렉터리를 지금 열어두고 로그가 쌓이게 한다. 봉인은 종료 시 한 번뿐이다.
 	//

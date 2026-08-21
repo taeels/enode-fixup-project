@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -75,6 +76,9 @@ func run() int {
 	wait := flag.Bool("wait", false, "종료 상태가 될 때까지 기다린다")
 	out := flag.String("o", "", "record 를 쓸 파일 (기본: 표준출력)")
 	every := flag.Duration("poll", 2*time.Second, "--wait 의 폴링 주기")
+	answerJSON := flag.String("json", "", "answer 의 본문 전체 (JSON)")
+	var sets stringList
+	flag.Var(&sets, "set", "answer 의 필드=값 (반복 가능. 값은 문자열)")
 	flag.Usage = usage
 	// ★ 표준 flag 는 첫 위치인자에서 파싱을 멈춘다 ★
 	// 그런데 사람은 `runctl submit x.json --wait` 라고 쓴다. 그 순서를 안 받으면
@@ -82,7 +86,7 @@ func run() int {
 	flag.CommandLine.Parse(permute(os.Args[1:]))
 
 	// capabilities 는 인자가 없다.
-	if flag.NArg() == 1 && flag.Arg(0) == "capabilities" {
+	if flag.NArg() == 1 && (flag.Arg(0) == "capabilities" || flag.Arg(0) == "asks") {
 		flag.CommandLine.Parse(append(permute(os.Args[1:]), "-"))
 	} else if flag.NArg() < 2 {
 		usage()
@@ -129,6 +133,106 @@ func run() int {
 		}
 		fmt.Println("\n※ nodes 는 총수(존재)다. 지금 비어 있는지는 알려주지 않는다 —")
 		fmt.Println("  속성 조합으로 세려면 dry-run 을 쓴다.")
+		return exitOK
+
+	case "asks":
+		asks, err := c.Asks(ctx)
+		if code := report(err); code != 0 {
+			return code
+		}
+		if len(asks) == 0 {
+			fmt.Println("답을 기다리는 질문이 없다")
+			return exitOK
+		}
+		for _, a := range asks {
+			mark := " "
+			if a.CanAnswer {
+				mark = "★" // 내가 답할 수 있는 것
+			}
+			line := fmt.Sprintf("%s %s #%d %-14s %s", mark, a.RunID, a.Seq, a.Step, a.Prompt)
+			if a.Deadline != nil {
+				line += fmt.Sprintf("  (기한 %s)", a.Deadline.Local().Format("01-02 15:04"))
+			}
+			fmt.Println(line)
+			// ★ 스키마가 곧 질문의 형태다 ★ — 무엇을 적어야 하는지 보여준다.
+			var form struct {
+				Required   []string                          `json:"required"`
+				Properties map[string]map[string]interface{} `json:"properties"`
+			}
+			if json.Unmarshal(a.Schema, &form) == nil {
+				req := map[string]bool{}
+				for _, r := range form.Required {
+					req[r] = true
+				}
+				keys := make([]string, 0, len(form.Properties))
+				for k := range form.Properties {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, k := range keys {
+					p := form.Properties[k]
+					desc := ""
+					if e, ok := p["enum"].([]interface{}); ok {
+						opts := make([]string, 0, len(e))
+						for _, o := range e {
+							opts = append(opts, fmt.Sprint(o))
+						}
+						desc = strings.Join(opts, " | ")
+					} else if t, ok := p["type"].(string); ok {
+						desc = t
+					}
+					star := " "
+					if req[k] {
+						star = "*"
+					}
+					fmt.Printf("    %s %-10s %s"+"\n", star, k, desc)
+				}
+			}
+		}
+		fmt.Println()
+		fmt.Println("답하기:  runctl answer <run-id> <seq> --set 필드=값")
+		return exitOK
+
+	case "answer":
+		if flag.NArg() < 3 {
+			usage()
+			return exitRequest
+		}
+		seq, err := strconv.Atoi(flag.Arg(2))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "단계 순번이 이상하다:", flag.Arg(2))
+			return exitRequest
+		}
+		// ★ 답을 조립한다 ★ — --json 이 통짜, --set k=v 가 문자열 필드.
+		answer := map[string]any{}
+		if *answerJSON != "" {
+			if err := json.Unmarshal([]byte(*answerJSON), &answer); err != nil {
+				fmt.Fprintln(os.Stderr, "--json 을 못 읽는다:", err)
+				return exitRequest
+			}
+		}
+		for _, kv := range sets {
+			k, v, ok := strings.Cut(kv, "=")
+			if !ok {
+				fmt.Fprintln(os.Stderr, "--set 은 필드=값 형태다:", kv)
+				return exitRequest
+			}
+			answer[k] = v
+		}
+		if len(answer) == 0 {
+			fmt.Fprintln(os.Stderr, "답이 비었다 — --set 이나 --json 으로 채운다")
+			return exitRequest
+		}
+		body, _ := json.Marshal(answer)
+		r, err := c.Answer(ctx, arg, seq, body)
+		if code := report(err); code != 0 {
+			return code
+		}
+		fmt.Printf("답했다  %s #%d", arg, seq)
+		if r.State != "" {
+			fmt.Printf("  → run %s", r.State)
+		}
+		fmt.Println()
 		return exitOK
 
 	case "submit", "dry-run":
@@ -261,6 +365,12 @@ func printRun(r *runctl.Run) {
 	}
 }
 
+// stringList 는 반복 가능한 --set 을 받는다.
+type stringList []string
+
+func (l *stringList) String() string     { return strings.Join(*l, ",") }
+func (l *stringList) Set(v string) error { *l = append(*l, v); return nil }
+
 func usage() {
 	fmt.Fprint(os.Stderr, `runctl — Run 을 만들고 지켜보고 기록을 받는다
 
@@ -270,6 +380,8 @@ func usage() {
   runctl record  <run-id> [-o out.tar]    ★ 봉인된 Run Record ★
   runctl cancel  <run-id>
   runctl capabilities                     ★ 함대의 속성 어휘 ★ — 계약을 쓰기 전에
+  runctl asks                             ★ 답을 기다리는 질문들 ★ (인박스)
+  runctl answer <run-id> <seq> --set k=v [--set …]   질문에 답한다
 
 종료코드
   0  Run 이 SUCCEEDED (또는 아직 진행 중)

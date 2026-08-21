@@ -103,7 +103,7 @@ func (s *Store) Ledger(ctx context.Context, runID string) ([]LedgerEntry, error)
 	}
 	// ★ 이름을 붙이려면 지금 유효한 계약이 필요하다 ★ — 계획이 지은 단계가
 	// 낸 산출물은 제출 전문에 없는 이름이다.
-	live, err := s.liveContractOf(ctx, runID)
+	live, err := s.LiveContract(ctx, runID)
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +130,9 @@ func (s *Store) Ledger(ctx context.Context, runID string) ([]LedgerEntry, error)
 	return append(out, mine...), nil
 }
 
-// liveContractOf 는 지금 유효한 계약이다 (liveContract 참조).
-func (s *Store) liveContractOf(ctx context.Context, runID string) (contract.Contract, error) {
+// LiveContract 는 지금 유효한 계약이다 (liveContract 참조).
+// ★ 실행 경로는 전부 이것을 본다 ★ — 제출 전문은 봉인(v1)만 쓴다.
+func (s *Store) LiveContract(ctx context.Context, runID string) (contract.Contract, error) {
 	var raw []byte
 	var c contract.Contract
 	if err := s.pool.QueryRow(ctx,
