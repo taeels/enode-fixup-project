@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -368,6 +369,29 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 		}
 		fail(w, rej.Code, rej.Reason)
 		return
+	}
+	// ★ 폭의 상한 ★ (ADR-024 §4.2) — 한 Run 이 동시에 쥘 수 있는 노드 수.
+	// t=0 에 이미 넘는 요구는 ★ 영구 거절(422) ★ 이다: 다시 내도 같기 때문이다.
+	// 실행 중 획득이 넘는 것은 여기가 아니라 acquire 가 "unavailable" 로 낸다.
+	if max := s.cfg.Lease.MaxPerRun; max > 0 {
+		nodes := map[string]bool{}
+		for _, a := range assign {
+			for _, n := range a.Nodes {
+				nodes[n] = true
+			}
+		}
+		if len(nodes) > max {
+			rej := &match.Reject{Code: match.CodeNoCandidate,
+				Reason: fmt.Sprintf("요구가 폭 상한을 넘는다 — 노드 %d, 상한 %d", len(nodes), max)}
+			if !dry {
+				run := store.Run{RunID: c.RunID, Principal: principal(r), Contract: c, Reject: rej}
+				if err := s.st.CreateRejectedRun(ctx, run); err != nil {
+					s.log.Error("거절 기록 실패", "run", c.RunID, "err", err)
+				}
+			}
+			fail(w, rej.Code, rej.Reason)
+			return
+		}
 	}
 	if dry {
 		write(w, 200, runView{RunID: c.RunID, State: "DRY_RUN", Assigned: label(assign, adverts)})

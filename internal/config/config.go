@@ -53,6 +53,14 @@ type Lease struct {
 	// 1 이면 하트비트 한 번만 놓쳐도 죽는다 — 그건 ADR-016 이 금지한 동작이다
 	// ("실패한 하트비트 하나는 중단 신호가 아니다").
 	NotAfterFactor int `yaml:"not_after_factor"`
+	// MaxPerRun 은 ★ 한 Run 이 동시에 쥘 수 있는 노드 수 ★ 다 (ADR-024 §4.2).
+	//
+	// 임대가 (노드) 단위이고 워커가 직렬이므로 ★ 이것이 곧 폭의 상한 ★ 이다.
+	// 오늘의 자연 상한("requires 의 개수" — ADR-023 §12)은 사람이 선언할 때
+	// 이야기이고, acquire 를 ★ 계획이 짓기 시작하면 ★ 그 상한이 사라진다.
+	// max_versions 와 같은 이유로 ★ 계약이 못 건드리는 자리 ★ 에 둔다.
+	// 0 이면 무제한 — 오늘 동작 그대로다. 값은 돌려보고 정한다.
+	MaxPerRun int `yaml:"max_per_run"`
 }
 
 func Default() Config {

@@ -143,6 +143,20 @@ func (s *Store) tryGrab(ctx context.Context, tx pgx.Tx, runID string,
 	if err != nil {
 		return "", "", err
 	}
+	// ★ 폭의 상한 ★ (ADR-024 §4.2) — 이 Run 이 이미 상한만큼 쥐고 있으면
+	// 못 잡는 것이다. 함대 사정으로 못 잡는 것과 ★ 같은 출구 ★ 로 나간다:
+	// "unavailable" 이라는 이름이 되어 분기로 흐른다. 중단이 아니다.
+	if max := s.MaxLeasesPerRun; max > 0 {
+		var held int
+		if err := tx.QueryRow(ctx,
+			`SELECT count(*) FROM leases WHERE run_id=$1`, runID).Scan(&held); err != nil {
+			return "", "", err
+		}
+		if held >= max {
+			s.log().Warn("획득이 폭 상한에 막혔다", "run", runID, "held", held, "max", max)
+			return "", "", nil
+		}
+	}
 	assign, rej := match.Match([]contract.Require{want}, adverts, busy)
 	if rej != nil || len(assign) == 0 || len(assign[0].Nodes) == 0 {
 		return "", "", nil // ★ 후보가 없거나 전부 점유됨 ★ — 값으로 돌려준다

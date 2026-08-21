@@ -57,6 +57,7 @@ func main() {
 	st.Log = log
 	// ★ 계약이 얼마나 자랄 수 있는가 ★ — 계약 밖에서 정한다 (ADR-031).
 	st.MaxContractVersions = cfg.Contract.MaxVersions
+	st.MaxLeasesPerRun = cfg.Lease.MaxPerRun
 	if err := st.Migrate(ctx); err != nil {
 		log.Error("스키마 적용 실패", "err", err)
 		os.Exit(1)

@@ -332,7 +332,7 @@ func TestGetRunNotFound(t *testing.T) {
 
 // ═══ S4 — 하트비트가 임대를 나른다 · claim · 회수 ════════════════════════
 
-func newServerFast(t *testing.T) (*httptest.Server, *store.Store) {
+func newServerFast(t *testing.T, opts ...func(*config.Config)) (*httptest.Server, *store.Store) {
 	t.Helper()
 	url := os.Getenv("ENODE_TEST_DATABASE_URL")
 	if url == "" {
@@ -355,7 +355,11 @@ func newServerFast(t *testing.T) (*httptest.Server, *store.Store) {
 	cfg.Token = token
 	cfg.Claim.LongPollSeconds = 0 // 테스트에서는 즉시 204
 	cfg.Lease.RenewSeconds, cfg.Lease.NotAfterFactor = 1, 2
+	for _, o := range opts {
+		o(&cfg)
+	}
 	st.MaxContractVersions = cfg.Contract.MaxVersions
+	st.MaxLeasesPerRun = cfg.Lease.MaxPerRun
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := httptest.NewServer(api.New(st, cfg, log).Handler())
 	t.Cleanup(srv.Close)
@@ -2107,5 +2111,72 @@ func TestReplan_상한에_닿으면_그_단계가_실패한다(t *testing.T) {
 	}
 	if steps[1].State != "FAILED" {
 		t.Fatalf("상한에 닿은 단계가 %q 다", steps[1].State)
+	}
+}
+
+// ═══ 폭의 상한 — 한 Run 이 동시에 쥘 수 있는 노드 수 (ADR-024 §4.2) ═══════
+//
+// 자연 상한("requires 의 개수")은 사람이 선언할 때 이야기다. acquire 를
+// ★ 계획이 짓기 시작하면 ★ 그 상한이 사라지므로, 장치를 ★ 계약이 못 건드리는
+// 자리 ★ 에 둔다 — max_versions 와 같은 이유다.
+
+// ★ t=0 에 넘으면 영구 거절 ★ — 다시 내도 같으므로 422 다.
+func TestWidthCap_제출이_상한을_넘으면_422(t *testing.T) {
+	srv, _ := newServerFast(t, func(c *config.Config) { c.Lease.MaxPerRun = 1 })
+	do(t, srv, "POST", "/v1/nodes", advert("w1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("w2", "a", map[string]string{"role": "y"}), nil)
+	body := contractJSON("cap1", []map[string]any{
+		req("b", map[string]any{"role": "x"}), req("c", map[string]any{"role": "y"})},
+		[]map[string]any{runStep("one", "b"), runStep("two", "c")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 422 {
+		t.Fatalf("★ 상한을 넘는 요구가 통과했다 ★: %d", code)
+	}
+	// ★ 한 노드가 두 역할을 맡으면 임대가 하나다 ★ — 상한 1 로도 된다.
+	both := contractJSON("cap2", []map[string]any{
+		req("b", map[string]any{"role": "x"}), req("c", map[string]any{"role": "x"})},
+		[]map[string]any{runStep("one", "b"), runStep("two", "c")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", both, nil); code != 201 {
+		t.Fatalf("한 노드 두 역할이 거절됐다: %d", code)
+	}
+}
+
+// ★ 실행 중 획득이 넘으면 중단이 아니라 「unavailable」 이다 ★ — 분기로 흐른다.
+func TestWidthCap_획득이_상한에_막히면_분기로_간다(t *testing.T) {
+	srv, _ := newServerFast(t, func(c *config.Config) { c.Lease.MaxPerRun = 1 })
+	do(t, srv, "POST", "/v1/nodes", advert("w3", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("w4", "a", map[string]string{"role": "y"}), nil)
+	body := contractJSON("cap3", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{
+			runStep("first", "b"),
+			acquireStep("try", "extra", map[string]any{"role": "y"},
+				[]string{"got_it", "without"}),
+			runStep("got_it", "extra"), runStep("without", "b"),
+		})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/w3/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/cap3/steps/1/result", `{"node":"w3","exit_code":0}`, nil)
+
+	_, v := do(t, srv, "GET", "/v1/runs/cap3", "", nil)
+	raw, _ := json.Marshal(v["steps"])
+	var steps []struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(raw, &steps)
+	got := map[string]string{}
+	for _, st := range steps {
+		got[st.ID] = st.State
+	}
+	if got["try"] != "DONE" {
+		t.Fatalf("★ 상한이 획득을 죽였다 ★: %q — 중단이 아니라 값이어야 한다", got["try"])
+	}
+	if got["got_it"] != "SKIPPED" {
+		t.Fatalf("★ 상한을 넘어 잡았다 ★: got_it=%q", got["got_it"])
+	}
+	// ★ 이미 쥔 노드로 대체 경로가 돈다 ★
+	if code, c := do(t, srv, "POST", "/v1/nodes/w3/claim", "", nil); code != 200 || c["name"] != "without" {
+		t.Fatalf("대체 경로가 안 나왔다: %d %v", code, c)
 	}
 }
