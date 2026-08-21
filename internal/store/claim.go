@@ -250,9 +250,13 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 		return fmt.Errorf("집지 않은 단계를 보고했다 (%s#%d)", runID, seq)
 	}
 	if ok {
-		// ★ 이름을 못 고르면 그 단계가 FAILED 다 ★ — 결과가 나쁜 것이 아니라
-		// 계약이 요구한 것을 못 낸 것이므로 "완주하지 못함" 과 같은 자리다.
-		if err := s.applyDispatch(ctx, tx, runID, seq); err != nil {
+		// ★ 이름을 못 고르거나 계획이 유효하지 않으면 그 단계가 FAILED 다 ★ —
+		// 결과가 나쁜 것이 아니라 계약이 요구한 것을 못 낸 것이므로
+		// "완주하지 못함" 과 같은 자리다.
+		//
+		// ★ 늘리는 것이 고르는 것보다 먼저다 ★ — 계획이 지은 단계가 생긴 뒤라야
+		// 분기가 그것을 목적지로 찾을 수 있다.
+		if err := s.applyStepEffects(ctx, tx, runID, seq); err != nil {
 			if _, e := tx.Exec(ctx, `
 				UPDATE steps SET state=$3, result = coalesce(result,'{}'::jsonb) || $4::jsonb
 				 WHERE run_id=$1 AND seq=$2`,
@@ -267,6 +271,18 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 		}
 	}
 	return tx.Commit(ctx)
+}
+
+// applyStepEffects 는 한 단계가 끝나면서 ★ 계약과 단계 목록에 미치는 것 ★ 을 적용한다.
+//
+// 둘 다 「Mediator 가 다음 단계를 만든다」(ADR-014 결정 1)의 일부이고,
+// ReportStep 의 ★ 한 트랜잭션 안에서 ★ 일어나야 한다 — 따로 하면 그 사이에
+// claim 이 들어와 안 간 경로를 집거나 아직 안 검증된 단계를 집는다.
+func (s *Store) applyStepEffects(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
+	if err := s.applyExpands(ctx, tx, runID, seq); err != nil {
+		return err
+	}
+	return s.applyDispatch(ctx, tx, runID, seq)
 }
 
 func mustJSON(v any) []byte {

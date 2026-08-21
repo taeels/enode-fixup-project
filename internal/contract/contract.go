@@ -239,6 +239,24 @@ type Step struct {
 	// 경로면 Record 를 열었을 때 무엇으로 검증했는지 알 수 없다 (성질 4).
 	Schema map[string]interface{} `json:"schema,omitempty"`
 
+	// Expands 는 ★ 이 단계가 steps 를 늘린다 ★ 는 표시다 (ADR-022 §6.3 갈래 A).
+	//
+	// 계획을 짓는 것은 에이전트이고, 지어진 계약을 제출하는 것은 ★ enode ★ 다
+	// (§6.2). 에이전트가 Mediator 에 직접 내면 토큰을 줘야 하고 그러면 R1 이
+	// 막은 구멍이 다시 뚫린다 — ★ 에이전트는 결재 문서를 쓰고 도장은 enode 가 찍는다 ★.
+	// 덤으로 파일이므로 ★ 스키마 검증을 받는다 ★ (ADR-020): 형태가 틀린 계약은
+	// PUT blob 이 422 로 거절해 저장되지 않고, produced 가 불만족이 되어 그 단계가 실패한다.
+	//
+	// ★ 산출물의 형태는 { "steps": [ … ] } 다 ★ — 배열을 그대로 두지 않고 객체로
+	// 감싼다. dispatch.from 이 "route.next" 로 객체 경로를 쓰는 것과 같은 결이고,
+	// 나중에 계획에 다른 것(근거·비용)을 붙일 자리가 남는다.
+	//
+	// ★ 한 번만·한 단계만 ★ — 계약 하나에 expands 단계는 최대 하나이고, 그 단계는
+	// 한 번만 늘린다. 여러 번은 ⑥재계획(P6)이고 그때는 깊이 상한이 따라온다.
+	// ⇒ ★ 종료는 여전히 정적으로 보장된다 ★ — 늘어난 계약도 append 시점에
+	//   DAG 검사를 다시 받고, 늘어나는 횟수가 유계다.
+	Expands bool `json:"expands,omitempty"`
+
 	// Needs 는 ★ 이 단계가 기다리는 단계들 ★ 이다 (ADR-023 §4).
 	//
 	// 오늘까지 의존은 ★ 목록에서의 위치 ★ 였다 — steps[] 가 리스트이므로
@@ -424,6 +442,31 @@ func (c Contract) Validate() error {
 	for i, st := range c.Steps {
 		index[st.ID] = i
 	}
+	// ★ expands 는 한 단계만 ★ (ADR-022 §6.3) — 「Run 은 하나다」의 완화를
+	// 여기서 유계로 묶는다. 임의 확장이 아니라 ★ 한 단계가 한 번 ★ 이다.
+	expander := ""
+	for _, st := range c.Steps {
+		if !st.Expands {
+			continue
+		}
+		if expander != "" {
+			return fmt.Errorf("step %q: expands 가 이미 %q 에 있다 — "+
+				"계약 하나에 하나뿐이다 (여러 번은 재계획이고 깊이 상한이 따라온다)",
+				st.ID, expander)
+		}
+		expander = st.ID
+		// ★ 계획은 산출물이다 ★ — 이름이 없으면 무엇을 읽어야 할지 모른다.
+		if len(st.Out) != 1 {
+			return fmt.Errorf("step %q: expands 단계는 산출물 이름이 정확히 하나여야 한다", st.ID)
+		}
+		// ★ 스키마가 없으면 무엇이든 계약으로 들어온다 ★ — 형태 검증이
+		// PUT blob 에서 걸리게 하려면 계약이 스키마를 들고 있어야 한다 (ADR-020).
+		if _, ok := st.Schema[st.Out[0]]; !ok {
+			return fmt.Errorf("step %q: expands 단계의 산출물 %q 에 스키마가 없다 — "+
+				"형태가 틀린 계약이 함대로 들어온다", st.ID, st.Out[0])
+		}
+	}
+
 	// ★ needs 도 목록이 다 모인 뒤에 본다 ★ (ADR-023 §4.3).
 	// 검사는 dispatch 의 j <= i 와 ★ 같은 모양 ★ 이고 같은 것을 지킨다 —
 	// 간선이 전부 뒤를 향하면 그래프가 DAG 이므로 ★ 종료가 제출 시점에 보장된다 ★.

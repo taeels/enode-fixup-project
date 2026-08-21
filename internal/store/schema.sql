@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS verdict jsonb;
 
+-- ★ 계약의 열 중 v2 이후 ★ (ADR-022 §7.6 · P4).
+-- v1(제출 전문)은 runs.contract 가 그대로 든다 — ★ 성질 4 는 제출본을 요구한다 ★.
+-- 실행 중에 붙는 판만 여기 쌓이고, 봉인 시점에 v1 뒤에 이어 붙는다.
+-- ★ 비어 있으면 오늘 그대로 ★ — append 하는 주체가 없으면 판이 하나다.
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS contract_versions jsonb NOT NULL DEFAULT '[]'::jsonb;
+
 -- ★ 점유 장부 — I1 이 여기서 스키마로 강제된다 ★
 --
 -- node_id 가 PRIMARY KEY 인 것이 ADR-019 결정 2 의 직접 표현이다:

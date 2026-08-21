@@ -328,3 +328,47 @@ func TestNeedsOf_분기_목적지는_분기_단계를_가리킨다(t *testing.T)
 		}
 	}
 }
+
+// ★ expands 검증 — 「Run 은 하나다」의 완화를 유계로 묶는다 ★ (ADR-022 §6.3)
+//
+// 임의 확장이 아니라 ★ 한 단계가 한 번 ★ 이다. 여러 번은 재계획(P6)이고
+// 그때는 깊이 상한이 따라온다.
+func TestValidate_expands(t *testing.T) {
+	mk := func(steps []Step) Contract {
+		return Contract{
+			RunID:    "r1",
+			Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+			Steps:    steps,
+		}
+	}
+	sch := map[string]interface{}{"plan": map[string]interface{}{"type": "object"}}
+	ok := []Step{{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
+		Out: []string{"plan"}, Schema: sch, Expands: true}}
+	if err := mk(ok).Validate(); err != nil {
+		t.Fatalf("정상 expands 가 거절됐다: %v", err)
+	}
+
+	for name, steps := range map[string][]Step{
+		"★ 둘이다 ★": {
+			{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
+				Out: []string{"plan"}, Schema: sch, Expands: true},
+			{ID: "plan2", Uses: "b", Agent: map[string]interface{}{},
+				Out: []string{"plan"}, Schema: sch, Expands: true},
+		},
+		"★ 스키마가 없다 ★": {
+			{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
+				Out: []string{"plan"}, Expands: true},
+		},
+		"산출물이 없다": {
+			{ID: "plan", Uses: "b", Agent: map[string]interface{}{}, Expands: true},
+		},
+		"산출물이 둘이다": {
+			{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
+				Out: []string{"plan", "other"}, Schema: sch, Expands: true},
+		},
+	} {
+		if err := mk(steps).Validate(); err == nil {
+			t.Fatalf("%s — 통과했다", name)
+		}
+	}
+}

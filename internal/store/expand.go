@@ -1,0 +1,192 @@
+package store
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/taeels/enode/internal/contract"
+)
+
+// plan 은 expands 단계가 내는 산출물의 형태다 (ADR-022 §6.3 갈래 A).
+//
+// ★ 배열이 아니라 객체다 ★ — dispatch.from 이 "route.next" 로 객체 경로를 쓰는
+// 것과 같은 결이고, 계획에 다른 것(근거·비용)을 붙일 자리가 남는다.
+type plan struct {
+	Steps []contract.Step `json:"steps"`
+	// SuccessWhen 은 ★ 받지 않는다 ★ — 여기 있으면 거절한다.
+	//
+	// ★ 판정 기준을 판정 대상이 정하게 되기 때문이다 ★ (ADR-022 §7.7).
+	// 계획을 짓는 것과 성패의 기준을 짓는 것은 다른 권한이고, 후자는
+	// ADR-004(기계적 판정만)의 뿌리를 건드린다 — 그것이 ⑦목표 위임(P7)이고
+	// 완화 장치(저자와 승인자를 가르는 자리)가 먼저 서야 한다.
+	//
+	// ★ 조용히 무시하지 않는다 ★ — 무시하면 계약 저자는 자기가 쓴 판정 기준이
+	// 걷힌 줄 알고, 그 사실은 Record 를 열어봐야 드러난다.
+	// ADR-013 이 --interactive 를 다룬 방식과 같다 (미구현은 400).
+	SuccessWhen []contract.Condition `json:"success_when,omitempty"`
+}
+
+// applyExpands 는 보고를 마친 단계의 계획을 계약에 붙인다 (ADR-022 §6.3 · P4).
+//
+// ★ 이것이 ①계획 위임이 실물이 되는 자리다 ★ — 오케스트레이터가 나머지 단계를
+// 짓고, Mediator 는 그것을 ★ 검증해서 받는다 ★. 판정이 아니라 검증이다:
+// 무엇이 좋은 계획인지 안 보고, ★ 유효한 계약인지만 ★ 본다 (ADR-004 를 안 건드린다).
+//
+// ★ 붙이는 것이 셋이다 ★
+//
+//	① 계약의 열에 v2 를 append   앞 판을 안 고친다 (성질 1)
+//	② steps 행을 늘린다          claim 이 집을 수 있게 되는 것이 그 형태다
+//	③ ★ 늘어난 계약 전체를 다시 검증한다 ★
+//	   ⇒ 역할이 requires 에 있는가 · 간선이 DAG 인가 · 스키마가 경계를 안 넘는가
+//	   ⇒ ★ 종료가 append 시점에 다시 정적으로 보장된다 ★
+//
+// ★ 자원은 여전히 사용자가 선언한다 ★ (갈래 A) — 계획이 requires 에 없는 역할을
+// 쓰면 검증이 거절한다. 자원까지 위임하는 것은 P5(acquire) 이고 그것은 I5 를 건드린다.
+//
+// ★ 못 붙이면 그 단계가 FAILED 다 ★ — dispatch 가 이름을 못 고를 때와 같은 자리다.
+// 결과가 나쁜 것이 아니라 ★ 계약이 요구한 것을 못 낸 것 ★ 이다.
+func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
+	var raw []byte
+	var assignedJSON []byte
+	var versions []byte
+	if err := tx.QueryRow(ctx,
+		`SELECT contract, assigned, contract_versions FROM runs WHERE run_id=$1`, runID).
+		Scan(&raw, &assignedJSON, &versions); err != nil {
+		return err
+	}
+	var c contract.Contract
+	if err := json.Unmarshal(raw, &c); err != nil {
+		return err
+	}
+	if seq < 1 || seq > len(c.Steps) {
+		return nil
+	}
+	st := c.Steps[seq-1]
+	if !st.Expands {
+		return nil
+	}
+
+	// ★ 이미 늘렸으면 다시 안 늘린다 ★ — "한 번만" 을 여기서 지킨다.
+	// 재시도(attempt)가 같은 단계를 다시 보고해도 계약이 두 번 자라지 않는다.
+	var prior []ContractVersion
+	if len(versions) > 0 {
+		if err := json.Unmarshal(versions, &prior); err != nil {
+			return err
+		}
+	}
+	for _, v := range prior {
+		if v.By == byStep(st.ID) {
+			return nil
+		}
+	}
+
+	attempt, err := stepAttemptTx(ctx, tx, runID, seq)
+	if err != nil {
+		return err
+	}
+	name := st.Out[0] // 검증이 정확히 하나임을 보장한다
+	p, err := s.readPlan(runID, name)
+	if err != nil {
+		return fmt.Errorf("step %q: %w", st.ID, err)
+	}
+	if len(p.Steps) == 0 {
+		return fmt.Errorf("step %q: 계획에 단계가 없다", st.ID)
+	}
+	if len(p.SuccessWhen) > 0 {
+		return fmt.Errorf("step %q: 계획이 success_when 을 지었다 — "+
+			"판정 기준은 계약 저자가 쓴다 (ADR-004 · ADR-022 §7.7 의 ⑦)", st.ID)
+	}
+
+	// ★ v2 를 만든다 — 차분이 아니라 전문이다 ★ (성질 4: 각 판이 그 자체로 완결).
+	next := c
+	next.Steps = append(append([]contract.Step{}, c.Steps...), p.Steps...)
+	if err := next.Validate(); err != nil {
+		return fmt.Errorf("step %q: 지어진 계약이 유효하지 않다: %w", st.ID, err)
+	}
+
+	ver := ContractVersion{
+		V:  len(prior) + 2, // v1 은 runs.contract 가 든다
+		At: time.Now().UTC(),
+		By: byStep(st.ID),
+		// ★ 무엇을 보고 지었나 ★ — 스키마 검증을 통과한 그 산출물이다 (ADR-020).
+		Evidence: fmt.Sprintf("blobs/%02d.%d-%s", seq, attempt, name),
+		Contract: next,
+	}
+	prior = append(prior, ver)
+	nextJSON, err := json.Marshal(prior)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE runs SET contract_versions=$2 WHERE run_id=$1`, runID, nextJSON); err != nil {
+		return err
+	}
+
+	// 역할 → 노드. 매처가 t=0 에 이미 정했다 — ★ 계획은 자원을 못 정한다 ★.
+	var assigned []Assigned
+	if len(assignedJSON) > 0 {
+		if err := json.Unmarshal(assignedJSON, &assigned); err != nil {
+			return err
+		}
+	}
+	nodeOf := map[string]string{}
+	for _, a := range assigned {
+		if len(a.Nodes) > 0 {
+			nodeOf[a.As] = a.Nodes[0].Node
+		}
+	}
+	// ★ needs 는 늘어난 계약 전체 기준으로 채운다 ★ — 새 단계의 "직전" 은
+	// 계획 단계일 수도 있고 새로 지어진 앞 단계일 수도 있다.
+	for i := len(c.Steps); i < len(next.Steps); i++ {
+		ns := next.Steps[i]
+		kind, err := ns.Kind()
+		if err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO steps (run_id, seq, name, uses, kind, state, node_id, needs)
+			 VALUES ($1,$2,$3,$4,$5,'PENDING',$6,$7)`,
+			runID, i+1, ns.ID, ns.Uses, kind.String(), nodeOf[ns.Uses],
+			contract.NeedsOf(next.Steps, i)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// byStep 은 계약 한 판을 지은 단계의 이름이다 (seal.go 의 By* 어휘와 같은 자리).
+func byStep(id string) string { return "step:" + id }
+
+func stepAttemptTx(ctx context.Context, tx pgx.Tx, runID string, seq int) (int, error) {
+	var n int
+	err := tx.QueryRow(ctx,
+		`SELECT attempt FROM steps WHERE run_id=$1 AND seq=$2`, runID, seq).Scan(&n)
+	return n, err
+}
+
+// readPlan 은 계획 산출물을 읽는다. ★ 형태 검증은 이미 끝나 있다 ★ —
+// PUT blob 이 스키마로 거른다 (ADR-020). 여기서 다시 보는 것은 계약으로서의
+// 유효성이고 그것은 Validate 가 한다.
+func (s *Store) readPlan(runID, name string) (*plan, error) {
+	if s.Records == nil {
+		return nil, fmt.Errorf("기록 저장소가 없다")
+	}
+	rc, _, err := s.Records.OpenBlob(runID, name)
+	if err != nil {
+		return nil, fmt.Errorf("계획 %q 를 못 읽었다: %w", name, err)
+	}
+	defer rc.Close() //nolint:errcheck
+	b, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, err
+	}
+	var p plan
+	if err := json.Unmarshal(b, &p); err != nil {
+		return nil, fmt.Errorf("계획 %q 가 steps 를 든 객체가 아니다: %w", name, err)
+	}
+	return &p, nil
+}

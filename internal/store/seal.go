@@ -171,16 +171,31 @@ func (s *Store) sealRecord(ctx context.Context, runID string, v Verdict) error {
 		RunID: run.RunID, Work: run.Contract.Work, Principal: run.Principal,
 		State: v.State, CreatedAt: run.CreatedAt, EndedAt: ended,
 		Assigned: run.Assigned,
-		// ★ 오늘은 판이 하나다 ★ — append 하는 주체가 아직 없다.
-		// expands(P4)·재계획(P6)이 생기면 그 판들이 여기 붙는다. 그때는 열을
-		// ★ 저장 ★ 해야 하지만(실행 중에 자라므로), 지금은 봉인 시점에
-		// 조립하는 것으로 충분하다 — ★ 바꿔야 비싼 것은 봉인 형식이지
-		// DB 스키마가 아니다 ★. 기록은 쌓이면 못 고치고 DB 는 고칠 수 있다.
-		Contract: []ContractVersion{{
+		// ★ v1 은 언제나 제출 전문이다 ★ (성질 4 — 봉인된 묶음만 보고
+		// "무엇을 요청했나" 를 알 수 있어야 한다). 실행 중에 붙은 판은
+		// runs.contract_versions 에 쌓여 있고 여기서 그 뒤에 이어 붙는다.
+		// ★ 아무도 안 붙였으면 판이 하나다 ★ = 오늘 그대로.
+		Contract: append([]ContractVersion{{
 			V: 1, At: run.CreatedAt, By: ByRequester, Contract: run.Contract,
-		}},
+		}}, s.contractVersions(ctx, runID)...),
 	}
 	return s.Records.Seal(runID, m, v, steps)
+}
+
+// contractVersions 는 실행 중에 붙은 판들이다 (P4 expands · P6 재계획).
+// ★ 못 읽으면 빈 열이다 ★ — 봉인은 Run 당 한 번뿐이고 여기서 실패해 봉인을
+// 통째로 막는 것보다, 제출본만이라도 남기는 편이 낫다.
+func (s *Store) contractVersions(ctx context.Context, runID string) []ContractVersion {
+	var raw []byte
+	if err := s.pool.QueryRow(ctx,
+		`SELECT contract_versions FROM runs WHERE run_id=$1`, runID).Scan(&raw); err != nil {
+		return nil
+	}
+	var out []ContractVersion
+	if json.Unmarshal(raw, &out) != nil {
+		return nil
+	}
+	return out
 }
 
 func (s *Store) endedAt(ctx context.Context, runID string) (*time.Time, error) {

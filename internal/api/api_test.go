@@ -1125,3 +1125,155 @@ func TestSkipped_간선을_따라_전파된다(t *testing.T) {
 			"전파가 간선을 안 따라갔다", code, next)
 	}
 }
+
+// ═══ 계획 위임 — ★ 오케스트레이터가 나머지 단계를 짓는다 ★ (ADR-022 §6.3) ═══
+//
+// 에이전트가 계약을 ★ 파일로 쓰고 ★ enode 가 제출한다 — 토큰은 enode 에만 남아
+// R1 이 안 깨진다. Mediator 는 그것을 ★ 검증해서 받는다 ★: 무엇이 좋은 계획인지
+// 안 보고 ★ 유효한 계약인지만 ★ 본다 (ADR-004 를 안 건드린다).
+
+// planStep 은 expands 단계 하나다. 스키마는 ★ 형식만 ★ 제약한다 (ADR-020).
+func planStep(uses string) map[string]any {
+	return map[string]any{
+		"id": "plan", "uses": uses,
+		"agent": map[string]any{"ask": "never"},
+		"out":   []string{"plan"},
+		"schema": map[string]any{"plan": map[string]any{
+			"type": "object", "required": []string{"steps"}}},
+		"expands": true,
+	}
+}
+
+// ★ 계획이 단계를 늘리고, 늘어난 단계가 집힌다 ★
+func TestExpands_계획이_단계를_늘린다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("e1", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("exp", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{planStep("b")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	if code, c := do(t, srv, "POST", "/v1/nodes/e1/claim", "", nil); code != 200 || c["name"] != "plan" {
+		t.Fatalf("plan 이 안 나왔다: %d %v", code, c)
+	}
+	// ★ 계획은 산출물이다 ★ — 스키마 검증을 통과해야 저장된다.
+	if code, _ := do(t, srv, "PUT", "/v1/runs/exp/steps/1/blob/plan",
+		`{"steps":[{"id":"built","uses":"b","run":["true"],"out":["built"]}]}`, nil); code >= 300 {
+		t.Fatalf("계획 저장 실패: %d", code)
+	}
+	if code, _ := do(t, srv, "POST", "/v1/runs/exp/steps/1/result",
+		`{"node":"e1","produced":["plan"]}`, nil); code != 200 {
+		t.Fatalf("보고 실패: %d", code)
+	}
+	code, next := do(t, srv, "POST", "/v1/nodes/e1/claim", "", nil)
+	if code != 200 || next["name"] != "built" {
+		t.Fatalf("★ 지어진 단계가 안 집혔다 ★: %d %v", code, next)
+	}
+}
+
+// ★ 자원은 여전히 사용자가 선언한다 ★ (갈래 A) — 계획이 requires 에 없는
+// 역할을 쓰면 계약 검증이 거절하고, 그 단계가 FAILED 다.
+//
+// 자원까지 위임하는 것은 P5(acquire)이고 그것은 I5 를 건드린다.
+func TestExpands_없는_역할을_쓰면_그_단계가_실패한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("e2", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("exp2", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{planStep("b")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/e2/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/exp2/steps/1/blob/plan",
+		`{"steps":[{"id":"built","uses":"★없는역할★","run":["true"],"out":["built"]}]}`, nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs/exp2/steps/1/result",
+		`{"node":"e2","produced":["plan"]}`, nil); code != 200 {
+		t.Fatalf("보고 자체는 받아야 한다: %d", code)
+	}
+	// 늘어나지 않았으므로 집을 것이 없다.
+	if code, c := do(t, srv, "POST", "/v1/nodes/e2/claim", "", nil); code == 200 {
+		t.Fatalf("★ 유효하지 않은 계획이 함대로 들어왔다 ★: %v", c)
+	}
+}
+
+// ★ 계획이 판정 기준을 짓지 못한다 ★ (ADR-022 §7.7)
+//
+// 계획을 짓는 것과 성패의 기준을 짓는 것은 다른 권한이다. 후자를 넘기면
+// ★ 판정 기준을 판정 대상이 정하게 되어 ★ ADR-004 의 뿌리가 흔들린다.
+// ⇒ 조용히 무시하지 않고 그 단계를 실패시킨다.
+func TestExpands_계획은_판정_기준을_못_짓는다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("e3", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("exp3", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{planStep("b")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/e3/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/exp3/steps/1/blob/plan",
+		`{"steps":[{"id":"built","uses":"b","run":["true"],"out":["built"]}],`+
+			`"success_when":[{"step":"built","exit_code":0}]}`, nil)
+	do(t, srv, "POST", "/v1/runs/exp3/steps/1/result", `{"node":"e3","produced":["plan"]}`, nil)
+	if code, c := do(t, srv, "POST", "/v1/nodes/e3/claim", "", nil); code == 200 {
+		t.Fatalf("★ 계획이 지은 판정 기준이 들어왔다 ★: %v", c)
+	}
+}
+
+// ★ 봉인에 v2 가 남는다 ★ (ADR-005 성질 1·4)
+//
+// v1 은 언제나 ★ 제출 전문 ★ 이고 v2 는 계획이 지은 판이다. 앞 판을 고치지 않고
+// 붙이므로, ★ 봉인된 묶음만 열어서 「무엇을 요청했고 무엇이 지어졌나」 ★ 를 안다.
+func TestExpands_봉인에_계약의_열이_남는다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("e4", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "exp4",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    []map[string]any{planStep("b")},
+		// ★ 판정은 제출 시점 계약이 든다 ★ — 지어질 단계를 가리킬 수 없다.
+		"success_when": []map[string]any{{"step": "plan", "produced": []string{"plan"}}},
+	}
+	b, _ := json.Marshal(c)
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/e4/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/exp4/steps/1/blob/plan",
+		`{"steps":[{"id":"built","uses":"b","run":["true"],"out":["built"]}]}`, nil)
+	do(t, srv, "POST", "/v1/runs/exp4/steps/1/result", `{"node":"e4","produced":["plan"]}`, nil)
+	if code, next := do(t, srv, "POST", "/v1/nodes/e4/claim", "", nil); code != 200 || next["name"] != "built" {
+		t.Fatalf("지어진 단계가 안 집혔다: %d %v", code, next)
+	}
+	do(t, srv, "POST", "/v1/runs/exp4/steps/2/result", `{"node":"e4","exit_code":0}`, nil)
+
+	raw, err := os.ReadFile(filepath.Join(st.Records.Root, "run-exp4", "manifest.json"))
+	if err != nil {
+		t.Fatalf("★ 봉인이 안 됐다 ★: %v", err)
+	}
+	var m struct {
+		Contract []struct {
+			V        int    `json:"v"`
+			By       string `json:"by"`
+			Evidence string `json:"evidence"`
+			Steps    []struct {
+				ID string `json:"id"`
+			} `json:"steps"`
+		} `json:"contract"`
+	}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Contract) != 2 {
+		t.Fatalf("★ 판이 %d 개다 ★ — v1(제출본)과 v2(계획)로 둘이어야 한다", len(m.Contract))
+	}
+	if m.Contract[0].By != "requester" || len(m.Contract[0].Steps) != 1 {
+		t.Fatalf("★ v1 이 제출 전문이 아니다 ★: by=%q steps=%d — 성질 4 가 깨진다",
+			m.Contract[0].By, len(m.Contract[0].Steps))
+	}
+	if m.Contract[1].By != "step:plan" || len(m.Contract[1].Steps) != 2 {
+		t.Fatalf("★ v2 가 틀렸다 ★: by=%q steps=%d", m.Contract[1].By, len(m.Contract[1].Steps))
+	}
+	if m.Contract[1].Evidence == "" {
+		t.Fatal("★ 무엇을 보고 지었는지가 안 남았다 ★ — evidence 가 비었다")
+	}
+}
