@@ -55,6 +55,8 @@ func main() {
 	// ★ 되돌림은 밖에서 안 보이는 판단이다 ★ — 로그가 없으면 왜 같은 단계가
 	// 두 번 도는지 운영자가 알 길이 없다.
 	st.Log = log
+	// ★ 계약이 얼마나 자랄 수 있는가 ★ — 계약 밖에서 정한다 (ADR-031).
+	st.MaxContractVersions = cfg.Contract.MaxVersions
 	if err := st.Migrate(ctx); err != nil {
 		log.Error("스키마 적용 실패", "err", err)
 		os.Exit(1)

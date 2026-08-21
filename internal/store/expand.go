@@ -70,8 +70,8 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		return nil
 	}
 
-	// ★ 이미 늘렸으면 다시 안 늘린다 ★ — "한 번만" 을 여기서 지킨다.
-	// 재시도(attempt)가 같은 단계를 다시 보고해도 계약이 두 번 자라지 않는다.
+	// ★ 한 단계는 한 번만 늘린다 ★ — 재시도(attempt)나 반복(loop)이 같은 단계를
+	// 다시 보고해도 계약이 두 번 자라지 않는다.
 	var prior []ContractVersion
 	if len(versions) > 0 {
 		if err := json.Unmarshal(versions, &prior); err != nil {
@@ -82,6 +82,17 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		if v.By == byStep(st.ID) {
 			return nil
 		}
+	}
+	// ★ 깊이 상한 — 종료 보장이 여기 걸린다 ★ (ADR-031).
+	//
+	// 계약 하나에 expands 가 여럿일 수 있고 지어진 단계가 또 expands 를 들 수
+	// 있으므로, ★ 계약은 원리적으로 무한히 자랄 수 있다 ★. 그것을 막는 것이
+	// 판의 개수 상한이고, ★ 계약이 못 건드리는 자리에 둔다 ★ — 계약을 짓는 것이
+	// 기계이기 때문이다. 넘으면 그 단계가 FAILED 다: 계획을 받아들일 수 없다는
+	// 것이지 계획이 나쁘다는 판정이 아니다 (ADR-004 를 안 건드린다).
+	if max := s.maxContractVersions(); len(prior)+1 >= max {
+		return fmt.Errorf("step %q: 계약의 열이 상한(%d)에 닿았다 — "+
+			"더 자랄 수 없다", st.ID, max)
 	}
 
 	attempt, err := stepAttemptTx(ctx, tx, runID, seq)
@@ -115,6 +126,12 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		// ★ 무엇을 보고 지었나 ★ — 스키마 검증을 통과한 그 산출물이다 (ADR-020).
 		Evidence: fmt.Sprintf("blobs/%02d.%d-%s", seq, attempt, name),
 		Contract: next,
+	}
+	// ★ 재계획에서만 cause 를 채운다 ★ (ADR-031) — 첫 판은 「처음 지은 것」이라
+	// 바꾼 근거가 없다. 두 번째부터는 ★ 무엇을 보고 다시 짰나 ★ 가 남아야
+	// "왜 이 경로로 갔나" 를 봉인된 묶음만 보고 따라갈 수 있다 (성질 4).
+	if len(prior) > 0 {
+		ver.Cause = causeOf(c.Steps, seq-1)
 	}
 	prior = append(prior, ver)
 	nextJSON, err := json.Marshal(prior)
@@ -156,6 +173,34 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		}
 	}
 	return nil
+}
+
+// maxContractVersions 는 계약의 열이 가질 수 있는 판의 개수다 (ADR-031).
+// ★ 설정이 없으면 2 ★ — 계획 위임 한 번까지. 오늘 동작과 같다.
+func (s *Store) maxContractVersions() int {
+	if s.MaxContractVersions > 0 {
+		return s.MaxContractVersions
+	}
+	return 2
+}
+
+// causeOf 는 그 계획 단계가 ★ 무엇을 보고 지었나 ★ 를 단계 기록 경로로 준다.
+//
+// needs 가 곧 그 답이다 — 이 단계는 그것들이 끝나야 돌았고, 그 결과를 보고 지었다.
+// ★ 여럿일 수 있다 ★: 계획을 다시 짜는 단계가 여러 앞 단계를 기다리는 것은
+// 흔하고, 하나만 적으면 근거가 잘린다.
+func causeOf(steps []contract.Step, i int) []string {
+	index := map[string]int{}
+	for k, st := range steps {
+		index[st.ID] = k
+	}
+	var out []string
+	for _, name := range contract.NeedsOf(steps, i) {
+		if j, ok := index[name]; ok {
+			out = append(out, fmt.Sprintf("steps/%02d-%s.json", j+1, name))
+		}
+	}
+	return out
 }
 
 // byStep 은 계약 한 판을 지은 단계의 이름이다 (seal.go 의 By* 어휘와 같은 자리).

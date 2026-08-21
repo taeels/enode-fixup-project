@@ -15,6 +15,7 @@ type Config struct {
 	Database  Database  `yaml:"database"`
 	Artifacts Artifacts `yaml:"artifacts"`
 	Claim     Claim     `yaml:"claim"`
+	Contract  Contract  `yaml:"contract"`
 	Lease     Lease     `yaml:"lease"`
 }
 
@@ -29,6 +30,17 @@ type Artifacts struct {
 
 type Claim struct {
 	LongPollSeconds int `yaml:"long_poll_seconds"`
+}
+
+// Contract 는 ★ 계약이 실행 중에 얼마나 자랄 수 있는가 ★ 다 (ADR-031).
+//
+// ★ 계약이 못 건드리는 자리여야 한다 ★ — 계약을 짓는 것이 기계이므로,
+// 계약 안에 상한을 두면 ★ 기계가 자기 상한을 늘린다 ★. 종료 보장은 시스템이 쥔다
+// (ADR-022 §7.8 이 "종료 보장이 계약 밖으로 나간다" 로 예고한 자리다).
+type Contract struct {
+	// MaxVersions 는 계약의 열이 가질 수 있는 판의 최대 개수다. v1(제출본)을 포함한다.
+	// 2 면 계획 위임 한 번까지, 3 이면 그 위에 재계획 한 번까지다.
+	MaxVersions int `yaml:"max_versions"`
 }
 
 // Lease 의 값 셋은 ★ 서로 묶여 있다 ★ (ADR-016).
@@ -49,7 +61,9 @@ func Default() Config {
 		Database:  Database{URL: "postgres:///enode"},
 		Artifacts: Artifacts{Root: "/var/lib/enode-mediator/artifacts", MaxBlobBytes: 10 << 20},
 		Claim:     Claim{LongPollSeconds: 7200}, // 2h (ADR-015 §5)
-		Lease:     Lease{TTLSeconds: 3600, RenewSeconds: 60, NotAfterFactor: 3},
+		// v1 제출본 + 계획 + 재계획 둘 — ★ 돌려보고 정할 값이다 ★ (INVARIANTS §4).
+		Contract: Contract{MaxVersions: 4},
+		Lease:    Lease{TTLSeconds: 3600, RenewSeconds: 60, NotAfterFactor: 3},
 	}
 }
 

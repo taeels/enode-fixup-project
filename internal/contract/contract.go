@@ -801,19 +801,16 @@ func (c Contract) Validate() error {
 			c.Ledger.Scope, ScopeRun, ScopeWork)
 	}
 
-	// ★ expands 는 한 단계만 ★ (ADR-022 §6.3) — 「Run 은 하나다」의 완화를
-	// 여기서 유계로 묶는다. 임의 확장이 아니라 ★ 한 단계가 한 번 ★ 이다.
-	expander := ""
+	// ★ 한 단계가 한 번 ★ 늘린다 (ADR-022 §6.3 · ADR-031).
+	//
+	// ★ 계약 하나에 여러 개가 있어도 된다 ★ — 그것이 재계획이다.
+	// 지어진 단계가 또 expands 를 들면 다음 판이 붙고, 그렇게 계약이 자란다.
+	// ★ 유한성은 계약이 아니라 시스템이 준다 ★ — 판의 개수 상한(ADR-031).
+	// 계약 안에 상한을 두면 ★ 계약을 짓는 기계가 자기 상한을 늘린다 ★.
 	for _, st := range c.Steps {
 		if !st.Expands {
 			continue
 		}
-		if expander != "" {
-			return fmt.Errorf("step %q: expands 가 이미 %q 에 있다 — "+
-				"계약 하나에 하나뿐이다 (여러 번은 재계획이고 깊이 상한이 따라온다)",
-				st.ID, expander)
-		}
-		expander = st.ID
 		// ★ 계획은 산출물이다 ★ — 이름이 없으면 무엇을 읽어야 할지 모른다.
 		if len(st.Out) != 1 {
 			return fmt.Errorf("step %q: expands 단계는 산출물 이름이 정확히 하나여야 한다", st.ID)

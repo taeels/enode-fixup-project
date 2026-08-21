@@ -65,9 +65,14 @@ type ContractVersion struct {
 	// 계획이 펼쳐진 판이면 그 계획 blob 을 가리킨다 (예: "blobs/plan-plan").
 	// ★ 스키마 검증을 통과한 것만 여기 온다 ★ (ADR-020).
 	Evidence string `json:"evidence,omitempty"`
-	// Cause 는 ★ 무엇을 보고 바꿨나 ★ 다 — 앞 단계의 결과 파일
-	// (예: "steps/02-baseline_build.json"). 재계획에서만 채워진다.
-	Cause string `json:"cause,omitempty"`
+	// Cause 는 ★ 무엇을 보고 바꿨나 ★ 다 — 앞 단계의 결과 파일들
+	// (예: ["steps/02-baseline_build.json"]). ★ 재계획에서만 채워진다 ★.
+	//
+	// ★ 여럿이다 ★ (ADR-031 정정) — 초안은 문자열 하나였는데, 계획을 다시 짓는
+	// 단계는 needs 로 ★ 여러 앞 단계를 기다릴 수 있다 ★. 하나만 적으면
+	// "왜 이 경로로 갔나" 의 근거가 잘린다. 첫 판(v2)은 비운다 — 그때는
+	// 바꾼 것이 아니라 처음 지은 것이고, evidence 가 그 근거다.
+	Cause []string `json:"cause,omitempty"`
 	// ★ 임베드다 ★ — JSON 이 평평해져서 한 판이 그대로 계약으로 읽힌다.
 	contract.Contract
 }

@@ -58,13 +58,13 @@ func TestManifest_계약이_열이고_평평하다(t *testing.T) {
 // 이 시험은 ★ 여러 판이 그대로 실린다 ★ 는 것을 고정한다.
 func TestManifest_판이_여럿이어도_실린다(t *testing.T) {
 	at := time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC)
-	mk := func(v int, by, ev, cause string) ContractVersion {
+	mk := func(v int, by, ev string, cause ...string) ContractVersion {
 		return ContractVersion{V: v, At: at, By: by, Evidence: ev, Cause: cause,
 			Contract: contract.Contract{RunID: "r1"}}
 	}
 	m := Manifest{RunID: "r1", Contract: []ContractVersion{
-		mk(1, ByRequester, "", ""),
-		mk(2, ByStep("plan"), "blobs/plan-plan", ""),
+		mk(1, ByRequester, ""),
+		mk(2, ByStep("plan"), "blobs/plan-plan"),
 		mk(3, ByStep("replan"), "blobs/replan-plan", "steps/02-baseline_build.json"),
 	}}
 	b, err := json.Marshal(m)
@@ -73,10 +73,10 @@ func TestManifest_판이_여럿이어도_실린다(t *testing.T) {
 	}
 	var got struct {
 		Contract []struct {
-			V        int    `json:"v"`
-			By       string `json:"by"`
-			Evidence string `json:"evidence"`
-			Cause    string `json:"cause"`
+			V        int      `json:"v"`
+			By       string   `json:"by"`
+			Evidence string   `json:"evidence"`
+			Cause    []string `json:"cause"`
 		} `json:"contract"`
 	}
 	if err := json.Unmarshal(b, &got); err != nil {
@@ -89,10 +89,10 @@ func TestManifest_판이_여럿이어도_실린다(t *testing.T) {
 		t.Fatalf("by/evidence 가 안 맞다: %s", b)
 	}
 	// ★ cause 는 재계획에서만 채워진다 — 없으면 안 나가야 한다 ★
-	if got.Contract[1].Cause != "" {
+	if len(got.Contract[1].Cause) != 0 {
 		t.Fatalf("빈 cause 가 실렸다: %s", b)
 	}
-	if got.Contract[2].Cause != "steps/02-baseline_build.json" {
+	if len(got.Contract[2].Cause) != 1 || got.Contract[2].Cause[0] != "steps/02-baseline_build.json" {
 		t.Fatalf("cause 가 안 맞다: %s", b)
 	}
 }

@@ -348,14 +348,19 @@ func TestValidate_expands(t *testing.T) {
 	if err := mk(ok).Validate(); err != nil {
 		t.Fatalf("정상 expands 가 거절됐다: %v", err)
 	}
+	// ★ 둘 이상이어도 된다 ★ (ADR-031) — 그것이 재계획이다.
+	// 유한성은 계약이 아니라 ★ 시스템의 판 개수 상한 ★ 이 준다.
+	two := []Step{
+		{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
+			Out: []string{"plan"}, Schema: sch, Expands: true},
+		{ID: "replan", Uses: "b", Agent: map[string]interface{}{},
+			Out: []string{"plan"}, Schema: sch, Expands: true},
+	}
+	if err := mk(two).Validate(); err != nil {
+		t.Fatalf("★ 재계획하는 계약이 거절됐다 ★: %v", err)
+	}
 
 	for name, steps := range map[string][]Step{
-		"★ 둘이다 ★": {
-			{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
-				Out: []string{"plan"}, Schema: sch, Expands: true},
-			{ID: "plan2", Uses: "b", Agent: map[string]interface{}{},
-				Out: []string{"plan"}, Schema: sch, Expands: true},
-		},
 		"★ 스키마가 없다 ★": {
 			{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
 				Out: []string{"plan"}, Expands: true},

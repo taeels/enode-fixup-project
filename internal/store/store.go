@@ -32,6 +32,9 @@ type Store struct {
 	// Records 는 봉인된 Run Record 가 사는 곳이다 (ADR-015 §3).
 	// ★ DB 가 아니다 ★ — I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 한다.
 	Records *record.Store
+	// MaxContractVersions 는 계약의 열이 가질 수 있는 판의 개수다 (ADR-031).
+	// ★ 계약이 못 건드리는 자리 ★ — 종료 보장을 시스템이 쥔다. 0 이면 2.
+	MaxContractVersions int
 	// Log 는 ★ 되돌림처럼 밖에서 안 보이는 판단 ★ 을 남기는 자리다.
 	// 없으면 조용히 지나간다 — 로그가 없다고 동작이 달라지면 안 된다.
 	Log *slog.Logger

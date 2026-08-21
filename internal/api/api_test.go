@@ -355,6 +355,7 @@ func newServerFast(t *testing.T) (*httptest.Server, *store.Store) {
 	cfg.Token = token
 	cfg.Claim.LongPollSeconds = 0 // 테스트에서는 즉시 204
 	cfg.Lease.RenewSeconds, cfg.Lease.NotAfterFactor = 1, 2
+	st.MaxContractVersions = cfg.Contract.MaxVersions
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := httptest.NewServer(api.New(st, cfg, log).Handler())
 	t.Cleanup(srv.Close)
@@ -1958,5 +1959,153 @@ func TestClaim_다른_생이_나타나면_들고_있던_단계가_실패한다(t
 	_ = json.Unmarshal(sraw, &steps)
 	if steps[0].State != "FAILED" {
 		t.Fatalf("집혔던 단계가 %q 다", steps[0].State)
+	}
+}
+
+// ═══ 재계획 — 계획을 결과를 보고 다시 짓는다 (ADR-031) ═══════════════════
+//
+// 계획 위임은 ★ 한 번 ★ 짓는다. 재계획은 그 결과를 보고 ★ 또 짓는다 ★ —
+// 지어진 단계가 다시 expands 를 들면 다음 판이 붙는다.
+// ★ 유한성은 계약이 아니라 시스템의 판 개수 상한이 준다 ★.
+
+// planStepN 은 out 이름을 갈라 쓰는 expands 단계다 (한 계약에 여럿 오므로).
+func planStepN(id, uses, out string) map[string]any {
+	return map[string]any{
+		"id": id, "uses": uses,
+		"agent": map[string]any{"ask": "never"},
+		"out":   []string{out},
+		"schema": map[string]any{out: map[string]any{
+			"type": "object", "required": []string{"steps"}}},
+		"expands": true,
+	}
+}
+
+// ★ 계약이 두 번 자란다 ★ — 그리고 두 번째 판만 「무엇을 보고 바꿨나」를 든다.
+func TestReplan_계약이_두_번_자란다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("rp1", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "replan1",
+		"work":     map[string]any{"system": "gerrit", "change_id": "31", "patchset": 1},
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    []map[string]any{planStepN("plan", "b", "plan")},
+		"success_when": []map[string]any{
+			{"step": "plan", "produced": []string{"plan"}}},
+	}
+	b, _ := json.Marshal(c)
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	// ① 첫 계획 — 지어진 단계 중 하나가 ★ 또 expands 를 든다 ★.
+	do(t, srv, "POST", "/v1/nodes/rp1/claim", "", nil)
+	first, _ := json.Marshal(map[string]any{"steps": []map[string]any{
+		{"id": "probe", "uses": "b", "run": []string{"true"}, "out": []string{"probe"}},
+		planStepN("replan", "b", "replan"),
+	}})
+	if code, _ := do(t, srv, "PUT", "/v1/runs/replan1/steps/1/blob/plan",
+		string(first), nil); code >= 300 {
+		t.Fatalf("첫 계획 저장 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/runs/replan1/steps/1/result", `{"node":"rp1","produced":["plan"]}`, nil)
+
+	// probe 를 돌리고, ② 재계획이 그 결과를 보고 다시 짓는다.
+	if code, cc := do(t, srv, "POST", "/v1/nodes/rp1/claim", "", nil); code != 200 || cc["name"] != "probe" {
+		t.Fatalf("지어진 단계가 안 나왔다: %d %v", code, cc)
+	}
+	do(t, srv, "POST", "/v1/runs/replan1/steps/2/result", `{"node":"rp1","exit_code":0}`, nil)
+	if code, cc := do(t, srv, "POST", "/v1/nodes/rp1/claim", "", nil); code != 200 || cc["name"] != "replan" {
+		t.Fatalf("★ 재계획 단계가 안 나왔다 ★: %d %v", code, cc)
+	}
+	second, _ := json.Marshal(map[string]any{"steps": []map[string]any{
+		{"id": "final", "uses": "b", "run": []string{"true"}, "out": []string{"final"}},
+	}})
+	do(t, srv, "PUT", "/v1/runs/replan1/steps/3/blob/replan", string(second), nil)
+	do(t, srv, "POST", "/v1/runs/replan1/steps/3/result", `{"node":"rp1","produced":["replan"]}`, nil)
+
+	if code, cc := do(t, srv, "POST", "/v1/nodes/rp1/claim", "", nil); code != 200 || cc["name"] != "final" {
+		t.Fatalf("★ 재계획이 지은 단계가 안 나왔다 ★: %d %v", code, cc)
+	}
+	do(t, srv, "POST", "/v1/runs/replan1/steps/4/result", `{"node":"rp1","exit_code":0}`, nil)
+
+	raw, err := os.ReadFile(filepath.Join(st.Records.Root, "run-replan1", "manifest.json"))
+	if err != nil {
+		t.Fatalf("★ 봉인이 안 됐다 ★: %v", err)
+	}
+	var m struct {
+		Contract []struct {
+			V        int      `json:"v"`
+			By       string   `json:"by"`
+			Evidence string   `json:"evidence"`
+			Cause    []string `json:"cause"`
+			Steps    []struct {
+				ID string `json:"id"`
+			} `json:"steps"`
+		} `json:"contract"`
+	}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Contract) != 3 {
+		t.Fatalf("★ 판이 %d 개다 ★ — v1 제출본 · v2 계획 · v3 재계획으로 셋이어야 한다",
+			len(m.Contract))
+	}
+	if m.Contract[1].By != "step:plan" || len(m.Contract[1].Steps) != 3 {
+		t.Fatalf("v2 가 틀렸다: by=%q steps=%d", m.Contract[1].By, len(m.Contract[1].Steps))
+	}
+	if m.Contract[2].By != "step:replan" || len(m.Contract[2].Steps) != 4 {
+		t.Fatalf("v3 가 틀렸다: by=%q steps=%d", m.Contract[2].By, len(m.Contract[2].Steps))
+	}
+	// ★ 첫 판은 「처음 지은 것」이라 바꾼 근거가 없다 ★.
+	if len(m.Contract[1].Cause) != 0 {
+		t.Fatalf("★ 첫 계획에 cause 가 붙었다 ★: %v", m.Contract[1].Cause)
+	}
+	// ★ 재계획만 「무엇을 보고 바꿨나」를 든다 ★.
+	if len(m.Contract[2].Cause) != 1 || !strings.Contains(m.Contract[2].Cause[0], "probe") {
+		t.Fatalf("★ 재계획의 근거가 안 남았다 ★: %v — "+
+			"왜 이 경로로 갔나를 봉인만 보고 못 따라간다", m.Contract[2].Cause)
+	}
+}
+
+// ★ 깊이 상한이 종료를 보장한다 ★ — 계약이 아니라 시스템이 쥔다.
+func TestReplan_상한에_닿으면_그_단계가_실패한다(t *testing.T) {
+	srv, st := newServerFast(t)
+	st.MaxContractVersions = 2 // ★ v1 + 계획 한 번까지 ★
+	do(t, srv, "POST", "/v1/nodes", advert("rp2", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "replan2",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    []map[string]any{planStepN("plan", "b", "plan")},
+	}
+	b, _ := json.Marshal(c)
+	do(t, srv, "POST", "/v1/runs", string(b), nil)
+	do(t, srv, "POST", "/v1/nodes/rp2/claim", "", nil)
+	first, _ := json.Marshal(map[string]any{"steps": []map[string]any{
+		planStepN("replan", "b", "replan"),
+	}})
+	do(t, srv, "PUT", "/v1/runs/replan2/steps/1/blob/plan", string(first), nil)
+	do(t, srv, "POST", "/v1/runs/replan2/steps/1/result", `{"node":"rp2","produced":["plan"]}`, nil)
+
+	if code, cc := do(t, srv, "POST", "/v1/nodes/rp2/claim", "", nil); code != 200 || cc["name"] != "replan" {
+		t.Fatalf("재계획 단계가 안 나왔다: %d %v", code, cc)
+	}
+	second, _ := json.Marshal(map[string]any{"steps": []map[string]any{
+		{"id": "more", "uses": "b", "run": []string{"true"}, "out": []string{"more"}},
+	}})
+	do(t, srv, "PUT", "/v1/runs/replan2/steps/2/blob/replan", string(second), nil)
+	do(t, srv, "POST", "/v1/runs/replan2/steps/2/result", `{"node":"rp2","produced":["replan"]}`, nil)
+
+	// ★ 상한에 닿았으므로 그 단계가 FAILED 이고 계약은 안 자란다 ★.
+	_, v := do(t, srv, "GET", "/v1/runs/replan2", "", nil)
+	sraw, _ := json.Marshal(v["steps"])
+	var steps []struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(sraw, &steps)
+	if len(steps) != 2 {
+		t.Fatalf("★ 상한을 넘어 계약이 자랐다 ★: %d 단계", len(steps))
+	}
+	if steps[1].State != "FAILED" {
+		t.Fatalf("상한에 닿은 단계가 %q 다", steps[1].State)
 	}
 }
