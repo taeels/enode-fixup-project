@@ -1,0 +1,263 @@
+{
+  "run_id": "gerrit-12345-ps3",
+  "work": {
+    "id": {
+      "system": "gerrit",
+      "change_id": "12345"
+    },
+    "system": "gerrit",
+    "change_id": "12345",
+    "patchset": 3,
+    "parent_rev": "a1b2c3d",
+    "patch_rev": "e4f5g6h"
+  },
+  "ledger": {
+    "scope": "work"
+  },
+  "requires": [
+    {
+      "as": "brain",
+      "capability": "agent.reason",
+      "harness": "claude"
+    },
+    {
+      "as": "builder",
+      "capability": "agent.reason",
+      "arch": "armv7"
+    },
+    {
+      "as": "board",
+      "capability": "agent.reason",
+      "board": "SoC-X"
+    }
+  ],
+  "steps": [
+    {
+      "id": "hypothesis",
+      "uses": "brain",
+      "needs": [],
+      "workspace": {
+        "repo": "gerrit.corp/kernel/linux",
+        "rev": "@work.patch_rev"
+      },
+      "agent": {
+        "max_turns": 20,
+        "max_tokens": 200000,
+        "ask": "never"
+      },
+      "in": {
+        "prompt": "…",
+        "diff": "@work.patch_rev"
+      },
+      "out": [
+        "hypothesis"
+      ],
+      "schema": {
+        "hypothesis": {
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "found",
+                "none"
+              ]
+            },
+            "hypothesis": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "baseline_build",
+      "uses": "builder",
+      "needs": [],
+      "workspace": {
+        "repo": "gerrit.corp/kernel/linux",
+        "rev": "@work.parent_rev"
+      },
+      "run": [
+        "make",
+        "-j8",
+        "ARCH=arm",
+        "CROSS_COMPILE=arm-linux-gnueabihf-",
+        "modules"
+      ],
+      "env": [
+        "사내_툴체인_경로"
+      ],
+      "out": [
+        "build_log"
+      ]
+    },
+    {
+      "id": "write_test",
+      "uses": "brain",
+      "needs": [
+        "hypothesis",
+        "baseline_build"
+      ],
+      "see": {
+        "ledger": "list"
+      },
+      "workspace": {
+        "repo": "gerrit.corp/kernel/linux",
+        "rev": "@work.patch_rev"
+      },
+      "agent": {
+        "max_turns": 40,
+        "max_tokens": 400000,
+        "ask": "never"
+      },
+      "in": {
+        "from": [
+          "hypothesis"
+        ]
+      },
+      "out": [
+        "test_source"
+      ]
+    },
+    {
+      "id": "parent_build",
+      "uses": "builder",
+      "needs": [
+        "write_test"
+      ],
+      "workspace": {
+        "repo": "gerrit.corp/kernel/linux",
+        "rev": "@work.parent_rev"
+      },
+      "run": [
+        "make",
+        "-j8",
+        "ARCH=arm",
+        "CROSS_COMPILE=arm-linux-gnueabihf-",
+        "modules"
+      ],
+      "in": {
+        "from": [
+          "test_source"
+        ]
+      },
+      "out": [
+        "artifact",
+        "build_log"
+      ],
+      "loop": {
+        "back_to": "write_test",
+        "max": 3,
+        "until": {
+          "produced": [
+            "artifact"
+          ]
+        }
+      }
+    },
+    {
+      "id": "parent_observe",
+      "uses": "board",
+      "needs": [
+        "parent_build"
+      ],
+      "run": [
+        "flash_and_observe"
+      ],
+      "in": {
+        "from": [
+          "artifact"
+        ]
+      },
+      "out": [
+        "serial_log",
+        "test_result"
+      ]
+    },
+    {
+      "id": "patch_build",
+      "uses": "builder",
+      "needs": [
+        "parent_build"
+      ],
+      "workspace": {
+        "repo": "gerrit.corp/kernel/linux",
+        "rev": "@work.patch_rev"
+      },
+      "run": [
+        "make",
+        "-j8",
+        "ARCH=arm",
+        "CROSS_COMPILE=arm-linux-gnueabihf-",
+        "modules"
+      ],
+      "in": {
+        "from": [
+          "test_source"
+        ]
+      },
+      "out": [
+        "artifact",
+        "build_log"
+      ],
+      "release": [
+        "builder"
+      ]
+    },
+    {
+      "id": "patch_observe",
+      "uses": "board",
+      "needs": [
+        "patch_build",
+        "parent_observe"
+      ],
+      "run": [
+        "flash_and_observe"
+      ],
+      "in": {
+        "from": [
+          "artifact"
+        ]
+      },
+      "out": [
+        "serial_log",
+        "test_result"
+      ]
+    }
+  ],
+  "success_when": [
+    {
+      "step": "hypothesis",
+      "produced": [
+        "hypothesis"
+      ]
+    },
+    {
+      "step": "parent_build",
+      "exit_code": 0,
+      "within_attempts": true
+    },
+    {
+      "step": "patch_build",
+      "exit_code": 0
+    },
+    {
+      "step": "parent_observe",
+      "produced": [
+        "test_result"
+      ]
+    },
+    {
+      "step": "patch_observe",
+      "produced": [
+        "test_result"
+      ]
+    }
+  ]
+}

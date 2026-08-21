@@ -3,6 +3,7 @@ package contract
 import (
 	"encoding/json"
 	"errors"
+	"os"
 	"testing"
 )
 
@@ -648,5 +649,54 @@ func TestValidate_loop(t *testing.T) {
 	}
 	if err := nested.Validate(); err == nil {
 		t.Fatal("★ 중첩 loop 이 통과했다 ★")
+	}
+}
+
+// ★ 시연 계약이 실제로 유효한가 ★
+//
+// testdata/demo.json 은 ★ enode-design/protocol/run-contract.md §2.0 에서
+// 그대로 뽑은 것 ★ 이다. 정본에 적힌 계약이 코드가 받는 계약과 어긋나면
+// ★ 시연 당일에 알게 된다 ★ — 그것을 여기서 막는다.
+//
+// 이 시험이 깨지면 둘 중 하나다: 문서가 낡았거나, 검증이 문서를 배신했거나.
+// ★ 어느 쪽이든 고쳐야 한다 ★.
+func TestValidate_시연계약(t *testing.T) {
+	raw, err := os.ReadFile("testdata/demo.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c Contract
+	if err := json.Unmarshal(raw, &c); err != nil {
+		t.Fatalf("★ 정본의 계약이 파싱조차 안 된다 ★: %v", err)
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("★ 정본의 계약이 거절된다 ★: %v", err)
+	}
+
+	// ★ 병렬 둘이 실제로 드러나는가 ★ — 이 계약의 값이 거기 있다.
+	needs := map[string][]string{}
+	for i, st := range c.Steps {
+		needs[st.ID] = NeedsOf(c.Steps, i)
+	}
+	if len(needs["hypothesis"]) != 0 || len(needs["baseline_build"]) != 0 {
+		t.Fatalf("★ 시작점 둘이 안 갈렸다 ★: %v %v",
+			needs["hypothesis"], needs["baseline_build"])
+	}
+	if len(needs["write_test"]) != 2 {
+		t.Fatalf("★ 합류가 한쪽만 기다린다 ★: %v", needs["write_test"])
+	}
+	// patch_build 는 parent_build 만 기다린다 — parent_observe 와 ★ 동시에 돈다 ★.
+	// ★ write_test 가 아니다 ★ — parent_build 에 loop 이 있어서, write_test 만
+	// 기다리면 ★ 반복 도중의 test_source ★ 를 쓴다.
+	if len(needs["patch_build"]) != 1 || needs["patch_build"][0] != "parent_build" {
+		t.Fatalf("★ 패치 빌드의 의존이 틀렸다 ★: %v", needs["patch_build"])
+	}
+	if len(needs["parent_observe"]) != 1 || needs["parent_observe"][0] != "parent_build" {
+		t.Fatalf("★ 부모 관찰의 의존이 틀렸다 ★: %v", needs["parent_observe"])
+	}
+	// patch_observe 는 ★ 보드가 하나라는 사실 ★ 을 계약에 적어둔 자리다.
+	if len(needs["patch_observe"]) != 2 {
+		t.Fatalf("★ 두 관찰의 순서가 안 적혔다 ★: %v — "+
+			"보드가 둘이 되는 날 차분이 깨진다", needs["patch_observe"])
 	}
 }
