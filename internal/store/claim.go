@@ -421,6 +421,7 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 			return true, tx.Commit(ctx)
 		}
 	}
+	var raisedAsks []AskEvent
 	if ok {
 		// ★ 이름을 못 고르거나 계획이 유효하지 않으면 그 단계가 FAILED 다 ★ —
 		// 결과가 나쁜 것이 아니라 계약이 요구한 것을 못 낸 것이므로
@@ -428,7 +429,8 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 		//
 		// ★ 늘리는 것이 고르는 것보다 먼저다 ★ — 계획이 지은 단계가 생긴 뒤라야
 		// 분기가 그것을 목적지로 찾을 수 있다.
-		if err := s.afterStep(ctx, tx, runID, seq); err != nil {
+		asks, err := s.afterStep(ctx, tx, runID, seq)
+		if err != nil {
 			if _, e := tx.Exec(ctx, `
 				UPDATE steps SET state=$3, result = coalesce(result,'{}'::jsonb) || $4::jsonb
 				 WHERE run_id=$1 AND seq=$2`,
@@ -441,8 +443,14 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 			}
 			return false, nil // ★ 보고 자체는 받았다 ★ — 노드에 오류를 되던지지 않는다
 		}
+		raisedAsks = asks
 	}
-	return false, tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	// ★ 알림은 커밋 뒤에만 ★ (ADR-032 §4)
+	s.PushAsks(raisedAsks)
+	return false, nil
 }
 
 // applyStepEffects 는 한 단계가 끝나면서 ★ 계약 · 단계 목록 · 점유에 미치는 것 ★ 을
@@ -456,15 +464,15 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 //
 // ★ 획득을 마지막에 두는 이유 ★ — 그것이 needs 를 보고 고르므로, 앞의 효과
 // (건너뜀 전파 · 지어진 단계)가 먼저 반영돼 있어야 같은 그림을 본다.
-func (s *Store) afterStep(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
+func (s *Store) afterStep(ctx context.Context, tx pgx.Tx, runID string, seq int) ([]AskEvent, error) {
 	if err := s.applyStepEffects(ctx, tx, runID, seq); err != nil {
-		return err
+		return nil, err
 	}
 	if err := s.runAcquires(ctx, tx, runID); err != nil {
-		return err
+		return nil, err
 	}
 	// ★ 되묻기는 맨 뒤다 ★ — 앞의 효과(전파·획득)가 반영된 그림을 보고
-	// needs 가 찬 질문을 올린다 (ADR-032).
+	// needs 가 찬 질문을 올린다 (ADR-032). 올린 것은 ★ 커밋 뒤 알림 ★ 의 재료다.
 	return s.raiseAsks(ctx, tx, runID)
 }
 

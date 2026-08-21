@@ -137,6 +137,15 @@ type AskItem struct {
 	Answerers []string        `json:"answerers"`
 	Deadline  *time.Time      `json:"deadline"`
 	CanAnswer bool            `json:"can_answer"`
+	Shown     []ShownArtifact `json:"shown"`
+	Proposes  json.RawMessage `json:"proposes"`
+}
+
+// ShownArtifact 는 질문과 함께 실려 온 산출물이다.
+type ShownArtifact struct {
+	Name      string          `json:"name"`
+	Content   json.RawMessage `json:"content"`
+	Truncated bool            `json:"truncated"`
 }
 
 // Asks 는 답을 기다리는 되묻기 전부다 — 답한 것은 봉인에 있다.

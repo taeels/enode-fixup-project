@@ -49,7 +49,7 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 		UPDATE steps st SET state='FAILED', ended_at=now()
 		  FROM runs r
 		 WHERE r.run_id = st.run_id AND r.state = 'FAILED'
-		   AND st.state IN ('PENDING','CLAIMED')`); err != nil {
+		   AND st.state IN ('PENDING','CLAIMED','ASKED')`); err != nil {
 		return n, err
 	}
 
@@ -171,7 +171,7 @@ func (s *Store) Cancel(ctx context.Context, runID, by string) (string, error) {
 	}
 	if _, err := tx.Exec(ctx,
 		`UPDATE steps SET state='FAILED', ended_at=now()
-		  WHERE run_id=$1 AND state IN ('PENDING','CLAIMED')`, runID); err != nil {
+		  WHERE run_id=$1 AND state IN ('PENDING','CLAIMED','ASKED')`, runID); err != nil {
 		return "", err
 	}
 	// ★ I2 ★ 그리고 이 삭제가 곧 enode 에 대한 취소 통보다 (ADR-016)
@@ -200,7 +200,7 @@ func (s *Store) Cancel(ctx context.Context, runID, by string) (string, error) {
 func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) {
 	var pending, broke int
 	if err := s.pool.QueryRow(ctx, `
-		SELECT count(*) FILTER (WHERE state IN ('PENDING','CLAIMED')),
+		SELECT count(*) FILTER (WHERE state IN ('PENDING','CLAIMED','ASKED')),
 		       count(*) FILTER (WHERE state = 'FAILED')
 		  FROM steps WHERE run_id = $1`, runID).Scan(&pending, &broke); err != nil {
 		return "", err

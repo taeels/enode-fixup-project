@@ -16,6 +16,7 @@ type Config struct {
 	Artifacts Artifacts `yaml:"artifacts"`
 	Claim     Claim     `yaml:"claim"`
 	Contract  Contract  `yaml:"contract"`
+	Notify    Notify    `yaml:"notify"`
 	Lease     Lease     `yaml:"lease"`
 }
 
@@ -30,6 +31,13 @@ type Artifacts struct {
 
 type Claim struct {
 	LongPollSeconds int `yaml:"long_poll_seconds"`
+}
+
+// Notify 는 ★ 알림 웹훅 ★ 이다 (ADR-032 §4). 푸시는 보조이고 인박스가 정본이다.
+type Notify struct {
+	// AsksURL 로 질문이 올라올 때마다 AskEvent JSON 하나를 POST 한다.
+	// 비면 알림 없음. ★ 재시도 없음 ★ — 유실돼도 인박스에 남는다.
+	AsksURL string `yaml:"asks_url"`
 }
 
 // Contract 는 ★ 계약이 실행 중에 얼마나 자랄 수 있는가 ★ 다 (ADR-031).

@@ -154,6 +154,23 @@ func run() int {
 				line += fmt.Sprintf("  (기한 %s)", a.Deadline.Local().Format("01-02 15:04"))
 			}
 			fmt.Println(line)
+			// ★ 질문과 함께 볼 것 ★ (ask.show) — 보지 않고 답하게 만들지 않는다.
+			for _, sh := range a.Shown {
+				c := string(sh.Content)
+				if len(c) > 300 {
+					c = c[:300] + "…"
+				}
+				mark2 := ""
+				if sh.Truncated {
+					mark2 = " (잘림 — 전문은 record/blob 으로)"
+				}
+				fmt.Printf("    ┆ %s%s: %s\n", sh.Name, mark2, c)
+			}
+			// ★ 제안된 판정 기준 ★ (adopts) — 무엇을 승인하는지 보여준다.
+			if len(a.Proposes) > 0 {
+				pb, _ := json.Marshal(a.Proposes)
+				fmt.Printf("    ┆ 제안된 판정 기준: %s\n", pb)
+			}
 			// ★ 스키마가 곧 질문의 형태다 ★ — 무엇을 적어야 하는지 보여준다.
 			var form struct {
 				Required   []string                          `json:"required"`

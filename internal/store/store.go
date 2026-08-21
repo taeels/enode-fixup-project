@@ -32,6 +32,9 @@ type Store struct {
 	// Records 는 봉인된 Run Record 가 사는 곳이다 (ADR-015 §3).
 	// ★ DB 가 아니다 ★ — I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 한다.
 	Records *record.Store
+	// NotifyURL 은 되묻기 알림 웹훅이다 (ADR-032 §4). 비면 알림 없음.
+	// ★ 푸시는 보조다 ★ — 인박스(GET /v1/asks)가 정본이고, 유실돼도 재시도 없다.
+	NotifyURL string
 	// MaxLeasesPerRun 은 한 Run 이 동시에 쥘 수 있는 노드 수다 (ADR-024 §4.2).
 	// ★ 폭의 상한 ★ — 0 이면 무제한(오늘 그대로).
 	MaxLeasesPerRun int
@@ -292,7 +295,8 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 		return err
 	}
 	// ★ 첫 단계가 되묻기일 수 있다 ★ — 제출 즉시 물을 것은 물어야 한다.
-	if err := s.raiseAsks(ctx, tx, r.RunID); err != nil {
+	raisedAsks, err := s.raiseAsks(ctx, tx, r.RunID)
+	if err != nil {
 		return err
 	}
 	// ★ 실행 중에는 붙이기만 한다 ★ (성질 1: append-only) —
@@ -305,7 +309,12 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 			return err
 		}
 	}
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	// ★ 알림은 커밋 뒤에만 ★ — 트랜잭션 안에서 쏘면 롤백된 질문을 알리게 된다.
+	s.PushAsks(raisedAsks)
+	return nil
 }
 
 // CreateRejectedRun 은 매칭이 거절된 Run 을 기록한다.

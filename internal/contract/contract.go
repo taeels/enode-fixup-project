@@ -107,6 +107,14 @@ type Ask struct {
 	// 짐작하지 않는다. 선언하면 행동(then)도 함께 선언한다.
 	Timeout *AskTimeout `json:"timeout,omitempty"`
 
+	// Show 는 ★ 질문과 함께 보여줄 산출물 ★ 이다 (ADR-032 §4 보강).
+	//
+	// prompt 는 계약 시점의 문자열이라, 에이전트가 실행 중에 만든 질문 내용
+	// (예: "이 락 순서가 의도된 겁니까?" 를 담은 blob)을 사람이 보려면
+	// 따로 열어야 했다. ★ 보지 않고 답하게 만들면 안 된다 ★ — 인박스가
+	// 여기 적힌 산출물의 내용을 함께 든다 (큰 것은 잘라서, 잘렸음을 표시).
+	Show []string `json:"show,omitempty"`
+
 	// Adopts 는 ★ 목표 위임의 승인 지점 ★ 이다 (ADR-033).
 	//
 	// expands 단계 하나를 지목한다. 그 계획이 ★ 제안한 success_when ★ 은
@@ -961,6 +969,11 @@ func (c Contract) Validate() error {
 		// 단순화를 위해 중첩을 ★ 의도적으로 ★ 뺀다.
 		if err := checkAskForm(sch); err != nil {
 			return fmt.Errorf("step %q: %w", st.ID, err)
+		}
+		for _, name := range a.Show {
+			if !produced[name] {
+				return fmt.Errorf("step %q: show 가 아무도 내지 않는 %q 를 가리킨다", st.ID, name)
+			}
 		}
 		if a.Adopts != "" {
 			j, ok := index[a.Adopts]

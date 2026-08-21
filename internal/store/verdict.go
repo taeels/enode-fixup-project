@@ -20,9 +20,13 @@ const (
 	StepDone    = "DONE"
 	StepFailed  = "FAILED"
 	// StepSkipped 는 ★ 종료 상태이면서 실패가 아니다 ★.
-	// reap 의 집계가 PENDING·CLAIMED 를 「남은 것」, FAILED 를 「실패」로
+	// reap 의 집계가 PENDING·CLAIMED·ASKED 를 「남은 것」, FAILED 를 「실패」로
 	// ★ 열거해서 ★ 세므로, 여기 없는 상태는 저절로 둘 다 아니게 된다.
+	// ⇒ ★ 상태를 늘리면 그 열거를 반드시 다시 본다 ★ — ASKED 를 더할 때
+	//   빠뜨려서 ★ 질문이 열린 채 Run 이 끝나는 결함 ★ 을 실제로 밟았다.
 	StepSkipped = "SKIPPED"
+	// StepAsked 는 ★ 사람의 답을 기다린다 ★ (ADR-032). 남은 것으로 센다.
+	StepAsked = "ASKED"
 )
 
 // Check 는 계약 조건 하나의 대조 결과다. verdict.json 이 된다 (ADR-005).

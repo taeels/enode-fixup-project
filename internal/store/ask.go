@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -19,7 +21,7 @@ import (
 // ★ 대기는 일급 상태다 ★ — 조사한 15개 시스템 전부의 공통점이고, 자원을 쥔 채
 // 기다리는 것이 안티패턴의 교과서였다. ASKED 단계는 노드에 안 가고(claim 이
 // node_id 로 거른다) 자원을 안 잡는다. 발견은 인박스(PendingAsks)가 한다.
-func (s *Store) raiseAsks(ctx context.Context, tx pgx.Tx, runID string) error {
+func (s *Store) raiseAsks(ctx context.Context, tx pgx.Tx, runID string) ([]AskEvent, error) {
 	rows, err := tx.Query(ctx, `
 		SELECT s.seq FROM steps s
 		 WHERE s.run_id = $1 AND s.state = 'PENDING' AND s.kind = 'ask'
@@ -28,27 +30,28 @@ func (s *Store) raiseAsks(ctx context.Context, tx pgx.Tx, runID string) error {
 		        WHERE p.run_id = s.run_id AND p.name = ANY(s.needs)
 		          AND p.state NOT IN ('DONE','SKIPPED'))`, runID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var seqs []int
+	var raised []AskEvent
 	for rows.Next() {
 		var n int
 		if err := rows.Scan(&n); err != nil {
 			rows.Close()
-			return err
+			return nil, err
 		}
 		seqs = append(seqs, n)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return err
+		return nil, err
 	}
 	if len(seqs) == 0 {
-		return nil
+		return nil, nil
 	}
 	c, err := s.liveContractIn(ctx, tx, runID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, seq := range seqs {
 		if seq < 1 || seq > len(c.Steps) || c.Steps[seq-1].Ask == nil {
@@ -65,12 +68,56 @@ func (s *Store) raiseAsks(ctx context.Context, tx pgx.Tx, runID string) error {
 			UPDATE steps SET state='ASKED', started_at=now(), ask_deadline=$3
 			 WHERE run_id=$1 AND seq=$2 AND state='PENDING'`,
 			runID, seq, deadline); err != nil {
-			return err
+			return nil, err
 		}
-		s.log().Info("되묻기 — 답을 기다린다", "run", runID, "seq", seq,
-			"step", c.Steps[seq-1].ID)
+		st := c.Steps[seq-1]
+		s.log().Info("되묻기 — 답을 기다린다", "run", runID, "seq", seq, "step", st.ID)
+		raised = append(raised, AskEvent{
+			Event: "ask", RunID: runID, Seq: seq, Step: st.ID,
+			Prompt: st.Ask.Prompt, Answerers: st.Ask.Answerers, Deadline: deadline,
+			AnswerPath: fmt.Sprintf("/v1/runs/%s/steps/%d/answer", runID, seq),
+		})
 	}
-	return nil
+	return raised, nil
+}
+
+// AskEvent 는 푸시 웹훅에 실리는 것이다 (ADR-032 §4 — 푸시는 보조).
+//
+// ★ 인박스가 정본이고 푸시는 알림이다 ★ — 유실돼도 인박스에 남는다.
+// 그래서 재시도가 없다. answer_path 는 알림에서 바로 응답 지점으로 가는
+// 직링크 재료다 (조사의 Airflow 모범 — 알림에 응답 페이지 직링크).
+type AskEvent struct {
+	Event      string     `json:"event"`
+	RunID      string     `json:"run_id"`
+	Seq        int        `json:"seq"`
+	Step       string     `json:"step"`
+	Prompt     string     `json:"prompt"`
+	Answerers  []string   `json:"answerers,omitempty"`
+	Deadline   *time.Time `json:"deadline,omitempty"`
+	AnswerPath string     `json:"answer_path"`
+}
+
+// PushAsks 는 올라온 질문을 웹훅으로 알린다. ★ 커밋 뒤에만 부른다 ★ —
+// 트랜잭션 안에서 쏘면 롤백된 질문을 알리게 된다.
+func (s *Store) PushAsks(events []AskEvent) {
+	if s.NotifyURL == "" || len(events) == 0 {
+		return
+	}
+	go func() {
+		cl := &http.Client{Timeout: 5 * time.Second}
+		for _, e := range events {
+			body, err := json.Marshal(e)
+			if err != nil {
+				continue
+			}
+			resp, err := cl.Post(s.NotifyURL, "application/json", bytes.NewReader(body))
+			if err != nil {
+				s.log().Warn("되묻기 알림 실패 — 인박스가 정본이다", "err", err)
+				continue
+			}
+			resp.Body.Close()
+		}
+	}()
 }
 
 // AskView 는 인박스의 항목 하나다 (ADR-032 §4).
@@ -87,10 +134,59 @@ type AskView struct {
 	// CanAnswer 는 ★ 관점 필드 ★ 다 — 보는 사람 기준으로 서버가 채운다
 	// (GitHub 의 current_user_can_approve 모범). 저장되는 값이 아니다.
 	CanAnswer bool `json:"can_answer"`
+	// Shown 은 ★ 질문과 함께 보여줄 산출물의 내용 ★ 이다 (ask.show).
+	// ★ 보지 않고 답하게 만들면 안 된다 ★ — prompt 는 계약 시점 문자열이라
+	// 에이전트가 실행 중에 만든 질문 내용은 blob 에 있다. 그것을 여기 든다.
+	Shown []ShownArtifact `json:"shown,omitempty"`
 	// Proposes 는 이 ask 가 채택 여부를 묻는 ★ 제안된 판정 기준 ★ 이다 (ADR-033).
 	// ★ 무엇을 승인하는지 보지 않고 승인하게 만들면 안 된다 ★ — 그래서
 	// 인박스가 제안을 함께 든다.
 	Proposes []contract.Condition `json:"proposes,omitempty"`
+}
+
+// ShownArtifact 는 인박스에 함께 실리는 산출물 하나다.
+type ShownArtifact struct {
+	Name string `json:"name"`
+	// Content 는 JSON 이면 그대로, 아니면 문자열로 실린다.
+	Content json.RawMessage `json:"content"`
+	// Truncated 는 ★ 잘렸다 ★ 는 표시다 — 전문은 blob 표면으로 가져간다.
+	Truncated bool `json:"truncated,omitempty"`
+}
+
+// askShowLimit 는 인박스에 인라인으로 싣는 산출물의 상한이다.
+// ★ 인박스는 목록이다 ★ — 10MiB blob 을 통째로 실으면 원장이 목록인 이유
+// (ADR-023 §6.3)와 같은 문제가 여기서 난다. 넘으면 자르고 표시한다.
+const askShowLimit = 32 << 10
+
+// shownArtifacts 는 ask.show 가 지목한 산출물들을 읽어 온다.
+func (s *Store) shownArtifacts(runID string, names []string) []ShownArtifact {
+	if s.Records == nil {
+		return nil
+	}
+	out := make([]ShownArtifact, 0, len(names))
+	for _, name := range names {
+		rc, _, err := s.Records.OpenBlob(runID, name)
+		if err != nil {
+			continue // 아직 안 나온 산출물 — 없는 채로 보여준다
+		}
+		buf := make([]byte, askShowLimit+1)
+		n, _ := io.ReadFull(rc, buf)
+		rc.Close()
+		a := ShownArtifact{Name: name}
+		if n > askShowLimit {
+			a.Truncated = true
+			n = askShowLimit
+		}
+		body := buf[:n]
+		if json.Valid(body) && !a.Truncated {
+			a.Content = body
+		} else {
+			enc, _ := json.Marshal(string(body))
+			a.Content = enc
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 // PendingAsks 는 답을 기다리는 되묻기 전부다 — 인박스의 정본 표면.
@@ -127,6 +223,10 @@ func (s *Store) PendingAsks(ctx context.Context) ([]AskView, error) {
 			if b, err := json.Marshal(st.Schema[st.Out[0]]); err == nil {
 				v.Schema = b
 			}
+		}
+		// ★ 질문과 함께 볼 것을 든다 ★ (ask.show).
+		if len(st.Ask.Show) > 0 {
+			v.Shown = s.shownArtifacts(v.RunID, st.Ask.Show)
 		}
 		// ★ 무엇을 승인하는지 함께 든다 ★ — adopts 대상의 마지막 제안.
 		if st.Ask.Adopts != "" && len(versRaw) > 0 {
@@ -251,10 +351,16 @@ func (s *Store) AnswerStep(ctx context.Context, runID string, seq int,
 	if rolled {
 		return true, tx.Commit(ctx)
 	}
-	if err := s.afterStep(ctx, tx, runID, seq); err != nil {
+	raisedAsks, err := s.afterStep(ctx, tx, runID, seq)
+	if err != nil {
 		return false, err
 	}
-	return false, tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return false, err
+	}
+	// ★ 알림은 커밋 뒤에만 ★ — 답이 다음 질문을 올렸을 수 있다 (질문의 사슬).
+	s.PushAsks(raisedAsks)
+	return false, nil
 }
 
 // adoptProposal 은 계획이 제안한 success_when 을 ★ 사람의 답으로 채택한다 ★ (ADR-033).

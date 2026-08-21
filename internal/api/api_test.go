@@ -360,6 +360,7 @@ func newServerFast(t *testing.T, opts ...func(*config.Config)) (*httptest.Server
 	}
 	st.MaxContractVersions = cfg.Contract.MaxVersions
 	st.MaxLeasesPerRun = cfg.Lease.MaxPerRun
+	st.NotifyURL = cfg.Notify.AsksURL
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	srv := httptest.NewServer(api.New(st, cfg, log).Handler())
 	t.Cleanup(srv.Close)
@@ -2480,5 +2481,99 @@ func TestGoal_거절하면_기준이_효력을_얻지_않는다(t *testing.T) {
 	_ = json.Unmarshal(mraw, &m)
 	if len(m.Contract) != 2 {
 		t.Fatalf("★ 거절인데 판이 %d 개다 ★ — 채택 판이 붙으면 안 된다", len(m.Contract))
+	}
+}
+
+// ═══ show 와 푸시 (ADR-032 §4 보강) ══════════════════════════════════════
+
+// ★ 인박스가 질문의 「내용」을 든다 ★ — prompt 는 계약 시점 문자열이라,
+// 에이전트가 실행 중에 만든 질문은 blob 에 있다. 보지 않고 답하게 만들면 안 된다.
+func TestAsk_show가_산출물_내용을_인박스에_싣는다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("s1", "a", map[string]string{"role": "x"}), nil)
+	agentQ := map[string]any{
+		"id": "probe", "uses": "b",
+		"agent": map[string]any{"ask": "never"},
+		"out":   []string{"question"}}
+	gate := map[string]any{
+		"id": "gate", "needs": []string{"probe"},
+		"ask": map[string]any{"prompt": "에이전트의 질문에 답해 주십시오.",
+			"show": []string{"question"}},
+		"out": []string{"decision"},
+		"schema": map[string]any{"decision": map[string]any{
+			"type": "object", "required": []string{"answer"},
+			"properties": map[string]any{"answer": map[string]any{"type": "string"}}}}}
+	body := contractJSON("show1", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{agentQ, gate})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/s1/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/show1/steps/1/blob/question",
+		`{"질문":"이 락 순서가 의도된 겁니까?"}`, nil)
+	do(t, srv, "POST", "/v1/runs/show1/steps/1/result", `{"node":"s1","produced":["question"]}`, nil)
+
+	_, inbox := do(t, srv, "GET", "/v1/asks", "", nil)
+	raw, _ := json.Marshal(inbox["asks"])
+	if !strings.Contains(string(raw), "이 락 순서가 의도된 겁니까?") {
+		t.Fatalf("★ 질문의 내용이 인박스에 없다 ★: %s", raw)
+	}
+	// ★ show 가 없는 산출물을 가리키면 400 ★ — 계약 검증.
+	bad := contractJSON("show2", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{agentQ, func() map[string]any {
+			g := map[string]any{}
+			for k, v := range gate {
+				g[k] = v
+			}
+			g["ask"] = map[string]any{"prompt": "?", "show": []string{"없는것"}}
+			return g
+		}()})
+	if code, _ := do(t, srv, "POST", "/v1/runs", bad, nil); code != 400 {
+		t.Fatalf("★ 없는 산출물을 show 하는데 %d ★", code)
+	}
+}
+
+// ★ 푸시는 보조다 ★ — 질문이 올라오면 웹훅으로 알리고, 인박스가 정본으로 남는다.
+func TestAsk_질문이_올라오면_웹훅이_운다(t *testing.T) {
+	got := make(chan []byte, 4)
+	hook := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got <- b
+		w.WriteHeader(200)
+	}))
+	defer hook.Close()
+
+	srv, _ := newServerFast(t, func(c *config.Config) { c.Notify.AsksURL = hook.URL })
+	do(t, srv, "POST", "/v1/nodes", advert("p9", "a", map[string]string{"role": "x"}), nil)
+	// ★ 첫 단계가 되묻기다 ★ — 제출 즉시 웹훅이 울어야 한다.
+	gate := map[string]any{
+		"id":  "gate",
+		"ask": map[string]any{"prompt": "시작할까요?"},
+		"out": []string{"decision"},
+		"schema": map[string]any{"decision": map[string]any{
+			"type": "object", "required": []string{"verdict"},
+			"properties": map[string]any{
+				"verdict": map[string]any{"enum": []string{"approve", "reject"}}}}}}
+	body := contractJSON("push1", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{gate, runStep("work", "b")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	select {
+	case b := <-got:
+		var e struct {
+			Event      string `json:"event"`
+			RunID      string `json:"run_id"`
+			Prompt     string `json:"prompt"`
+			AnswerPath string `json:"answer_path"`
+		}
+		if json.Unmarshal(b, &e) != nil || e.Event != "ask" || e.RunID != "push1" {
+			t.Fatalf("★ 웹훅 내용이 틀렸다 ★: %s", b)
+		}
+		if !strings.Contains(e.AnswerPath, "/steps/1/answer") {
+			t.Fatalf("★ 응답 직링크가 없다 ★: %s", b)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("★ 웹훅이 안 울었다 ★")
 	}
 }
