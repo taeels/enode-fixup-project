@@ -66,11 +66,52 @@ func (s *Store) applyDispatch(ctx context.Context, tx pgx.Tx, runID string, seq 
 			others = append(others, t)
 		}
 	}
-	_, err = tx.Exec(ctx, `
+	if _, err := tx.Exec(ctx, `
 		UPDATE steps SET state=$3, ended_at=now()
 		 WHERE run_id=$1 AND name = ANY($2) AND state='PENDING'`,
-		runID, others, StepSkipped)
-	return err
+		runID, others, StepSkipped); err != nil {
+		return err
+	}
+	return propagateSkips(ctx, tx, runID)
+}
+
+// propagateSkips 는 ★ SKIPPED 를 간선을 따라 전파한다 ★ (ADR-023 §7.2).
+//
+// ★ 왜 필요한가 ★ — dispatch.to 만 SKIPPED 로 바꾸면 갈림길이 ★ 단계 하나짜리일
+// 때만 ★ 맞다. 안 간 경로가 두 단계 이상이면 그 뒷단계가 PENDING 으로 남아
+// ★ 그대로 실행된다 ★. 전파에는 따라갈 길이 필요하고, 그 길이 needs 다.
+// ⇒ ★ dispatch 는 간선을 고르고 needs 는 간선을 선언한다 ★. 같은 그래프의 두 면이다.
+//
+// ★ 규칙 ★
+//
+//	needs 가 ★ 전부 SKIPPED 일 때만 ★ 그 단계도 SKIPPED 다.
+//	하나라도 DONE 이면 그 단계는 돈다 — join 은 ★ 살아 있는 가지가 있으면 성립 ★ 한다.
+//
+// needs 가 빈 단계는 대상이 아니다 — 아무것도 안 기다리는 것은 시작점이지
+// "의존이 전부 건너뛰어졌다" 가 아니다.
+//
+// ★ 판정 규칙은 하나도 안 는다 ★ — 건너뛴 단계의 success_when 은 공허하게 참이고
+// (INVARIANTS), 대조된 조건이 0 개면 FAILED 라는 하한도 이미 있다.
+func propagateSkips(ctx context.Context, tx pgx.Tx, runID string) error {
+	// 한 번의 UPDATE 는 ★ 한 칸만 ★ 간다. 새로 SKIPPED 가 된 것이 또 다음을
+	// 건너뛰게 하므로 더 바뀌지 않을 때까지 돈다. 매 회차가 PENDING 을 최소
+	// 하나씩 줄이므로 ★ 단계 수 안에 반드시 멈춘다 ★.
+	for {
+		tag, err := tx.Exec(ctx, `
+			UPDATE steps s SET state=$2, ended_at=now()
+			 WHERE s.run_id = $1 AND s.state = 'PENDING'
+			   AND cardinality(s.needs) > 0
+			   AND NOT EXISTS (
+			       SELECT 1 FROM steps p
+			        WHERE p.run_id = s.run_id AND p.name = ANY(s.needs)
+			          AND p.state <> $2)`, runID, StepSkipped)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return nil
+		}
+	}
 }
 
 // readDispatchValue 는 산출물에서 이름 하나를 꺼낸다.

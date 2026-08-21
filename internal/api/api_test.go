@@ -997,3 +997,131 @@ func TestDispatch_이름을_못_고르면_그_단계가_실패한다(t *testing.
 		t.Fatalf("★ 라우팅이 실패했는데 경로가 돌았다 ★: %v", c)
 	}
 }
+
+// ═══ 폭 — ★ 리스트가 강제하던 전순서를 간선으로 푼다 ★ (ADR-023) ═════════
+//
+// 오늘까지 의존은 ★ 목록에서의 위치 ★ 였다. steps[] 가 리스트이므로 리스트가
+// 전순서를 주고, 그래서 한 번에 하나만 돌았다. needs 는 그것을 선언된 간선으로
+// 바꾼다 — ★ 표현이 늘지 않고 관계만 는다 ★.
+
+// ★ 안 적으면 오늘 그대로 ★ — 기본값이 [직전 단계] 라 순차 계약이 안 바뀐다.
+func TestNeeds_안_적으면_오늘과_같은_순서로_돈다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n1", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("seq3", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{runStep("one", "b"), runStep("two", "b"), runStep("three", "b")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	for i, want := range []string{"one", "two", "three"} {
+		code, c := do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
+		if code != 200 || c["name"] != want {
+			t.Fatalf("%d 번째로 %v 가 나왔다 — %q 여야 한다", i+1, c["name"], want)
+		}
+		if code, _ := do(t, srv, "POST",
+			fmt.Sprintf("/v1/runs/seq3/steps/%d/result", i+1),
+			`{"node":"n1","exit_code":0}`, nil); code != 200 {
+			t.Fatalf("보고 실패: %d", code)
+		}
+	}
+}
+
+// ★ 의존이 없는 두 단계가 동시에 집힌다 ★ — 여기가 폭이 실물이 되는 자리다.
+//
+// 오늘(seq 게이트)이면 두 번째 노드는 ★ 앞 단계가 안 끝났다 ★ 는 이유로 204 를
+// 받는다. needs 가 열리면 서로 안 가리키므로 ★ 둘 다 집힌다 ★.
+func TestNeeds_의존_없는_둘이_동시에_집힌다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("p1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("p2", "a", map[string]string{"role": "y"}), nil)
+
+	left := runStep("left", "b")
+	left["needs"] = []string{}
+	right := runStep("right", "c")
+	right["needs"] = []string{}
+	body := contractJSON("par", []map[string]any{
+		req("b", map[string]any{"role": "x"}), req("c", map[string]any{"role": "y"})},
+		[]map[string]any{left, right})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	code1, c1 := do(t, srv, "POST", "/v1/nodes/p1/claim", "", nil)
+	code2, c2 := do(t, srv, "POST", "/v1/nodes/p2/claim", "", nil)
+	if code1 != 200 || c1["name"] != "left" {
+		t.Fatalf("p1 이 left 를 못 집었다: %d %v", code1, c1)
+	}
+	if code2 != 200 || c2["name"] != "right" {
+		t.Fatalf("★ 두 번째가 동시에 안 집혔다 ★: %d %v — "+
+			"전순서가 아직 남아 있다는 뜻이다", code2, c2)
+	}
+}
+
+// ★ join 은 needs 가 전부 끝난 뒤에만 집힌다 ★ — 폭을 열어도 합류는 기다린다.
+func TestNeeds_조인은_전부_끝난_뒤에_집힌다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("j1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("j2", "a", map[string]string{"role": "y"}), nil)
+
+	left := runStep("left", "b")
+	left["needs"] = []string{}
+	right := runStep("right", "c")
+	right["needs"] = []string{}
+	join := runStep("join", "b")
+	join["needs"] = []string{"left", "right"}
+	body := contractJSON("joi", []map[string]any{
+		req("b", map[string]any{"role": "x"}), req("c", map[string]any{"role": "y"})},
+		[]map[string]any{left, right, join})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/j1/claim", "", nil)                                     // left
+	do(t, srv, "POST", "/v1/nodes/j2/claim", "", nil)                                     // right
+	do(t, srv, "POST", "/v1/runs/joi/steps/1/result", `{"node":"j1","exit_code":0}`, nil) // left 만 끝난다
+	if code, c := do(t, srv, "POST", "/v1/nodes/j1/claim", "", nil); code == 200 {
+		t.Fatalf("★ 한쪽만 끝났는데 join 이 집혔다 ★: %v", c)
+	}
+	do(t, srv, "POST", "/v1/runs/joi/steps/2/result", `{"node":"j2","exit_code":0}`, nil) // right 도 끝난다
+	if code, c := do(t, srv, "POST", "/v1/nodes/j1/claim", "", nil); code != 200 || c["name"] != "join" {
+		t.Fatalf("★ 전부 끝났는데 join 이 안 집혔다 ★: %d %v", code, c)
+	}
+}
+
+// ★ SKIPPED 는 간선을 따라 전파한다 ★ (ADR-023 §7).
+//
+// dispatch.to 만 SKIPPED 로 바꾸면 갈림길이 ★ 단계 하나짜리일 때만 ★ 맞다.
+// 안 간 경로가 두 단계 이상이면 그 뒷단계가 PENDING 으로 남아 ★ 그대로 실행된다 ★.
+func TestSkipped_간선을_따라_전파된다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("s1", "a", map[string]string{"role": "x"}), nil)
+
+	triage := map[string]any{
+		"id": "triage", "uses": "b",
+		"agent": map[string]any{"ask": "never"},
+		"out":   []string{"route"},
+		"schema": map[string]any{"route": map[string]any{
+			"type": "object", "required": []string{"next"},
+			"properties": map[string]any{
+				"next": map[string]any{"enum": []string{"full", "quick"}}}}},
+		"dispatch": map[string]any{"from": "route.next", "to": []string{"full", "quick"}},
+	}
+	// full 다음에 full2 가 매달린다. quick 을 고르면 ★ 둘 다 죽어야 한다 ★.
+	full2 := runStep("full2", "b")
+	full2["needs"] = []string{"full"}
+	body := contractJSON("prop", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{triage, runStep("full", "b"), full2, runStep("quick", "b")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/s1/claim", "", nil) // triage
+	do(t, srv, "PUT", "/v1/runs/prop/steps/1/blob/route", `{"next":"quick"}`, nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs/prop/steps/1/result",
+		`{"node":"s1","produced":["route"]}`, nil); code != 200 {
+		t.Fatalf("보고 실패: %d", code)
+	}
+	// claim 은 seq 순이므로 full2(seq 3)가 살아 있으면 quick(seq 4)보다 먼저 나온다.
+	code, next := do(t, srv, "POST", "/v1/nodes/s1/claim", "", nil)
+	if code != 200 || next["name"] != "quick" {
+		t.Fatalf("★ 안 간 경로의 뒷단계가 살아남았다 ★: %d %v — "+
+			"전파가 간선을 안 따라갔다", code, next)
+	}
+}

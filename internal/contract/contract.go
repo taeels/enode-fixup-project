@@ -239,6 +239,27 @@ type Step struct {
 	// 경로면 Record 를 열었을 때 무엇으로 검증했는지 알 수 없다 (성질 4).
 	Schema map[string]interface{} `json:"schema,omitempty"`
 
+	// Needs 는 ★ 이 단계가 기다리는 단계들 ★ 이다 (ADR-023 §4).
+	//
+	// 오늘까지 의존은 ★ 목록에서의 위치 ★ 였다 — steps[] 가 리스트이므로
+	// 리스트가 전순서를 주고, 그래서 ★ 한 번에 하나만 돌았다 ★. needs 는 그
+	// 전순서를 ★ 선언된 간선 ★ 으로 바꾼다. 표현이 늘지 않는다 — steps[] 는
+	// 평평한 목록 그대로이고 관계만 는다.
+	//
+	// ★ 없으면 [직전 단계] 다 ★ — 그래서 안 적은 계약은 오늘과 똑같이 돈다.
+	// 기본값은 ★ NeedsOf 가 채운다 ★. 게이트는 ★ 한 형태만 알면 된다 ★:
+	// 필드가 있는 경우와 없는 경우로 코드가 갈리지 않는다.
+	//
+	// ★ nil 과 빈 배열이 다르다 ★
+	//	nil (필드 없음)  → [직전 단계]. 오늘 그대로
+	//	[]  (빈 배열)    → ★ 아무것도 안 기다린다 ★ = 병렬 시작점
+	// 그래서 첫 단계가 아니어도 시작점이 될 수 있고, 그것이 폭을 여는 방법이다.
+	//
+	// ★ 자기보다 앞선 seq 만 가리킨다 ★ (ADR-023 §4.3) — DAG 검사가 한 번
+	// 훑는 것으로 끝나고 종료가 제출 시점에 정적으로 보장된다. 뒤로 가야 하는
+	// 것은 의존이 아니라 ★ 반복 ★ 이고 그건 repeat 의 자리다 (dispatch 와 같다).
+	Needs []string `json:"needs,omitempty"`
+
 	// Dispatch 는 ★ 분기다 — 식을 평가하지 않고 이름을 고른다 ★ (ADR-022 §7.2).
 	//
 	// 기각한 것은 「결과가 X 면 A」 라는 ★ 표현식 ★ 이지 분기 자체가 아니다.
@@ -253,6 +274,46 @@ type Step struct {
 	Feedback     []string `json:"feedback,omitempty"`
 
 	Repeat int `json:"repeat,omitempty"`
+}
+
+// NeedsOf 는 steps 의 i 번째(0 부터) 단계가 기다리는 단계 이름들이다.
+//
+// ★ 기본값을 여기 한 곳에서 채운다 ★ — 계약을 읽는 쪽이 여럿이므로
+// "필드가 없으면 직전 단계" 를 각자 알게 두면 언젠가 한 곳이 어긋난다.
+// CreateRun 이 이 값을 steps 행에 박고, 그 뒤로는 ★ DB 가 한 형태만 든다 ★.
+//
+// ★ 계약 전문은 안 바꾼다 ★ — 정규화 결과를 계약에 되쓰면 봉인된 manifest 가
+// 제출 전문이 아니게 되어 ADR-005 성질 4(이 묶음만 열면 무엇을 요청했는지 안다)가
+// 깨진다. steps 행은 계약에서 유도된 파생이므로 거기 박는 것이 맞는 자리다.
+func NeedsOf(steps []Step, i int) []string {
+	if i < 0 || i >= len(steps) {
+		return nil
+	}
+	if n := steps[i].Needs; n != nil {
+		return n // ★ 빈 배열도 선언이다 ★ — "아무것도 안 기다린다"
+	}
+	// ★ 분기 목적지는 형제다 ★ — dispatch.to 에 이름이 올라 있다는 것 자체가
+	// 이미 선언이므로, 기본값은 직전 단계가 아니라 ★ 분기를 낸 단계 ★ 다.
+	//
+	// ★ 이것을 빠뜨리면 형제가 사슬로 이어진다 ★ — to: ["full","quick"] 에서
+	// quick 의 기본값이 [full] 이 되고, full 이 SKIPPED 가 되는 순간 전파가
+	// ★ 살아 있어야 할 가지까지 죽인다 ★. 순서 의미로도 틀리다 — full 다음에
+	// quick 이 오는 것이 아니다.
+	for j := 0; j < i; j++ {
+		d := steps[j].Dispatch
+		if d == nil {
+			continue
+		}
+		for _, t := range d.To {
+			if t == steps[i].ID {
+				return []string{steps[j].ID}
+			}
+		}
+	}
+	if i == 0 {
+		return []string{}
+	}
+	return []string{steps[i-1].ID}
 }
 
 // Kind 는 단계의 종류를 판별한다.
@@ -363,6 +424,29 @@ func (c Contract) Validate() error {
 	for i, st := range c.Steps {
 		index[st.ID] = i
 	}
+	// ★ needs 도 목록이 다 모인 뒤에 본다 ★ (ADR-023 §4.3).
+	// 검사는 dispatch 의 j <= i 와 ★ 같은 모양 ★ 이고 같은 것을 지킨다 —
+	// 간선이 전부 뒤를 향하면 그래프가 DAG 이므로 ★ 종료가 제출 시점에 보장된다 ★.
+	for i, st := range c.Steps {
+		seen := map[string]bool{}
+		for _, n := range st.Needs {
+			if seen[n] {
+				return fmt.Errorf("step %q: needs 에 %q 가 두 번 있다", st.ID, n)
+			}
+			seen[n] = true
+			j, ok := index[n]
+			if !ok {
+				return fmt.Errorf("step %q: needs 가 없는 단계 %q 를 가리킨다", st.ID, n)
+			}
+			// ★ 뒤로 못 간다 ★ — 자기 자신도 여기서 걸린다 (j == i).
+			// 뒤로 가야 하는 것은 의존이 아니라 반복이고 그건 repeat 의 자리다.
+			if j >= i {
+				return fmt.Errorf("step %q: needs 의 %q 가 자기보다 뒤다 — "+
+					"의존은 뒤로 못 간다 (뒤로 가야 하면 repeat 다)", st.ID, n)
+			}
+		}
+	}
+
 	for i, st := range c.Steps {
 		d := st.Dispatch
 		if d == nil {

@@ -248,3 +248,83 @@ func TestValidate_dispatch(t *testing.T) {
 		}
 	}
 }
+
+// ★ needs 검증 — dispatch 와 같은 것을 지킨다 ★ (ADR-023 §4.3)
+//
+// 간선이 전부 뒤를 향하면 그래프가 DAG 이고, 그래서 ★ 종료가 제출 시점에
+// 정적으로 보장된다 ★. 뒤로 가야 하는 것은 의존이 아니라 반복이다.
+func TestValidate_needs(t *testing.T) {
+	mk := func(needs []string) Contract {
+		return Contract{
+			RunID:    "r1",
+			Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+			Steps: []Step{
+				{ID: "one", Uses: "b", Run: []string{"true"}},
+				{ID: "two", Uses: "b", Run: []string{"true"}},
+				{ID: "three", Uses: "b", Run: []string{"true"}, Needs: needs},
+			},
+		}
+	}
+	for _, ok := range [][]string{nil, {}, {"one"}, {"one", "two"}} {
+		if err := mk(ok).Validate(); err != nil {
+			t.Fatalf("정상 needs %v 가 거절됐다: %v", ok, err)
+		}
+	}
+	for name, bad := range map[string][]string{
+		"없는 단계를 가리킨다":  {"없는것"},
+		"중복이 있다":       {"one", "one"},
+		"★ 자기를 가리킨다 ★": {"three"},
+	} {
+		if err := mk(bad).Validate(); err == nil {
+			t.Fatalf("%s — 통과했다: %v", name, bad)
+		}
+	}
+	// ★ 뒤를 가리킨다 ★ — 위상순서를 깨는 계약은 제출 시점에 막힌다.
+	back := Contract{
+		RunID:    "r1",
+		Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+		Steps: []Step{
+			{ID: "one", Uses: "b", Run: []string{"true"}, Needs: []string{"two"}},
+			{ID: "two", Uses: "b", Run: []string{"true"}},
+		},
+	}
+	if err := back.Validate(); err == nil {
+		t.Fatal("★ 뒤를 가리키는 needs 가 통과했다 ★ — DAG 가 안 지켜진다")
+	}
+}
+
+// ★ 기본값은 한 곳에서 채운다 ★ — 읽는 쪽이 여럿이라 각자 알게 두면 어긋난다.
+func TestNeedsOf_기본값(t *testing.T) {
+	steps := []Step{
+		{ID: "one"},
+		{ID: "two"},                      // 안 적었다 → [직전]
+		{ID: "three", Needs: []string{}}, // ★ 빈 배열은 선언이다 ★ → 안 기다린다
+		{ID: "four", Needs: []string{"one"}},
+	}
+	for i, want := range [][]string{{}, {"one"}, {}, {"one"}} {
+		got := NeedsOf(steps, i)
+		if len(got) != len(want) || (len(want) == 1 && got[0] != want[0]) {
+			t.Fatalf("steps[%d] = %v — %v 여야 한다", i, got, want)
+		}
+	}
+}
+
+// ★ 분기 목적지는 형제다 ★ — 직전 단계가 아니라 분기를 낸 단계 다음이다.
+//
+// 이것을 빠뜨리면 to: ["full","quick"] 에서 quick 의 기본값이 [full] 이 되어
+// ★ 형제가 사슬로 이어지고 ★, full 이 SKIPPED 가 되는 순간 전파가
+// ★ 살아 있어야 할 가지까지 죽인다 ★. 구현이 이 빈틈을 찾았다.
+func TestNeedsOf_분기_목적지는_분기_단계를_가리킨다(t *testing.T) {
+	steps := []Step{
+		{ID: "triage", Dispatch: &Dispatch{From: "route.next", To: []string{"full", "quick"}}},
+		{ID: "full"},
+		{ID: "quick"},
+	}
+	for i, name := range []string{"full", "quick"} {
+		got := NeedsOf(steps, i+1)
+		if len(got) != 1 || got[0] != "triage" {
+			t.Fatalf("%s 의 기본 needs 가 %v 다 — [triage] 여야 한다 "+
+				"(형제를 사슬로 이으면 전파가 산 가지를 죽인다)", name, got)
+		}
+	}
+}

@@ -233,10 +233,14 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 		if err != nil {
 			return err
 		}
+		// ★ 기본값을 여기서 채워 넣는다 ★ (ADR-023 §4) — needs 를 안 적은 계약은
+		// [직전 단계] 가 되어 오늘과 똑같이 돈다. 계약 전문은 안 바꾼다:
+		// 정규화 결과는 파생인 steps 행에만 산다 (ADR-005 성질 4).
 		if _, err := tx.Exec(ctx,
-			`INSERT INTO steps (run_id, seq, name, uses, kind, state, node_id)
-			 VALUES ($1,$2,$3,$4,$5,'PENDING',$6)`,
-			r.RunID, i+1, st.ID, st.Uses, kind.String(), nodeOf[st.Uses]); err != nil {
+			`INSERT INTO steps (run_id, seq, name, uses, kind, state, node_id, needs)
+			 VALUES ($1,$2,$3,$4,$5,'PENDING',$6,$7)`,
+			r.RunID, i+1, st.ID, st.Uses, kind.String(), nodeOf[st.Uses],
+			contract.NeedsOf(steps, i)); err != nil {
 			return err
 		}
 	}

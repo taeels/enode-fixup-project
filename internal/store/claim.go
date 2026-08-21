@@ -95,8 +95,13 @@ var ErrNoWork = errors.New("할 일이 없다")
 //	저쪽은 여러 자원을 한꺼번에 잡거나 전부 포기하는 것이고,
 //	이쪽은 대기열에서 하나를 집는 것이다.
 //
-// 앞 단계가 전부 DONE 이어야 집을 수 있다 — Mediator 가 시퀀서이기 때문이다
+// ★ needs 가 전부 끝나야 집을 수 있다 ★ — Mediator 가 시퀀서이기 때문이다
 // (ADR-014 결정 1). 순서는 계약에 있고 여기서 강제된다.
+//
+// ★ 배분 정책은 여기 없고, 앞으로도 안 생긴다 ★ (ADR-023 §5) —
+// 단계의 node_id 는 CreateRun 이 t=0 에 확정하고 이 질의는 WHERE s.node_id = $1 로
+// 자기 몫만 본다. 즉 ★ 당기기가 이미 배분이다 ★. 실행 가능한 단계가 셋인데
+// 노드가 둘이어도 고를 일이 없다 — 애초에 각자 자기 것만 보인다.
 func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -114,10 +119,17 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 		   AND s.state = 'PENDING'
 		   AND r.state = 'RUNNING'
 		   AND NOT EXISTS (
+		       -- ★ 술어가 여기 하나뿐이고, 그것이 폭이다 ★ (ADR-023 §4).
+		       -- 오늘까지는 p.seq < s.seq 였다 — ★ 목록에서의 위치가 의존 ★ 이라
+		       -- 한 번에 하나만 돌았다. 이제 ★ 선언된 간선이 의존 ★ 이므로,
+		       -- 서로 안 가리키는 단계들은 ★ 동시에 집힌다 ★.
+		       -- needs 를 안 적은 계약은 [직전 단계] 로 채워져 들어오므로
+		       -- ★ 여기는 한 형태만 안다 ★ (CreateRun 이 정규화한다).
+		       --
 		       -- ★ SKIPPED 도 끝난 것이다 ★ (ADR-022 §7.2) — dispatch 가 안 간 쪽을
 		       -- 여기 남겨두면 뒤 단계가 ★ 영원히 안 집힌다 ★.
 		       SELECT 1 FROM steps p
-		        WHERE p.run_id = s.run_id AND p.seq < s.seq
+		        WHERE p.run_id = s.run_id AND p.name = ANY(s.needs)
 		          AND p.state NOT IN ('DONE','SKIPPED'))
 		 ORDER BY s.run_id, s.seq
 		   FOR UPDATE OF s SKIP LOCKED

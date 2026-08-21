@@ -66,5 +66,20 @@ CREATE TABLE IF NOT EXISTS steps (
     started_at timestamptz,
     ended_at   timestamptz,
     result   jsonb,                     -- exit_code · produced · harness (ADR-020)
+    -- ★ 이 단계가 기다리는 단계 이름들 ★ (ADR-023 §4). 게이트의 술어가 여기 선다.
+    -- 계약의 steps[].needs 를 ★ 정규화한 값 ★ 이다 — 안 적은 계약은 [직전 단계] 로
+    -- 채워져 들어오므로 ★ 게이트는 한 형태만 안다 ★. 빈 배열은 "안 기다린다" 다.
+    needs    text[]      NOT NULL DEFAULT '{}',
     PRIMARY KEY (run_id, seq)
 );
+
+-- ★ 이 열이 생기기 전에 만들어진 행의 백필 ★
+-- NULL 로 붙였다가 [직전 단계] 로 채우고 NOT NULL 로 조인다. NULL 이 곧
+-- "열이 생기기 전" 의 표지다 — 빈 배열(안 기다린다)과 섞이지 않는다.
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS needs text[];
+UPDATE steps s SET needs = coalesce(
+         (SELECT ARRAY[p.name] FROM steps p
+           WHERE p.run_id = s.run_id AND p.seq = s.seq - 1), '{}')
+ WHERE s.needs IS NULL;
+ALTER TABLE steps ALTER COLUMN needs SET DEFAULT '{}';
+ALTER TABLE steps ALTER COLUMN needs SET NOT NULL;
