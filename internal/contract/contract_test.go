@@ -448,3 +448,61 @@ func TestValidate_시야(t *testing.T) {
 		}
 	}
 }
+
+// ★ release 검증 — 폭이 열리면서 조건이 강해졌다 ★ (ADR-022 §7.4 + ADR-023)
+//
+// 순차였다면 "뒤에서 안 쓰면 된다" 로 족했다. 병렬에서는 ★ 순서가 정해지지 않은
+// 단계가 동시에 돌 수 있고 ★, 그 단계가 놓아버린 역할을 쓰면 실행 중에 임대가
+// 사라진다. ⇒ ★ 그 역할을 쓰는 모든 단계가 놓는 단계의 조상이어야 한다 ★.
+func TestValidate_release(t *testing.T) {
+	mk := func(steps []Step) Contract {
+		return Contract{
+			RunID: "r1",
+			Requires: []Require{
+				{As: "b", Capability: CapabilityAgentReason},
+				{As: "c", Capability: CapabilityAgentReason}},
+			Steps: steps,
+		}
+	}
+	run := func(id, uses string, needs []string, release ...string) Step {
+		return Step{ID: id, Uses: uses, Run: []string{"true"}, Needs: needs, Release: release}
+	}
+
+	// ★ 조상이면 통과 ★ — first 가 second 보다 확실히 앞선다.
+	if err := mk([]Step{
+		run("first", "b", nil),
+		run("second", "c", nil, "b"),
+	}).Validate(); err != nil {
+		t.Fatalf("정상 release 가 거절됐다: %v", err)
+	}
+
+	// ★ 뒤에서 쓰면 거절 ★
+	if err := mk([]Step{
+		run("drop", "c", nil, "b"),
+		run("later", "b", nil),
+	}).Validate(); err == nil {
+		t.Fatal("★ 놓은 자원을 뒤에서 쓰는 계약이 통과했다 ★")
+	}
+
+	// ★ 순서가 안 정해졌으면 거절 ★ — 동시에 돌 수 있으므로 조상이 아니다.
+	// sibling 은 needs 가 비어 있어 drop 과 순서 관계가 없다.
+	if err := mk([]Step{
+		run("gate", "c", nil),
+		run("sibling", "b", []string{}),
+		run("drop", "c", []string{"gate"}, "b"),
+	}).Validate(); err == nil {
+		t.Fatal("★ 동시에 돌 수 있는 단계의 자원을 놓는 계약이 통과했다 ★ — " +
+			"실행 중에 임대가 사라진다")
+	}
+
+	// 없는 역할 · 중복
+	if err := mk([]Step{run("one", "b", nil, "없는역할")}).Validate(); err == nil {
+		t.Fatal("없는 역할을 놓는 계약이 통과했다")
+	}
+	if err := mk([]Step{
+		run("first", "b", nil),
+		run("second", "c", nil, "b", "b"),
+	}).Validate(); err == nil {
+		t.Fatal("중복 release 가 통과했다")
+	}
+}

@@ -382,6 +382,21 @@ type Step struct {
 	// 것은 의존이 아니라 ★ 반복 ★ 이고 그건 repeat 의 자리다 (dispatch 와 같다).
 	Needs []string `json:"needs,omitempty"`
 
+	// Release 는 ★ 여기서 놓는 역할들 ★ 이다 (ADR-022 §7.4).
+	//
+	// 분기가 생기면 어느 경로로 갈지 모르므로 ★ 모든 경로의 자원을 잡아야 한다 ★(I5).
+	// 문제는 안 쓰는 노드를 Run 내내 묶는 것이고, 경로가 확정된 뒤 놓으면 풀린다.
+	// ★ 계획 위임이 이 조건을 더 강하게 만든다 ★ — 계획을 기계가 지으면 사람은
+	// ★ 무엇이 쓰일지 모른 채 ★ requires 를 선언하므로 넉넉히 잡게 된다.
+	//
+	// ★ 새 개념이 아니다 ★ — 임대는 원래 not_after 로 만료되고(ADR-008),
+	// 조기 해제는 그 특수 경우다. 전달 경로도 ADR-016 의 「임대 목록에서 빠진다」가
+	// 이미 갖고 있다 — 노드는 다음 하트비트에서 그 임대가 없어진 것을 본다.
+	//
+	// ★ 되돌릴 수 없다 ★ — 놓은 것은 남이 채간다. 그래서 검증이
+	// ★ 그 역할을 쓰는 모든 단계가 이 단계의 조상일 것 ★ 을 요구한다(§4.3).
+	Release []string `json:"release,omitempty"`
+
 	// See 는 ★ 이 단계가 무엇을 볼지 ★ 다 — 시야의 ★ 축소 ★ 축 (ADR-023 §6.4).
 	//
 	// ★ 순수 축소다 ★ — see 로는 원장 밖을 못 본다. 그것이 검증 조건이다.
@@ -403,6 +418,30 @@ type Step struct {
 	Feedback     []string `json:"feedback,omitempty"`
 
 	Repeat int `json:"repeat,omitempty"`
+}
+
+// ancestors 는 i 번째 단계보다 ★ 확실히 앞서는 ★ 단계들이다 — needs 간선을
+// 거슬러 올라가 닿는 것 전부. 부분순서이므로 ★ 앞도 뒤도 아닌 단계가 있다 ★:
+// 그것들은 동시에 돌 수 있고, 그래서 여기 안 들어온다.
+func ancestors(steps []Step, i int) map[int]bool {
+	index := map[string]int{}
+	for k, st := range steps {
+		index[st.ID] = k
+	}
+	seen := map[int]bool{}
+	var walk func(int)
+	walk = func(n int) {
+		for _, name := range NeedsOf(steps, n) {
+			j, ok := index[name]
+			if !ok || seen[j] {
+				continue
+			}
+			seen[j] = true
+			walk(j)
+		}
+	}
+	walk(i)
+	return seen
 }
 
 // inFrom 은 in 의 from 목록을 꺼낸다. In 이 자유 형식 맵이라(프롬프트·참조 문법이
@@ -658,6 +697,40 @@ func (c Contract) Validate() error {
 		if _, ok := st.Schema[st.Out[0]]; !ok {
 			return fmt.Errorf("step %q: expands 단계의 산출물 %q 에 스키마가 없다 — "+
 				"형태가 틀린 계약이 함대로 들어온다", st.ID, st.Out[0])
+		}
+	}
+
+	// ★ release 는 부분순서 위에서 검사한다 ★ (ADR-022 §7.4 + ADR-023).
+	//
+	// ★ 폭이 열리면서 조건이 강해졌다 ★ — 순차였다면 "뒤에서 안 쓰면 된다" 로
+	// 족했지만, 병렬에서는 ★ 순서가 정해지지 않은 단계가 동시에 돌 수 있다 ★.
+	// 그 단계가 놓아버린 역할을 쓰면 실행 중에 임대가 사라진다.
+	// ⇒ ★ 그 역할을 쓰는 모든 단계가 놓는 단계의 조상이어야 한다 ★.
+	//   조상이면 이미 끝났고(게이트가 보장한다), 그래야 놓는 것이 안전하다.
+	for i, st := range c.Steps {
+		if len(st.Release) == 0 {
+			continue
+		}
+		anc := ancestors(c.Steps, i)
+		seen := map[string]bool{}
+		for _, role := range st.Release {
+			if seen[role] {
+				return fmt.Errorf("step %q: release 에 %q 가 두 번 있다", st.ID, role)
+			}
+			seen[role] = true
+			if !roles[role] {
+				return fmt.Errorf("step %q: 없는 역할 %q 를 놓는다", st.ID, role)
+			}
+			for j, other := range c.Steps {
+				if other.Uses != role || j == i {
+					continue
+				}
+				if !anc[j] {
+					return fmt.Errorf("step %q: %q 를 놓는데 step %q 가 그것을 쓴다 — "+
+						"놓는 단계보다 ★ 앞선다는 보장이 없다 ★ (되돌릴 수 없으므로 거절한다)",
+						st.ID, role, other.ID)
+				}
+			}
 		}
 	}
 

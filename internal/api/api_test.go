@@ -1581,3 +1581,80 @@ func TestLedger_워터마크가_봉인에_남는다(t *testing.T) {
 		t.Fatalf("첫 단계가 무언가를 봤다: %v", f1.LedgerAt)
 	}
 }
+
+// ═══ 자원 조기 해제 — ★ 되돌릴 수 없다 ★ (ADR-022 §7.4) ═════════════════
+//
+// 분기가 생기면 모든 경로의 자원을 잡아야 하고(I5), 경로가 확정되면 안 쓰는
+// 것이 Run 내내 묶인다. ★ 계획 위임이 이 조건을 더 강하게 만든다 ★ —
+// 계획을 기계가 지으면 사람은 무엇이 쓰일지 모른 채 requires 를 선언한다.
+
+func TestRelease_놓으면_남이_잡을_수_있다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("r1", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("r2", "a", map[string]string{"role": "y"}), nil)
+
+	// b 를 쓰는 단계는 first 뿐이고, second 가 그것을 놓는다.
+	first := runStep("first", "b")
+	second := runStep("second", "c")
+	second["release"] = []string{"b"}
+	body := contractJSON("rel1", []map[string]any{
+		req("b", map[string]any{"role": "x"}), req("c", map[string]any{"role": "y"})},
+		[]map[string]any{first, second})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/r1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/rel1/steps/1/result", `{"node":"r1","exit_code":0}`, nil)
+
+	// ★ 아직 안 놓았다 ★ — 다른 Run 이 r1 을 못 잡는다 (I1).
+	// ★ run_id 를 갈라 쓴다 ★ — 409 로 거절된 Run 도 FAILED 로 기록되므로
+	// (INVARIANTS §2 의 ALLOCATING → FAILED), 같은 id 를 다시 내면 멱등 규칙이
+	// 그 FAILED 를 200 으로 돌려준다. 여기서 보려는 것은 점유이지 멱등이 아니다.
+	other := func(id string) string {
+		return contractJSON(id, []map[string]any{req("b", map[string]any{"role": "x"})},
+			[]map[string]any{runStep("solo", "b")})
+	}
+	if code, _ := do(t, srv, "POST", "/v1/runs", other("rel-before"), nil); code != 409 {
+		t.Fatalf("★ 놓기 전인데 남이 잡았다 ★: %d — I1 이 흔들린다", code)
+	}
+
+	do(t, srv, "POST", "/v1/nodes/r2/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/rel1/steps/2/result", `{"node":"r2","exit_code":0}`, nil)
+
+	// ★ 놓았으므로 남이 잡는다 ★
+	if code, _ := do(t, srv, "POST", "/v1/runs", other("rel-after"), nil); code != 201 {
+		t.Fatalf("★ 놓았는데 남이 못 잡는다 ★: %d", code)
+	}
+}
+
+// ★ 놓은 노드는 하트비트의 임대 목록에서 빠진다 ★ (ADR-016)
+//
+// 그것이 전달 경로다 — ★ 새 통보 채널이 안 생긴다 ★. 노드는 목록에 없는 것을
+// 보고 다음 단계를 시작하지 않는다.
+func TestRelease_임대_목록에서_빠진다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("r3", "a", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("r4", "a", map[string]string{"role": "y"}), nil)
+	first := runStep("first", "b")
+	second := runStep("second", "c")
+	second["release"] = []string{"b"}
+	do(t, srv, "POST", "/v1/runs", contractJSON("rel2", []map[string]any{
+		req("b", map[string]any{"role": "x"}), req("c", map[string]any{"role": "y"})},
+		[]map[string]any{first, second}), nil)
+
+	_, hb := do(t, srv, "POST", "/v1/nodes", advert("r3", "a", map[string]string{"role": "x"}), nil)
+	raw, _ := json.Marshal(hb["leases"])
+	if !strings.Contains(string(raw), "rel2") {
+		t.Fatalf("잡은 노드에 임대가 없다: %s", raw)
+	}
+	do(t, srv, "POST", "/v1/nodes/r3/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/rel2/steps/1/result", `{"node":"r3","exit_code":0}`, nil)
+	do(t, srv, "POST", "/v1/nodes/r4/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/rel2/steps/2/result", `{"node":"r4","exit_code":0}`, nil)
+
+	_, hb2 := do(t, srv, "POST", "/v1/nodes", advert("r3", "a", map[string]string{"role": "x"}), nil)
+	raw2, _ := json.Marshal(hb2["leases"])
+	if strings.Contains(string(raw2), "rel2") {
+		t.Fatalf("★ 놓았는데 임대 목록에 남아 있다 ★: %s", raw2)
+	}
+}

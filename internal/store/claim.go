@@ -315,16 +315,22 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 	return tx.Commit(ctx)
 }
 
-// applyStepEffects 는 한 단계가 끝나면서 ★ 계약과 단계 목록에 미치는 것 ★ 을 적용한다.
+// applyStepEffects 는 한 단계가 끝나면서 ★ 계약 · 단계 목록 · 점유에 미치는 것 ★ 을
+// 적용한다 — 계획을 붙이고(expands), 갈림길을 닫고(dispatch), 자원을 놓는다(release).
 //
-// 둘 다 「Mediator 가 다음 단계를 만든다」(ADR-014 결정 1)의 일부이고,
+// 셋 다 「Mediator 가 다음 단계를 만든다」(ADR-014 결정 1)의 일부이고,
 // ReportStep 의 ★ 한 트랜잭션 안에서 ★ 일어나야 한다 — 따로 하면 그 사이에
 // claim 이 들어와 안 간 경로를 집거나 아직 안 검증된 단계를 집는다.
 func (s *Store) applyStepEffects(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
 	if err := s.applyExpands(ctx, tx, runID, seq); err != nil {
 		return err
 	}
-	return s.applyDispatch(ctx, tx, runID, seq)
+	if err := s.applyDispatch(ctx, tx, runID, seq); err != nil {
+		return err
+	}
+	// ★ 놓는 것은 맨 마지막이다 ★ — 되돌릴 수 없으므로, 앞의 둘이 실패해
+	// 이 단계가 FAILED 가 되는 경우에는 놓지 않는다.
+	return s.applyRelease(ctx, tx, runID, seq)
 }
 
 func mustJSON(v any) []byte {
