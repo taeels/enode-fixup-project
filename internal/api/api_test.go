@@ -1658,3 +1658,112 @@ func TestRelease_임대_목록에서_빠진다(t *testing.T) {
 		t.Fatalf("★ 놓았는데 임대 목록에 남아 있다 ★: %s", raw2)
 	}
 }
+
+// ═══ 실행 중 자원 획득 — ★ 실패를 중단이 아니라 값으로 ★ (ADR-022 §7.5 · ADR-024)
+//
+// I5 의 「요구 자원」은 ★ 한 획득 요청의 범위 ★ 다. t=0 의 requires 는 그 첫 번째
+// 경우이고 이것은 두 번째다. 각 요청이 전부-아니면-전무이면 불변식이 살고,
+// ★ 요청 사이에는 안 걸린다 ★ — 실패해도 이미 쥔 것은 놓지 않는다.
+
+// acquireStep 은 자원을 잡아보고 결과를 이름으로 내는 단계다.
+func acquireStep(id, as string, attrs map[string]any, to []string) map[string]any {
+	want := map[string]any{"as": as, "capability": "agent.reason"}
+	for k, v := range attrs {
+		want[k] = v
+	}
+	return map[string]any{
+		"id": id,
+		"acquire": map[string]any{
+			"want": want, "acquired": to[0], "unavailable": to[1]},
+	}
+}
+
+// ★ 잡히면 그 역할을 쓰는 단계가 집힌다 ★ — t=0 에 없던 노드가 Run 에 들어온다.
+func TestAcquire_실행_중에_잡으면_그_노드가_돈다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("a1", "처음기계", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("a2", "나중기계", map[string]string{"role": "y"}), nil)
+
+	first := runStep("first", "b")
+	onBoard := runStep("on_board", "board")
+	fallback := runStep("fallback", "b")
+	body := contractJSON("acq1", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{
+			first,
+			acquireStep("try", "board", map[string]any{"role": "y"},
+				[]string{"on_board", "fallback"}),
+			onBoard, fallback,
+		})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/a1/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/acq1/steps/1/result", `{"node":"a1","exit_code":0}`, nil)
+
+	// ★ 획득 단계는 노드에 안 간다 ★ — Mediator 가 이미 처리했다.
+	_, v := do(t, srv, "GET", "/v1/runs/acq1", "", nil)
+	raw, _ := json.Marshal(v["steps"])
+	var steps []struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+		Node  string `json:"node"`
+	}
+	_ = json.Unmarshal(raw, &steps)
+	got := map[string]string{}
+	for _, st := range steps {
+		got[st.ID] = st.State
+	}
+	if got["try"] != "DONE" {
+		t.Fatalf("★ 획득 단계가 안 돌았다 ★: %q — 노드에 안 가므로 아무도 안 집는다", got["try"])
+	}
+	if got["fallback"] != "SKIPPED" {
+		t.Fatalf("★ 잡았는데 대체 경로가 살아 있다 ★: %q", got["fallback"])
+	}
+	// ★ t=0 에 없던 노드가 이 Run 에 묶였다 ★
+	if code, c := do(t, srv, "POST", "/v1/nodes/a2/claim", "", nil); code != 200 || c["name"] != "on_board" {
+		t.Fatalf("★ 잡은 노드가 단계를 못 집는다 ★: %d %v", code, c)
+	}
+}
+
+// ★ 못 잡으면 그것도 값이다 ★ — Run 이 죽지 않고 다른 경로로 간다.
+// 그리고 ★ 이미 쥔 것은 안 놓는다 ★ (부분 점유가 아니라 정상 점유).
+func TestAcquire_못_잡으면_분기로_간다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("a3", "있는기계", map[string]string{"role": "x"}), nil)
+	// role:y 노드가 ★ 함대에 없다 ★.
+	body := contractJSON("acq2", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{
+			runStep("first", "b"),
+			acquireStep("try", "board", map[string]any{"role": "y"},
+				[]string{"on_board", "fallback"}),
+			runStep("on_board", "board"), runStep("fallback", "b"),
+		})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("★ 잡을 수 없는 자원이 제출을 막았다 ★: %d — "+
+			"실행 중 획득은 t=0 매칭 대상이 아니다", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/a3/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/acq2/steps/1/result", `{"node":"a3","exit_code":0}`, nil)
+
+	_, v := do(t, srv, "GET", "/v1/runs/acq2", "", nil)
+	raw, _ := json.Marshal(v["steps"])
+	var steps []struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(raw, &steps)
+	got := map[string]string{}
+	for _, st := range steps {
+		got[st.ID] = st.State
+	}
+	if got["try"] != "DONE" {
+		t.Fatalf("★ 못 잡은 것이 실패로 처리됐다 ★: %q — 중단이 아니라 값이어야 한다", got["try"])
+	}
+	if got["on_board"] != "SKIPPED" {
+		t.Fatalf("★ 못 잡았는데 그 경로가 살아 있다 ★: %q", got["on_board"])
+	}
+	// ★ 이미 쥔 것은 안 놓았다 ★ — fallback 이 첫 노드로 돈다.
+	if code, c := do(t, srv, "POST", "/v1/nodes/a3/claim", "", nil); code != 200 || c["name"] != "fallback" {
+		t.Fatalf("★ 획득 실패가 이미 쥔 자원을 놓았다 ★: %d %v — I5 를 잘못 읽은 것이다", code, c)
+	}
+}

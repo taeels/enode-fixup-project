@@ -256,6 +256,11 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 			return err
 		}
 	}
+	// ★ 첫 단계가 획득일 수 있다 ★ — 그러면 아무도 보고하기 전에 수행해야 한다.
+	// 노드에 안 가므로 claim 을 기다릴 수 없고, 여기서 안 하면 Run 이 멈춘다.
+	if err := s.runAcquires(ctx, tx, r.RunID); err != nil {
+		return err
+	}
 	// ★ 실행 중에는 붙이기만 한다 ★ (성질 1: append-only) —
 	// 디렉터리를 지금 열어두고 로그가 쌓이게 한다. 봉인은 종료 시 한 번뿐이다.
 	//

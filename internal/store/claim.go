@@ -298,7 +298,7 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 		//
 		// ★ 늘리는 것이 고르는 것보다 먼저다 ★ — 계획이 지은 단계가 생긴 뒤라야
 		// 분기가 그것을 목적지로 찾을 수 있다.
-		if err := s.applyStepEffects(ctx, tx, runID, seq); err != nil {
+		if err := s.afterStep(ctx, tx, runID, seq); err != nil {
 			if _, e := tx.Exec(ctx, `
 				UPDATE steps SET state=$3, result = coalesce(result,'{}'::jsonb) || $4::jsonb
 				 WHERE run_id=$1 AND seq=$2`,
@@ -321,6 +321,18 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 // 셋 다 「Mediator 가 다음 단계를 만든다」(ADR-014 결정 1)의 일부이고,
 // ReportStep 의 ★ 한 트랜잭션 안에서 ★ 일어나야 한다 — 따로 하면 그 사이에
 // claim 이 들어와 안 간 경로를 집거나 아직 안 검증된 단계를 집는다.
+// afterStep 은 한 단계가 끝난 뒤의 전부다 — 그 단계의 효과를 적용하고,
+// 그로 인해 ★ 실행 가능해진 획득 단계 ★ 를 Mediator 가 수행한다.
+//
+// ★ 획득을 마지막에 두는 이유 ★ — 그것이 needs 를 보고 고르므로, 앞의 효과
+// (건너뜀 전파 · 지어진 단계)가 먼저 반영돼 있어야 같은 그림을 본다.
+func (s *Store) afterStep(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
+	if err := s.applyStepEffects(ctx, tx, runID, seq); err != nil {
+		return err
+	}
+	return s.runAcquires(ctx, tx, runID)
+}
+
 func (s *Store) applyStepEffects(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
 	if err := s.applyExpands(ctx, tx, runID, seq); err != nil {
 		return err

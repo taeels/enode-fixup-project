@@ -506,3 +506,64 @@ func TestValidate_release(t *testing.T) {
 		t.Fatal("중복 release 가 통과했다")
 	}
 }
+
+// ★ acquire 검증 — 잡기 전에는 못 쓴다 ★ (ADR-022 §7.5 · ADR-024)
+func TestValidate_acquire(t *testing.T) {
+	acq := func(as string) Step {
+		return Step{ID: "try", Acquire: &Acquire{
+			Want:     &Require{As: as, Capability: CapabilityAgentReason},
+			Acquired: "use", Unavailable: "other"}}
+	}
+	mk := func(steps []Step) Contract {
+		return Contract{
+			RunID:    "r1",
+			Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+			Steps:    steps,
+		}
+	}
+	// ★ 잡은 뒤에 쓰면 통과 ★
+	if err := mk([]Step{
+		acq("board"),
+		{ID: "use", Uses: "board", Run: []string{"true"}},
+		{ID: "other", Uses: "b", Run: []string{"true"}},
+	}).Validate(); err != nil {
+		t.Fatalf("정상 acquire 가 거절됐다: %v", err)
+	}
+
+	full := func(a *Acquire) []Step {
+		return []Step{
+			{ID: "try", Acquire: a},
+			{ID: "use", Uses: "board", Run: []string{"true"}},
+			{ID: "other", Uses: "b", Run: []string{"true"}},
+		}
+	}
+	want := func(as string) *Require { return &Require{As: as, Capability: CapabilityAgentReason} }
+
+	for name, steps := range map[string][]Step{
+		"★ 잡기 전에 쓴다 ★": {
+			{ID: "use", Uses: "board", Run: []string{"true"}},
+			acq("board"),
+			{ID: "other", Uses: "b", Run: []string{"true"}},
+		},
+		"★ requires 에 이미 있다 ★": full(&Acquire{
+			Want: want("b"), Acquired: "use", Unavailable: "other"}),
+		"★ 목적지가 없다 ★": full(&Acquire{Want: want("board")}),
+		"★ 두 목적지가 같다 ★": full(&Acquire{
+			Want: want("board"), Acquired: "use", Unavailable: "use"}),
+		"★ 없는 단계를 가리킨다 ★": full(&Acquire{
+			Want: want("board"), Acquired: "use", Unavailable: "없는것"}),
+		"★ uses 가 있다 ★": {
+			{ID: "try", Uses: "b", Acquire: &Acquire{
+				Want: want("board"), Acquired: "use", Unavailable: "other"}},
+			{ID: "use", Uses: "board", Run: []string{"true"}},
+			{ID: "other", Uses: "b", Run: []string{"true"}},
+		},
+		"★ 모르는 capability ★": full(&Acquire{
+			Want:     &Require{As: "board", Capability: "board.flash"},
+			Acquired: "use", Unavailable: "other"}),
+	} {
+		if err := mk(steps).Validate(); err == nil {
+			t.Fatalf("%s — 통과했다", name)
+		}
+	}
+}

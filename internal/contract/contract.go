@@ -68,6 +68,31 @@ type Contract struct {
 	Ledger *Ledger `json:"ledger,omitempty"`
 }
 
+// Acquire 는 실행 중 획득 하나다 (ADR-022 §7.5 · ADR-024).
+//
+// ★ 이것 자체가 분기다 ★ — 획득 결과는 산출물이 아니라 ★ 즉시 아는 값 ★ 이라
+// dispatch 를 한 겹 거칠 이유가 없다. §7.5 의 예시가 이 형태였다:
+//
+//	"acquire": { "want": {…}, "acquired": "on_board", "unavailable": "qemu_only" }
+//
+// ★ 그래서 분기의 규칙을 그대로 쓴다 ★ — 목적지는 실존해야 하고, 서로 달라야
+// 하며, ★ 전부 자기보다 뒤 ★ 여야 한다(종료가 정적으로 보장된다). 안 간 쪽은
+// SKIPPED 가 되고 간선을 따라 전파된다.
+type Acquire struct {
+	// Want 는 ★ requires 의 한 항목과 형태가 같다 ★ — 새 파서를 안 만들고
+	// 같은 매처가 돈다 (ADR-014 결정 3: ★ 매처를 두 벌 만들지 않는다 ★).
+	//
+	// ★ 오늘은 요청 하나에 자원 하나다 ★ — 그래서 "전부 아니면 전무" 가 자명하다.
+	// 여럿을 한 요청으로 잡는 형태(count)는 자리를 막지 않되 지금 안 연다:
+	// 그때는 부분 점유를 남기지 않는 롤백이 필요하고 그것이 §7.5 가 말한 무게다.
+	Want *Require `json:"want"`
+	// Acquired · Unavailable 은 ★ 목적지 단계 ★ 다.
+	// ★ 실패가 중단이 아니라 값이 되는 자리 ★ 이고, 그래서 획득 실패로
+	// Run 이 죽지 않는다 — 다른 경로로 간다.
+	Acquired    string `json:"acquired"`
+	Unavailable string `json:"unavailable"`
+}
+
 // See 는 한 단계의 시야를 줄인다 (ADR-023 §6.4 자리 3).
 type See struct {
 	// Ledger 는 ★ 원장 목록을 이 단계에 심을 것인가 ★ 다.
@@ -293,6 +318,13 @@ const (
 	KindUnknown StepKind = iota
 	KindAgent            // agent 가 있다 — 하네스를 띄운다. 판정은 produced.
 	KindRun              // run 이 있다 — 어댑터가 직접 돌리고 exit_code 를 잰다.
+	// KindAcquire 는 ★ Mediator 가 수행하는 단계 ★ 다 (ADR-022 §7.5 · ADR-024).
+	//
+	// ★ 이것이 ADR-019 의 「두 종류」를 뒤집지 않는다 ★ — 그 결정이 가른 것은
+	// ★ 판정 방법 ★ 이다(produced 냐 exit_code 냐). 획득 단계는 결과를
+	// ★ 산출물로 내므로 판정 계열이 produced 이고 ★, 다른 것은 ★ 누가 실행하나 ★ 라는
+	// 별개의 축이다. 노드에 안 가므로 잡기 전에 uses 가 없어도 된다.
+	KindAcquire
 )
 
 func (k StepKind) String() string {
@@ -301,6 +333,8 @@ func (k StepKind) String() string {
 		return "agent"
 	case KindRun:
 		return "run"
+	case KindAcquire:
+		return "acquire"
 	}
 	return "unknown"
 }
@@ -381,6 +415,20 @@ type Step struct {
 	// 훑는 것으로 끝나고 종료가 제출 시점에 정적으로 보장된다. 뒤로 가야 하는
 	// 것은 의존이 아니라 ★ 반복 ★ 이고 그건 repeat 의 자리다 (dispatch 와 같다).
 	Needs []string `json:"needs,omitempty"`
+
+	// Acquire 는 ★ 실행 중에 새 자원을 잡는다 ★ (ADR-022 §7.5 · ADR-024).
+	//
+	// ★ I5 를 안 깬다 ★ — ADR-024 가 「요구 자원」을 ★ 한 획득 요청의 범위 ★ 로
+	// 정했다. t=0 의 requires 는 그 첫 번째 경우이고, 이것은 두 번째다.
+	// 각 요청이 전부-아니면-전무이면 불변식이 살고, ★ 요청 사이에는 안 걸린다 ★ —
+	// 실행 중 획득이 실패해도 이미 쥔 것은 놓지 않는다(부분 점유가 아니라 정상 점유).
+	//
+	// ★ 실패를 중단이 아니라 값으로 만든다 ★ — 결과를 산출물로 내고 dispatch 가
+	// 그 이름을 읽는다. ⇒ ②분기의 특수 경우가 되어 ★ 새 의미가 안 생긴다 ★.
+	//
+	// ★ 이 단계는 Mediator 가 수행한다 ★ — 노드에 안 간다. 잡기 전이므로
+	// uses 가 없고, claim 이 집지 않는다.
+	Acquire *Acquire `json:"acquire,omitempty"`
 
 	// Release 는 ★ 여기서 놓는 역할들 ★ 이다 (ADR-022 §7.4).
 	//
@@ -472,6 +520,27 @@ func (c Contract) Scope() string {
 	return c.Ledger.Scope
 }
 
+// Branches 는 이 단계가 ★ 갈림길로 지목하는 단계들 ★ 이다.
+//
+// ★ 갈림길이 둘이다 ★ — dispatch(이름을 고른다)와 acquire(잡혔나로 고른다).
+// 목적지의 성질은 같으므로 ★ 한 곳에서 계산한다 ★: 기본 needs 도, 뒤인지
+// 검사도, 안 간 쪽을 닫는 것도 전부 같은 규칙을 쓴다.
+func (s Step) Branches() []string {
+	var out []string
+	if s.Dispatch != nil {
+		out = append(out, s.Dispatch.To...)
+	}
+	if s.Acquire != nil {
+		if s.Acquire.Acquired != "" {
+			out = append(out, s.Acquire.Acquired)
+		}
+		if s.Acquire.Unavailable != "" {
+			out = append(out, s.Acquire.Unavailable)
+		}
+	}
+	return out
+}
+
 // NeedsOf 는 steps 의 i 번째(0 부터) 단계가 기다리는 단계 이름들이다.
 //
 // ★ 기본값을 여기 한 곳에서 채운다 ★ — 계약을 읽는 쪽이 여럿이므로
@@ -488,19 +557,18 @@ func NeedsOf(steps []Step, i int) []string {
 	if n := steps[i].Needs; n != nil {
 		return n // ★ 빈 배열도 선언이다 ★ — "아무것도 안 기다린다"
 	}
-	// ★ 분기 목적지는 형제다 ★ — dispatch.to 에 이름이 올라 있다는 것 자체가
-	// 이미 선언이므로, 기본값은 직전 단계가 아니라 ★ 분기를 낸 단계 ★ 다.
+	// ★ 분기 목적지는 형제다 ★ — 목적지로 지목됐다는 것 자체가 이미 선언이므로,
+	// 기본값은 직전 단계가 아니라 ★ 갈림길을 낸 단계 ★ 다.
 	//
 	// ★ 이것을 빠뜨리면 형제가 사슬로 이어진다 ★ — to: ["full","quick"] 에서
 	// quick 의 기본값이 [full] 이 되고, full 이 SKIPPED 가 되는 순간 전파가
 	// ★ 살아 있어야 할 가지까지 죽인다 ★. 순서 의미로도 틀리다 — full 다음에
 	// quick 이 오는 것이 아니다.
+	//
+	// ★ 갈림길이 둘이므로 Branches 한 곳에서 본다 ★ — dispatch 와 acquire.
+	// 한쪽만 보면 같은 결함이 다른 문법으로 재발한다 (실제로 그렇게 밟았다).
 	for j := 0; j < i; j++ {
-		d := steps[j].Dispatch
-		if d == nil {
-			continue
-		}
-		for _, t := range d.To {
+		for _, t := range steps[j].Branches() {
 			if t == steps[i].ID {
 				return []string{steps[j].ID}
 			}
@@ -517,15 +585,25 @@ func NeedsOf(steps []Step, i int) []string {
 func (s Step) Kind() (StepKind, error) {
 	hasAgent := s.Agent != nil
 	hasRun := len(s.Run) > 0
+	hasAcq := s.Acquire != nil
+	n := 0
+	for _, has := range []bool{hasAgent, hasRun, hasAcq} {
+		if has {
+			n++
+		}
+	}
+	if n > 1 {
+		return KindUnknown, fmt.Errorf("step %q: agent · run · acquire 중 둘 이상이 있다", s.ID)
+	}
 	switch {
-	case hasAgent && hasRun:
-		return KindUnknown, fmt.Errorf("step %q: agent 와 run 이 둘 다 있다", s.ID)
 	case hasAgent:
 		return KindAgent, nil
 	case hasRun:
 		return KindRun, nil
+	case hasAcq:
+		return KindAcquire, nil
 	}
-	return KindUnknown, fmt.Errorf("step %q: agent 도 run 도 없다", s.ID)
+	return KindUnknown, fmt.Errorf("step %q: agent 도 run 도 acquire 도 없다", s.ID)
 }
 
 // Condition 은 success_when 의 항목 하나다 (ADR-004).
@@ -586,6 +664,21 @@ func (c Contract) Validate() error {
 		roles[r.As] = true
 	}
 
+	// ★ 실행 중에 잡는 역할도 이 Run 의 역할이다 ★ (ADR-022 §7.5) —
+	// 뒤 단계가 그것을 uses 로 쓴다. ★ 잡기 전에 못 쓴다 ★ 는 것은 아래에서
+	// 순서로 따로 본다(후손 검사). 여기서는 이름이 있는가만 본다.
+	acquired := map[string]bool{}
+	for _, st := range c.Steps {
+		if st.Acquire == nil || st.Acquire.Want == nil || st.Acquire.Want.As == "" {
+			continue
+		}
+		if roles[st.Acquire.Want.As] || acquired[st.Acquire.Want.As] {
+			return fmt.Errorf("step %q: acquire 의 역할 %q 가 이미 있다", st.ID, st.Acquire.Want.As)
+		}
+		acquired[st.Acquire.Want.As] = true
+		roles[st.Acquire.Want.As] = true
+	}
+
 	kinds := map[string]StepKind{}
 	for _, s := range c.Steps {
 		if s.ID == "" {
@@ -599,7 +692,8 @@ func (c Contract) Validate() error {
 			return err
 		}
 		kinds[s.ID] = k
-		if !roles[s.Uses] {
+		// ★ 획득 단계는 uses 가 없다 ★ — 잡기 전이고 Mediator 가 수행한다.
+		if k != KindAcquire && !roles[s.Uses] {
 			return fmt.Errorf("step %q 가 없는 역할 %q 를 쓴다", s.ID, s.Uses)
 		}
 		// ★ ADR-020 의 경계선을 여기서 400 으로 만든다 ★
@@ -697,6 +791,57 @@ func (c Contract) Validate() error {
 		if _, ok := st.Schema[st.Out[0]]; !ok {
 			return fmt.Errorf("step %q: expands 단계의 산출물 %q 에 스키마가 없다 — "+
 				"형태가 틀린 계약이 함대로 들어온다", st.ID, st.Out[0])
+		}
+	}
+
+	// ★ acquire 는 「잡기 전」의 단계다 ★ (ADR-022 §7.5 · ADR-024).
+	for i, st := range c.Steps {
+		if st.Acquire == nil {
+			continue
+		}
+		a := st.Acquire
+		if a.Want == nil || a.Want.As == "" {
+			return fmt.Errorf("step %q: acquire.want.as 가 없다", st.ID)
+		}
+		if !knownCapability(a.Want.Capability) {
+			return fmt.Errorf("step %q: acquire 의 capability %q 를 모른다",
+				st.ID, a.Want.Capability)
+		}
+		if a.Want.Count > 1 {
+			return fmt.Errorf("step %q: acquire 는 아직 자원 하나씩이다 — "+
+				"여럿을 한 요청으로 잡으려면 부분 점유를 남기지 않는 롤백이 필요하다", st.ID)
+		}
+		if st.Uses != "" {
+			return fmt.Errorf("step %q: acquire 단계에는 uses 가 없다 — "+
+				"잡기 전이고 Mediator 가 수행한다", st.ID)
+		}
+		// ★ 분기의 규칙을 그대로 쓴다 ★ (ADR-022 §7.2) — 실존 · 서로 다름 ·
+		// ★ 전부 뒤 ★. 뒤로 못 가면 DAG 이고 종료가 제출 시점에 보장된다.
+		if a.Acquired == "" || a.Unavailable == "" {
+			return fmt.Errorf("step %q: acquire 의 acquired · unavailable 목적지가 필요하다 — "+
+				"★ 실패는 중단이 아니라 값이다 ★", st.ID)
+		}
+		if a.Acquired == a.Unavailable {
+			return fmt.Errorf("step %q: acquire 의 두 목적지가 같다", st.ID)
+		}
+		for _, dst := range []string{a.Acquired, a.Unavailable} {
+			j, ok := index[dst]
+			if !ok {
+				return fmt.Errorf("step %q: acquire 가 없는 단계 %q 를 가리킨다", st.ID, dst)
+			}
+			if j <= i {
+				return fmt.Errorf("step %q: acquire 의 %q 가 자기보다 앞이다", st.ID, dst)
+			}
+		}
+		// ★ 잡기 전에는 못 쓴다 ★ — 그 역할을 쓰는 단계는 전부 이 단계의 후손이어야 한다.
+		for j, other := range c.Steps {
+			if other.Uses != a.Want.As {
+				continue
+			}
+			if !ancestors(c.Steps, j)[i] {
+				return fmt.Errorf("step %q: acquire 로 잡는 %q 를 step %q 가 쓰는데 "+
+					"★ 이 단계 뒤라는 보장이 없다 ★", st.ID, a.Want.As, other.ID)
+			}
 		}
 	}
 
