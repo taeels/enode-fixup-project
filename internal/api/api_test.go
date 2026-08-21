@@ -1277,3 +1277,108 @@ func TestExpands_봉인에_계약의_열이_남는다(t *testing.T) {
 		t.Fatal("★ 무엇을 보고 지었는지가 안 남았다 ★ — evidence 가 비었다")
 	}
 }
+
+// ═══ 실행 중 관측 — ★ Record 가 아니다 ★ (ADR-025) ═══════════════════════
+//
+// 폭이 1 일 때는 "지금 ④ 단계" 한 줄로 족했다. 여러 가지가 동시에 살면
+// 각각이 다른 상태에 있고, GET record 는 종료 전이면 409 다 (I4).
+// ⇒ 진행을 읽을 경로가 ★ 선택이 아니라 필수 ★ 가 된다.
+
+func TestObserve_병렬로_도는_가지들이_각각_보인다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("o1", "왼쪽기계", map[string]string{"role": "x"}), nil)
+	do(t, srv, "POST", "/v1/nodes", advert("o2", "오른쪽기계", map[string]string{"role": "y"}), nil)
+
+	left := runStep("left", "b")
+	left["needs"] = []string{}
+	right := runStep("right", "c")
+	right["needs"] = []string{}
+	join := runStep("join", "b")
+	join["needs"] = []string{"left", "right"}
+	body := contractJSON("obs", []map[string]any{
+		req("b", map[string]any{"role": "x"}), req("c", map[string]any{"role": "y"})},
+		[]map[string]any{left, right, join})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/o1/claim", "", nil)
+	do(t, srv, "POST", "/v1/nodes/o2/claim", "", nil)
+
+	// ★ 종료 전인데 답한다 ★ — record 는 409 인 시점이다.
+	if code, _ := do(t, srv, "GET", "/v1/runs/obs/record", "", nil); code != 409 {
+		t.Fatalf("★ 봉인 전 Record 가 409 가 아니다 ★: %d — I4 가 흔들린다", code)
+	}
+	code, v := do(t, srv, "GET", "/v1/runs/obs", "", nil)
+	if code != 200 {
+		t.Fatalf("관측 실패: %d", code)
+	}
+	raw, _ := json.Marshal(v["steps"])
+	var steps []struct {
+		Seq   int      `json:"seq"`
+		ID    string   `json:"id"`
+		State string   `json:"state"`
+		Node  string   `json:"node"`
+		Needs []string `json:"needs"`
+	}
+	if err := json.Unmarshal(raw, &steps); err != nil || len(steps) != 3 {
+		t.Fatalf("★ 단계가 안 보인다 ★: %v (%d 개)", string(raw), len(steps))
+	}
+	// ★ 두 가지가 동시에 돌고 서로 다른 기계에 있다 ★ — Case D 를 실행 중에 읽는다.
+	if steps[0].State != "CLAIMED" || steps[1].State != "CLAIMED" {
+		t.Fatalf("★ 동시에 도는 것이 안 보인다 ★: %q %q", steps[0].State, steps[1].State)
+	}
+	if steps[0].Node == steps[1].Node || steps[0].Node == "" {
+		t.Fatalf("★ 어느 기계에서 도는지가 안 보인다 ★: %q %q", steps[0].Node, steps[1].Node)
+	}
+	// ★ 빈 needs 도 내보낸다 ★ — [] 는 "안 기다린다" 는 뜻이고 가지의 시작점이다.
+	if steps[0].Needs == nil || len(steps[0].Needs) != 0 {
+		t.Fatalf("★ 빈 needs 가 안 나왔다 ★: %v — 읽는 쪽이 기본값을 추측하게 된다", steps[0].Needs)
+	}
+	if len(steps[2].Needs) != 2 {
+		t.Fatalf("★ 합류의 간선이 안 보인다 ★: %v", steps[2].Needs)
+	}
+	if steps[2].State != "PENDING" {
+		t.Fatalf("아직 안 집힌 단계가 %q 다", steps[2].State)
+	}
+}
+
+// ★ 건너뛴 가지가 관측에서도 보인다 ★ — 결과가 없는 것과 다르다는 것이
+// 실행 중에도 읽혀야 한다 (그러지 않으면 크래시와 구분이 안 된다).
+func TestObserve_건너뛴_가지가_보인다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("o3", "a", map[string]string{"role": "x"}), nil)
+	triage := map[string]any{
+		"id": "triage", "uses": "b",
+		"agent": map[string]any{"ask": "never"},
+		"out":   []string{"route"},
+		"schema": map[string]any{"route": map[string]any{
+			"type": "object", "required": []string{"next"},
+			"properties": map[string]any{
+				"next": map[string]any{"enum": []string{"full", "quick"}}}}},
+		"dispatch": map[string]any{"from": "route.next", "to": []string{"full", "quick"}},
+	}
+	body := contractJSON("obs2", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{triage, runStep("full", "b"), runStep("quick", "b")})
+	do(t, srv, "POST", "/v1/runs", body, nil)
+	do(t, srv, "POST", "/v1/nodes/o3/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/obs2/steps/1/blob/route", `{"next":"quick"}`, nil)
+	do(t, srv, "POST", "/v1/runs/obs2/steps/1/result", `{"node":"o3","produced":["route"]}`, nil)
+
+	_, v := do(t, srv, "GET", "/v1/runs/obs2", "", nil)
+	raw, _ := json.Marshal(v["steps"])
+	var steps []struct {
+		ID    string `json:"id"`
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(raw, &steps)
+	got := map[string]string{}
+	for _, st := range steps {
+		got[st.ID] = st.State
+	}
+	if got["full"] != "SKIPPED" {
+		t.Fatalf("★ 안 간 가지가 SKIPPED 로 안 보인다 ★: %q", got["full"])
+	}
+	if got["quick"] != "PENDING" {
+		t.Fatalf("고른 가지가 %q 다", got["quick"])
+	}
+}

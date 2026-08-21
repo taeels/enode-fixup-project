@@ -226,6 +226,19 @@ func printRun(r *runctl.Run) {
 			fmt.Printf("  %-10s %s  %s\n", a.As, n.Node, n.Label)
 		}
 	}
+	// ★ 폭이 1 을 넘으면 Run 상태 한 줄로는 안 보인다 ★ (ADR-025) —
+	// 어느 가지가 어디까지 갔고 지금 도는 것이 어느 기계인지를 여기서 읽는다.
+	for _, st := range r.Steps {
+		line := fmt.Sprintf("  %2d %-16s %-8s %s", st.Seq, st.ID, st.State, st.Node)
+		if st.Attempt > 0 {
+			line += fmt.Sprintf("  (%d회차)", st.Attempt+1)
+		}
+		// 기다리는 중이면 ★ 무엇을 기다리는지 ★ 를 같이 보여준다.
+		if st.State == "PENDING" && len(st.Needs) > 0 {
+			line += "  ← " + strings.Join(st.Needs, " · ")
+		}
+		fmt.Println(line)
+	}
 	if len(r.Verdict) > 0 {
 		var v struct {
 			State  string `json:"state"`

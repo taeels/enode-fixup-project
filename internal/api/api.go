@@ -123,11 +123,23 @@ type runView struct {
 	Assigned []store.Assigned `json:"assigned,omitempty"`
 	Reject   *match.Reject    `json:"reject,omitempty"`
 	Verdict  *store.Verdict   `json:"verdict,omitempty"` // ⑩ 의 대조 결과
+	// Steps 는 ★ 실행 중 관측 ★ 이다 (ADR-025). 폭이 1 을 넘으면 여러 가지가
+	// 각각 다른 상태에 있고, GET record 는 종료 전이면 409 다(I4).
+	// ★ 새 표면을 만들지 않고 이미 있는 조회를 넓힌다 ★ — 표면 개수가 비용이다.
+	Steps []store.StepView `json:"steps,omitempty"`
 }
 
-func view(r *store.Run) runView {
+// view 는 Run 하나를 밖에서 읽는 형태로 만든다.
+//
+// ★ 단계를 못 읽어도 Run 상태는 준다 ★ — 관측이 조회를 막으면 안 된다.
+// 배정 전(ALLOCATING)이면 단계가 없는 것이 정상이고, 그때는 빈 채로 나간다.
+func (s *Server) view(ctx context.Context, r *store.Run) runView {
+	steps, err := s.st.Steps(ctx, r.RunID)
+	if err != nil {
+		s.log.Error("단계 조회 실패", "run", r.RunID, "err", err)
+	}
 	return runView{RunID: r.RunID, State: r.State, Assigned: r.Assigned,
-		Reject: r.Reject, Verdict: r.Verdict}
+		Reject: r.Reject, Verdict: r.Verdict, Steps: steps}
 }
 
 // ── POST /v1/nodes — 광고 + 하트비트 ──────────────────────────────────────
@@ -287,7 +299,7 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 	// run_id 가 (change-id, patchset) 에서 결정적으로 유도되므로 폴링 커서가 필요 없다.
 	if !dry {
 		if existing, err := s.st.GetRun(ctx, c.RunID); err == nil {
-			write(w, 200, view(existing))
+			write(w, 200, s.view(ctx, existing))
 			return
 		} else if !errors.Is(err, store.ErrNotFound) {
 			s.log.Error("Run 조회 실패", "run", c.RunID, "err", err)
@@ -357,14 +369,14 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 	case err != nil:
 		// 같은 run_id 로 동시에 들어온 경우도 여기로 온다 — 다시 읽어 200 으로 답한다.
 		if existing, gerr := s.st.GetRun(ctx, c.RunID); gerr == nil {
-			write(w, 200, view(existing))
+			write(w, 200, s.view(ctx, existing))
 			return
 		}
 		s.log.Error("Run 생성 실패", "run", c.RunID, "err", err)
 		fail(w, 503, "생성 실패")
 		return
 	}
-	write(w, 201, view(&run))
+	write(w, 201, s.view(ctx, &run))
 }
 
 // ── GET /v1/runs/{id} ────────────────────────────────────────────────────
@@ -380,7 +392,7 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "조회 실패")
 		return
 	}
-	write(w, 200, view(run))
+	write(w, 200, s.view(r.Context(), run))
 }
 
 // ── GET /v1/capabilities ─────────────────────────────────────────────────

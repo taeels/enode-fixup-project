@@ -90,6 +90,19 @@ type Run struct {
 	State    string          `json:"state"`
 	Assigned []Assigned      `json:"assigned,omitempty"`
 	Verdict  json.RawMessage `json:"verdict,omitempty"`
+	// Steps 는 ★ 실행 중 관측 ★ 이다 (ADR-025). 폭이 1 을 넘으면 여러 가지가
+	// 각각 다른 상태에 있어서 Run 상태 한 줄로는 어디까지 갔는지 안 보인다.
+	Steps []Step `json:"steps,omitempty"`
+}
+
+type Step struct {
+	Seq     int      `json:"seq"`
+	ID      string   `json:"id"`
+	State   string   `json:"state"`
+	Uses    string   `json:"uses"`
+	Node    string   `json:"node"`
+	Needs   []string `json:"needs"`
+	Attempt int      `json:"attempt"`
 }
 
 type Assigned struct {
