@@ -251,25 +251,17 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 	// exit_code 2 로 끝난 빌드도 완주한 것이고, 그게 성공인지는 success_when 이
 	// 판정한다 (ADR-004 · I3). 여기서 가로채면 O4 가 성립하지 않는다.
 	completed := res.Error == ""
-	if err := s.st.ReportStep(r.Context(), runID, seq, body.Node, completed, res); err != nil {
+	// ★ 되돌림 판단이 ReportStep 안으로 들어갔다 ★ (2026-08-21 실측) —
+	// 밖에서 하면 그 사이에 이 단계의 효과(갈림길 · 자원 · 계획)가 적용되고,
+	// 되돌려도 ★ 그것들은 안 돌아온다 ★.
+	rolled, err := s.st.ReportStep(r.Context(), runID, seq, body.Node, completed, res)
+	if err != nil {
 		fail(w, 409, err.Error())
 		return
 	}
-	// ★ 되먹임 루프를 먼저 본다 ★ (ADR-013 · ADR-026 · ADR-014 결정 1) —
-	// 되돌려졌으면 아직 진행 중이므로 정산하지 않는다.
-	//
-	// ★ 둘은 되돌리는 범위가 다르다 ★ — validate_with 는 대상과 검증자 둘,
-	// loop 은 구간. 한 단계에 둘 다 있으면 계약 검증이 400 으로 막는다.
-	if retried, err := s.st.MaybeRetry(r.Context(), runID, seq, s.log); err != nil {
-		s.log.Error("재시도 판단 실패", "run", runID, "err", err)
-	} else if retried {
-		write(w, 200, map[string]any{"run_id": runID, "seq": seq, "retried": true})
-		return
-	}
-	if looped, err := s.st.MaybeLoop(r.Context(), runID, seq, s.log); err != nil {
-		s.log.Error("반복 판단 실패", "run", runID, "err", err)
-	} else if looped {
-		write(w, 200, map[string]any{"run_id": runID, "seq": seq, "looped": true})
+	// ★ 되돌려졌으면 아직 진행 중이므로 정산하지 않는다 ★.
+	if rolled {
+		write(w, 200, map[string]any{"run_id": runID, "seq": seq, "rolled_back": true})
 		return
 	}
 	state, err := s.st.SettleIfDone(r.Context(), runID)

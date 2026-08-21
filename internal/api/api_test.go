@@ -793,7 +793,7 @@ func TestRetryLoopIsDrivenByMediator(t *testing.T) {
 	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
 	code, body := do(t, srv, "POST", "/v1/runs/loop/steps/2/result",
 		`{"node":"n1","exit_code":2,"produced":["build_log"]}`, nil)
-	if code != 200 || body["retried"] != true {
+	if code != 200 || body["rolled_back"] != true {
 		t.Fatalf("★ 되먹여 재시도하지 않았다 ★: %d %v", code, body)
 	}
 
@@ -1790,7 +1790,7 @@ func TestLoop_구간이_조건까지_돈다(t *testing.T) {
 	do(t, srv, "POST", "/v1/runs/lp1/steps/1/result", `{"node":"p1","exit_code":0}`, nil)
 	do(t, srv, "POST", "/v1/nodes/p1/claim", "", nil)
 	_, r := do(t, srv, "POST", "/v1/runs/lp1/steps/2/result", `{"node":"p1","exit_code":1}`, nil)
-	if r["looped"] != true {
+	if r["rolled_back"] != true {
 		t.Fatalf("★ 조건이 안 찼는데 안 되돌아갔다 ★: %v", r)
 	}
 
@@ -1807,7 +1807,7 @@ func TestLoop_구간이_조건까지_돈다(t *testing.T) {
 	do(t, srv, "POST", "/v1/runs/lp1/steps/1/result", `{"node":"p1","exit_code":0}`, nil)
 	do(t, srv, "POST", "/v1/nodes/p1/claim", "", nil)
 	_, r2 := do(t, srv, "POST", "/v1/runs/lp1/steps/2/result", `{"node":"p1","exit_code":0}`, nil)
-	if r2["looped"] == true {
+	if r2["rolled_back"] == true {
 		t.Fatalf("★ 조건이 찼는데 또 돌았다 ★: %v", r2)
 	}
 }

@@ -264,10 +264,24 @@ type StepResult struct {
 // 코드가 가로채는 것이고, 그러면 O4("테스트가 실패했는데 Run 은 성공")가 성립하지 않는다.
 // ★ 이 보고를 받은 Mediator 가 다음 단계를 만든다 ★ (ADR-014 결정 1) —
 // 다음 claim 이 집을 수 있게 되는 것이 그 형태다.
-func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID string, ok bool, res StepResult) error {
+// ★ 되돌릴지를 효과보다 먼저 본다 ★ (2026-08-21 실측이 찾았다)
+//
+// 단계는 종료코드가 무엇이든 ★ 완주하면 DONE ★ 이다(ADR-004). 그래서 실패한
+// 빌드도 DONE 이고, 그 순간 뒤 단계들의 효과가 적용될 자격을 얻는다. 그런데
+// ★ 되돌릴지는 그 뒤에 판단했다 ★ — 그 사이에 갈림길이 닫히고 자원이 잡혔다.
+//
+//	★ 실측 ★  build 가 1 회차에 exit 1 → DONE → ★ acquire 가 즉시 돌고 ★
+//	          그 다음에야 loop 이 구간을 되돌렸다. 획득은 취소되지 않는다.
+//
+// ★ claim 은 노드가 당기므로 시간차가 있어 대부분 안 겹쳤다 ★ —
+// Mediator 가 즉시 수행하는 acquire 가 생기면서 이 경쟁이 ★ 항상 지는 쪽 ★ 이 됐다.
+// ⇒ 순서를 뒤집는다: ★ 되돌리면 효과를 아예 적용하지 않는다 ★.
+//
+// 반환값은 「되돌렸다」이고, 그러면 Run 은 아직 진행 중이므로 정산하지 않는다.
+func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID string, ok bool, res StepResult) (bool, error) {
 	resJSON, err := json.Marshal(res)
 	if err != nil {
-		return err
+		return false, err
 	}
 	state := StepFailed
 	if ok {
@@ -277,7 +291,7 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 	// 따로 하면 그 사이에 claim 이 들어와 ★ 안 간 경로가 집힌다 ★.
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
@@ -286,10 +300,20 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 		 WHERE run_id=$1 AND seq=$2 AND node_id=$3 AND state='CLAIMED'`,
 		runID, seq, nodeID, state, resJSON)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("집지 않은 단계를 보고했다 (%s#%d)", runID, seq)
+		return false, fmt.Errorf("집지 않은 단계를 보고했다 (%s#%d)", runID, seq)
+	}
+	if ok {
+		// ★ 되돌릴지가 먼저다 ★ — 되돌리면 이 단계의 효과는 없던 일이 된다.
+		rolled, err := s.rollBack(ctx, tx, runID, seq)
+		if err != nil {
+			return false, err
+		}
+		if rolled {
+			return true, tx.Commit(ctx)
+		}
 	}
 	if ok {
 		// ★ 이름을 못 고르거나 계획이 유효하지 않으면 그 단계가 FAILED 다 ★ —
@@ -304,15 +328,15 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 				 WHERE run_id=$1 AND seq=$2`,
 				runID, seq, StepFailed,
 				mustJSON(map[string]string{"error": err.Error()})); e != nil {
-				return e
+				return false, e
 			}
 			if err := tx.Commit(ctx); err != nil {
-				return err
+				return false, err
 			}
-			return nil // ★ 보고 자체는 받았다 ★ — 노드에 오류를 되던지지 않는다
+			return false, nil // ★ 보고 자체는 받았다 ★ — 노드에 오류를 되던지지 않는다
 		}
 	}
-	return tx.Commit(ctx)
+	return false, tx.Commit(ctx)
 }
 
 // applyStepEffects 는 한 단계가 끝나면서 ★ 계약 · 단계 목록 · 점유에 미치는 것 ★ 을
