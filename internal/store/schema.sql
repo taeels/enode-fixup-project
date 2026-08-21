@@ -33,6 +33,13 @@ CREATE TABLE IF NOT EXISTS runs (
 );
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS verdict jsonb;
 
+-- ★ Work 의 키 ★ (ADR-023 §6.5.2). 계약의 work 에서 유도해 여기 박는다.
+-- ★ Run 을 넘어 사는 유일한 식별자다 ★ — 원장이 scope:"work" 로 넓어질 때
+-- 「같은 Work 의 이전 Run 들」을 찾는 것이 이 열이고, ADR-005 manifest 의
+-- 「Work id」가 오늘 비어 있던 자리이기도 하다.
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS work_id text;
+CREATE INDEX IF NOT EXISTS runs_work_idx ON runs (work_id, created_at);
+
 -- ★ 계약의 열 중 v2 이후 ★ (ADR-022 §7.6 · P4).
 -- v1(제출 전문)은 runs.contract 가 그대로 든다 — ★ 성질 4 는 제출본을 요구한다 ★.
 -- 실행 중에 붙는 판만 여기 쌓이고, 봉인 시점에 v1 뒤에 이어 붙는다.

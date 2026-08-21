@@ -66,12 +66,53 @@ type Contract struct {
 
 // Work 는 이 Run 이 무엇에 대한 것인가를 가리킨다.
 // RunID 는 (ChangeID, Patchset) 에서 결정적으로 유도되므로 재제출이 멱등이다.
+//
+// ★ 이 객체는 둘을 함께 든다 ★ (ADR-023 §6.5.2)
+//
+//	★ 키 ★         (system, change_id)                 ← Run 을 ★ 넘어 산다 ★
+//	★ 이 Run 의 지점 ★ patchset · parent_rev · patch_rev  ← 이번 실행이 가리키는 곳
+//
+// 가르지 않으면 ★ 동일성을 물을 자리가 없다 ★ — patchset 이 안에 있으니 통째로
+// 키로 쓰면 Work 가 Run 과 1:1 이 되어 execution-model §2.2 의 Work 1:N Run 과
+// 어긋난다. 그것이 "patchset 2 와 3 은 같은 Work 인가" 에 답이 없던 이유다.
 type Work struct {
-	System    string `json:"system"`
-	ChangeID  string `json:"change_id"`
-	Patchset  int    `json:"patchset"`
-	ParentRev string `json:"parent_rev"` // 차분 반증의 기준점
-	PatchRev  string `json:"patch_rev"`
+	// ID 는 ★ Work 의 키 ★ 다. ★ 안 적으면 (system, change_id) 에서 유도한다 ★
+	// = 오늘 그대로. 적는 경우는 그 시스템의 변경 단위가 change_id 와 다를 때다.
+	ID        *WorkID `json:"id,omitempty"`
+	System    string  `json:"system"`
+	ChangeID  string  `json:"change_id"`
+	Patchset  int     `json:"patchset"`
+	ParentRev string  `json:"parent_rev"` // 차분 반증의 기준점
+	PatchRev  string  `json:"patch_rev"`
+}
+
+// WorkID 는 ★ 동일성을 우리가 정의하지 않는다 ★ 는 결정의 형태다 (ADR-023 §6.5.2).
+//
+// 우리는 ★ 그 시스템이 「하나의 변경」이라 부르는 것의 식별자를 받아 적는다 ★.
+// Gerrit 에서 그 단위는 ★ change number ★ 이고 Change-Id 해시가 아니다 —
+// 해시는 여러 브랜치의 change 에 걸치므로 키가 아니다. cherry-pick 과 rebase 에서
+// change number 는 유지되고, abandon 후 새로 올리면 새 번호 = ★ 다른 Work ★ 다.
+//
+// ⇒ ★ patchset 2 와 3 은 같은 Work 다 ★. 도메인이 Gerrit 밖으로 넓어져도
+// 규칙이 안 바뀐다 — system 마다 그 시스템의 변경 단위를 받으면 된다.
+type WorkID struct {
+	System   string `json:"system"`
+	ChangeID string `json:"change_id"`
+}
+
+// Key 는 이 Run 이 속한 Work 의 키다. ★ 없으면 유도한다 ★.
+//
+// 문자열 하나로 내는 이유는 이것이 ★ 인덱스이자 필터 ★ 이기 때문이다 —
+// 두 조각을 들고 다니면 조회하는 쪽마다 합치는 규칙을 알아야 한다.
+func (w Work) Key() string {
+	id := WorkID{System: w.System, ChangeID: w.ChangeID}
+	if w.ID != nil {
+		id = *w.ID
+	}
+	if id.System == "" && id.ChangeID == "" {
+		return ""
+	}
+	return id.System + ":" + id.ChangeID
 }
 
 // Lease 는 점유의 수명이다 (ADR-008 · ADR-010).

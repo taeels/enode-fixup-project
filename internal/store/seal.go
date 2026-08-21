@@ -14,7 +14,12 @@ import (
 // ★ 계약 전문이 여기 들어간다 ★ — 성질 4(자기충족)의 핵심이다.
 // ADR-020 이 스키마를 인라인으로 둔 덕에 ★ 무엇으로 검증했는지 ★ 까지 함께 남는다.
 type Manifest struct {
-	RunID     string        `json:"run_id"`
+	RunID string `json:"run_id"`
+	// WorkID 는 ★ 이 Run 이 속한 Work 의 키 ★ 다 (ADR-023 §6.5.2).
+	// ADR-005 가 manifest 의 내용으로 "Run id · ★ Work id ★ · 요청자 · 계약" 을
+	// 적었는데 ★ 그 자리가 비어 있었다 ★ — 계약에 필드가 없었기 때문이다.
+	// work 객체는 제출 전문 그대로 두고, 유도된 키를 여기 따로 남긴다.
+	WorkID    string        `json:"work_id,omitempty"`
 	Work      contract.Work `json:"work"`
 	Principal string        `json:"principal"` // 요청자. ★ 식별이지 인증이 아니다 ★
 	State     string        `json:"state"`
@@ -168,7 +173,8 @@ func (s *Store) sealRecord(ctx context.Context, runID string, v Verdict) error {
 		ended = t
 	}
 	m := Manifest{
-		RunID: run.RunID, Work: run.Contract.Work, Principal: run.Principal,
+		RunID: run.RunID, WorkID: run.Contract.Work.Key(),
+		Work: run.Contract.Work, Principal: run.Principal,
 		State: v.State, CreatedAt: run.CreatedAt, EndedAt: ended,
 		Assigned: run.Assigned,
 		// ★ v1 은 언제나 제출 전문이다 ★ (성질 4 — 봉인된 묶음만 보고

@@ -134,6 +134,14 @@ const (
 var ErrNotFound = errors.New("없다")
 
 // GetRun 은 없으면 ErrNotFound 다.
+// nullable 은 빈 문자열을 NULL 로 보낸다 — ★ "" 와 "없다" 를 섞지 않는다 ★.
+func nullable(v string) any {
+	if v == "" {
+		return nil
+	}
+	return v
+}
+
 func (s *Store) GetRun(ctx context.Context, runID string) (*Run, error) {
 	var r Run
 	var contractJSON, assignedJSON, rejectJSON, verdictJSON []byte
@@ -204,9 +212,13 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // 커밋됐으면 무해하다
 
+	// ★ Work 의 키를 여기서 박는다 ★ (ADR-023 §6.5.2) — 계약에 id 가 없으면
+	// (system, change_id) 에서 유도한다. Run 을 넘어 사는 유일한 식별자다.
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO runs (run_id, state, principal, contract, assigned) VALUES ($1,$2,$3,$4,$5)`,
-		r.RunID, r.State, r.Principal, contractJSON, assignedJSON); err != nil {
+		`INSERT INTO runs (run_id, state, principal, contract, assigned, work_id)
+		 VALUES ($1,$2,$3,$4,$5,$6)`,
+		r.RunID, r.State, r.Principal, contractJSON, assignedJSON,
+		nullable(r.Contract.Work.Key())); err != nil {
 		return err
 	}
 	for _, g := range grants {

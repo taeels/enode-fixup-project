@@ -372,3 +372,35 @@ func TestValidate_expands(t *testing.T) {
 		}
 	}
 }
+
+// ★ 동일성은 우리가 정의하지 않는다 ★ (ADR-023 §6.5.2)
+//
+// 그 시스템이 「하나의 변경」이라 부르는 것의 식별자를 받아 적는다.
+// ⇒ ★ patchset 2 와 3 은 같은 Work 다 ★ — 그래야 "지난번에 이 지적을 했는데
+// 안 고쳤다" 가 성립한다.
+func TestWorkKey_같은_변경의_패치셋들은_같은_Work다(t *testing.T) {
+	ps2 := Work{System: "gerrit", ChangeID: "12345", Patchset: 2, PatchRev: "aaa"}
+	ps3 := Work{System: "gerrit", ChangeID: "12345", Patchset: 3, PatchRev: "bbb"}
+	if ps2.Key() != ps3.Key() {
+		t.Fatalf("★ 패치셋이 Work 를 가른다 ★: %q vs %q — "+
+			"Work 1:N Run 이 성립하지 않는다", ps2.Key(), ps3.Key())
+	}
+	if ps2.Key() != "gerrit:12345" {
+		t.Fatalf("유도된 키가 %q 다", ps2.Key())
+	}
+	// ★ 다른 change 는 다른 Work ★ — abandon 후 새로 올린 경우가 여기다.
+	other := Work{System: "gerrit", ChangeID: "99999", Patchset: 1}
+	if other.Key() == ps2.Key() {
+		t.Fatal("다른 change 가 같은 Work 가 됐다")
+	}
+	// ★ 적으면 그것을 쓴다 ★ — 그 시스템의 변경 단위가 change_id 와 다를 때.
+	explicit := Work{System: "gerrit", ChangeID: "12345",
+		ID: &WorkID{System: "gerrit", ChangeID: "브랜치별-777"}}
+	if explicit.Key() != "gerrit:브랜치별-777" {
+		t.Fatalf("적어준 키를 안 썼다: %q", explicit.Key())
+	}
+	// work 를 안 채운 계약(시험용 계약들)은 키가 없다 — "" 와 "없다" 를 섞지 않는다.
+	if (Work{}).Key() != "" {
+		t.Fatal("빈 Work 가 키를 만들었다")
+	}
+}
