@@ -404,3 +404,47 @@ func TestWorkKey_같은_변경의_패치셋들은_같은_Work다(t *testing.T) {
 		t.Fatal("빈 Work 가 키를 만들었다")
 	}
 }
+
+// ★ 시야의 검증 — 모르는 값을 조용히 무시하지 않는다 ★ (ADR-023 §6.4)
+func TestValidate_시야(t *testing.T) {
+	mk := func(f func(*Contract)) Contract {
+		c := Contract{
+			RunID:    "r1",
+			Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
+			Steps: []Step{
+				{ID: "one", Uses: "b", Run: []string{"true"}, Out: []string{"one"}},
+				{ID: "two", Uses: "b", Run: []string{"true"}},
+			},
+		}
+		f(&c)
+		return c
+	}
+	if err := mk(func(c *Contract) { c.Ledger = &Ledger{Scope: ScopeWork} }).Validate(); err != nil {
+		t.Fatalf("scope work 가 거절됐다: %v", err)
+	}
+	if err := mk(func(c *Contract) { c.Steps[1].See = &See{Ledger: SeeList} }).Validate(); err != nil {
+		t.Fatalf("see list 가 거절됐다: %v", err)
+	}
+	// in.from 이 실존 산출물을 가리키면 통과한다.
+	if err := mk(func(c *Contract) {
+		c.Steps[1].In = map[string]interface{}{"from": []interface{}{"one"}}
+	}).Validate(); err != nil {
+		t.Fatalf("정상 in.from 이 거절됐다: %v", err)
+	}
+
+	for name, f := range map[string]func(*Contract){
+		"★ 모르는 scope ★": func(c *Contract) { c.Ledger = &Ledger{Scope: "global"} },
+		"★ 모르는 see ★":   func(c *Contract) { c.Steps[1].See = &See{Ledger: "all"} },
+		"★ see.from 은 아직 없다 ★": func(c *Contract) {
+			c.Steps[1].See = &See{From: []string{"one"}}
+		},
+		"★ 밑줄은 예약이다 ★": func(c *Contract) { c.Steps[0].Out = []string{"_ledger.json"} },
+		"★ 아무도 안 내는 것을 in.from 에 ★": func(c *Contract) {
+			c.Steps[1].In = map[string]interface{}{"from": []interface{}{"없는것"}}
+		},
+	} {
+		if err := mk(f).Validate(); err == nil {
+			t.Fatalf("%s — 통과했다", name)
+		}
+	}
+}

@@ -96,3 +96,9 @@ UPDATE steps s SET needs = coalesce(
  WHERE s.needs IS NULL;
 ALTER TABLE steps ALTER COLUMN needs SET DEFAULT '{}';
 ALTER TABLE steps ALTER COLUMN needs SET NOT NULL;
+
+-- ★ 워터마크 ★ (ADR-023 §6.4 자리 2) — 그 단계를 집을 때 원장에 있던 것들.
+-- ★ 이것이 성질 4(자기충족)를 지키는 장치다 ★: 봉인된 묶음만 열어서
+-- 「무엇을 볼 수 있었나」를 알 수 있어야 하고, 안 깔린 것도 여기 남는다.
+-- 항목은 blobs/ 의 파일 이름과 같은 형태라 (회차, 순번, 이름) 으로 유일하다.
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS ledger_at text[];

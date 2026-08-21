@@ -2,7 +2,11 @@ package store
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // StepView 는 ★ 실행 중에 밖에서 보이는 단계 하나 ★ 다 (ADR-025).
@@ -60,4 +64,124 @@ func (s *Store) Steps(ctx context.Context, runID string) ([]StepView, error) {
 		out = append(out, v)
 	}
 	return out, rows.Err()
+}
+
+// LedgerEntry 는 원장의 항목 하나다 — ★ 본문이 없다 ★ (ADR-023 §6.3).
+type LedgerEntry struct {
+	// RunID 는 ★ scope:"work" 일 때만 채워진다 ★ — 이 Run 밖에서 온 것이라는 표시다.
+	// 같은 Run 안의 것에 붙이면 모든 줄에 같은 값이 반복될 뿐이다.
+	RunID   string `json:"run_id,omitempty"`
+	Seq     int    `json:"seq"`
+	Attempt int    `json:"attempt"`
+	Name    string `json:"name"`
+	// By 는 ★ 누가 냈나 ★ 다 — "step:<id>". ADR-022 §7.6 의 by 와 ★ 같은 어휘 ★ 다.
+	By    string    `json:"by"`
+	At    time.Time `json:"at"`
+	Bytes int64     `json:"bytes"`
+	// SchemaOK 는 ★ 검증했는가와 통과했는가를 가른다 ★ (ADR-020 의 status:none 과 같은 이유).
+	//	nil    계약에 그 이름의 스키마가 ★ 없었다 ★ — 검증 안 했다
+	//	true   있었고 통과했다 (통과 못 하면 애초에 저장되지 않는다 — 422)
+	SchemaOK *bool `json:"schema_ok,omitempty"`
+}
+
+// Ledger 는 그 Run 이 ★ 지금 발견할 수 있는 것 ★ 의 목록이다 (ADR-023 §6).
+//
+// ★ 시야를 순서에서 유도하지 않는다 ★ — 조상인지 형제인지를 묻지 않고,
+// 그 시점에 원장에 ★ 있는가 ★ 만 본다. 그래서 병렬이 「최신」을 안 깬다.
+//
+// ★ scope:"work" 면 같은 Work 의 이전 Run 들이 낸 것까지 ★ 본다.
+// 이것은 ADR-005 가 범위 밖으로 둔 「여러 Run 에 걸친 질의」가 ★ 아니다 ★ —
+// 저쪽은 ★ 봉인 묶음에 대한 질의 ★ 이고, 이쪽은 work_id 인덱스로 Run 을 고른 뒤
+// 각자의 blobs/ 를 나열하는 것이다. ★ 검색 계층도 질의 언어도 안 는다 ★.
+func (s *Store) Ledger(ctx context.Context, runID string) ([]LedgerEntry, error) {
+	if s.Records == nil {
+		return nil, fmt.Errorf("기록 저장소가 없다")
+	}
+	run, err := s.GetRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	out := []LedgerEntry{}
+
+	// ★ 이전 Run 들이 먼저다 ★ — 시간 순서가 곧 목록의 순서다.
+	if run.Contract.Scope() == contract.ScopeWork {
+		prior, err := s.priorRuns(ctx, run)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range prior {
+			es, err := s.entriesOf(p.runID, p.contract, p.runID)
+			if err != nil {
+				continue // ★ 지워졌거나 못 읽는 Run 이 지금 Run 을 막지 않는다 ★
+			}
+			out = append(out, es...)
+		}
+	}
+	mine, err := s.entriesOf(runID, run.Contract, "")
+	if err != nil {
+		return nil, err
+	}
+	return append(out, mine...), nil
+}
+
+type priorRun struct {
+	runID    string
+	contract contract.Contract
+}
+
+// priorRuns 는 ★ 같은 Work 의 앞선 Run 들 ★ 이다. 자기 자신은 뺀다.
+//
+// work_id 가 ★ Run 을 넘어 사는 유일한 식별자 ★ 이므로 이 조회가 성립한다
+// (ADR-023 §6.5.2). 없으면 — 계약이 work 를 안 채웠으면 — 빈 목록이다.
+func (s *Store) priorRuns(ctx context.Context, run *Run) ([]priorRun, error) {
+	key := run.Contract.Work.Key()
+	if key == "" {
+		return nil, nil
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT run_id, contract FROM runs
+		 WHERE work_id = $1 AND run_id <> $2
+		 ORDER BY created_at`, key, run.RunID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []priorRun{}
+	for rows.Next() {
+		var p priorRun
+		var raw []byte
+		if err := rows.Scan(&p.runID, &raw); err != nil {
+			return nil, err
+		}
+		if json.Unmarshal(raw, &p.contract) != nil {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// entriesOf 는 Run 하나의 산출물에 ★ 계약이 아는 것 ★ 을 붙인다 —
+// 누가 냈는지(단계 이름)와 스키마로 검증됐는지. record 는 계약을 모르므로
+// 그 둘은 여기서만 붙일 수 있다.
+func (s *Store) entriesOf(runID string, c contract.Contract, label string) ([]LedgerEntry, error) {
+	metas, err := s.Records.Blobs(runID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]LedgerEntry, 0, len(metas))
+	for _, m := range metas {
+		e := LedgerEntry{RunID: label, Seq: m.Seq, Attempt: m.Attempt,
+			Name: m.Name, At: m.At, Bytes: m.Bytes}
+		if m.Seq >= 1 && m.Seq <= len(c.Steps) {
+			st := c.Steps[m.Seq-1]
+			e.By = "step:" + st.ID
+			if _, ok := st.Schema[m.Name]; ok {
+				ok := true
+				e.SchemaOK = &ok
+			}
+		}
+		out = append(out, e)
+	}
+	return out, nil
 }

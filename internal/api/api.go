@@ -58,6 +58,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
 	mux.HandleFunc("GET /v1/runs/{id}", s.auth(s.getRun))
 	mux.HandleFunc("GET /v1/capabilities", s.auth(s.getCapabilities))
+	mux.HandleFunc("GET /v1/runs/{id}/ledger", s.auth(s.getLedger))
 	mux.HandleFunc("GET /v1/runs/{id}/record", s.auth(s.getRecord))
 	mux.HandleFunc("POST /v1/runs/{id}/cancel", s.auth(s.postCancel))
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/log", s.auth(s.putLog))
@@ -393,6 +394,31 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	write(w, 200, s.view(r.Context(), run))
+}
+
+// ── GET /v1/runs/{id}/ledger ─────────────────────────────────────────────
+//
+// ★ 원장은 목록이다. 본문이 아니다 ★ (ADR-023 §6.3).
+//
+// 원장 전체를 하네스에 깔면 컨텍스트가 터지고 비용이 든다. 그래서 여기서는
+// 메타만 주고, 본문이 필요하면 ★ 이미 있는 blob 경로 ★ 로 가져간다 —
+// ★ 새 표면이 하나이고 새 의미가 0 개다 ★.
+//
+// ★ 종료 전에도 답한다 ★ — 이것은 Record 가 아니다 (ADR-025 와 같은 이유).
+// 그래서 GET record 의 409 를 우회하지 않는다: 여기서 나가는 것은
+// ★ 무엇이 있는가 ★ 이지 무슨 일이 있었나가 아니다.
+func (s *Server) getLedger(w http.ResponseWriter, r *http.Request) {
+	entries, err := s.st.Ledger(r.Context(), r.PathValue("id"))
+	if errors.Is(err, store.ErrNotFound) {
+		fail(w, 404, "그런 Run 이 없다")
+		return
+	}
+	if err != nil {
+		s.log.Error("원장 조회 실패", "run", r.PathValue("id"), "err", err)
+		fail(w, 503, "조회 실패")
+		return
+	}
+	write(w, 200, map[string]any{"entries": entries})
 }
 
 // ── GET /v1/capabilities ─────────────────────────────────────────────────

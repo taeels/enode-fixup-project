@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/taeels/enode/internal/contract"
 )
 
 // LeaseRow 는 enode 에게 내려보내는 허가 아티팩트다 (ADR-010).
@@ -79,7 +80,11 @@ type Claimed struct {
 	// 미리 싣는 이유는, 나중에 필요해졌을 때 ★ 이 표면을 고치지 않기 위해서 ★ 다.
 	Requester string   `json:"requester,omitempty"`
 	Feedback  []string `json:"feedback,omitempty"`
-	Lease     LeaseRow `json:"lease"`
+	// Ledger 는 ★ 그 시점 원장의 목록 ★ 이다 — 계약이 see.ledger:"list" 라고
+	// 했을 때만 실린다 (ADR-023 §6.4). ★ 본문이 아니라 목록이다 ★:
+	// enode 가 $IN 에 파일 하나로 깔고, 본문이 필요하면 in.from 이 가져온다.
+	Ledger []LedgerEntry `json:"ledger,omitempty"`
+	Lease  LeaseRow      `json:"lease"`
 }
 
 var ErrNoWork = errors.New("할 일이 없다")
@@ -163,7 +168,44 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID string) (*Claimed, error) 
 
 	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
 	fillFromContract(&c, contractJSON)
+	s.stampLedger(ctx, &c, contractJSON)
 	return &c, nil
+}
+
+// stampLedger 는 ★ 워터마크를 남기고, 계약이 원하면 목록을 함께 내려보낸다 ★
+// (ADR-023 §6.4 자리 2·3).
+//
+// ★ 트랜잭션 밖에서 한다 ★ — 원장은 파일시스템과 (scope:"work" 면) 다른 행을
+// 읽으므로 claim 의 잠금 안에서 부르면 커넥션이 서로를 기다릴 수 있다.
+// 집은 직후이고 그 단계는 아직 시작 전이므로 ★ "시작할 때" 와 같은 시점 ★ 이다.
+//
+// ★ 실패해도 단계를 막지 않는다 ★ — 워터마크는 기록이지 실행 조건이 아니다.
+func (s *Store) stampLedger(ctx context.Context, c *Claimed, contractJSON []byte) {
+	entries, err := s.Ledger(ctx, c.RunID)
+	if err != nil {
+		return
+	}
+	at := make([]string, 0, len(entries))
+	for _, e := range entries {
+		at = append(at, fmt.Sprintf("%02d.%d-%s", e.Seq, e.Attempt, e.Name))
+	}
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE steps SET ledger_at=$3 WHERE run_id=$1 AND seq=$2`,
+		c.RunID, c.Seq, at); err != nil {
+		return
+	}
+	// ★ 심는 것은 계약이 그러라고 할 때뿐이다 ★ — 기본은 안 심는다(오늘 동작).
+	var raw struct {
+		Steps []struct {
+			See *contract.See `json:"see"`
+		} `json:"steps"`
+	}
+	if json.Unmarshal(contractJSON, &raw) != nil || c.Seq-1 >= len(raw.Steps) {
+		return
+	}
+	if see := raw.Steps[c.Seq-1].See; see != nil && see.Ledger == contract.SeeList {
+		c.Ledger = entries
+	}
 }
 
 // fillFromContract 는 계약의 단계 정의를 응답에 싣는다.

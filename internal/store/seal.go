@@ -94,7 +94,8 @@ func ByStep(stepID string) string { return "step:" + stepID }
 func (s *Store) StepFiles(ctx context.Context, runID string) ([]record.StepFile, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT st.seq, st.name, st.uses, st.kind, coalesce(st.node_id,''),
-		       coalesce(n.label,''), st.state, st.started_at, st.ended_at, st.result
+		       coalesce(n.label,''), st.state, st.started_at, st.ended_at, st.result,
+		       st.ledger_at
 		  FROM steps st
 		  LEFT JOIN nodes n ON n.node_id = st.node_id
 		 WHERE st.run_id = $1 ORDER BY st.seq`, runID)
@@ -108,7 +109,7 @@ func (s *Store) StepFiles(ctx context.Context, runID string) ([]record.StepFile,
 		var started, ended *time.Time
 		var raw []byte
 		if err := rows.Scan(&f.Seq, &f.Name, &f.Uses, &f.Kind, &f.Node, &f.NodeLabel,
-			&f.State, &started, &ended, &raw); err != nil {
+			&f.State, &started, &ended, &raw, &f.LedgerAt); err != nil {
 			return nil, err
 		}
 		f.StepID = stepID(runID, f.Seq)

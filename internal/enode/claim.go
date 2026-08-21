@@ -39,8 +39,18 @@ type Step struct {
 	Attempt   int                        `json:"attempt,omitempty"`
 	Requester string                     `json:"requester,omitempty"` // ★ 요청한 사람 ★ (R2 재료)
 	Feedback  []string                   `json:"feedback,omitempty"`
-	Lease     Lease                      `json:"lease"`
+	// Ledger 는 ★ 그 시점 원장의 목록 ★ 이다 — 계약이 see.ledger:"list" 라고
+	// 했을 때만 온다 (ADR-023 §6.4). ★ 본문이 아니다 ★: $IN 에 파일 하나로 깔고,
+	// 본문이 필요하면 계약이 in.from 에 이름을 적어 그 경로로 받는다.
+	Ledger json.RawMessage `json:"ledger,omitempty"`
+	Lease  Lease           `json:"lease"`
 }
+
+// ledgerFile 은 원장 목록이 $IN 에 깔리는 이름이다.
+// ★ 산출물 이름과 충돌하지 않아야 한다 ★ — $IN 에는 계약이 적은 이름들이 깔린다.
+// 밑줄로 시작하는 산출물 이름은 ★ 계약 검증이 400 으로 막는다 ★ (contract.Validate).
+// 런타임에 이름을 바꾸는 대신 검증으로 막는 이유는, 바꾸면 계약 저자가 모르기 때문이다.
+const ledgerFile = "_ledger.json"
 
 var errNoWork = errors.New("204")
 
@@ -302,6 +312,17 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 			_ = w.Client.Report(ctx, step.RunID, step.Seq, Result{
 				Node: w.Ident.NodeID, Error: "산출물 " + name + " 을 못 받았다"})
 			return
+		}
+	}
+	// ★ 원장 목록을 $IN 에 깐다 ★ (ADR-023 §6.3.1 의 (가)) —
+	// enode 가 받아서 파일로 깐다. ★ 토큰이 에이전트에 안 간다 ★ (R1).
+	// 에이전트가 도구로 직접 부르는 (나) 안은 새 부품이라 순연했다.
+	// ★ 안 오면 안 깐다 ★ = 오늘 그대로.
+	if len(step.Ledger) > 0 {
+		if err := os.WriteFile(filepath.Join(in, ledgerFile), step.Ledger, 0o644); err != nil {
+			// ★ 막지 않는다 ★ — 원장은 발견을 돕는 것이지 단계의 성립 조건이 아니다.
+			// 없으면 없는 대로 간다 (ADR-023 §6.2.1 의 "안 깔린다. 실패가 아니다").
+			log.Warn("원장 목록을 못 깔았다", "err", err)
 		}
 	}
 	if why := sealInput(in); why != "" {

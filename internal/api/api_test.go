@@ -1382,3 +1382,202 @@ func TestObserve_건너뛴_가지가_보인다(t *testing.T) {
 		t.Fatalf("고른 가지가 %q 다", got["quick"])
 	}
 }
+
+// ═══ 원장 — ★ 시야를 순서에서 유도하지 않는다 ★ (ADR-023 §6) ═════════════
+//
+// 조상인지 형제인지를 묻지 않고 ★ 그 시점 원장에 있는가 ★ 만 본다.
+// 그래서 병렬이 「최신」을 안 깨고, leaf 라고 볼 것이 없지도 않다.
+
+// workContract 는 work 를 채운 계약이다 — ★ Work 의 키가 있어야 ★ 원장이
+// Run 을 넘을 수 있다 (ADR-023 §6.5.2).
+func workContract(runID, changeID string, patchset int, scope string,
+	steps []map[string]any) string {
+	c := map[string]any{
+		"run_id": runID,
+		"work": map[string]any{
+			"system": "gerrit", "change_id": changeID, "patchset": patchset,
+			"parent_rev": "aaa", "patch_rev": "bbb"},
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    steps,
+	}
+	if scope != "" {
+		c["ledger"] = map[string]any{"scope": scope}
+	}
+	b, _ := json.Marshal(c)
+	return string(b)
+}
+
+// ★ 원장은 목록이다. 본문이 아니다 ★ (ADR-023 §6.3)
+func TestLedger_목록을_준다_본문은_아니다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("L1", "a", map[string]string{"role": "x"}), nil)
+	step := map[string]any{"id": "note", "uses": "b",
+		"agent": map[string]any{"ask": "never"}, "out": []string{"note"}}
+	do(t, srv, "POST", "/v1/runs", workContract("led1", "555", 1, "", []map[string]any{step}), nil)
+	do(t, srv, "POST", "/v1/nodes/L1/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/led1/steps/1/blob/note", `{"말":"이 줄은 본문이다"}`, nil)
+	do(t, srv, "POST", "/v1/runs/led1/steps/1/result", `{"node":"L1","produced":["note"]}`, nil)
+
+	code, v := do(t, srv, "GET", "/v1/runs/led1/ledger", "", nil)
+	if code != 200 {
+		t.Fatalf("원장 조회 실패: %d", code)
+	}
+	raw, _ := json.Marshal(v["entries"])
+	if strings.Contains(string(raw), "이 줄은 본문이다") {
+		t.Fatalf("★ 원장에 본문이 들어갔다 ★: %s — 목록이어야 한다", raw)
+	}
+	var es []struct {
+		Name  string `json:"name"`
+		By    string `json:"by"`
+		Bytes int64  `json:"bytes"`
+		RunID string `json:"run_id"`
+	}
+	_ = json.Unmarshal(raw, &es)
+	if len(es) != 1 || es[0].Name != "note" {
+		t.Fatalf("원장이 %v 다", string(raw))
+	}
+	if es[0].By != "step:note" {
+		t.Fatalf("★ 누가 냈는지가 안 보인다 ★: %q", es[0].By)
+	}
+	if es[0].Bytes == 0 {
+		t.Fatal("크기가 안 보인다 — 본문을 받을지 정할 재료가 없다")
+	}
+	if es[0].RunID != "" {
+		t.Fatalf("★ 같은 Run 것에 run_id 가 붙었다 ★: %q — 모든 줄에 같은 값이 반복된다", es[0].RunID)
+	}
+}
+
+// ★ 같은 Work 의 이전 Run 이 낸 것이 보인다 ★ (ADR-023 §6.5)
+//
+// "지난번에 이 지적을 했는데 안 고쳤다" 가 성립하는 자리다.
+// patchset 2 와 3 은 ★ 같은 Work ★ 이므로 3 이 2 의 산출물을 발견한다.
+func TestLedger_이전_패치셋이_낸_것이_보인다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("L2", "a", map[string]string{"role": "x"}), nil)
+	step := map[string]any{"id": "review", "uses": "b",
+		"agent": map[string]any{"ask": "never"}, "out": []string{"review"}}
+
+	// patchset 2 — 지난번 리뷰. 판정 조건이 없어 FAILED 로 끝나지만
+	// ★ 낸 것은 남는다 ★ (원장은 성패와 무관하다).
+	do(t, srv, "POST", "/v1/runs", workContract("ps2", "777", 2, "", []map[string]any{step}), nil)
+	do(t, srv, "POST", "/v1/nodes/L2/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/ps2/steps/1/blob/review", `{"지적":"락을 안 풀었다"}`, nil)
+	do(t, srv, "POST", "/v1/runs/ps2/steps/1/result", `{"node":"L2","produced":["review"]}`, nil)
+
+	// patchset 3 — 이번 리뷰. ★ scope:"work" ★
+	do(t, srv, "POST", "/v1/runs", workContract("ps3", "777", 3, "work", []map[string]any{step}), nil)
+
+	code, v := do(t, srv, "GET", "/v1/runs/ps3/ledger", "", nil)
+	if code != 200 {
+		t.Fatalf("원장 조회 실패: %d", code)
+	}
+	raw, _ := json.Marshal(v["entries"])
+	var es []struct {
+		Name  string `json:"name"`
+		RunID string `json:"run_id"`
+	}
+	_ = json.Unmarshal(raw, &es)
+	if len(es) != 1 {
+		t.Fatalf("★ 이전 패치셋이 낸 것이 안 보인다 ★: %s", raw)
+	}
+	if es[0].RunID != "ps2" {
+		t.Fatalf("★ 어느 Run 에서 왔는지가 안 보인다 ★: %q", es[0].RunID)
+	}
+
+	// ★ scope 를 안 적으면 안 보인다 ★ — 기본은 오늘 동작이다.
+	do(t, srv, "POST", "/v1/runs", workContract("ps4", "777", 4, "", []map[string]any{step}), nil)
+	_, v4 := do(t, srv, "GET", "/v1/runs/ps4/ledger", "", nil)
+	raw4, _ := json.Marshal(v4["entries"])
+	var e4 []any
+	_ = json.Unmarshal(raw4, &e4)
+	if len(e4) != 0 {
+		t.Fatalf("★ scope 없이 Run 을 넘어 봤다 ★: %s — 기본은 run 이어야 한다", raw4)
+	}
+}
+
+// ★ 심는 것은 계약이 그러라고 할 때뿐이다 ★ (ADR-023 §6.4 자리 3)
+func TestLedger_see가_있어야_목록이_실린다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("L3", "a", map[string]string{"role": "x"}), nil)
+	first := map[string]any{"id": "first", "uses": "b",
+		"agent": map[string]any{"ask": "never"}, "out": []string{"first"}}
+	quiet := map[string]any{"id": "quiet", "uses": "b", "run": []string{"true"}}
+	seeing := map[string]any{"id": "seeing", "uses": "b", "run": []string{"true"},
+		"see": map[string]any{"ledger": "list"}}
+	do(t, srv, "POST", "/v1/runs",
+		workContract("see1", "888", 1, "", []map[string]any{first, quiet, seeing}), nil)
+
+	do(t, srv, "POST", "/v1/nodes/L3/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/see1/steps/1/blob/first", `{"a":1}`, nil)
+	do(t, srv, "POST", "/v1/runs/see1/steps/1/result", `{"node":"L3","produced":["first"]}`, nil)
+
+	// ★ 안 적은 단계에는 안 실린다 ★ = 오늘 그대로.
+	_, c2 := do(t, srv, "POST", "/v1/nodes/L3/claim", "", nil)
+	if _, got := c2["ledger"]; got {
+		t.Fatalf("★ 안 적었는데 목록이 실렸다 ★: %v", c2["ledger"])
+	}
+	do(t, srv, "POST", "/v1/runs/see1/steps/2/result", `{"node":"L3","exit_code":0}`, nil)
+
+	// ★ 적은 단계에는 실린다 ★
+	_, c3 := do(t, srv, "POST", "/v1/nodes/L3/claim", "", nil)
+	raw, _ := json.Marshal(c3["ledger"])
+	if !strings.Contains(string(raw), `"first"`) {
+		t.Fatalf("★ see:list 인데 목록이 안 실렸다 ★: %s", raw)
+	}
+}
+
+// ★ 워터마크가 봉인에 남는다 ★ (ADR-023 §6.4 자리 2)
+//
+// 성질 4(자기충족)를 지키는 장치다 — 봉인된 묶음만 열어서 ★ "무엇을 볼 수
+// 있었나" ★ 를 알 수 있어야 한다. ★ 안 깔린 것도 남는다 ★: 원장에 있었는데
+// 이 단계가 안 가져간 것과 애초에 없었던 것은 다르다.
+func TestLedger_워터마크가_봉인에_남는다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("L4", "a", map[string]string{"role": "x"}), nil)
+	first := map[string]any{"id": "first", "uses": "b",
+		"agent": map[string]any{"ask": "never"}, "out": []string{"first"}}
+	later := map[string]any{"id": "later", "uses": "b", "run": []string{"true"}}
+	c := map[string]any{
+		"run_id":   "wm1",
+		"work":     map[string]any{"system": "gerrit", "change_id": "999", "patchset": 1},
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    []map[string]any{first, later},
+		"success_when": []map[string]any{
+			{"step": "first", "produced": []string{"first"}},
+			{"step": "later", "exit_code": 0}},
+	}
+	b, _ := json.Marshal(c)
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/L4/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/wm1/steps/1/blob/first", `{"a":1}`, nil)
+	do(t, srv, "POST", "/v1/runs/wm1/steps/1/result", `{"node":"L4","produced":["first"]}`, nil)
+	do(t, srv, "POST", "/v1/nodes/L4/claim", "", nil) // later — 이때 원장에 first 가 있다
+	do(t, srv, "POST", "/v1/runs/wm1/steps/2/result", `{"node":"L4","exit_code":0}`, nil)
+
+	raw, err := os.ReadFile(filepath.Join(st.Records.Root, "run-wm1", "steps", "02-later.json"))
+	if err != nil {
+		t.Fatalf("★ 봉인이 안 됐다 ★: %v", err)
+	}
+	var f struct {
+		LedgerAt []string `json:"ledger_at"`
+	}
+	if err := json.Unmarshal(raw, &f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.LedgerAt) != 1 || !strings.HasSuffix(f.LedgerAt[0], "-first") {
+		t.Fatalf("★ 볼 수 있었던 것이 안 남았다 ★: %v — "+
+			"성질 4 는 봉인된 묶음만 보고 알 수 있기를 요구한다", f.LedgerAt)
+	}
+
+	// ★ 첫 단계는 볼 것이 없었다 ★ — 그것도 사실이고 그대로 남아야 한다.
+	raw1, _ := os.ReadFile(filepath.Join(st.Records.Root, "run-wm1", "steps", "01-first.json"))
+	var f1 struct {
+		LedgerAt []string `json:"ledger_at"`
+	}
+	_ = json.Unmarshal(raw1, &f1)
+	if len(f1.LedgerAt) != 0 {
+		t.Fatalf("첫 단계가 무언가를 봤다: %v", f1.LedgerAt)
+	}
+}

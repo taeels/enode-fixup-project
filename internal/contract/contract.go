@@ -62,6 +62,69 @@ type Contract struct {
 	Lease       Lease       `json:"lease"`
 	Steps       []Step      `json:"steps"`
 	SuccessWhen []Condition `json:"success_when"`
+
+	// Ledger 는 ★ 이 Run 이 무엇을 발견할 수 있는가 ★ 다 (ADR-023 §6).
+	// ★ 없으면 scope:"run" 과 같다 ★ = 오늘 그대로.
+	Ledger *Ledger `json:"ledger,omitempty"`
+}
+
+// See 는 한 단계의 시야를 줄인다 (ADR-023 §6.4 자리 3).
+type See struct {
+	// Ledger 는 ★ 원장 목록을 이 단계에 심을 것인가 ★ 다.
+	//
+	//	"" · "none"  안 심는다 (기본. ★ 오늘 동작 ★)
+	//	"list"       그 시점 ★ 목록 ★ 을 심는다 — ★ 본문이 아니다 ★
+	//
+	// 목록만 심는 이유는 §6.3 이다: 원장 전체를 하네스에 깔면 컨텍스트가 터지고
+	// 비용이 든다. 본문이 필요하면 계약이 in.from 에 이름을 적는다.
+	Ledger string `json:"ledger,omitempty"`
+	// From 은 ★ 자리다. 오늘은 값이 오면 400 이다 ★.
+	//
+	// in.from 중 일부만 $IN 에 까는 ★ 비용·권한 경계 ★ 인데, 오늘은 계약 저자가
+	// in.from 을 직접 줄이면 되므로 값이 없다. ★ 값이 생기는 시점은 계획을
+	// 기계가 쓸 때 ★ 다 — 좁히기는 비용 결정이라 계획을 짓는 쪽이 아는 것이
+	// 자연스럽고, 그러면 시야가 계획 위임 위에 앉는다 (ADR-023 §12 의 열린 질문).
+	// ★ 조용히 무시하지 않는다 ★ — 무시하면 계약 저자는 좁혀진 줄 안다.
+	From []string `json:"from,omitempty"`
+}
+
+const (
+	SeeNone = "none"
+	SeeList = "list"
+)
+
+// Ledger 는 시야의 ★ 발견 ★ 축이다 (ADR-023 §6.2).
+//
+// ★ 시야를 순서에서 유도하지 않는다 ★ — 원장을 두고 정책이 줄인다. 셋을 가른다:
+//
+//	① ★ 발견 ★  원장     "지금 무엇이 ★ 있는가 ★"
+//	② ★ 주입 ★  in.from  "그중 무엇을 ★ $IN 에 깔 것인가 ★"
+//	③ ★ 축소 ★  see      "깔리는 것을 ★ 더 줄인다 ★"
+//
+// 초안 둘을 폐기하고 여기 왔다 — "leaf 는 볼 게 없다" 와 "시야가 순서 그래프를
+// 오염시킨다" 는 ★ 전부 「유도」가 만든 결함 ★ 이라 원인째 사라졌다.
+type Ledger struct {
+	// Scope 는 원장이 ★ 어디까지 ★ 보이는가다.
+	//
+	//	""  · "run"   이 Run 이 낸 것 (기본. 오늘 동작)
+	//	"work"        ★ 같은 Work 의 이전 Run 들이 낸 것까지 ★
+	//	              patchset 3 의 리뷰가 patchset 2 의 산출물을 본다
+	//	              ⇒ "지난번에 이 지적을 했는데 안 고쳤다" 가 성립한다
+	//
+	// ★ 모르는 값은 400 이다 ★ — 미구현을 조용히 무시하지 않는다 (ADR-013).
+	// ★ enum 을 코드에 박지 않는다 ★ — "오늘은 둘이다" 는 관찰이지 제약이 아니다.
+	// 세 번째(Work 를 넘는 축적)의 여는 조건은 ADR-023 §6.5.2 에 있다.
+	Scope string `json:"scope,omitempty"`
+}
+
+// LedgerScope 는 오늘 아는 값들이다. 아래 둘뿐이지만 ★ 하한이 아니라 현재 상태다 ★.
+const (
+	ScopeRun  = "run"
+	ScopeWork = "work"
+)
+
+func knownScope(v string) bool {
+	return v == "" || v == ScopeRun || v == ScopeWork
 }
 
 // Work 는 이 Run 이 무엇에 대한 것인가를 가리킨다.
@@ -319,6 +382,13 @@ type Step struct {
 	// 것은 의존이 아니라 ★ 반복 ★ 이고 그건 repeat 의 자리다 (dispatch 와 같다).
 	Needs []string `json:"needs,omitempty"`
 
+	// See 는 ★ 이 단계가 무엇을 볼지 ★ 다 — 시야의 ★ 축소 ★ 축 (ADR-023 §6.4).
+	//
+	// ★ 순수 축소다 ★ — see 로는 원장 밖을 못 본다. 그것이 검증 조건이다.
+	// 넓히는 것은 ledger.scope 가 하고, 이쪽은 ★ 줄이기만 ★ 한다.
+	// ★ 없으면 목록을 안 심는다 ★ = 오늘 그대로.
+	See *See `json:"see,omitempty"`
+
 	// Dispatch 는 ★ 분기다 — 식을 평가하지 않고 이름을 고른다 ★ (ADR-022 §7.2).
 	//
 	// 기각한 것은 「결과가 X 면 A」 라는 ★ 표현식 ★ 이지 분기 자체가 아니다.
@@ -333,6 +403,34 @@ type Step struct {
 	Feedback     []string `json:"feedback,omitempty"`
 
 	Repeat int `json:"repeat,omitempty"`
+}
+
+// inFrom 은 in 의 from 목록을 꺼낸다. In 이 자유 형식 맵이라(프롬프트·참조 문법이
+// 함께 산다) 타입으로 못 받고 여기서 읽는다.
+func inFrom(in map[string]interface{}) []string {
+	raw, ok := in["from"]
+	if !ok {
+		return nil
+	}
+	list, ok := raw.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(list))
+	for _, v := range list {
+		if s, ok := v.(string); ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// Scope 는 이 계약의 원장 범위다. ★ 없으면 run ★ = 오늘 그대로.
+func (c Contract) Scope() string {
+	if c.Ledger == nil || c.Ledger.Scope == "" {
+		return ScopeRun
+	}
+	return c.Ledger.Scope
 }
 
 // NeedsOf 는 steps 의 i 번째(0 부터) 단계가 기다리는 단계 이름들이다.
@@ -483,6 +581,61 @@ func (c Contract) Validate() error {
 	for i, st := range c.Steps {
 		index[st.ID] = i
 	}
+	// ★ 밑줄로 시작하는 산출물 이름은 예약이다 ★ (ADR-023 §6.3.1).
+	// $IN 에는 계약이 적은 이름들이 깔리는데 원장 목록도 거기 파일로 간다.
+	// 이름 공간을 안 가르면 ★ 계약이 _ledger.json 을 내는 순간 조용히 덮인다 ★.
+	// 검증으로 막는 쪽을 고른다 — 런타임에 이름을 바꾸면 계약 저자가 모른다.
+	for _, st := range c.Steps {
+		for _, o := range st.Out {
+			if strings.HasPrefix(o, "_") {
+				return fmt.Errorf("step %q: 산출물 이름 %q — "+
+					"밑줄로 시작하는 이름은 예약이다 ($IN 의 이름 공간)", st.ID, o)
+			}
+		}
+	}
+
+	// ★ in.from 의 정적 검사 — 오타를 막는 것이 전부다 ★ (ADR-023 §6.2.1).
+	//
+	// ★ 조상인지 아닌지는 안 본다 ★ — dispatch 와 병렬 때문에 어차피 실행 시에
+	// 정해지고, 순서 안전은 ★ "그 시점 원장에 없으면 안 깔린다" ★ 로 흡수된다.
+	// 여기서 보는 것은 ★ 그 이름을 내는 단계가 계약에 있는가 ★ 뿐이다.
+	// 안 보면 계약 저자가 영구 거절 대신 "산출물을 못 받았다" 를 실행 중에 본다.
+	produced := map[string]bool{}
+	for _, st := range c.Steps {
+		for _, o := range st.Out {
+			produced[o] = true
+		}
+	}
+	for _, st := range c.Steps {
+		for _, name := range inFrom(st.In) {
+			if !produced[name] {
+				return fmt.Errorf("step %q: in.from 이 아무도 내지 않는 %q 를 가리킨다",
+					st.ID, name)
+			}
+		}
+	}
+
+	for _, st := range c.Steps {
+		if st.See == nil {
+			continue
+		}
+		switch st.See.Ledger {
+		case "", SeeNone, SeeList:
+		default:
+			return fmt.Errorf("step %q: see.ledger %q 를 모른다 — 아는 것은 %q 와 %q 다",
+				st.ID, st.See.Ledger, SeeNone, SeeList)
+		}
+		if len(st.See.From) > 0 {
+			return fmt.Errorf("step %q: see.from 은 아직 없다 — "+
+				"오늘은 in.from 을 직접 줄인다 (ADR-023 §6.4)", st.ID)
+		}
+	}
+
+	if c.Ledger != nil && !knownScope(c.Ledger.Scope) {
+		return fmt.Errorf("ledger.scope %q 를 모른다 — 아는 것은 %q 와 %q 다",
+			c.Ledger.Scope, ScopeRun, ScopeWork)
+	}
+
 	// ★ expands 는 한 단계만 ★ (ADR-022 §6.3) — 「Run 은 하나다」의 완화를
 	// 여기서 유계로 묶는다. 임의 확장이 아니라 ★ 한 단계가 한 번 ★ 이다.
 	expander := ""

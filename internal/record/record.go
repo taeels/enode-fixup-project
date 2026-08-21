@@ -19,8 +19,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Store struct{ Root string }
@@ -133,6 +135,12 @@ type StepFile struct {
 	StartedAt string `json:"started_at,omitempty"`
 	EndedAt   string `json:"ended_at,omitempty"`
 	Result    any    `json:"result,omitempty"`
+	// LedgerAt 은 ★ 이 단계가 시작할 때 원장에 있던 것들 ★ 이다 (ADR-023 §6.4).
+	// ★ 성질 4 를 지키는 장치다 ★ — 봉인된 묶음만 열어서 "무엇을 볼 수 있었나" 를
+	// 알 수 있어야 한다. ★ 안 깔린 것도 여기 남는다 ★: 원장에 있었는데 이 단계가
+	// 안 가져간 것과, 애초에 없었던 것은 다르다.
+	// ★ 재현성이 아니라 자기충족이다 ★ — 에이전트 출력은 원래 비결정이다.
+	LedgerAt []string `json:"ledger_at,omitempty"`
 }
 
 func writeJSON(path string, v any) error {
@@ -335,4 +343,58 @@ func (s *Store) OpenBlob(runID, name string) (io.ReadCloser, int64, error) {
 	}
 	f, err := os.Open(p)
 	return f, fi.Size(), err
+}
+
+// BlobMeta 는 산출물 하나의 ★ 메타다. 본문이 없다 ★ (ADR-023 §6.3).
+//
+// ★ 원장의 실체는 이미 여기 있었다 ★ — blobs/ 가 그것이고 엔트리는
+// (회차, 순번, 이름) 으로 이미 유일하다. 없던 것은 ★ 읽는 표면과 메타 ★ 뿐이다.
+type BlobMeta struct {
+	Seq     int       `json:"seq"`
+	Attempt int       `json:"attempt"`
+	Name    string    `json:"name"`
+	Bytes   int64     `json:"bytes"`
+	At      time.Time `json:"at"`
+}
+
+// Blobs 는 그 Run 이 지금까지 낸 산출물의 목록이다. ★ 본문은 안 읽는다 ★.
+//
+// 원장 전체를 하네스에 깔면 컨텍스트가 터지고 비용이 든다. ★ 그래서 목록이다 ★ —
+// 본문이 필요하면 이미 있는 blob 경로로 가져온다 (새 의미가 0 개다).
+func (s *Store) Blobs(runID string) ([]BlobMeta, error) {
+	ents, err := os.ReadDir(filepath.Join(s.dir(runID), "blobs"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []BlobMeta{}, nil // 아직 아무도 안 냈다 — 없는 것이 정상이다
+		}
+		return nil, err
+	}
+	out := []BlobMeta{}
+	for _, e := range ents {
+		if e.IsDir() {
+			continue
+		}
+		seq, att, ok := parseBlobName(e.Name())
+		if !ok {
+			continue // .tmp-* 같은 것
+		}
+		fi, err := e.Info()
+		if err != nil {
+			continue
+		}
+		dash := strings.IndexByte(e.Name(), '-')
+		out = append(out, BlobMeta{
+			Seq: seq, Attempt: att, Name: e.Name()[dash+1:],
+			Bytes: fi.Size(), At: fi.ModTime().UTC(),
+		})
+	}
+	// ★ (회차, 순번) 순서다 ★ — OpenBlob 의 최신성 규칙과 같은 순서를 쓴다.
+	// 병렬이면 회차가 가지마다 따로 도므로 mtime 은 순서를 안 준다.
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Attempt != out[j].Attempt {
+			return out[i].Attempt < out[j].Attempt
+		}
+		return out[i].Seq < out[j].Seq
+	})
+	return out, nil
 }
