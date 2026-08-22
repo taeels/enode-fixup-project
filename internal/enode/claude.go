@@ -110,36 +110,52 @@ func (claudeHarness) Argv(p AgentParams, io IOPaths) []string {
 	if p.MaxTurns > 0 {
 		args = append(args, "--max-turns", strconv.Itoa(p.MaxTurns))
 	}
-	// ★ 되묻기를 끄는 것과 권한을 다 여는 것은 다르다 ★ (R7 실측, 2026-08-20)
+	// ★ 경계는 단계가 아니라 노드에 있다 ★ (2026-08-22, ADR-042)
 	//
-	// 예전 코드는 ask:never 를 --permission-mode bypassPermissions 로 옮겼다.
-	// ADR-013 이 ask:never 를 못 박은 근거는 "물으면 타임아웃까지 매달린다" 인데,
-	// ★ -p 모드에는 그 전제가 해당되지 않는다 ★ — 실측에서 승인 안 된 동작은
-	// 묻지 않고 거부되고, 오류로 돌아와 subtype:success 로 끝났다.
+	// 이 자리는 두 번 바뀌었고 ★ 값은 처음으로 돌아왔지만 근거가 다르다 ★.
 	//
-	// 그리고 bypassPermissions 는 ★ 워크스페이스 밖 읽기까지 연다 ★.
-	// 실측에서 밖의 파일 내용이 그대로 나왔고 --disallowed-tools 로도 못 막았다.
+	//	1차  bypassPermissions   ADR-013 의 ask:never 를 「모든 권한 우회」로
+	//	                        ★ 잘못 번역한 것 ★ 이었다 (R7 이 지적했다)
+	//	2차  acceptEdits+add-dir R7 실측이 고른 값. 근거는 ★ 포함관계 ★ 였다:
+	//	                        모델이 쓸 수 있는 곳 ⊆ 훅이 볼 수 있는 곳
+	//	3차  bypassPermissions   ★ 그 포함관계가 살 자리가 아니었다 ★
 	//
-	// ★ 이게 왜 중요한가 — 훅의 검토가 거기 걸린다 ★
+	// ★ 왜 3차인가 — 명령 단계가 이미 무경계다 ★
 	//
-	//	모델이 쓸 수 있는 곳  ⊆  훅이 볼 수 있는 곳
+	// INVARIANTS 가 적어둔 그대로다: *명령 단계에는 파일시스템 경계가 없다.
+	// argv 는 무엇이든 되므로 걸 자리가 없다. ★ 그래서 노드는 소유자가
+	// 신뢰하는 계약만 받는다 ★.* 그런데 같은 계약이
 	//
-	// 이어야 검토가 성립한다. 훅은 워크스페이스(git status)와 $OUT(harvest)만 본다.
-	// bypassPermissions 면 모델이 그 밖에 쓸 수 있고 ★ 훅이 못 보는 쓰기가 생긴다 ★.
-	// acceptEdits + --add-dir 로 두 집합을 같게 만든다.
+	//	run:   ["brew", "install", "colima"]     ★ 오늘 그냥 된다 ★
+	//	agent: "colima 를 설치해라"               ★ 거부된다 ★
 	//
-	// 다른 모드는 왜 아닌가 (전부 실측):
+	// 로 갈렸다. ★ 위협이 같은데 규칙이 달랐다 ★ — 그리고 좁은 쪽이 산 것은
+	// 안전이 아니라 ★ 에이전트가 명령을 못 돌린다 ★ 였다.
 	//
-	//	기본 · manual   쓰기를 거부한다 → 산출물을 못 낸다. 재시도하다 턴만 태운다.
-	//	auto            바깥 읽기가 열린다. bypass 와 사실상 같다.
-	//	--allowed-tools ★ 제한이 아니라 자동승인 목록이다 ★ — "Read" 를 넣으면
-	//	                경로 조건 없이 Read 가 승인돼 ★ --add-dir 경계를 덮어쓴다 ★.
-	//	                그래서 도구를 나열하지 않는다.
+	// ★ enode 를 띄운 것이 곧 허가다 ★ — 토큰을 쥐여 미디에이터를 가리킨 순간
+	// 노드 주인은 이 기계가 임의의 argv 를 받는다고 선언한 것이다. 그 선언 뒤에
+	// 에이전트만 가두는 것은 위협 모델을 좁히지 못하고 능력만 좁힌다.
+	//
+	// ★ R7 의 실측은 틀리지 않았다 ★ — 각 모드가 무엇을 여는지는 그대로 맞다.
+	// 바뀐 것은 ★ 어느 대가를 받을 것인가 ★ 이고, R7 은 명령 단계와의 불일치를
+	// 저울에 안 올렸다.
+	//
+	// ★ 그래서 무엇이 남아서 지키나 ★
+	//   sealInput()  $IN 을 0444·0555 로 잠근다 (collect.go).
+	//                ★ 권한 모드가 아니라 파일시스템이 거는 것 ★ 이라 여기 안 묶인다.
+	//                오히려 이제 그것이 ★ 유일한 기계적 방어 ★ 다.
+	//   harnessEnv() R1 환경 화이트리스트. ENODE_TOKEN 은 여전히 안 넘어간다 —
+	//                ★ 열쇠가 하나 ★ 라는 전제는 I1 이 서 있는 자리라 안 건드린다.
+	//
+	// ★ 도구는 여전히 나열하지 않는다 ★ — --allowed-tools 는 제한이 아니라
+	// 자동승인 목록이고(R7 실측), 여기서는 아무 일도 안 하면서 이름만 늘린다.
 	if p.Ask == "" || p.Ask == "never" {
-		args = append(args, "--permission-mode", "acceptEdits")
+		args = append(args, "--permission-mode", "bypassPermissions")
 	}
-	// ★ 쓸 수 있는 곳을 명시한다 ★ — cwd(워크스페이스)는 기본으로 열리고,
-	// $OUT · $IN 은 그 밖이므로 안 열면 산출물을 못 낸다.
+	// ★ --add-dir 을 남긴다 ★ — bypassPermissions 아래서 권한상으로는 불필요하다.
+	// 남기는 이유는 ★ 의도가 argv 에 남아야 ★ 하기 때문이다: 이 단계가 어디를
+	// 쓸 셈이었는지가 Record 의 하네스 로그에 그대로 찍힌다. 지우면 그 사실이
+	// 코드에만 있고 기록에는 없다.
 	for _, d := range []string{io.Out, io.In} {
 		if d != "" && d != io.Dir {
 			args = append(args, "--add-dir", d)

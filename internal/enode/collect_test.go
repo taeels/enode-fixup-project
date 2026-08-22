@@ -37,7 +37,7 @@ func TestCollect_적은_경로를_옮긴다(t *testing.T) {
 
 // ★ 워크스페이스 밖을 못 가리킨다 ★
 //
-// acceptEdits + --add-dir 로 모델이 쓸 수 있는 곳을 좁혀놨는데, collect 가
+// (ADR-042 이전 표현: acceptEdits + --add-dir) 모델이 쓸 수 있는 곳과 collect 가
 // 아무 데나 가리키면 ★ 계약이 그 경계를 우회한다 ★. 계약은 노드 주인이 아닌
 // 사람이 낸다.
 func TestCollect_바깥을_못_가리킨다(t *testing.T) {
@@ -216,7 +216,7 @@ func TestCollect_이유가_기록에_실린다(t *testing.T) {
 
 // ★ $IN 은 읽기 전용이다 ★
 //
-// --add-dir 이 $IN 에도 걸리는데 읽기/쓰기를 안 가르므로, 훅이 못 보는 쓰기가
+// $IN 은 읽기만 필요한데 쓰기가 열려 있으므로, 훅이 못 보는 쓰기가
 // 생긴다. 시연에 대입하면 ④의 리뷰 대상 diff · ⑥의 되먹인 빌드 로그다.
 func Test입력_잠금_고칠_수_없다(t *testing.T) {
 	if os.Geteuid() == 0 {

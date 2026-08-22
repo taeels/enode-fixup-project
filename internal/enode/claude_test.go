@@ -12,34 +12,63 @@ func Test어댑터_Argv는_순수하다(t *testing.T) {
 	got := claudeHarness{}.Argv(AgentParams{Model: "opus", MaxTurns: 12},
 		IOPaths{Dir: "/ws", Out: "/o", In: "/i"})
 	want := "-p --output-format json --model opus --max-turns 12 " +
-		"--permission-mode acceptEdits --add-dir /o --add-dir /i"
+		"--permission-mode bypassPermissions --add-dir /o --add-dir /i"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("\n얻음: %s\n원함: %s", strings.Join(got, " "), want)
 	}
 }
 
-// ★ 모델이 쓸 수 있는 곳 ⊆ 훅이 볼 수 있는 곳 ★
+// ★ 경계는 단계가 아니라 노드에 있다 ★ (ADR-042)
 //
-// 이 포함관계가 깨지면 훅의 검토가 뚫린다 — 훅은 워크스페이스(git status)와
-// $OUT(harvest)만 보는데, 모델이 그 밖에 쓸 수 있으면 못 보는 쓰기가 생긴다.
-// bypassPermissions 는 실측에서 워크스페이스 밖 읽기·쓰기를 다 열었다.
-func Test어댑터_쓸수있는곳이_볼수있는곳과_같다(t *testing.T) {
+// 이 시험은 ★ 뒤집힌 결정 ★ 이다. 예전에는 "bypassPermissions 가 있으면 실패" 였다.
+// 근거였던 포함관계(모델이 쓸 수 있는 곳 ⊆ 훅이 볼 수 있는 곳)는 명령 단계가
+// ★ 이미 무경계 ★ 이므로 agent 단계에만 걸어도 위협이 안 좁아진다는 것이
+// 드러나 기각됐다. 좁은 쪽이 산 것은 안전이 아니라 ★ 에이전트가 명령을 못 돌린다 ★ 였다.
+//
+// ★ 되돌리려면 여기부터 본다 ★ — 명령 단계에 파일시스템 경계가 생기면
+// (INVARIANTS 의 그 줄이 바뀌면) 이 결정의 전제가 사라진다.
+func Test어댑터_경계는_노드에_있다(t *testing.T) {
 	got := strings.Join(claudeHarness{}.Argv(AgentParams{},
 		IOPaths{Dir: "/ws", Out: "/o", In: "/i"}), " ")
-	if strings.Contains(got, "bypassPermissions") {
-		t.Fatal("★ bypassPermissions 는 워크스페이스 밖을 연다 — 훅이 못 보는 쓰기가 생긴다 ★")
+	if !strings.Contains(got, "--permission-mode bypassPermissions") {
+		t.Fatalf("★ 에이전트가 명령을 못 돌리면 환경 구성 시나리오가 안 돈다 ★: %s", got)
 	}
-	if !strings.Contains(got, "--permission-mode acceptEdits") {
-		t.Fatalf("acceptEdits 가 아니다: %s", got)
-	}
+	// ★ --add-dir 은 남는다 ★ — 권한상 불필요하지만 ★ 의도가 argv 에 남아야 ★
+	// 이 단계가 어디를 쓸 셈이었는지가 Record 의 하네스 로그에 찍힌다.
 	for _, d := range []string{"--add-dir /o", "--add-dir /i"} {
 		if !strings.Contains(got, d) {
-			t.Fatalf("★ %s 가 없다 — 산출물을 못 낸다 ★: %s", d, got)
+			t.Fatalf("★ %s 가 없다 — 의도가 기록에서 사라진다 ★: %s", d, got)
 		}
 	}
 	// cwd 는 기본으로 열리므로 중복해서 열지 않는다.
 	if strings.Contains(got, "--add-dir /ws") {
 		t.Fatalf("cwd 를 중복으로 열었다: %s", got)
+	}
+}
+
+// ★ $IN 잠금이 이제 유일한 기계적 방어다 ★ (ADR-042)
+//
+// 권한 모드가 아니라 ★ 파일시스템 ★ 이 거는 것이라 이번 뒤집기에 안 묶인다.
+// 이 시험이 없으면 sealInput 이 조용히 죽어도 아무도 모른다 —
+// 예전에는 --add-dir 이 같이 막았지만 ★ 이제는 이것뿐 ★ 이다.
+func Test잠금_IN은_읽기전용이다(t *testing.T) {
+	dir := t.TempDir()
+	// ★ 잠금을 되돌리는 정리를 먼저 등록한다 ★ — t.Cleanup 은 LIFO 라
+	// TempDir 이 등록한 삭제보다 ★ 나중에 등록한 이것이 먼저 ★ 돈다.
+	// 안 그러면 0555 때문에 unlink 가 막혀 ★ 시험이 통과해도 FAIL 로 보인다 ★.
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
+	if err := os.WriteFile(dir+"/diff", []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if why := sealInput(dir); why != "" {
+		t.Fatalf("잠그지 못했다: %s", why)
+	}
+	fi, err := os.Stat(dir + "/diff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm()&0o222 != 0 {
+		t.Fatalf("★ 쓰기 비트가 남아 있다 ★: %04o", fi.Mode().Perm())
 	}
 }
 
@@ -56,7 +85,7 @@ func Test어댑터_도구를_나열하지_않는다(t *testing.T) {
 func Test어댑터_무인이면_안_묻는다(t *testing.T) {
 	for _, ask := range []string{"", "never"} {
 		if !strings.Contains(strings.Join(claudeHarness{}.Argv(AgentParams{Ask: ask}, IOPaths{}), " "),
-			"acceptEdits") {
+			"--permission-mode") {
 			t.Fatalf("ask=%q 인데 권한을 물으려 한다", ask)
 		}
 	}

@@ -99,7 +99,7 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 
 // badPattern 은 ★ 워크스페이스 밖을 가리키는 것을 막는다 ★.
 //
-// 이유가 구조적이다 — acceptEdits + --add-dir 로 모델이 쓸 수 있는 곳을 좁혀놨는데,
+// 이유가 구조적이다 — 모델이 쓸 수 있는 곳과
 // collect 가 아무 데나 가리키면 ★ 계약이 그 경계를 우회한다 ★.
 // 그리고 계약은 ★ 노드 주인이 아닌 사람 ★ 이 낸다.
 func badPattern(pat string) string {
@@ -200,6 +200,13 @@ func copyFile(src, dst string) error {
 
 // sealInput 은 ★ $IN 을 읽기 전용으로 잠근다 ★ (2026-08-20).
 //
+// ★ 2026-08-22 — 이 함수의 무게가 늘었다 ★ (ADR-042)
+//
+// 아래 논거는 --add-dir 이 그은 경계를 전제로 쓰였는데, 권한 모드가
+// bypassPermissions 로 바뀌면서 ★ 그 경계가 없어졌다 ★. 그래도 이 잠금은
+// 살아 있다 — ★ 권한 모드가 아니라 파일시스템이 거는 것 ★ 이기 때문이다.
+// 달라진 것은 ★ 이제 이것이 $IN 에 대한 유일한 기계적 방어 ★ 라는 점이다.
+//
 // ★ 왜 필요한가 — R7 의 포함관계가 $IN 만큼 깨져 있었다 ★
 //
 //	모델이 쓸 수 있는 곳  { 워크스페이스, $OUT, ★$IN★ }   claude.go 의 --add-dir
@@ -220,8 +227,10 @@ func copyFile(src, dst string) error {
 //	                지우고 다시 만들 수 있어 잠금이 무의미해진다
 //
 // ★ 사정거리를 과장하지 않는다 ★ — 우리와 같은 uid 로 도는 Bash 는 chmod 로
-// 되돌릴 수 있다. 이 잠금이 확실히 덮는 것은 ★ --add-dir 이 관장하는 그 집합 ★,
-// 즉 하네스의 파일 도구다. Bash 가 경계를 넘는지는 별도 실측 대상이다.
+// 되돌릴 수 있다. 이 잠금이 확실히 덮는 것은 ★ 하네스의 파일 도구 ★ 다.
+// ADR-042 이후로는 Bash 가 열려 있으므로 ★ 이것은 방어가 아니라 표지 ★ 에
+// 가깝다 — 우연한 덮어쓰기는 막고 의도적인 것은 못 막는다. 그것이 곧
+// 「노드는 소유자가 신뢰하는 계약만 받는다」가 지는 몫이다.
 func sealInput(dir string) string {
 	ents, err := os.ReadDir(dir)
 	if err != nil {
