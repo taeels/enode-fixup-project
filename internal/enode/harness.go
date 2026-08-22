@@ -26,6 +26,12 @@ const (
 	ReasonMaxTokens Reason = "max_tokens"
 	ReasonError     Reason = "harness_error"
 	ReasonTimeout   Reason = "timeout"
+	// ReasonCannot 은 ★ 모델이 스스로 못 하겠다고 말했다 ★ 다 (ADR-038).
+	//
+	// ★ 하네스는 정상 종료했다 ★ — 그래서 어댑터는 ok 로 읽는다. 그것을
+	// 이 값으로 바꾸는 것은 ★ $OUT 의 _cannot 파일 ★ 이다 (runner.go).
+	// 이 구멍이 정확히 "claude 는 헛소리를 하고도 종료코드 0 으로 끝난다" 였다.
+	ReasonCannot Reason = "cannot"
 )
 
 // Completed 는 ★ 완주했는지 ★ 다. 성공했는지가 아니다.
@@ -35,8 +41,12 @@ const (
 //	max_turns · max_tokens    ★ 완주다 ★ — produced 가 판정한다.
 //	                          필요한 걸 다 내고 상한에 닿았으면 그건 성공이다.
 //	                          다만 Record 에 반드시 남긴다 (예산 신호, ADR-013)
+//	★ cannot ★                ★ 완주다 ★ — 크래시가 아니라 ★ 정직한 보고 ★ 다.
+//	                          낸 산출물은 믿을 수 있고, 요구된 것을 안 냈으면
+//	                          produced 가 판정한다. ★ 여기서 판정하지 않는다 ★
 func (r Reason) Completed() bool {
-	return r == ReasonOK || r == ReasonMaxTurns || r == ReasonMaxTokens
+	return r == ReasonOK || r == ReasonMaxTurns || r == ReasonMaxTokens ||
+		r == ReasonCannot
 }
 
 // HarnessResult 는 Record 에 남고 계약 판정에는 안 들어간다.

@@ -109,6 +109,20 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		res.Version = v
 	}
 
+	// ★ 자백을 읽는다 ★ (ADR-038) — 하네스는 정상 종료했지만 모델이
+	// "못 하겠다" 를 남겼을 수 있다. 어댑터는 그것을 못 본다(봉투만 읽는다).
+	//
+	// ★ 자백은 검증하지 않는다 ★ — 성공 주장과 비대칭이다. 못 했다고 말해서
+	// 얻을 것이 없으므로 거짓말할 유인이 없다.
+	// ★ 그리고 판정하지도 않는다 ★ — HarnessResult 는 Record 에 남고
+	// 계약 판정에는 안 들어간다(harness.go). produced·changed 가 판정한다.
+	if why, ok := readCannot(j.IO.Out); ok && res.Reason == ReasonOK {
+		res.Reason = ReasonCannot
+		if res.Message == "" {
+			res.Message = why
+		}
+	}
+
 	// ★ 종료코드보다 ctx 가 우선이다 ★ — 임대가 끝나 죽인 것을
 	// 하네스 오류로 적으면 Record 가 거짓을 남긴다.
 	if ctx.Err() != nil {
@@ -118,4 +132,21 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	}
 	// 로그는 stdout + stderr 를 합쳐 원문 그대로 (ADR-005 의 logs/).
 	return append(stdout.Bytes(), stderr.Bytes()...), res
+}
+
+// readCannot 은 $OUT 의 자백 파일을 읽는다 (ADR-038).
+//
+// ★ 상한을 둔다 ★ — 이유를 적으라고 했는데 로그를 통째로 붓는 경우가 있다.
+// 전문은 어차피 $OUT 에 남아 봉인된다.
+func readCannot(out string) (string, bool) {
+	b, err := os.ReadFile(filepath.Join(out, cannotName))
+	if err != nil {
+		return "", false
+	}
+	why := strings.TrimSpace(string(b))
+	if why == "" {
+		// ★ 빈 파일도 자백이다 ★ — 이유를 안 적었을 뿐 못 했다고 말한 것이다.
+		return "이유를 적지 않았다", true
+	}
+	return trimTo(why, 2000), true
 }

@@ -2,6 +2,8 @@ package enode
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -50,5 +52,64 @@ func TestPromptPutsFeedbackJustBeforeRequest(t *testing.T) {
 	// 1회차에는 되먹임이 없다
 	if strings.Contains(buildPrompt("R", "/o", []string{"x"}, nil, nil, 0), "앞 시도가 실패했다") {
 		t.Fatal("첫 시도인데 재시도 문구가 붙었다")
+	}
+}
+
+// ★ 실패 차선은 스키마가 있든 없든 항상 붙는다 ★ (ADR-038)
+func TestBuildPrompt_실패차선(t *testing.T) {
+	// 스키마 없는 단계
+	p := buildPrompt("빌드해라", "/o", []string{"log"}, nil, nil, 0)
+	if !strings.Contains(p, "/o/_cannot") {
+		t.Fatalf("★ 스키마 없는 단계에 차선이 없다 ★:\n%s", p)
+	}
+	if !strings.Contains(p, "성공을 주장하지 말고") {
+		t.Fatalf("★ 거짓 성공을 막는 문구가 없다 ★")
+	}
+	// ★ 대체물이 아니라는 것도 말해야 한다 ★ — 안 그러면 _cannot 만 내고 끝낸다
+	if !strings.Contains(p, "대체물이 아니다") {
+		t.Fatalf("★ 「단계는 그대로 실패한다」가 없다 ★")
+	}
+
+	// 스키마 있는 단계에도 붙는다 (ADR-020 문구와 ★ 함께 ★)
+	sch := map[string]json.RawMessage{"r": json.RawMessage(`{"type":"object"}`)}
+	p = buildPrompt("리뷰해라", "/o", []string{"r"}, sch, nil, 0)
+	if !strings.Contains(p, "/o/_cannot") || !strings.Contains(p, "부재는 크래시와 구분되지 않는다") {
+		t.Fatalf("★ 둘이 함께 있어야 한다 ★:\n%s", p)
+	}
+}
+
+// ★ 자백을 읽으면 ok 가 cannot 이 된다 ★ (ADR-038)
+func TestReadCannot(t *testing.T) {
+	out := t.TempDir()
+	if _, ok := readCannot(out); ok {
+		t.Fatal("없는데 있다고 했다")
+	}
+	if err := os.WriteFile(filepath.Join(out, cannotName),
+		[]byte("  툴체인이 없다  \n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	why, ok := readCannot(out)
+	if !ok || why != "툴체인이 없다" {
+		t.Fatalf("★ 이유를 못 읽었다 ★: %q %v", why, ok)
+	}
+	// ★ 빈 파일도 자백이다 ★
+	if err := os.WriteFile(filepath.Join(out, cannotName), []byte("\n\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if why, ok := readCannot(out); !ok || why == "" {
+		t.Fatalf("★ 빈 자백이 무시됐다 ★: %q %v", why, ok)
+	}
+}
+
+// ★ cannot 은 완주다 ★ — 크래시가 아니라 정직한 보고이므로 산출물을 믿을 수 있다.
+func TestReasonCannot_완주로_친다(t *testing.T) {
+	if !ReasonCannot.Completed() {
+		t.Fatal("★ cannot 이 완주가 아니면 산출물을 통째로 버린다 ★ — 정직한 보고인데")
+	}
+	// 크래시 계열은 그대로 완주가 아니다.
+	for _, r := range []Reason{ReasonError, ReasonTimeout} {
+		if r.Completed() {
+			t.Fatalf("%q 가 완주가 됐다", r)
+		}
 	}
 }

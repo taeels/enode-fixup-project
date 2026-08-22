@@ -556,7 +556,15 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	// ★ 되먹이는 것이 LLM 의 의견이 아니라 검증기·빌드의 출력이다 ★
 	feedback := map[string]string{}
 	if step.Attempt > 0 {
-		for _, n := range step.Feedback {
+		// ★ 자백은 계약이 안 적어도 되먹인다 ★ (ADR-038) —
+		// 앞 시도가 "왜 못 했는지" 를 남겼으면 다음 시도가 그것을 봐야 한다.
+		// 계약 저자가 feedback 에 _cannot 을 적을 수는 없다 — ★ 밑줄은 예약이라
+		// 계약이 그 이름을 못 쓴다 ★. 그래서 여기서 붙인다.
+		names := append([]string{cannotName}, step.Feedback...)
+		for _, n := range names {
+			if _, dup := feedback[n]; dup {
+				continue
+			}
 			var buf bytes.Buffer
 			if err := w.Client.GetBlob(ctx, step.RunID, n, &buf); err == nil {
 				feedback[n] = buf.String()

@@ -2675,3 +2675,65 @@ func TestChanged_워크스페이스가_없으면_거절한다(t *testing.T) {
 		}
 	}
 }
+
+// ★ 자백이 봉인에 남고, 실패는 그대로 실패다 ★ (ADR-038)
+//
+// _cannot 은 요구된 산출물의 ★ 대체물이 아니다 ★ — produced 가 그대로 판정한다.
+// 값은 「왜 못 했나」가 남는 것과, 모델에게 ★ 정직할 통로 ★ 를 주는 것이다.
+func TestCannot_자백해도_실패는_실패다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n9", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "cannot1",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{{
+			"id": "review", "uses": "b",
+			"agent": map[string]any{"ask": "never"}, "out": []string{"verdict"}}},
+		"success_when": []map[string]any{
+			{"step": "review", "produced": []string{"verdict"}}},
+	}
+	b, _ := json.Marshal(c)
+	if code, v := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d %v", code, v)
+	}
+	do(t, srv, "POST", "/v1/nodes/n9/claim", "", nil)
+
+	// ★ 계약은 _cannot 을 out 에 못 적는다 ★ (밑줄 예약) — 그래도 저장은 된다.
+	if code, _ := do(t, srv, "PUT", "/v1/runs/cannot1/steps/1/blob/_cannot",
+		"툴체인이 없어 빌드를 못 한다", nil); code >= 300 {
+		t.Fatalf("자백이 거절됐다: %d", code)
+	}
+	do(t, srv, "POST", "/v1/runs/cannot1/steps/1/result",
+		`{"node":"n9","produced":["_cannot"],"harness":{"reason":"cannot","message":"툴체인이 없어 빌드를 못 한다"}}`, nil)
+
+	_, v := do(t, srv, "GET", "/v1/runs/cannot1", "", nil)
+	if v["state"] != "FAILED" {
+		t.Fatalf("★ 자백이 실패를 면제했다 ★: %v", v["state"])
+	}
+	// ★ 왜 못 했는지가 봉인에 남는다 ★
+	raw, err := os.ReadFile(filepath.Join(st.Records.Root, "run-cannot1", "blobs", "01.0-_cannot"))
+	if err != nil || !strings.Contains(string(raw), "툴체인") {
+		t.Fatalf("★ 이유가 봉인에 없다 ★: %v %s", err, raw)
+	}
+	// ★ reason 도 남는다 ★ — ok 로 뭉개지지 않는다
+	sf, _ := os.ReadFile(filepath.Join(st.Records.Root, "run-cannot1", "steps", "01-review.json"))
+	if !strings.Contains(string(sf), `"cannot"`) {
+		t.Fatalf("★ cannot 이 기록에 없다 ★: %s", sf)
+	}
+}
+
+// ★ 계약은 _cannot 을 out 으로 요구할 수 없다 ★ — 밑줄 예약이 그것을 막는다.
+func TestCannot_계약이_예약이름을_못쓴다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("n8", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "cannot2",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{{
+			"id": "x", "uses": "b", "agent": map[string]any{}, "out": []string{"_cannot"}}},
+	}
+	b, _ := json.Marshal(c)
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 400 {
+		t.Fatalf("★ 예약 이름이 통과했다 ★: %d", code)
+	}
+}
