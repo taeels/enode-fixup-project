@@ -342,6 +342,11 @@ type StepResult struct {
 	ExitCode *int            `json:"exit_code,omitempty"` // ★ 명령 단계만 ★ (ADR-019)
 	Produced []string        `json:"produced,omitempty"`
 	Harness  json.RawMessage `json:"harness,omitempty"` // agent 단계만 (ADR-020)
+	// Workspace 는 ★ 어떤 상태의 워크스페이스에서 돌았는가 ★ 다 (ADR-036).
+	// "clean" 은 되돌린 자리, "unprepared" 는 ★ 되돌리지 않은 자리 ★ 다 —
+	// 저장소가 없어 reset·clean 을 할 수 없는 워크스페이스가 그렇다.
+	// ★ 판정에는 안 쓴다 ★ (I3 — 기계적 조건만). 재현 실패의 원인을 찾기 위한 기록이다.
+	Workspace string `json:"workspace,omitempty"`
 	// Attempt · Exhausted 는 재시도 루프의 결과다 (DB 에서 채운다).
 	Attempt   int  `json:"attempt,omitempty"`
 	Exhausted bool `json:"-"`

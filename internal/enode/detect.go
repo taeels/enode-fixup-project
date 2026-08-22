@@ -40,9 +40,15 @@ func Detect(l Local, log *slog.Logger) []contract.Capability {
 	}
 
 	// 워크스페이스가 있으면 저장소를 유도한다. ★ 사람이 주소를 안 적는다 ★
+	//
+	// ★ 유도가 이긴다 ★ — .repo · .git 이 있으면 workspace_id 는 무시한다.
+	// 사람이 적은 것이 기계가 본 것을 이기면 둘이 어긋났을 때 ★ 조용히 틀린다 ★.
 	if l.Workspace != "" {
 		if repo := DetectRepo(l.Workspace); repo != "" {
 			attrs["repo"] = repo
+		} else if l.WorkspaceID != "" {
+			// ★ 유도할 수 없는 워크스페이스 ★ — 사람이 적은 이름을 쓴다 (ADR-036).
+			attrs["repo"] = l.WorkspaceID
 		}
 	}
 

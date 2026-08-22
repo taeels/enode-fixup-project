@@ -18,6 +18,17 @@ type Local struct {
 	// repo canonical id 는 여기서 유도한다 — 사람이 저장소 주소를 안 적는다.
 	Workspace string `yaml:"workspace"`
 
+	// WorkspaceID 는 ★ 자동 유도가 실패할 때만 ★ 적는다.
+	//
+	// DetectRepo 가 .repo · .git 에서 신원을 유도하지만, ★ 둘 다 없는 워크스페이스 ★
+	// (풀어놓은 소스 트리 · 문서 디렉터리 · 파일서버 마운트)는 기계가 알아낼 방법이
+	// 없다. 그러면 repo 속성이 안 실리고 ★ 그런 노드 둘이 매처에게 똑같아 보인다 ★.
+	//
+	// ★ Board 와 같은 자리다 ★ (ADR-012) — "포트에 무엇이 달렸는지는 기계가 모른다".
+	// 그래서 「사람이 저장소 주소를 안 적는다」의 예외가 되지만, 이유가 같다.
+	// ★ 유도가 성공하면 이 값은 무시된다 ★ — 사람이 적은 것이 기계가 본 것을 못 이긴다.
+	WorkspaceID string `yaml:"workspace_id,omitempty"`
+
 	// 자동으로 못 알아내는 것만 적는다. 포트에 무엇이 달렸는지는 기계가 모른다.
 	Board *Board `yaml:"board,omitempty"`
 

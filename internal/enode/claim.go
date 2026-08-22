@@ -173,6 +173,10 @@ type Result struct {
 	ExitCode *int           `json:"exit_code,omitempty"`
 	Produced []string       `json:"produced,omitempty"`
 	Harness  *HarnessResult `json:"harness,omitempty"` // agent 단계만 (ADR-020)
+	// Workspace 는 ★ 어떤 상태의 워크스페이스에서 돌았는가 ★ 다 (ADR-036).
+	// "unprepared" 면 되돌리지 않은 자리에서 돌았다는 뜻이고,
+	// ★ 그 사실이 봉인에 남아야 재현 실패의 원인을 찾을 수 있다 ★.
+	Workspace Prep `json:"workspace,omitempty"`
 	// Error 는 ★ 완주하지 못한 ★ 경우에만 채운다.
 	// 종료코드가 0 이 아닌 것은 완주다 — 그게 성공인지는 success_when 이 판정한다.
 	Error string `json:"error,omitempty"`
@@ -341,9 +345,10 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	//   sanitize → 리비전 확인 → $IN 을 깐다 → 기동
 	// 워크스페이스를 먼저 세워야 한다. clean 이 $IN 을 지우면 안 되므로
 	// $IN 은 워크스페이스 밖의 임시 디렉터리다.
+	var prep Prep
 	if spec, err := parseWorkspace(step.Workspace); err != nil || spec != nil {
 		if err == nil {
-			err = w.Prepare(ctx, spec, log)
+			prep, err = w.Prepare(ctx, spec, log)
 		}
 		if err != nil {
 			log.Error("워크스페이스를 세울 수 없다", "err", err)
@@ -440,7 +445,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// ★ 단계는 두 종류다 ★ (ADR-019 결정 3) — 노드는 합쳤지만 단계는 안 합쳤다.
 	// agent 단계는 produced 로, 명령 단계는 exit_code 로 판정한다.
 	if step.Kind == "agent" {
-		w.runAgentStep(runCtx, ctx, step, dir, in, out, stamp, log)
+		w.runAgentStep(runCtx, ctx, step, dir, in, out, stamp, prep, log)
 		return
 	}
 	if len(step.Run) == 0 {
@@ -482,7 +487,8 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	runErr := cmd.Run()
 	code := cmd.ProcessState.ExitCode()
 
-	res := Result{Node: w.Ident.NodeID, Produced: w.uploadProduced(ctx, step, out, stamp, log)}
+	res := Result{Node: w.Ident.NodeID, Workspace: prep,
+		Produced: w.uploadProduced(ctx, step, out, stamp, log)}
 
 	// ★ 로그를 먼저 올린다 ★ — 단계가 실패해도 원문은 남아야 한다.
 	// 여기서 실패해도 결과 보고는 계속한다. 로그가 없다고 Run 을 멈출 이유는 없다.
@@ -513,7 +519,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 
 // runAgentStep 은 ADR-013 의 어댑터 넷 중 ②기동을 부르고 ④수확으로 잇는다.
 // ①사출은 위에서 이미 했다 ($IN + 프롬프트 조립).
-func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, log *slog.Logger) {
+func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, prep Prep, log *slog.Logger) {
 	p, err := parseAgentParams(step.Agent)
 	if err != nil {
 		w.report(ctx, step, Result{
@@ -585,7 +591,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	})
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
-	res := Result{Node: w.Ident.NodeID, Harness: &h}
+	res := Result{Node: w.Ident.NodeID, Harness: &h, Workspace: prep}
 	if !h.Reason.Completed() {
 		// ★ 크래시는 완주가 아니다 ★ — 반쯤 쓴 파일을 믿을 수 없다
 		res.Error = "하네스: " + string(h.Reason) + " " + h.Message
