@@ -58,19 +58,23 @@ func (s *Store) RenewLeases(ctx context.Context, nodeID string, ttl time.Duratio
 
 // Claimed 는 claim 이 돌려주는 할 일 하나다.
 type Claimed struct {
-	StepID    string            `json:"step_id"`
-	RunID     string            `json:"run_id"`
-	Seq       int               `json:"seq"`
-	Name      string            `json:"name"`
-	Uses      string            `json:"uses"`
-	Kind      string            `json:"kind"`
-	Agent     json.RawMessage   `json:"agent,omitempty"`
-	Run       []string          `json:"run,omitempty"`
-	Env       []string          `json:"env,omitempty"`     // 통과시킬 환경변수 ★ 이름 ★
-	Collect   map[string]string `json:"collect,omitempty"` // 이름 → 워크스페이스 상대경로
-	Workspace json.RawMessage   `json:"workspace,omitempty"`
-	In        json.RawMessage   `json:"in,omitempty"`
-	Out       []string          `json:"out,omitempty"`
+	StepID  string            `json:"step_id"`
+	RunID   string            `json:"run_id"`
+	Seq     int               `json:"seq"`
+	Name    string            `json:"name"`
+	Uses    string            `json:"uses"`
+	Kind    string            `json:"kind"`
+	Agent   json.RawMessage   `json:"agent,omitempty"`
+	Run     []string          `json:"run,omitempty"`
+	Env     []string          `json:"env,omitempty"`     // 통과시킬 환경변수 ★ 이름 ★
+	Collect map[string]string `json:"collect,omitempty"` // 이름 → 워크스페이스 상대경로
+	// CheckChanged 는 ★ 이 단계가 바꿨는지 확인할 경로들 ★ 이다 (ADR-037).
+	// success_when 의 changed 조건에서 Mediator 가 뽑아 싣는다 — 노드는
+	// ★ 관찰만 대신하고 판정 조건은 모른다 ★.
+	CheckChanged []string        `json:"check_changed,omitempty"`
+	Workspace    json.RawMessage `json:"workspace,omitempty"`
+	In           json.RawMessage `json:"in,omitempty"`
+	Out          []string        `json:"out,omitempty"`
 	// Schema 는 어댑터가 ★ 프롬프트에 심는 데 ★ 쓴다 (ADR-020).
 	// 최종 검증은 Mediator 가 PUT blob 에서 한다 — 강제 지점은 하나다.
 	Schema  json.RawMessage `json:"schema,omitempty"`
@@ -328,6 +332,11 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 			Schema    json.RawMessage   `json:"schema"`
 			Feedback  []string          `json:"feedback"`
 		} `json:"steps"`
+		// ★ 판정 조건에서 「확인할 경로」만 뽑아 싣는다 ★ (ADR-037).
+		SuccessWhen []struct {
+			Step    string   `json:"step"`
+			Changed []string `json:"changed"`
+		} `json:"success_when"`
 	}
 	if json.Unmarshal(contractJSON, &raw) != nil || c.Seq-1 >= len(raw.Steps) {
 		return
@@ -335,6 +344,22 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 	st := raw.Steps[c.Seq-1]
 	c.Agent, c.Run, c.Workspace, c.In, c.Out = st.Agent, st.Run, st.Workspace, st.In, st.Out
 	c.Schema, c.Feedback, c.Env, c.Collect = st.Schema, st.Feedback, st.Env, st.Collect
+	// ★ 확인할 경로를 실어 보낸다 ★ (ADR-037) — out 이 「무엇을 낼 것인가」를
+	// 싣는 것과 같은 자리다. ★ 노드는 판정 조건을 모른다 ★ — 관찰만 대신하고
+	// 대조는 Verify 가 한다 (ADR-005 조립자=평가자).
+	// 계약 저자는 success_when 에만 적는다 — ★ 두 곳에 안 적는다 ★.
+	seen := map[string]bool{}
+	for _, cond := range raw.SuccessWhen {
+		if cond.Step != st.ID {
+			continue
+		}
+		for _, p := range cond.Changed {
+			if !seen[p] {
+				seen[p] = true
+				c.CheckChanged = append(c.CheckChanged, p)
+			}
+		}
+	}
 }
 
 // StepResult 는 enode 가 보고하는 것이다.
@@ -347,6 +372,9 @@ type StepResult struct {
 	// 저장소가 없어 reset·clean 을 할 수 없는 워크스페이스가 그렇다.
 	// ★ 판정에는 안 쓴다 ★ (I3 — 기계적 조건만). 재현 실패의 원인을 찾기 위한 기록이다.
 	Workspace string `json:"workspace,omitempty"`
+	// Changed 는 ★ 실제로 바뀐 것으로 관측된 경로 ★ 다 (ADR-037).
+	// 노드가 확인해 보고하고 ★ Verify 가 대조 ★ 한다 — produced 와 같은 모양이다.
+	Changed []string `json:"changed,omitempty"`
 	// Attempt · Exhausted 는 재시도 루프의 결과다 (DB 에서 채운다).
 	Attempt   int  `json:"attempt,omitempty"`
 	Exhausted bool `json:"-"`

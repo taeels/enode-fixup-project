@@ -765,8 +765,18 @@ type Condition struct {
 	Produced []string `json:"produced,omitempty"`
 	// ExitCode 는 ★ 명령 단계에만 ★ 쓸 수 있다 (ADR-019).
 	// agent 단계에 쓰면 계약이 틀린 것이다 — claude 는 헛소리를 하고도 0 으로 끝난다.
-	ExitCode       *int `json:"exit_code,omitempty"`
-	WithinAttempts bool `json:"within_attempts,omitempty"`
+	ExitCode *int `json:"exit_code,omitempty"`
+	// Changed 는 ★ 이 단계 안에 실제로 바뀐 워크스페이스 경로 ★ 다 (ADR-037).
+	//
+	// ★ produced 와 무게가 다르다 ★ — produced 는 「에이전트가 쓴 파일이 있나」이고
+	// 이것은 「★ 세상이 바뀌었나 ★」다. 에이전트가 저작하지 않는 관찰이므로
+	// ★ 자기 신고에 안 갇힌다 ★. hook.go 가 세 겹을 재며 "diff 는 협조 불필요 —
+	// ★ 진짜 안전망 ★" 이라고 적어둔 그 관찰을 판정으로 잇는 것이다.
+	//
+	// ★ agent 단계에 쓸 수 있다 ★ — exit_code 가 금지된 자리를 이것이 메운다.
+	// 다만 「바뀌었다 ≠ 옳게 바뀌었다」이고, 후자는 ADR-004 가 범위 밖으로 뒀다.
+	Changed        []string `json:"changed,omitempty"`
+	WithinAttempts bool     `json:"within_attempts,omitempty"`
 }
 
 func contains(ss []string, want string) bool {
@@ -1208,6 +1218,22 @@ func (c Contract) Validate() error {
 		}
 		if cond.ExitCode != nil && k == KindAgent {
 			return fmt.Errorf("%w: %q", ErrExitOnAgent, cond.Step)
+		}
+		// ★ changed 는 워크스페이스를 쓰는 단계에만 ★ (ADR-037) —
+		// 워크스페이스가 없으면 「바뀐 것」을 잴 기준이 없다. 조용히 참이 되면
+		// ★ 공허한 조건 ★ 이 하나 늘 뿐이고, 그것을 Verify 가 못 가려낸다.
+		if len(cond.Changed) > 0 {
+			j := index[cond.Step]
+			if c.Steps[j].Workspace == nil {
+				return fmt.Errorf("step %q: changed 를 요구하는데 그 단계에 workspace 가 없다 — "+
+					"바뀐 것을 잴 기준이 없다", cond.Step)
+			}
+			for _, p := range cond.Changed {
+				if strings.HasPrefix(p, "/") || strings.Contains(p, "..") {
+					return fmt.Errorf("step %q: changed 의 %q 는 워크스페이스 기준 상대경로여야 한다",
+						cond.Step, p)
+				}
+			}
 		}
 	}
 	return nil

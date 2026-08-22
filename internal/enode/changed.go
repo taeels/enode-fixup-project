@@ -201,3 +201,28 @@ func readStamp(path, root string) (Stamp, error) {
 	}
 	return Stamp{At: t, Root: root}, nil
 }
+
+// CheckChanged 는 ★ 계약이 지목한 경로들이 이 단계 안에 바뀌었는지 ★ 본다 (ADR-037).
+//
+// ★ 판정하지 않는다 ★ — 바뀐 것만 돌려주고 대조는 Mediator 가 한다
+// (ADR-005 조립자=평가자). 노드는 판정 조건을 모른다.
+//
+// ★ 전체 목록을 걷지 않는다 ★ — 커널 빌드는 수만 개를 만든다.
+// 지목된 경로만 stat 하므로 비용이 계약이 적은 만큼이다.
+func CheckChanged(stamp Stamp, want []string) []string {
+	if stamp.Root == "" || len(want) == 0 {
+		return nil
+	}
+	var got []string
+	for _, rel := range want {
+		fi, err := os.Stat(filepath.Join(stamp.Root, rel))
+		if err != nil || fi.IsDir() {
+			continue // 없거나 디렉터리면 「바뀌었다」가 아니다
+		}
+		// ★ 기준 시각 이후에 쓰였는가 ★ — changedSince 와 같은 판정이다.
+		if !fi.ModTime().Before(stamp.At) {
+			got = append(got, rel)
+		}
+	}
+	return got
+}

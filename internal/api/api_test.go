@@ -2577,3 +2577,101 @@ func TestAsk_질문이_올라오면_웹훅이_운다(t *testing.T) {
 		t.Fatal("★ 웹훅이 안 울었다 ★")
 	}
 }
+
+// ═══ changed — ★ 세상이 바뀌었는가 ★ (ADR-037) ═══════════════════════════
+//
+// produced 는 에이전트가 쓴 파일이고, changed 는 ★ 에이전트가 저작하지 않는 관찰 ★ 이다.
+// 아무것도 안 하고 「했다」고 말하는 단계가 여기서 걸린다.
+
+func TestChanged_바꾸지_않으면_실패한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("c1", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "chg1",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{{
+			"id": "build", "uses": "b", "run": []string{"true"},
+			"workspace": map[string]any{"repo": "gerrit.corp/kernel/linux"},
+		}},
+		"success_when": []map[string]any{
+			{"step": "build", "changed": []string{"arch/arm/boot/zImage"}}},
+	}
+	b, _ := json.Marshal(c)
+	if code, v := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d %v", code, v)
+	}
+	// ★ 확인할 경로가 claim 에 실려 나간다 ★ — 노드는 판정 조건을 모른다.
+	code, cc := do(t, srv, "POST", "/v1/nodes/c1/claim", "", nil)
+	if code != 200 {
+		t.Fatalf("claim 실패: %d", code)
+	}
+	raw, _ := json.Marshal(cc["check_changed"])
+	if !strings.Contains(string(raw), "zImage") {
+		t.Fatalf("★ 확인할 경로가 안 실렸다 ★: %s", raw)
+	}
+	// ★ 안 바꿨다고 보고 ★ — exit 0 이어도 실패여야 한다.
+	do(t, srv, "POST", "/v1/runs/chg1/steps/1/result", `{"node":"c1","exit_code":0}`, nil)
+	_, v := do(t, srv, "GET", "/v1/runs/chg1", "", nil)
+	if v["state"] != "FAILED" {
+		t.Fatalf("★ 아무것도 안 바꿨는데 %v ★", v["state"])
+	}
+	vr, _ := json.Marshal(v["verdict"])
+	if !strings.Contains(string(vr), "changed") || !strings.Contains(string(vr), "바뀌지 않았다") {
+		t.Fatalf("★ 이유가 verdict 에 없다 ★: %s", vr)
+	}
+}
+
+func TestChanged_바꿨다고_보고하면_통과한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("c2", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":   "chg2",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps": []map[string]any{{
+			"id": "fix", "uses": "b", "agent": map[string]any{"ask": "never"},
+			"workspace": map[string]any{"repo": "gerrit.corp/kernel/linux"},
+		}},
+		// ★ agent 단계다 ★ — exit_code 를 못 쓰는 자리를 changed 가 메운다.
+		"success_when": []map[string]any{
+			{"step": "fix", "changed": []string{"drivers/net/foo.c"}}},
+	}
+	b, _ := json.Marshal(c)
+	if code, v := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 201 {
+		t.Fatalf("제출 실패: %d %v", code, v)
+	}
+	do(t, srv, "POST", "/v1/nodes/c2/claim", "", nil)
+	do(t, srv, "POST", "/v1/runs/chg2/steps/1/result",
+		`{"node":"c2","changed":["drivers/net/foo.c"],"harness":{"reason":"ok"}}`, nil)
+	_, v := do(t, srv, "GET", "/v1/runs/chg2", "", nil)
+	if v["state"] != "SUCCEEDED" {
+		t.Fatalf("바꿨는데 %v: %v", v["state"], v["verdict"])
+	}
+}
+
+// ★ 워크스페이스 없는 단계에 changed 를 걸면 400 ★ — 잴 기준이 없다.
+func TestChanged_워크스페이스가_없으면_거절한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("c3", "a", map[string]string{"role": "x"}), nil)
+	c := map[string]any{
+		"run_id":       "chg3",
+		"requires":     []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":        []map[string]any{runStep("plain", "b")},
+		"success_when": []map[string]any{{"step": "plain", "changed": []string{"x.c"}}},
+	}
+	b, _ := json.Marshal(c)
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 400 {
+		t.Fatalf("★ 잴 기준이 없는데 %d ★", code)
+	}
+	// 절대경로·상위참조도 거절한다.
+	c["run_id"] = "chg4"
+	c["steps"] = []map[string]any{{
+		"id": "plain", "uses": "b", "run": []string{"true"},
+		"workspace": map[string]any{"repo": "gerrit.corp/kernel/linux"}}}
+	for _, bad := range []string{"/etc/passwd", "../outside"} {
+		c["success_when"] = []map[string]any{{"step": "plain", "changed": []string{bad}}}
+		b, _ = json.Marshal(c)
+		if code, _ := do(t, srv, "POST", "/v1/runs", string(b), nil); code != 400 {
+			t.Fatalf("★ %q 가 통과했다 ★", bad)
+		}
+	}
+}

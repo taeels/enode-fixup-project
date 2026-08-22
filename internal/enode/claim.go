@@ -22,15 +22,18 @@ type Step struct {
 	RunID  string `json:"run_id"`
 	Seq    int    `json:"seq"` // 경로에 쓰는 것은 이쪽
 
-	Name      string            `json:"name"`
-	Uses      string            `json:"uses"`
-	Kind      string            `json:"kind"`
-	Agent     json.RawMessage   `json:"agent,omitempty"`
-	Run       []string          `json:"run,omitempty"`
-	Env       []string          `json:"env,omitempty"`
-	Collect   map[string]string `json:"collect,omitempty"`
-	Workspace json.RawMessage   `json:"workspace,omitempty"`
-	In        struct {
+	Name    string            `json:"name"`
+	Uses    string            `json:"uses"`
+	Kind    string            `json:"kind"`
+	Agent   json.RawMessage   `json:"agent,omitempty"`
+	Run     []string          `json:"run,omitempty"`
+	Env     []string          `json:"env,omitempty"`
+	Collect map[string]string `json:"collect,omitempty"`
+	// CheckChanged 는 ★ 바뀌었는지 확인할 경로들 ★ 이다 (ADR-037).
+	// Mediator 가 success_when 에서 뽑아 싣는다 — ★ 노드는 판정 조건을 모른다 ★.
+	CheckChanged []string        `json:"check_changed,omitempty"`
+	Workspace    json.RawMessage `json:"workspace,omitempty"`
+	In           struct {
 		Prompt string   `json:"prompt"`
 		From   []string `json:"from"`
 	} `json:"in,omitempty"`
@@ -177,6 +180,9 @@ type Result struct {
 	// "unprepared" 면 되돌리지 않은 자리에서 돌았다는 뜻이고,
 	// ★ 그 사실이 봉인에 남아야 재현 실패의 원인을 찾을 수 있다 ★.
 	Workspace Prep `json:"workspace,omitempty"`
+	// Changed 는 ★ 계약이 지목한 경로 중 실제로 바뀐 것 ★ 이다 (ADR-037).
+	// ★ 에이전트가 저작하지 않는 관찰 ★ — 대조는 Mediator 가 한다.
+	Changed []string `json:"changed,omitempty"`
 	// Error 는 ★ 완주하지 못한 ★ 경우에만 채운다.
 	// 종료코드가 0 이 아닌 것은 완주다 — 그게 성공인지는 success_when 이 판정한다.
 	Error string `json:"error,omitempty"`
@@ -488,7 +494,8 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	code := cmd.ProcessState.ExitCode()
 
 	res := Result{Node: w.Ident.NodeID, Workspace: prep,
-		Produced: w.uploadProduced(ctx, step, out, stamp, log)}
+		Produced: w.uploadProduced(ctx, step, out, stamp, log),
+		Changed:  CheckChanged(stamp, step.CheckChanged)}
 
 	// ★ 로그를 먼저 올린다 ★ — 단계가 실패해도 원문은 남아야 한다.
 	// 여기서 실패해도 결과 보고는 계속한다. 로그가 없다고 Run 을 멈출 이유는 없다.
@@ -591,7 +598,8 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	})
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
-	res := Result{Node: w.Ident.NodeID, Harness: &h, Workspace: prep}
+	res := Result{Node: w.Ident.NodeID, Harness: &h, Workspace: prep,
+		Changed: CheckChanged(stamp, step.CheckChanged)}
 	if !h.Reason.Completed() {
 		// ★ 크래시는 완주가 아니다 ★ — 반쯤 쓴 파일을 믿을 수 없다
 		res.Error = "하네스: " + string(h.Reason) + " " + h.Message

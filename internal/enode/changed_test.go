@@ -223,3 +223,43 @@ func TestNote_흔적이_없는_단계도_설명한다(t *testing.T) {
 }
 
 func testLog() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
+
+// ★ 지목된 경로만 stat 한다 ★ (ADR-037) — 전체를 걷지 않는다.
+func TestCheckChanged(t *testing.T) {
+	root := t.TempDir()
+	old := filepath.Join(root, "old.c")
+	if err := os.WriteFile(old, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// ★ 실물과 같은 방식으로 잡는다 ★ — stampNow 가 1초를 빼는 이유가
+	// "파일시스템 mtime 해상도가 초 단위인 경우" 이고, 직접 만들면 그 보정이 빠져
+	// ★ 방금 쓴 파일이 기준보다 과거로 보인다 ★ (이 시험이 실제로 그걸 밟았다).
+	stamp := stampNow(root)
+	past := stamp.At.Add(-time.Hour)
+	if err := os.Chtimes(old, past, past); err != nil {
+		t.Fatal(err)
+	}
+	// 기준 이후에 쓰인 파일
+	fresh := filepath.Join(root, "sub", "fresh.c")
+	if err := os.MkdirAll(filepath.Dir(fresh), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(fresh, []byte("y"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "adir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := CheckChanged(stamp, []string{"sub/fresh.c", "old.c", "없는것.c", "adir"})
+	if len(got) != 1 || got[0] != "sub/fresh.c" {
+		t.Fatalf("★ 바뀐 것만 나와야 한다 ★: %v", got)
+	}
+	// ★ 기준이 없으면 아무것도 안 본다 ★ — 워크스페이스 없는 단계.
+	if got := CheckChanged(Stamp{}, []string{"sub/fresh.c"}); got != nil {
+		t.Fatalf("기준이 없는데 %v", got)
+	}
+	if got := CheckChanged(stamp, nil); got != nil {
+		t.Fatalf("요구가 없는데 %v", got)
+	}
+}

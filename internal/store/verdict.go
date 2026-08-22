@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/taeels/enode/internal/contract"
 )
@@ -101,6 +102,29 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 			v.Checks = append(v.Checks, Check{
 				Step: cond.Step, What: "within_attempts", Want: true, Got: ok, OK: ok,
 				Note: noteIf(!ok, "재시도를 소진했다"),
+			})
+			if !ok {
+				v.State = StateFailed
+			}
+		}
+		if len(cond.Changed) > 0 {
+			// ★ 세상이 바뀌었는가 ★ (ADR-037) — produced 와 무게가 다르다.
+			// produced 는 에이전트가 쓴 파일이고, 이것은 ★ 에이전트가 저작하지 않는
+			// 관찰 ★ 이다. agent 단계가 아무것도 안 하고 「했다」고 말해도 여기서 걸린다.
+			have := map[string]bool{}
+			for _, p := range res.Changed {
+				have[p] = true
+			}
+			var missing []string
+			for _, want := range cond.Changed {
+				if !have[want] {
+					missing = append(missing, want)
+				}
+			}
+			ok := len(missing) == 0
+			v.Checks = append(v.Checks, Check{
+				Step: cond.Step, What: "changed", Want: cond.Changed, Got: res.Changed, OK: ok,
+				Note: noteIf(!ok, "이 단계 안에 바뀌지 않았다: "+strings.Join(missing, ", ")),
 			})
 			if !ok {
 				v.State = StateFailed
