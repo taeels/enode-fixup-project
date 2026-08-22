@@ -1,0 +1,24 @@
+# ★ 2차 시나리오 — colima VM ★ 안에서 도는 enode 의 설정이다.
+#
+# ★ 이 파일은 맥이 아니라 VM 안에 놓인다 ★ (예: /home/사용자/.config/enode/colima.yaml).
+# 실행파일도 darwin 이 아니라 bin/enode-linux-arm64 다 — colima 는 리눅스 VM 이다.
+#
+# ★ 왜 별도 노드인가 ★
+# 같은 물리 기계지만 ★ 파일시스템 경계가 다르다 ★. 임대 키가 (노드) 하나라
+# (ADR-019) 맥 노드가 잡혀 있어도 VM 노드는 따로 잡힌다 — 그게 폭이다.
+# 신원도 자동으로 갈린다: hostname 이 다르고 config 경로가 다르다.
+#
+# ★ mediator 주소를 host.docker.internal 로 쓰지 않는다 ★
+# CT103 은 맥도 VM 도 아닌 제3의 기계다. VM 에서 LAN 으로 바로 나간다.
+
+mediator: http://192.168.219.203:8080
+token: 여기에-mediator-토큰
+
+workspace: /workspace/zephyr
+
+# VM 안에는 리눅스 크로스 툴체인을 넣기 쉽다. 그러면 ★ 자동 탐지가 걸린다 ★ —
+# aarch64-linux-gnu-gcc 가 있으면 arch: 를 안 적어도 arm64 로 광고된다.
+# Zephyr SDK 를 넣었다면 맥과 ★ 같은 문자열 ★ 을 적어야 계약이 둘 다 고른다.
+arch: arm-zephyr-eabi
+
+min_free_gb: 10

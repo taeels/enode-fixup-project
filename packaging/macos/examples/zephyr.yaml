@@ -1,0 +1,24 @@
+# ★ 1차 시나리오 — Zephyr RTOS 빌드 노드 ★
+#
+# 이 노드가 광고하는 것:
+#   capability  agent.reason
+#   harness     claude      (PATH 에 claude 가 있으면 자동)
+#   repo        <workspace 의 git remote 에서 유도>
+#   arch        arm-zephyr-eabi   ← ★ 손으로 적는다. 이유는 아래 ★
+
+mediator: http://192.168.219.203:8080
+token: 여기에-mediator-토큰
+
+workspace: /Users/여러분/zephyrproject/zephyr
+
+# ★ arch 를 손으로 적는 이유 ★
+# detectArch() 는 arm-linux-gnueabihf-gcc · aarch64-linux-gnu-gcc 둘만 본다.
+# 맥의 Zephyr SDK 는 arm-zephyr-eabi-gcc 라 ★ 그 목록에 없다 ★.
+# Local.Arch 가 정확히 이 경우를 위해 파둔 자리다 —
+# "크로스 툴체인 탐지가 애매할 때만 명시한다".
+#
+# ★ 값을 무엇으로 할지가 곧 어휘를 짓는 일이다 ★ (ADR-012 — 어휘는 광고로 창발한다).
+# 계약이 requires 에 적을 문자열이 이것이므로, 함대에서 ★ 한 벌로 통일 ★ 해야 한다.
+arch: arm-zephyr-eabi
+
+min_free_gb: 20
