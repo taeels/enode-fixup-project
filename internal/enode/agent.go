@@ -193,6 +193,10 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 	// 계획의 형식은 여전히 사람이 자연어로 나른다.
 	if expands {
 		b.WriteString("\n" + contract.Grammar + "\n")
+		// ★ 규칙 다음에 모양 ★ (ADR-057) — 문법은 무엇을 지켜야 하는지 말하고,
+		// 이것은 ★ 필드가 어떻게 생겼는지 ★ 를 실례로 보여준다.
+		// 실측(vm-scratch-6)에서 계획이 이름에서 유추해 agent.task 를 지어냈다.
+		b.WriteString(contract.PlanShape + "\n")
 		// ★ 문법은 uses 를 적으라고만 말한다 ★ — 무엇을 적는지는 그 계약의
 		// requires 에 있고 계획을 짓는 쪽은 그것을 못 본다. ★ 아는 쪽이 적어준다 ★.
 		if len(roles) > 0 {

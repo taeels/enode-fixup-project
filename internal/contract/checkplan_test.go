@@ -2,6 +2,7 @@ package contract
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -167,5 +168,58 @@ func TestValidate_produces(t *testing.T) {
 	if err := c.Validate(); err == nil ||
 		!strings.Contains(err.Error(), "at or before this step") {
 		t.Fatalf("★ 자기 자신을 약속했는데 통과했다 ★: %v", err)
+	}
+}
+
+// ★ 모르는 필드는 거절된다 ★ (ADR-057)
+//
+// ★ 실측 ★ (vm-scratch-6) 오케스트레이터가 과제 3,308자를 agent.task 에 적었다.
+// agent 와 in 이 map 이라 무엇이든 받았고, 어댑터는 아는 키만 읽어 ★ 통째로
+// 사라졌다 ★. 400 도 422 도 훅도 안 났다 — ★ 계획은 자기가 틀렸다는 것을
+// 알 방법이 없었다 ★.
+func TestValidate_모르는_필드(t *testing.T) {
+	base := `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+	  "steps":[{"id":"a","uses":"n","agent":{%s},"in":{%s},"out":["o"],
+	            "schema":{"o":{"type":"object"}}}],
+	  "success_when":[{"step":"a","produced":["o"]}]}`
+
+	for _, tc := range []struct{ name, agent, in, want string }{
+		{"agent.task", `"task":"할 일"`, `"prompt":"x"`, "unknown field \"task\" in agent"},
+		{"in.survey", `"max_turns":5`, `"survey":"survey"`, "unknown field \"survey\" in in"},
+	} {
+		var c Contract
+		raw := fmt.Sprintf(base, tc.agent, tc.in)
+		if err := json.Unmarshal([]byte(raw), &c); err != nil {
+			t.Fatal(err)
+		}
+		err := c.Validate()
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("★ %s 를 안 막았다 ★: %v", tc.name, err)
+		}
+		// ★ 어디에 적어야 하는지 알려준다 ★ — 짚기만 하면 또 틀린다.
+		if tc.name == "agent.task" && !strings.Contains(err.Error(), "in.prompt") {
+			t.Fatalf("★ 어디에 적어야 하는지 안 알려준다 ★: %v", err)
+		}
+	}
+
+	// ★ 아는 키는 통과한다 ★
+	var ok Contract
+	if err := json.Unmarshal([]byte(fmt.Sprintf(base,
+		`"max_turns":5,"ask":"never"`, `"prompt":"x","from":["y"]`)), &ok); err != nil {
+		t.Fatal(err)
+	}
+	// from 이 없는 이름을 가리키므로 그 오류는 날 수 있다 — 필드 이름 오류만 없으면 된다.
+	if err := ok.Validate(); err != nil && strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("★ 아는 키를 막았다 ★: %v", err)
+	}
+
+	// ★ diff 는 자리다 ★ — run-contract §5 가 정의했고 시연 계약이 쓴다.
+	var d Contract
+	if err := json.Unmarshal([]byte(fmt.Sprintf(base,
+		`"max_turns":5`, `"prompt":"x","diff":"@work.patch_rev"`)), &d); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Validate(); err != nil && strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("★ 문서가 정의한 자리를 오타로 봤다 ★: %v", err)
 	}
 }

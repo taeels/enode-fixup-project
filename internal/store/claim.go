@@ -455,7 +455,20 @@ func (s *Store) stampLedger(ctx context.Context, c *Claimed, contractJSON []byte
 	if json.Unmarshal(contractJSON, &raw) != nil || c.Seq-1 >= len(raw.Steps) {
 		return
 	}
-	if see := raw.Steps[c.Seq-1].See; see != nil && see.Ledger == contract.SeeList {
+	// ★ 계획을 짓는 단계에는 기본으로 켠다 ★ (ADR-057)
+	//
+	// ADR-023 §6.4 는 "없으면 오늘 그대로" 로 열어두고 ★ 계약이 요구할 때만 ★
+	// 실었다. 그런데 여섯 판 동안 see.ledger 를 쓴 계약이 ★ 0 건 ★ 이다 —
+	// 문법이 그 기계의 존재를 안 가르쳤기 때문이다.
+	//
+	// ★ 계획을 짓는 쪽은 「무엇이 이미 나와 있는지」를 항상 알아야 한다 ★.
+	// goal · owed · standing 을 기본으로 싣는 것과 같은 자리다: 모르면
+	// ★ 이름을 지어내거나 틀린 자리에 적는다 ★ (vm-scratch-6 이 그랬다).
+	//
+	// ★ 목록이지 본문이 아니다 ★ — 크기 걱정(§6.3)은 그대로 지킨다.
+	// 다른 단계는 계약이 요구할 때만 받는다(오늘 그대로).
+	see := raw.Steps[c.Seq-1].See
+	if c.Expands || (see != nil && see.Ledger == contract.SeeList) {
 		c.Ledger = entries
 	}
 }

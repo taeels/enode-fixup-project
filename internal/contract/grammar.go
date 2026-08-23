@@ -120,6 +120,19 @@ at all, so success is judged by what was produced.
 
 success_when may only refer to steps that exist.
 
+### Seeing what earlier steps produced
+
+A step that builds a plan is given a list of everything the run has produced so
+far, as a file in $IN. Any other step can ask for the same list:
+
+    "see": { "ledger": "list" }
+
+The list carries names, sizes and which step produced them — ★ not the bodies ★.
+To read a body, name it in in.from (a file in $IN) or in feedback (pasted into
+the prompt).
+
+★ Do not invent output names ★. Use the ones on that list.
+
 ### Outputs go to $OUT under the exact declared name
 
     ok   cmd > "$OUT/<name declared in out>" 2>&1

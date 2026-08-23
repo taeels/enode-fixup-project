@@ -826,6 +826,42 @@ type Condition struct {
 	WithinAttempts bool     `json:"within_attempts,omitempty"`
 }
 
+// ★ agent 와 in 이 받는 키 ★ (ADR-057) — 여기가 정본이다.
+//
+// ★ 어댑터의 구조체와 짝이다 ★: agent → enode.AgentParams · in → enode.Step.In.
+// 한쪽이 늘면 다른 쪽도 늘어야 하고, 그것을 잊으면 ★ 계약이 거절하거나
+// 어댑터가 버린다 ★ — 둘 다 조용하지 않다.
+var (
+	agentKeys = []string{"model", "max_turns", "max_tokens", "ask", "harness"}
+	// ★ diff 는 자리다 ★ — run-contract §5 의 "@work.patch_rev 참조 해석" 이고
+	// ★ 아직 런타임이 안 읽는다 ★ (seal.go 가 같은 말을 적어뒀다).
+	// 시연 계약(testdata/demo.json)이 정본으로 그것을 쓰므로 허용한다.
+	//
+	// ★ 자리 남기기와 조용한 무시를 가른다 ★ — 문서가 정의했고 코드가
+	// "아직" 이라고 적어둔 것은 자리다. 아무 데도 없는 이름은 오타다.
+	// 그래서 이 목록은 ★ 문서에 있는 것 ★ 이고, 문법(Grammar)이 계획에게
+	// 가르치는 것은 ★ 오늘 읽히는 것 ★ 뿐이다.
+	inKeys = []string{"prompt", "from", "diff"}
+)
+
+// knownKeys 는 map 필드에 모르는 키가 있으면 ★ 어디에 적어야 하는지 ★ 와 함께 거절한다.
+func knownKeys(stepID, field string, m map[string]interface{}, allowed []string) error {
+	for k := range m {
+		if contains(allowed, k) {
+			continue
+		}
+		hint := ""
+		if field == "agent" {
+			// ★ 제일 흔한 오해를 지목한다 ★ — 실측에서 밟은 그 자리다.
+			hint = "; the task for the agent goes in in.prompt, and agent carries " +
+				"execution parameters only"
+		}
+		return fmt.Errorf("step %q: unknown field %q in %s (allowed: %s)%s",
+			stepID, k, field, strings.Join(allowed, ", "), hint)
+	}
+	return nil
+}
+
 func contains(ss []string, want string) bool {
 	for _, s := range ss {
 		if s == want {
@@ -997,6 +1033,27 @@ func (c Contract) Validate() error {
 		if _, ok := st.Schema[st.Out[0]]; !ok {
 			return fmt.Errorf("step %q: expands step output %q has no schema; "+
 				"a schema is required to validate the generated contract", st.ID, st.Out[0])
+		}
+	}
+
+	// ★ 모르는 필드를 거절한다 ★ (ADR-057)
+	//
+	// agent 와 in 은 map 이라 ★ 무엇이든 받는다 ★. 어댑터는 아는 키만 읽고
+	// 나머지는 ★ 조용히 사라진다 ★ — 400 도 422 도 훅도 안 난다.
+	//
+	//	★ 실측 ★ (vm-scratch-6) 오케스트레이터가 과제 3,308자를 agent.task 에
+	//	적었다. AgentParams 에 그 필드가 없어 통째로 버려졌고, in.prompt 가
+	//	비어 "### 요청" 이 빈 절로 나갔다. 실행 단계가 _cannot 을 냈다:
+	//	"요청 본문이 비어 있다 … 근거 없는 추측으로 설치하는 것이 빈손보다 나쁘다".
+	//
+	// ★ 조용한 무시가 가장 나쁘다 ★ — 이 저장소가 runctl 의 인자 순서에 대해
+	// 이미 적은 말이고, 정작 계약의 두 자리가 그것을 어기고 있었다.
+	for _, st := range c.Steps {
+		if err := knownKeys(st.ID, "agent", st.Agent, agentKeys); err != nil {
+			return err
+		}
+		if err := knownKeys(st.ID, "in", st.In, inKeys); err != nil {
+			return err
 		}
 	}
 
