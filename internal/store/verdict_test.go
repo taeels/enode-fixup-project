@@ -167,3 +167,130 @@ func TestVerify_전부_건너뛰면_실패다(t *testing.T) {
 		t.Fatalf("이유가 안 남았다: %+v", v.Checks)
 	}
 }
+
+// ★ 「목표에 못 닿았다」는 기준을 이긴다 ★ (ADR-054)
+//
+// ★ 실측 ★ (vm-scratch-5) vm_node_up 이 exit 0 · produced[vm_caps] 로 두 조건을
+// 다 만족했다. vm_caps 본문은 "enode binary in vm: exit status 1" 이었고
+// 함대에 VM 노드는 없었다 — ★ 「아무것도 없다」를 적은 보고서도 존재하는 파일이다 ★.
+func Test목표미달이_통과를_뒤집는다(t *testing.T) {
+	zero := 0
+	c := contract.Contract{Steps: []contract.Step{
+		{ID: "work", Uses: "n", Run: []string{"true"}, Out: []string{"caps"}},
+		{ID: "replan", Uses: "n", Expands: true, Out: []string{"plan2"}},
+	}, SuccessWhen: []contract.Condition{
+		{Step: "work", ExitCode: &zero, Produced: []string{"caps"}},
+	}}
+
+	// ① 기준이 만족되면 성공이다 (오늘 그대로)
+	base := map[string]StepResult{
+		"work":   {ExitCode: &zero, Produced: []string{"caps"}},
+		"replan": {Produced: []string{"plan2"}},
+	}
+	if v := Verify(c, base); v.State != StateSucceeded {
+		t.Fatalf("★ 기준이 맞는데 실패했다 ★: %+v", v)
+	}
+
+	// ② ★ 계획 단계가 목표 미달을 보고하면 뒤집힌다 ★
+	unmet := map[string]StepResult{
+		"work":   {ExitCode: &zero, Produced: []string{"caps"}},
+		"replan": {Produced: []string{"plan2", contract.UnmetName}},
+	}
+	v := Verify(c, unmet)
+	if v.State != StateFailed {
+		t.Fatalf("★ 목표 미달을 보고했는데 통과했다 ★: %+v", v)
+	}
+	// ★ 무엇이 뒤집었는지가 기록에 남아야 한다 ★
+	found := false
+	for _, ch := range v.Checks {
+		if ch.What == contract.UnmetName && ch.Step == "replan" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("★ 뒤집은 이유가 Checks 에 없다 ★: %+v", v.Checks)
+	}
+	// ★ 나머지 대조도 그대로 남는다 ★ — 기록이지 단축 평가가 아니다.
+	if len(v.Checks) < 3 {
+		t.Fatalf("★ 대조를 건너뛰었다 ★: %+v", v.Checks)
+	}
+}
+
+// ★ 방향은 한쪽뿐이다 ★ (ADR-054) — 실패할 Run 을 통과시키지 못한다.
+// 이것이 ADR-037(판정 술어를 에이전트가 저작하지 못하게 한다)을 안 깨는 이유다.
+func Test목표미달은_실패를_되살리지_못한다(t *testing.T) {
+	zero, one := 0, 1
+	c := contract.Contract{Steps: []contract.Step{
+		{ID: "work", Uses: "n", Run: []string{"true"}, Out: []string{"caps"}},
+	}, SuccessWhen: []contract.Condition{{Step: "work", ExitCode: &zero}}}
+
+	// 기준이 안 맞는다 — 그리고 _unmet 도 없다. ★ 그래도 실패다 ★.
+	v := Verify(c, map[string]StepResult{"work": {ExitCode: &one}})
+	if v.State != StateFailed {
+		t.Fatalf("★ 종료코드가 틀렸는데 통과했다 ★: %+v", v)
+	}
+}
+
+// ★ 목표 미달은 계획을 짓는 단계만 말할 수 있다 ★ (ADR-054 §2.2)
+//
+// 처음에는 이것이 ★ 프롬프트 문구로만 ★ 있었고 코드에 없었다. 그러면 계약의
+// 어떤 단계든 — 명령 단계까지 — $OUT 에 그 이름의 파일이 하나 있으면
+// ★ Run 전체가 실패했다 ★. 평범한 단계는 자기 일만 알므로, 그 자리를 주면
+// 자기가 막힌 것을 Run 전체의 실패로 선언한다. 그 말은 _cannot 의 자리다.
+func Test평범한_단계의_목표미달은_무시된다(t *testing.T) {
+	zero := 0
+	c := contract.Contract{Steps: []contract.Step{
+		{ID: "work", Uses: "n", Run: []string{"true"}, Out: []string{"caps"}},
+		{ID: "replan", Uses: "n", Expands: true, Out: []string{"plan2"}},
+	}, SuccessWhen: []contract.Condition{{Step: "work", ExitCode: &zero}}}
+
+	v := Verify(c, map[string]StepResult{
+		"work":   {ExitCode: &zero, Produced: []string{"caps", contract.UnmetName}},
+		"replan": {Produced: []string{"plan2"}},
+	})
+	if v.State != StateSucceeded {
+		t.Fatalf("★ 평범한 단계의 _unmet 이 Run 을 죽였다 ★: %+v", v)
+	}
+	// ★ 조용히 버리지 않는다 ★ — 왜 안 먹혔는지가 기록에 남아야 한다.
+	found := false
+	for _, ch := range v.Checks {
+		if ch.Step == "work" && ch.What == contract.UnmetName {
+			found = true
+			if !ch.OK {
+				t.Fatal("★ 무시하기로 해놓고 실패로 셌다 ★")
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("★ 무시한 사실이 Checks 에 없다 ★: %+v", v.Checks)
+	}
+}
+
+// ★ 종료코드는 명령 단계의 것이다 ★ (ADR-019)
+//
+// 처음에는 agent 만 막았다. ask 와 acquire 도 프로세스가 없으므로 조건이
+// 조용히 통과하면 Verify 가 got=-1 로 비교해 ★ 언제나 거짓 ★ 이 되고,
+// 계약 저자는 자기가 무엇을 잘못 적었는지 못 본다.
+func Test종료코드_조건은_명령단계만(t *testing.T) {
+	zero := 0
+	for _, tc := range []struct {
+		name string
+		step contract.Step
+	}{
+		{"agent", contract.Step{ID: "s", Uses: "n",
+			Agent: map[string]interface{}{},
+			In:    map[string]interface{}{"prompt": "x"},
+			Out:   []string{"o"}}},
+		{"ask", contract.Step{ID: "s", Ask: &contract.Ask{Prompt: "?"}, Out: []string{"o"}}},
+	} {
+		c := contract.Contract{
+			RunID:       "r",
+			Requires:    []contract.Require{{As: "n", Capability: contract.CapabilityAgentReason}},
+			Steps:       []contract.Step{tc.step},
+			SuccessWhen: []contract.Condition{{Step: "s", ExitCode: &zero}},
+		}
+		if err := c.Validate(); err == nil {
+			t.Fatalf("★ %s 단계에 종료코드 조건이 통과했다 ★", tc.name)
+		}
+	}
+}

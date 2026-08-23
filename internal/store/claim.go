@@ -92,6 +92,15 @@ type Claimed struct {
 	// ★ expands 단계에만 싣는다 ★ — 다른 단계는 자기 uses 만 알면 되고,
 	// 남의 역할 이름을 아는 것은 그 단계에 쓸 데가 없다.
 	Roles []string `json:"roles,omitempty"`
+	// RoleAttrs 는 ★ 그 역할에 배정된 노드가 무엇을 광고하는가 ★ 다 (ADR-055).
+	//
+	// ★ 역할 이름만으로는 명령을 못 짓는다 ★ — 계획은 "mac" 이라는 이름은
+	// 알지만 그것이 어떤 기계인지 모른다. 그래서 매 판 uname · sw_vers 를
+	// 돌리는 조사 단계를 지었고, ★ 그 답을 보려면 판이 하나 더 들었다 ★.
+	//
+	// ADR-045(문법) · ADR-049(목표) · ADR-052(이미 선 단계)와 같은 자리다 —
+	// ★ 아는 쪽이 적어준다 ★. 매처가 이미 이 값으로 노드를 골랐다.
+	RoleAttrs map[string]map[string]string `json:"role_attrs,omitempty"`
 	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 ★ 다 (ADR-049).
 	// ★ 이것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
 	Owed []OwedStep `json:"owed,omitempty"`
@@ -295,8 +304,87 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID, instance string) (*Claime
 	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
 	fillFromContract(&c, contractJSON)
 	s.stampStanding(ctx, &c)
+	s.stampRoleAttrs(ctx, &c)
 	s.stampLedger(ctx, &c, contractJSON)
 	return &c, nil
+}
+
+// stampRoleAttrs 는 ★ 각 역할이 어느 기계에 앉았는지 ★ 를 싣는다 (ADR-055).
+//
+// ★ 계획을 짓는 단계에만 ★ — 다른 단계는 자기 기계에서 돌므로 그것을
+// 알 필요가 없고, 남의 기계 사정은 그 단계에 쓸 데가 없다.
+//
+// ★ 배정은 t=0 에 확정돼 있다 ★ (ADR-015 §3) — steps.node_id 가 이미 있고
+// nodes 행에 그 노드의 마지막 광고가 있다. 새로 물어보지 않는다.
+func (s *Store) stampRoleAttrs(ctx context.Context, c *Claimed) {
+	if !c.Expands || len(c.Roles) == 0 {
+		return
+	}
+	// ★ 원천은 runs.assigned 다 ★ — steps 가 아니다.
+	//
+	// ★ 처음에는 steps 를 돌았고, 그것이 이 결정을 무력화했다 ★:
+	// requires 에 선언됐지만 ★ 아직 단계가 없는 역할 ★ 은 steps 에 행이 없다.
+	// 그런데 ★ 계획이 명령을 지어 붙일 대상이 바로 그 역할들이다 ★ —
+	// ADR-049 가 권하는 형태(requires 로 함대를 선언하고 produces 로 약속만
+	// 걸어 계획이 단계를 짓는다)에서는 그것이 기본이다.
+	// ⇒ 이름만 실린 채 나가고 계획은 다시 조사 단계를 지어 ★ 판을 하나 먹는다 ★ —
+	//   이 결정이 없애려던 바로 그 동작이다.
+	var assignedJSON []byte
+	if err := s.pool.QueryRow(ctx,
+		`SELECT assigned FROM runs WHERE run_id = $1`, c.RunID).Scan(&assignedJSON); err != nil {
+		return
+	}
+	var assigned []Assigned
+	if len(assignedJSON) == 0 || json.Unmarshal(assignedJSON, &assigned) != nil {
+		return
+	}
+	ids := map[string][]string{}
+	for _, a := range assigned {
+		for _, n := range a.Nodes {
+			ids[a.As] = append(ids[a.As], n.Node)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	// ★ 노드의 마지막 광고를 읽는다 ★ — 배정은 t=0 에 확정돼 있지만(node_id)
+	// ★ 속성은 광고마다 통째로 덮인다 ★ (UpsertAdvert). 그래서 여기서 읽는 것은
+	// 「배정 시점의 값」이 아니라 「지금 값」이고, 둘이 다를 수 있다.
+	// ★ 지금 값이 맞는 값이다 ★ — 계획은 지금 명령을 짓는다. 다만 그래서
+	// ★ 같은 단계를 재전달해도 프롬프트가 달라질 수 있다 ★ (I4 가 재현을
+	// 보장하는 것은 봉인된 기록이지 프롬프트의 불변이 아니다).
+	all := map[string][]string{}
+	for role, nodes := range ids {
+		all[role] = nodes
+	}
+	out := map[string]map[string]string{}
+	for role, nodes := range all {
+		merged := map[string]string{}
+		for _, id := range nodes {
+			var capsJSON []byte
+			if err := s.pool.QueryRow(ctx,
+				`SELECT capabilities FROM nodes WHERE node_id = $1`, id).Scan(&capsJSON); err != nil {
+				continue
+			}
+			var caps []contract.Capability
+			if json.Unmarshal(capsJSON, &caps) != nil {
+				continue
+			}
+			// ★ 능력이 여럿이면 속성을 합친다 ★ — 오늘 어휘는 하나뿐이라
+			// 실제로는 한 벌이고, 늘어도 이 자리가 안 바뀐다.
+			for _, cp := range caps {
+				for k, v := range cp.Attrs {
+					merged[k] = v
+				}
+			}
+		}
+		if len(merged) > 0 {
+			out[role] = merged
+		}
+	}
+	if len(out) > 0 {
+		c.RoleAttrs = out
+	}
 }
 
 // stampStanding 은 ★ 이미 선 단계와 그 결말 ★ 을 싣는다 (ADR-052).
@@ -415,6 +503,9 @@ func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claime
 	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
 	fillFromContract(&c, contractJSON)
 	s.stampStanding(ctx, &c)
+	// ★ 재전달도 같은 프롬프트를 만들어야 한다 ★ (ADR-030) — 하나라도 빠지면
+	// 같은 단계가 다른 프롬프트를 받는다.
+	s.stampRoleAttrs(ctx, &c)
 	s.stampLedger(ctx, &c, contractJSON)
 	s.log().Info("redelivering to the same instance", "node", nodeID, "step", c.StepID)
 	return &c, nil

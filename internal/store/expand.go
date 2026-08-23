@@ -97,6 +97,39 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		return err
 	}
 	name := st.Out[0] // 검증이 정확히 하나임을 보장한다
+
+	// ★ 목표 미달을 ★ 무엇보다 먼저 ★ 본다 ★ (ADR-054)
+	//
+	// ★ 순서가 곧 설계다 ★ — 처음에는 이 검사를 빈 계획 검사 옆에 뒀는데,
+	// 그러면 ★ 도달할 수 없었다 ★. 셋이 앞에서 막았다:
+	//
+	//	readPlan     "더 해도 소용없다" 면서 계획 파일을 낼 이유가 없다.
+	//	             안 내면 ErrNoBlob 으로 그 단계가 FAILED 가 되고,
+	//	             그러면 ★ SettleIfDone 이 Verify 를 아예 안 부른다 ★
+	//	owed 검사    produces 로 목표를 못 박은 계약 — ★ ADR-049 가 권하는 바로 그 형태 ★ —
+	//	             에서는 약속이 남아 있어 먼저 거절됐다.
+	//	             ★ 「약속한 단계를 못 짓겠다」가 곧 목표 미달이다 ★
+	//	모순 검사    계획이 있어야 도달하는 자리에 있었다
+	//
+	// ★ 그래서 여기가 맞는 자리다 ★ — 계획을 읽기도 전에, 약속을 묻기도 전에.
+	if unmetReported(ctx, tx, runID, seq) {
+		// ★ 계획을 함께 냈으면 모순이다 ★ — "더 해도 소용없다" 와
+		// "이렇게 하면 된다" 는 함께 설 수 없다. 다만 ★ 빈 계획은 무해하다 ★:
+		// 같은 말을 두 번 한 것뿐이다.
+		if p, err := s.readPlan(runID, name); err == nil && len(p.Steps) > 0 {
+			return fmt.Errorf("step %q: %s was written but the plan is not empty; "+
+				"%s means nothing further will help — write one or the other, not both",
+				st.ID, contract.UnmetName, contract.UnmetName)
+		}
+		// ★ 오류를 내지 않는다 ★ — 오류면 이 단계가 FAILED 가 되고
+		// SettleIfDone 이 Verify 를 건너뛴다. 그러면 ★ 봉인되는 이유가
+		// "완주하지 못했다" 로 바뀐다 ★ — 실제로는 완주했고 자기에게
+		// 불리한 판단을 스스로 적었다 (ADR-004 가 가른 것이 다시 뭉개진다).
+		s.log().Info("the step reported that the goal was not reached; "+
+			"the contract is not extended", "run", runID, "step", st.ID)
+		return skipAdopters(ctx, tx, runID, c.Steps, st.ID)
+	}
+
 	p, err := s.readPlan(runID, name)
 	if err != nil {
 		return fmt.Errorf("step %q: %w", st.ID, err)
@@ -334,4 +367,23 @@ func (s *Store) readPlan(runID, name string) (*plan, error) {
 		return nil, fmt.Errorf("plan %q is not an object with steps: %w", name, err)
 	}
 	return &p, nil
+}
+
+// unmetReported 는 그 단계가 ★ 목표 미달 ★ 을 보고했는지다 (ADR-054).
+//
+// ★ 산출물 목록에서 본다 ★ — _unmet 은 밑줄 예약이라 계약이 그 이름을 못 쓰고,
+// 그래서 이 자리에 있는 것은 어댑터가 수확한 자백뿐이다.
+func unmetReported(ctx context.Context, tx pgx.Tx, runID string, seq int) bool {
+	var produced []string
+	if err := tx.QueryRow(ctx,
+		`SELECT coalesce(array(SELECT jsonb_array_elements_text(result->'produced')), '{}')
+		   FROM steps WHERE run_id=$1 AND seq=$2`, runID, seq).Scan(&produced); err != nil {
+		return false
+	}
+	for _, n := range produced {
+		if n == contract.UnmetName {
+			return true
+		}
+	}
+	return false
 }

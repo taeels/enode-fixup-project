@@ -37,6 +37,15 @@ if [ -n "$(git status --porcelain -- '*.go' go.mod go.sum packaging 2>/dev/null)
 fi
 STAMP="${COMMIT}${DIRTY}"
 
+# ★ 실행파일이 자기가 무엇인지 말할 수 있게 한다 ★ (ADR-056)
+#
+# ★ 자기 갱신이 여기 걸린다 ★ — 새 바이너리를 받아 두었을 때 그것이 새것인지
+# 확인할 방법이 --version 말고는 없다. 실행해 보는 것은 노드를 하나 더 띄우는 일이다.
+# ★ 묶음 이름과 같은 값을 박는다 ★ — 둘이 어긋나면 어느 쪽이 참인지 알 수 없다.
+BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+LDFLAGS="-X github.com/taeels/enode/internal/build.Commit=$STAMP"
+LDFLAGS="$LDFLAGS -X github.com/taeels/enode/internal/build.Date=$BUILD_DATE"
+
 PKG="$ROOT/dist/enode-macos-$STAMP"
 rm -rf "$PKG"
 mkdir -p "$PKG/bin" "$PKG/examples"
@@ -48,7 +57,7 @@ for t in $TARGETS; do
     out="$PKG/bin/$c-$goos-$goarch"
     echo "   $goos/$goarch  $c"
     GOOS=$goos GOARCH=$goarch CGO_ENABLED=0 \
-      go build -trimpath -o "$out" "./cmd/$c"
+      go build -trimpath -ldflags "$LDFLAGS" -o "$out" "./cmd/$c"
   done
 done
 

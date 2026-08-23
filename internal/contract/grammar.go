@@ -35,19 +35,88 @@ or contract validation returns 400. There is no partial acceptance.
 
     run       uses, run (argv array), out
     agent     uses, agent, in, out, schema
-    expands   uses, expands:true, agent, in, out (exactly one), schema (required)
     ask       no uses, ask, out (exactly one), schema (required)
+    acquire   no uses, acquire; performed by the mediator, not by a node
+
+expands is not a kind. It is a flag on an agent step that makes it build a plan:
+
+    uses, agent, expands:true, in, out (exactly one), schema (required)
 
 An ask step must not set uses; it is performed by a person.
 
+### Choosing between run and agent
+
+Use a run step when the command is known before the run starts, and an agent
+step when the decision has to be made on the machine that does the work.
+
+    run     "west build -b nucleo_h753zi app"      the command is known
+    agent   "install enode in the VM and start it" the path is not known yet
+
+An agent step is not a weaker run step. It is judged by produced instead of
+exit_code because a harness can exit 0 after doing nothing, not because the
+step matters less. When a survey has to look at what it finds and decide what
+to do next, an agent step does it in one step; a chain of run steps needs one
+plan version per question asked.
+
+The node running an agent step sees the machine. The plan does not.
+
+### Two ways to branch
+
+    dispatch   pick a named destination from a value in an output
+    acquire    take a resource at run time; branch on whether it was taken
+
+Both let one plan cover paths that are not known yet, so a survey and the work
+that depends on it can live in the same plan.
+
+    { "id":"survey", "uses":"n", "run":["/bin/sh","-c","..."], "out":["found"],
+      "schema":{ "found":{ "type":"object", "required":["next"],
+                 "properties":{ "next":{ "enum":["use_local","build_it"] } } } },
+      "dispatch":{ "from":"found.next", "to":["use_local","build_it"] } }
+
+    { "id":"get_board",
+      "acquire":{ "want":{ "as":"board", "capability":"agent.reason",
+                           "board":"stm32h753", "os":"linux" },
+                  "acquired":"on_board", "unavailable":"qemu_only" } }
+
+capability is a closed vocabulary: agent.reason and orchestration. Everything
+else — board, os, arch, harness, repo — is an attribute, and the match is a
+subset match on those attributes.
+
+Rules for both:
+
+    dispatch.from must name a field inside an output this step produces
+    dispatch.to needs at least two targets, all distinct
+    every branch target must exist and come after this step
+    the value is also constrained by the schema enum
+
+Branch targets are siblings, not a chain: the path not taken is skipped, and
+conditions on a skipped step are vacuously true.
+
+### Ask for the smallest set of resources up front
+
+requires is taken all-or-nothing before the run starts, so a resource listed
+there must be available before anything is known. List only what the survey
+needs, and take the rest with acquire once the survey has answered.
+
+    requires    the node that surveys, and the node that plans
+    acquire     the board, the builder, whatever the survey turns out to need
+
+acquire branches on availability, so a resource that is missing sends the run
+down another path instead of killing it.
+
+A role named in acquire.want.as becomes usable by the steps that follow it, so
+a plan may introduce a role the contract never declared. Roles that come from
+requires are fixed: uses may only name a role that requires declared or that an
+earlier acquire in the same plan introduced.
+
 ### success_when conditions differ by step kind
 
-    run             exit_code and produced
-    agent, expands  produced only
-    ask             produced only
+    run                    exit_code and produced
+    agent, ask, acquire    produced only
 
-exit_code condition is not allowed on an agent step: a harness can produce
-nonsense and still exit 0, so success is judged by what it produced.
+exit_code is allowed only on a run step. A harness can produce nonsense and
+still exit 0, and a person's answer and a resource acquisition have no process
+at all, so success is judged by what was produced.
 
 success_when may only refer to steps that exist.
 
@@ -105,4 +174,24 @@ submit an empty plan.
 
 This is a judgment, not an error. The contract is not extended and the ask that
 would adopt it is skipped. Do not invent steps to fill the plan.
+
+### If the goal was not reached, say so
+
+An empty plan ends the run, and the run then succeeds if success_when holds.
+success_when checks what a machine can check: an exit code, a file that exists,
+a path that changed. It can hold while the goal is still not reached — a survey
+that reports "nothing is installed" is a file that exists.
+
+When that happens, write the file named in the prompt. A plan file is not
+required alongside it; an empty plan is harmless but says the same thing twice.
+A plan with steps in it is a contradiction and is rejected — either something
+further will help, or nothing will. Failing to build a step the contract
+promised is also a goal that was not reached.
+
+Only a step that builds a plan may write it: judging the goal needs the whole
+picture, and only that step is given it. From any other step the file is
+recorded and ignored.
+
+This can make a passing run fail. It can never make a failing run pass.
+Success criteria stay where the contract put them.
 `

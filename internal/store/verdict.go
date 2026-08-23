@@ -40,6 +40,16 @@ type Check struct {
 	Note string      `json:"note,omitempty"`
 }
 
+// hasName 은 목록에 그 이름이 있는지다.
+func hasName(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
+
 type Verdict struct {
 	State  string  `json:"state"`
 	Checks []Check `json:"checks"`
@@ -56,6 +66,42 @@ type Verdict struct {
 // 회귀를 찾아낸 Run 이 FAILED 가 되어 ADR-004 의 네 결과표가 뒤집힌다.
 func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 	v := Verdict{State: StateSucceeded}
+	// ★ 「목표에 못 닿았다」는 기준을 이긴다 ★ (ADR-054)
+	//
+	// success_when 은 기계가 볼 수 있는 것만 본다. 그것이 참인데 목표는
+	// 아닐 수 있다 — "아무것도 안 깔려 있다" 를 적은 보고서도 ★ 존재하는
+	// 파일 ★ 이다 (vm-scratch-5 가 그렇게 통과할 뻔했다).
+	//
+	// ★ 방향이 한쪽뿐이다 ★ — 통과할 Run 을 실패시킬 수는 있고, 실패할 Run 을
+	// 통과시킬 수는 없다. 그래서 ADR-037(판정 술어를 에이전트가 저작하지
+	// 못하게 한다)을 약화시키지 않는다. 기준의 저자는 여전히 사람이다.
+	//
+	// ★ 나머지 대조를 건너뛰지 않는다 ★ — Checks 는 기록이고, 무엇이
+	// 맞았고 무엇이 틀렸는지가 Record 에 다 남아야 한다.
+	for _, st := range c.Steps {
+		res, ran := results[st.ID]
+		if !ran || !hasName(res.Produced, contract.UnmetName) {
+			continue
+		}
+		if !st.Expands {
+			// ★ 목표를 판단하려면 전체 그림이 필요하다 ★ (ADR-054 §2.2) —
+			// goal · owed · standing 은 계획을 짓는 단계에만 실린다. 평범한
+			// 단계는 자기 일만 알므로, 그 자리를 주면 ★ 자기가 막힌 것을
+			// Run 전체의 실패로 선언한다 ★. 그 말은 _cannot 의 자리다.
+			//
+			// ★ 무시하되 기록한다 ★ — 조용히 버리면 왜 안 먹혔는지 알 수 없다.
+			v.Checks = append(v.Checks, Check{
+				Step: st.ID, What: contract.UnmetName, Want: false, Got: true, OK: true,
+				Note: "only a step that builds a plan may report the goal; ignored here",
+			})
+			continue
+		}
+		v.Checks = append(v.Checks, Check{
+			Step: st.ID, What: contract.UnmetName, Want: false, Got: true, OK: false,
+			Note: "the step reported that the goal was not reached",
+		})
+		v.State = StateFailed
+	}
 	// ★ 실제로 대조된 조건의 수 ★ — 공허한 참을 막는다 (아래 참조).
 	evaluated := 0
 	for _, cond := range c.SuccessWhen {

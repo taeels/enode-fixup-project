@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/taeels/enode/internal/api"
+	"github.com/taeels/enode/internal/build"
 	"github.com/taeels/enode/internal/config"
 	"github.com/taeels/enode/internal/record"
 	"github.com/taeels/enode/internal/store"
@@ -21,6 +23,11 @@ import (
 
 func main() {
 	cfgPath := flag.String("config", "", "path to the config file")
+	// ★ --version 은 플래그 파싱보다 앞이다 ★ (ADR-056)
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
+		fmt.Println(build.Version("mediator"))
+		return
+	}
 	flag.Parse()
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))

@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/taeels/enode/internal/build"
 	"github.com/taeels/enode/internal/enode"
 )
 
@@ -27,6 +29,12 @@ func main() {
 	// 훅을 별도 스크립트로 두지 않고 enode 자신이 되는 이유는 hook.go 에 적었다.
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
 		os.Exit(runHookCmd(os.Args[2:]))
+	}
+	// ★ --version 은 플래그 파싱보다 앞이다 ★ (ADR-056) — 설정 파일이 없어도
+	// 답해야 한다. 자기 갱신이 ★ 받아온 것이 무엇인지 ★ 를 이것으로 판정한다.
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
+		fmt.Println(build.Version("enode"))
+		return
 	}
 
 	cfgPath := flag.String("config", "/etc/enode/local.yaml", "path to the config file (also determines node identity)")

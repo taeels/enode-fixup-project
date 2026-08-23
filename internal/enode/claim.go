@@ -43,6 +43,9 @@ type Step struct {
 	// 문법이 「uses 를 적는다」까지만 말하고 ★ 무엇을 적는지 ★ 는 안 말하므로,
 	// 어휘를 아는 쪽(Mediator)이 실어 보낸다.
 	Roles []string `json:"roles,omitempty"`
+	// RoleAttrs 는 ★ 각 역할이 앉은 기계가 무엇을 광고하는가 ★ 다 (ADR-055) —
+	// os · host_arch · ws · arch · board …. ★ 계획이 명령을 지을 때 쓴다 ★.
+	RoleAttrs map[string]map[string]string `json:"role_attrs,omitempty"`
 	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 ★ 다 (ADR-049).
 	// ★ 이것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
 	// When 에 그 이름에 걸린 판정이 실려 온다 — ★ 단계의 종류가 거기서 정해진다 ★.
@@ -625,8 +628,8 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		"feedback_names", step.Feedback, "feedback_got", len(feedback),
 		"out", step.Out, "schema", len(step.Schema))
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
-		step.Attempt, step.Expands, step.Roles, step.Owed, step.Standing,
-		step.Goal, step.EnvelopeKey)
+		step.Attempt, step.Expands, step.Roles, step.RoleAttrs, step.Owed,
+		step.Standing, step.Goal, step.EnvelopeKey)
 	writePromptFile(out, prompt)
 
 	// ★ R1 — 부모 환경을 통째로 물려주지 않는다 ★

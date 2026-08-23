@@ -82,6 +82,37 @@ const failLane = `
 다음 시도가 그것을 읽는다. ★ 검증은 파일이 하지 네 말이 하지 않는다 ★.
 `
 
+// attrLine 은 역할 옆에 붙일 ★ 그 기계의 사실 ★ 을 한 줄로 만든다 (ADR-055).
+//
+// ★ 순서를 고정한다 ★ — 맵을 그대로 돌면 프롬프트가 매번 달라지고,
+// 그러면 같은 계약이 다른 프롬프트를 낳아 재현이 어려워진다.
+func attrLine(attrs map[string]string) string {
+	if len(attrs) == 0 {
+		return ""
+	}
+	// ★ 자주 쓰는 것을 앞에 ★ — 나머지는 이름순으로 뒤에 붙는다.
+	head := []string{"os", "host_arch", "ws", "harness", "arch", "board", "tag", "repo"}
+	seen := map[string]bool{}
+	var parts []string
+	for _, k := range head {
+		if v, ok := attrs[k]; ok {
+			parts = append(parts, k+"="+v)
+			seen[k] = true
+		}
+	}
+	rest := make([]string, 0, len(attrs))
+	for k := range attrs {
+		if !seen[k] {
+			rest = append(rest, k)
+		}
+	}
+	sortStrings(rest)
+	for _, k := range rest {
+		parts = append(parts, k+"="+attrs[k])
+	}
+	return "   " + strings.Join(parts, " · ")
+}
+
 // owedHow 는 약속된 단계에 걸린 판정을 ★ 계획이 읽을 문장 ★ 으로 만든다.
 //
 // ★ 표현은 여기서만 만든다 ★ — Mediator 는 조건을 원형 그대로 실어 보낸다.
@@ -108,6 +139,40 @@ func owedHow(when []contract.Condition) string {
 	return b.String()
 }
 
+// unmetLane 은 ★ 목표에 못 닿았다고 말하는 자리 ★ 다 (ADR-054).
+//
+// ★ expands 단계에만 붙는다 ★ — 목표를 판단하려면 전체 그림이 필요하고,
+// 그 그림(goal · owed · standing)은 계획을 짓는 단계에만 실린다.
+//
+// ★ failLane 과 다른 것을 연다 ★:
+//
+//	_cannot   "★ 이 단계 ★ 를 못 하겠다"       → 단계가 실패한다
+//	_unmet    "★ 이 Run 이 목표에 못 닿았다 ★" → Run 이 실패한다
+const unmetLane = `
+## 목표에 못 닿았으면
+
+빈 계획을 내면 Run 이 끝나고, success_when 이 참이면 ★ 성공으로 끝난다 ★.
+그런데 success_when 은 ★ 기계가 볼 수 있는 것만 ★ 본다 — 종료코드 · 파일의
+존재 · 경로의 변경. ★ 그것이 참인데 목표는 아닐 수 있다 ★:
+"아무것도 안 깔려 있다" 를 적은 보고서도 ★ 존재하는 파일 ★ 이다.
+
+그런 상황이면 아래 파일에 이유를 적어라. ★ 계획 파일은 안 내도 된다 ★.
+
+  %s
+
+그러면 Run 이 ★ 실패로 ★ 끝나고 이유가 기록에 남는다.
+빈 계획을 함께 내도 된다 — 같은 말을 두 번 하는 것뿐이다.
+
+★ 이것은 통과할 Run 을 실패시킬 뿐이다 ★ — 실패할 Run 을 통과시키지 못한다.
+판정 기준은 계약이 정한 자리에 그대로 있다.
+
+★ 아직 할 일이 남았으면 이 파일이 아니라 계획을 내라 ★ — 이 파일은
+「더 해도 소용없다」는 말이다. ★ 단계가 든 계획과 함께 내면 모순이라 거절된다 ★.
+
+★ 계약이 약속한 단계(위의 「아직 안 지어진 단계」)를 못 짓겠다는 것도
+목표 미달이다 ★ — 그때도 이 파일을 쓴다.
+`
+
 // buildPrompt 는 ①사출의 일부다 — 규약 · 스키마 · 되먹임 · 요청을 이 순서로 쌓는다.
 //
 // 순서에 이유가 있다: 규약을 먼저 두면 모델이 마지막 지시(요청)를 수행하면서도
@@ -115,7 +180,8 @@ func owedHow(when []contract.Condition) string {
 // 가장 가깝게 놓인다.
 func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage,
 	feedback map[string]string, attempt int, expands bool,
-	roles []string, owed []OwedStep, standing []StandingStep,
+	roles []string, roleAttrs map[string]map[string]string,
+	owed []OwedStep, standing []StandingStep,
 	goal, envKey string) string {
 	var b strings.Builder
 	b.WriteString(outContract)
@@ -131,11 +197,35 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 		// requires 에 있고 계획을 짓는 쪽은 그것을 못 본다. ★ 아는 쪽이 적어준다 ★.
 		if len(roles) > 0 {
 			b.WriteString("### ★ uses 에 쓸 수 있는 역할은 이것뿐이다 ★\n\n")
+			// ★ 이름을 나란히 맞춘다 ★ — 속성이 어긋나면 읽는 쪽이 어느 값이
+			// 어느 역할의 것인지 헷갈린다.
+			w := 0
 			for _, r := range roles {
-				b.WriteString("    " + r + "\n")
+				if len(r) > w {
+					w = len(r)
+				}
+			}
+			for _, r := range roles {
+				b.WriteString("    " + r)
+				// ★ 그 역할이 앉은 기계가 무엇인지 ★ (ADR-055) — 이름만으로는
+				// 명령을 못 짓는다. 매처가 이미 이 값으로 노드를 골랐다.
+				if line := attrLine(roleAttrs[r]); line != "" {
+					for i := len(r); i < w; i++ {
+						b.WriteString(" ")
+					}
+					b.WriteString(line)
+				}
+				b.WriteString("\n")
 			}
 			b.WriteString("\n★ 여기 없는 이름을 쓰면 계획 전체가 거절된다 ★ — " +
-				"자원은 계약 저자가 선언한다.\n\n")
+				"자원은 계약 저자가 선언한다.\n")
+			if len(roleAttrs) > 0 {
+				b.WriteString("★ 옆에 적힌 것은 그 기계가 스스로 광고한 사실이다 ★ — " +
+					"os · host_arch 는 그 기계가 무엇인지이고, ws 는 워크스페이스\n" +
+					"경로다. arch 는 ★ 빌드 대상 ★ 이지 그 기계가 아니다.\n" +
+					"★ 이미 아는 것을 다시 조사하지 마라 ★.\n")
+			}
+			b.WriteString("\n")
 		}
 		// ★ 목표를 나른다 ★ (ADR-049) — 계획이 지은 재계획 단계는 자기 프롬프트가
 		// 비어 있을 수 있다. 그러면 ★ 재료를 받고도 무엇을 향해 지을지 모른다 ★.
@@ -245,6 +335,10 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 		for _, n := range names {
 			envelope(&b, envKey, "OUTPUT", n, feedback[n], 4000)
 		}
+	}
+	// ★ 목표 미달의 자리는 계획을 짓는 단계에만 ★ (ADR-054)
+	if expands {
+		b.WriteString(fmt.Sprintf(unmetLane, filepath.Join(outDir, contract.UnmetName)))
 	}
 	// ★ 실패 차선은 항상 붙는다 ★ — 스키마 유무와 무관하다 (ADR-038).
 	// 위의 ADR-020 문구는 ★ 스키마가 있을 때만 ★ 이고 "스키마가 허용하는 형태" 를

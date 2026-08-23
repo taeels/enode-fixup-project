@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/taeels/enode/internal/build"
 	"github.com/taeels/enode/internal/runctl"
 )
 
@@ -71,6 +72,11 @@ func permute(args []string) []string {
 }
 
 func run() int {
+	// ★ --version 은 플래그 파싱보다 앞이다 ★ (ADR-056) — 토큰이 없어도 답한다.
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
+		fmt.Println(build.Version("runctl"))
+		return 0
+	}
 	base := flag.String("mediator", os.Getenv("ENODE_MEDIATOR"), "mediator address ($ENODE_MEDIATOR)")
 	token := flag.String("token", os.Getenv("ENODE_TOKEN"), "auth token ($ENODE_TOKEN)")
 	wait := flag.Bool("wait", false, "wait until the run reaches a terminal state")

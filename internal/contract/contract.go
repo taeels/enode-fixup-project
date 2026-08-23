@@ -69,6 +69,30 @@ type Contract struct {
 	Ledger *Ledger `json:"ledger,omitempty"`
 }
 
+// UnmetName 은 ★ 목표에 못 닿았다고 말하는 자리 ★ 다 (ADR-054).
+//
+// ★ _cannot 과 다르다 ★ (ADR-038):
+//
+//	_cannot   ★ 이 단계 ★ 를 못 하겠다 — 단계가 실패하고 재시도가 남는다
+//	_unmet    ★ 이 Run 이 목표에 못 닿았다 ★ — 더 해도 소용없다. Run 이 실패한다
+//
+// ★ 왜 필요한가 ★ — success_when 은 기계가 볼 수 있는 것만 본다: 종료코드 ·
+// 파일의 존재 · 경로의 변경. 그것이 참인데 목표는 아닐 수 있다.
+// "아무것도 안 깔려 있다" 를 적은 보고서도 ★ 존재하는 파일 ★ 이다.
+//
+//	★ 실측 ★ (vm-scratch-5) vm_node_up 이 exit 0 · produced[vm_caps] 로 두
+//	조건을 다 만족했다. vm_caps 본문은 "enode binary in vm: exit status 1" 이었고
+//	함대에 VM 노드는 없었다. ★ 그런데 재계획 에이전트는 그것을 읽고 목표
+//	미달로 옳게 판단했다 ★ — 판정하는 쪽이 에이전트보다 둔했다.
+//
+// ★ 방향이 한쪽뿐이라 ADR-037 을 안 깬다 ★ — 통과할 Run 을 실패시킬 수는
+// 있고, 실패할 Run 을 통과시킬 수는 ★ 없다 ★. 기준의 저자는 여전히 사람이다.
+// ADR-038 이 자백을 믿은 것과 같은 비대칭이다: ★ 자기에게 불리한 신고다 ★.
+//
+// ★ 계획을 짓는 단계만 낼 수 있다 ★ — 목표를 판단하려면 전체 그림이 필요하고
+// 그 그림은 expands 단계에만 실린다 (goal · owed · standing).
+const UnmetName = "_unmet"
+
 // Acquire 는 실행 중 획득 하나다 (ADR-022 §7.5 · ADR-024).
 //
 // ★ 이것 자체가 분기다 ★ — 획득 결과는 산출물이 아니라 ★ 즉시 아는 값 ★ 이라
@@ -1154,7 +1178,8 @@ func (c Contract) Validate() error {
 				return fmt.Errorf("step %q: acquire refers to unknown step %q", st.ID, dst)
 			}
 			if j <= i {
-				return fmt.Errorf("step %q: acquire target %q comes before this step", st.ID, dst)
+				return fmt.Errorf("step %q: acquire target %q comes before this step; "+
+					"branches must point forward", st.ID, dst)
 			}
 		}
 		// ★ 잡기 전에는 못 쓴다 ★ — 그 역할을 쓰는 단계는 전부 이 단계의 후손이어야 한다.
@@ -1285,7 +1310,15 @@ func (c Contract) Validate() error {
 			}
 			return fmt.Errorf("%w: %q", ErrCondUnknownID, cond.Step)
 		}
-		if cond.ExitCode != nil && k == KindAgent {
+		// ★ 종료코드는 명령 단계의 것이다 ★ (ADR-019)
+		//
+		// 처음에는 agent 만 막았다. 그런데 ★ ask 와 acquire 도 종료코드가 없다 ★ —
+		// 사람의 답과 자원 획득에는 프로세스가 없다. 조건이 조용히 통과하면
+		// Verify 가 got=-1 로 비교해 ★ 언제나 거짓 ★ 이 되고, 계약 저자는
+		// 자기가 무엇을 잘못 적었는지 못 본다.
+		// ★ 종류를 열거하지 않고 「명령이 아니면」으로 적는다 ★ — 종류가 늘 때
+		// 이 자리를 다시 안 고친다.
+		if cond.ExitCode != nil && k != KindRun {
 			return fmt.Errorf("%w: %q", ErrExitOnAgent, cond.Step)
 		}
 		// ★ changed 는 워크스페이스를 쓰는 단계에만 ★ (ADR-037) —

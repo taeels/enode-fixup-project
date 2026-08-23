@@ -30,6 +30,109 @@ const okStep = `{"id":"a","uses":"n","run":["true"],"out":["log"]}`
 func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.T) {
 	cases := []bad{
 		{
+			// ★ 사람의 답에는 프로세스가 없다 ★ — 조건이 통과하면 Verify 가
+			// got=-1 로 비교해 ★ 언제나 거짓 ★ 이 되고, 저자는 왜인지 못 본다.
+			name:    "exit_code is allowed only on a run step (ask)",
+			mustSay: "exit_code is allowed only on a run step",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[` + okStep + `,
+			   {"id":"q","needs":["a"],"ask":{"prompt":"?"},"out":["ans"],
+			    "schema":{"ans":{"type":"object","properties":{"v":{"type":"string"}}}}}],
+			  "success_when":[{"step":"q","exit_code":0}]}`,
+			wantErr: "exit_code",
+		},
+		{
+			// ★ 같은 곳을 두 번 가리키면 갈림길이 아니다 ★
+			name:    "dispatch.to needs at least two targets, all distinct",
+			mustSay: "all distinct",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"s","uses":"n","run":["true"],"out":["found"],
+			    "schema":{"found":{"type":"object","required":["next"],
+			      "properties":{"next":{"enum":["a"]}}}},
+			    "dispatch":{"from":"found.next","to":["a","a"]}},
+			   {"id":"a","uses":"n","needs":["s"],"run":["true"],"out":["l"]}],
+			  "success_when":[{"step":"s","exit_code":0}]}`,
+			wantErr: "duplicate",
+		},
+		{
+			// ★ 없는 곳으로는 갈 수 없다 ★
+			name:    "every branch target must exist",
+			mustSay: "every branch target must exist and come after this step",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"s","uses":"n","run":["true"],"out":["found"],
+			    "schema":{"found":{"type":"object","required":["next"],
+			      "properties":{"next":{"enum":["a","nosuch"]}}}},
+			    "dispatch":{"from":"found.next","to":["a","nosuch"]}},
+			   {"id":"a","uses":"n","needs":["s"],"run":["true"],"out":["l"]}],
+			  "success_when":[{"step":"s","exit_code":0}]}`,
+			wantErr: "unknown step",
+		},
+		{
+			// ★ capability 어휘는 닫혀 있다 ★ — 문법이 acquire 예시에서
+			// build.zephyr 를 가르쳤다가 이 시험이 잡았다 (실제로 밟았다).
+			name:    "capability is a closed vocabulary",
+			mustSay: "capability is a closed vocabulary",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"g","acquire":{"want":{"as":"b","capability":"build.zephyr"},
+			     "acquired":"a","unavailable":"b2"}},
+			   {"id":"a","uses":"n","needs":["g"],"run":["true"],"out":["l"]},
+			   {"id":"b2","uses":"n","needs":["g"],"run":["true"],"out":["l2"]}],
+			  "success_when":[{"step":"a","exit_code":0}]}`,
+			wantErr: "capability",
+		},
+		{
+			// ★ 획득도 갈림길이다 ★ — 목적지 규칙이 dispatch 와 같다.
+			name:    "every branch target must exist and come after this step (acquire)",
+			mustSay: "every branch target must exist and come after this step",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"a","uses":"n","run":["true"],"out":["l"]},
+			   {"id":"g","needs":["a"],"acquire":{"want":{"as":"b","capability":"agent.reason"},
+			     "acquired":"a","unavailable":"z"}},
+			   {"id":"z","uses":"n","needs":["g"],"run":["true"],"out":["l3"]}],
+			  "success_when":[{"step":"a","exit_code":0}]}`,
+			wantErr: "forward",
+		},
+		{
+			// ★ 갈림길이 하나면 갈림길이 아니다 ★ (ADR-053 이 문법에 적었다)
+			name:    "dispatch.to needs at least two targets",
+			mustSay: "dispatch.to needs at least two targets",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"s","uses":"n","run":["true"],"out":["found"],
+			    "schema":{"found":{"type":"object","required":["next"],
+			      "properties":{"next":{"enum":["a"]}}}},
+			    "dispatch":{"from":"found.next","to":["a"]}},
+			   {"id":"a","uses":"n","needs":["s"],"run":["true"],"out":["l"]}],
+			  "success_when":[{"step":"s","exit_code":0}]}`,
+			wantErr: "at least two targets",
+		},
+		{
+			// ★ 뒤로 못 간다 = DAG = 종료가 정적으로 보장된다 ★
+			name:    "every branch target must exist and come after this step",
+			mustSay: "every branch target must exist and come after this step",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"a","uses":"n","run":["true"],"out":["l"]},
+			   {"id":"b","uses":"n","needs":["a"],"run":["true"],"out":["l2"]},
+			   {"id":"s","uses":"n","needs":["b"],"run":["true"],"out":["found"],
+			    "schema":{"found":{"type":"object","required":["next"],
+			      "properties":{"next":{"enum":["a","b"]}}}},
+			    "dispatch":{"from":"found.next","to":["a","b"]}}],
+			  "success_when":[{"step":"s","exit_code":0}]}`,
+			wantErr: "branches must point forward",
+		},
+		{
+			// ★ dispatch.from 은 그 단계가 내는 산출물을 가리켜야 한다 ★
+			name:    "dispatch.from must name a field inside an output this step produces",
+			mustSay: "dispatch.from must name a field inside an output this step produces",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"s","uses":"n","run":["true"],"out":["found"],
+			    "schema":{"found":{"type":"object","properties":{"next":{"enum":["a","b"]}}}},
+			    "dispatch":{"from":"nosuch.next","to":["a","b"]}},
+			   {"id":"a","uses":"n","needs":["s"],"run":["true"],"out":["l"]},
+			   {"id":"b","uses":"n","needs":["s"],"run":["true"],"out":["l2"]}],
+			  "success_when":[{"step":"s","exit_code":0}]}`,
+			wantErr: "does not produce",
+		},
+		{
 			name:    "An ask step must not set uses",
 			mustSay: "An ask step must not set uses",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -40,8 +143,8 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "must not set uses",
 		},
 		{
-			name:    "exit_code condition is not allowed on an agent step",
-			mustSay: "exit_code condition is not allowed on an agent step",
+			name:    "exit_code is allowed only on a run step (agent)",
+			mustSay: "exit_code is allowed only on a run step",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[{"id":"a","uses":"n","agent":{},"in":{"prompt":"p"},"out":["x"]}],
 			  "success_when":[{"step":"a","exit_code":0}]}`,

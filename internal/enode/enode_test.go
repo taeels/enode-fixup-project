@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -170,16 +171,65 @@ func TestDetect_오케스트레이션은_배제되게_광고한다(t *testing.T)
 }
 
 // 아무것도 못 하면 아무것도 광고하지 않는다.
+//
+// ★ 기계 사실은 능력이 아니다 ★ (ADR-055) — os · host_arch 는 어느 기계에나
+// 있으므로 설정이 비어도 실린다. 그것들만 남으면 광고 자체를 안 한다.
 func TestDetectEmpty(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if caps := Detect(Local{}, log); len(caps) != 0 {
 		// claude 가 설치된 기계에서는 harness 가 잡힐 수 있다 — 그건 정상이다.
 		for _, c := range caps {
 			for k := range c.Attrs {
-				if k != "harness" {
+				switch k {
+				case "harness", "os", "host_arch":
+				default:
 					t.Fatalf("빈 설정인데 %s 를 광고했다: %+v", k, caps)
 				}
 			}
 		}
+	}
+}
+
+// ★ 기계 사실만으로는 광고하지 않는다 ★ (ADR-055)
+//
+// os · host_arch 를 무조건 싣게 되면서 "아무것도 못 하는 노드" 가 능력을
+// 가진 것처럼 보일 수 있다. ★ 광고가 곧 능력이다 ★ (ADR-012) — 그 뜻을 지킨다.
+func Test기계사실만_있으면_광고하지_않는다(t *testing.T) {
+	if hasCapability(map[string]string{"os": "linux", "host_arch": "amd64",
+		"ws": "/w"}) {
+		t.Fatal("★ 기계 사실만 있는데 능력이 있다고 했다 ★")
+	}
+	if !hasCapability(map[string]string{"os": "linux", "harness": "claude"}) {
+		t.Fatal("★ 하네스가 있는데 능력이 없다고 했다 ★")
+	}
+	if !hasCapability(map[string]string{"os": "linux", "arch": "arm64"}) {
+		t.Fatal("★ 빌드 능력이 있는데 없다고 했다 ★")
+	}
+}
+
+// ★ 광고가 os · host_arch · ws 를 싣는다 ★ (ADR-055)
+//
+// 실측(vm-scratch-1..5): 계획이 매 판 uname · sw_vers 를 돌려 이것을 알아냈고,
+// 그 답을 보려면 ★ 판이 하나 더 필요했다 ★.
+func Test광고에_기계_사실이_실린다(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	ws := t.TempDir()
+	caps := Detect(Local{Workspace: ws, Arch: "arm64", MinFreeGB: 0}, log)
+	if len(caps) == 0 {
+		t.Fatal("★ arch 가 있는데 광고가 비었다 ★")
+	}
+	a := caps[0].Attrs
+	if a["os"] != runtime.GOOS {
+		t.Fatalf("★ os 가 %q 다 ★ — %q 여야 한다", a["os"], runtime.GOOS)
+	}
+	if a["host_arch"] != runtime.GOARCH {
+		t.Fatalf("★ host_arch 가 %q 다 ★", a["host_arch"])
+	}
+	if a["ws"] != ws {
+		t.Fatalf("★ ws 가 %q 다 ★ — %q 여야 한다", a["ws"], ws)
+	}
+	// ★ arch 는 빌드 대상이고 host_arch 는 이 기계다 ★ — 섞이면 안 된다.
+	if a["arch"] != "arm64" {
+		t.Fatalf("★ 빌드 대상 arch 가 사라졌다 ★: %+v", a)
 	}
 }
