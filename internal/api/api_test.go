@@ -2737,3 +2737,82 @@ func TestCannot_계약이_예약이름을_못쓴다(t *testing.T) {
 		t.Fatalf("★ 예약 이름이 통과했다 ★: %d", code)
 	}
 }
+
+// askAdopting 은 expands 단계를 adopts 로 지목한 ask 단계다 (ADR-033).
+func askAdopting(target string) map[string]any {
+	return map[string]any{
+		"id":  "approve",
+		"ask": map[string]any{"prompt": "검토하라", "adopts": target},
+		"out": []string{"approval"},
+		"schema": map[string]any{"approval": map[string]any{
+			"type": "object", "required": []string{"verdict"},
+			"properties": map[string]any{
+				"verdict": map[string]any{"enum": []string{"approve", "reject"}}}}},
+	}
+}
+
+// ★ 빈 계획은 값이다 ★ (ADR-043)
+//
+// 재계획 단계는 needs 로만 이어져 ★ 조건부가 아니다 ★ — 앞이 성공해도 돈다.
+// 그때 「고칠 것이 없다」를 낼 방법이 없으면 계획은 반드시 다음 판을 잇게 되고,
+// 그 사슬은 max_versions 상한에 걸려서만 끝난다 = ★ 성공한 일이 FAILED 로 끝난다 ★.
+// 실측에서 밟았다 (zephyr-setup-9: zephyr.elf 를 링크했는데 Run 이 FAILED).
+func TestExpands_빈_계획은_값이다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("e9", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("exp9", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{planStep("b"), askAdopting("plan")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/e9/claim", "", nil)
+	if code, _ := do(t, srv, "PUT", "/v1/runs/exp9/steps/1/blob/plan",
+		`{"steps":[],"success_when":[]}`, nil); code >= 300 {
+		t.Fatalf("★ 빈 계획이 저장을 거절당했다 ★: %d", code)
+	}
+	// ★ 보고가 성공해야 한다 ★ — 예전에는 "계획에 단계가 없다" 로 그 단계가 실패했다.
+	if code, _ := do(t, srv, "POST", "/v1/runs/exp9/steps/1/result",
+		`{"node":"e9","produced":["plan"]}`, nil); code != 200 {
+		t.Fatalf("★ 빈 계획을 낸 단계가 실패했다 ★: %d", code)
+	}
+	// ★ 승인할 것이 없으므로 그 ask 는 건너뛰어진다 ★ —
+	// 안 그러면 사람이 「빈 계획을 승인하라」는 질문을 받고 Run 이 붙잡힌다.
+	code, asks := do(t, srv, "GET", "/v1/runs/exp9", "", nil)
+	if code != 200 {
+		t.Fatalf("조회 실패: %d", code)
+	}
+	raw, _ := json.Marshal(asks)
+	if strings.Contains(string(raw), "ASKED") {
+		t.Fatalf("★ 빈 계획인데 승인을 물었다 ★: %s", raw)
+	}
+	if !strings.Contains(string(raw), "SKIPPED") {
+		t.Fatalf("★ 그 ask 가 SKIPPED 가 아니다 ★: %s", raw)
+	}
+}
+
+// ★ 제안된 success_when 도 계획이 붙는 순간 검증한다 ★ (ADR-044)
+//
+// 예전에는 proposed 를 그냥 저장하고 ★ 승인 답이 들어올 때에야 ★ 유효성을 봤다.
+// 그러면 사람이 계획을 다 읽은 뒤에 터지고 ★ 회복 경로가 없다 ★ —
+// approve 는 같은 제안이라 또 거절되고 reject 는 늘어난 단계를 무판정으로 돌린다.
+// 실측에서 밟았다 (zephyr-setup-8: agent 단계에 exit_code 를 건 제안).
+func TestExpands_제안도_붙는_순간_검증한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("e10", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("exp10", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{planStep("b"), askAdopting("plan")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/e10/claim", "", nil)
+	// ★ agent 단계에 exit_code 를 건 제안 ★ — 계약 검증이 금지한다 (ADR-019).
+	do(t, srv, "PUT", "/v1/runs/exp10/steps/1/blob/plan",
+		`{"steps":[{"id":"think","uses":"b","agent":{},"in":{"prompt":"p"},"out":["x"]}],`+
+			`"success_when":[{"step":"think","exit_code":0}]}`, nil)
+	do(t, srv, "POST", "/v1/runs/exp10/steps/1/result",
+		`{"node":"e10","produced":["plan"]}`, nil)
+	// ★ 계획이 안 붙어야 한다 ★ — 승인까지 가면 늦다.
+	if code, c := do(t, srv, "POST", "/v1/nodes/e10/claim", "", nil); code == 200 {
+		t.Fatalf("★ 유효하지 않은 제안을 단 계획이 붙었다 ★: %v", c)
+	}
+}

@@ -101,8 +101,29 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 	if err != nil {
 		return fmt.Errorf("step %q: %w", st.ID, err)
 	}
+	// ★ 빈 계획은 값이다 ★ (ADR-043)
+	//
+	// ★ 왜 에러가 아닌가 ★ — 재계획 단계는 needs 로만 이어져 ★ 조건부가 아니다 ★.
+	// 앞이 성공해도 돈다. 그때 「고칠 것이 없다」를 낼 방법이 없으면 계획은
+	// ★ 반드시 다음 판을 잇게 되고 ★, 그 사슬은 max_versions 상한에 걸려서만
+	// 끝난다 — 즉 ★ 성공한 일이 FAILED 로 끝난다 ★. 실측에서 밟았다
+	// (zephyr-setup-9: zephyr.elf 를 링크했는데 Run 이 FAILED).
+	//
+	// ADR-020 이 「가설 없음」을 부재가 아니라 status:none 이라는 ★ 값 ★ 으로 만든 것과
+	// 같은 자리다. 부재(파일 없음)는 크래시와 구분되지 않지만, ★ 빈 배열은 판단이다 ★.
 	if len(p.Steps) == 0 {
-		return fmt.Errorf("step %q: 계획에 단계가 없다", st.ID)
+		if len(p.SuccessWhen) > 0 {
+			// 늘릴 단계가 없는데 판정할 것이 있다면 계획이 자기모순이다.
+			return fmt.Errorf("step %q: 계획에 단계가 없는데 success_when 이 있다 — "+
+				"판정할 대상이 없다", st.ID)
+		}
+		s.log().Info("★ 계획이 비었다 — 고칠 것이 없다 ★ 계약을 안 늘린다",
+			"run", runID, "step", st.ID)
+		// ★ 승인할 것이 없으므로 그 ask 를 건너뛴다 ★ — 안 그러면 사람이
+		// 「빈 계획을 승인하라」는 질문을 받고, 그 질문이 Run 을 붙잡는다.
+		// SKIPPED 는 종료 상태이면서 실패가 아니고, 그 단계의 조건은
+		// ★ 공허하게 참 ★ 이다 (verdict.go). 뒷단계는 needs 를 따라 전파된다.
+		return skipAdopters(ctx, tx, runID, c.Steps, st.ID)
 	}
 	if len(p.SuccessWhen) > 0 && !hasAdopter(c.Steps, st.ID) {
 		return fmt.Errorf("step %q: 계획이 success_when 을 지었는데 ★ 승인할 ask 가 없다 ★ — "+
@@ -114,6 +135,24 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 	next.Steps = append(append([]contract.Step{}, c.Steps...), p.Steps...)
 	if err := next.Validate(); err != nil {
 		return fmt.Errorf("step %q: 지어진 계약이 유효하지 않다: %w", st.ID, err)
+	}
+	// ★ 제안도 지금 검증한다 ★ (ADR-044)
+	//
+	// 예전에는 proposed 를 그냥 저장하고 ★ 승인 답이 들어올 때에야 ★ 유효성을 봤다.
+	// 그러면 사람이 계획을 다 읽은 뒤에 터지고 ★ 회복 경로가 없다 ★:
+	// approve 는 같은 제안이라 또 거절되고, reject 는 늘어난 단계 전체를
+	// 무판정으로 돌린다. ★ 답할 수 있는 유일한 답이 나쁜 답이 된다 ★.
+	// 실측에서 밟았다 (zephyr-setup-8: agent 단계에 exit_code 를 건 제안).
+	//
+	// ★ 새 규칙이 하나도 안 는다 ★ — 같은 Validate() 를 제안을 얹어 한 번 더 부른다.
+	if len(p.SuccessWhen) > 0 {
+		withProposed := next
+		withProposed.SuccessWhen = append(
+			append([]contract.Condition{}, next.SuccessWhen...), p.SuccessWhen...)
+		if err := withProposed.Validate(); err != nil {
+			return fmt.Errorf("step %q: 계획이 제안한 success_when 이 유효하지 않다: %w",
+				st.ID, err)
+		}
 	}
 
 	ver := ContractVersion{
@@ -210,6 +249,31 @@ func byStep(id string) string { return "step:" + id }
 func byAnswer(id string) string { return "answer:" + id }
 
 // hasAdopter 는 이 expands 단계를 adopts 로 지목한 ask 가 있는지 본다.
+// skipAdopters 는 ★ 채택할 것이 없어진 ask 를 건너뛴다 ★ (ADR-043).
+//
+// 빈 계획을 낸 expands 단계를 adopts 로 지목한 ask 는 물을 것이 없다.
+// PENDING 인 것만 바꾼다 — 이미 답이 온 것을 되돌리지 않는다.
+func skipAdopters(ctx context.Context, tx pgx.Tx, runID string,
+	steps []contract.Step, id string) error {
+	var names []string
+	for _, st := range steps {
+		if st.Ask != nil && st.Ask.Adopts == id {
+			names = append(names, st.ID)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE steps SET state=$3, ended_at=now()
+		 WHERE run_id=$1 AND name = ANY($2) AND state='PENDING'`,
+		runID, names, StepSkipped); err != nil {
+		return err
+	}
+	// ★ 뒷단계는 needs 를 따라 전파된다 ★ — dispatch 가 쓰는 것과 같은 기계다.
+	return propagateSkips(ctx, tx, runID)
+}
+
 func hasAdopter(steps []contract.Step, id string) bool {
 	for _, st := range steps {
 		if st.Ask != nil && st.Ask.Adopts == id {

@@ -14,7 +14,7 @@ import (
 // 어댑터는 경로를 아는데 모델은 모른다. ★ 아는 쪽이 적어준다. ★
 func TestPromptCarriesLiteralPath(t *testing.T) {
 	out := "/tmp/enode-out-123"
-	p := buildPrompt("회귀를 짚어라", out, []string{"hypothesis"}, nil, nil, 0)
+	p := buildPrompt("회귀를 짚어라", out, []string{"hypothesis"}, nil, nil, 0, false)
 	if !strings.Contains(p, out+"/hypothesis") {
 		t.Fatalf("★ 실제 경로가 안 들어갔다 ★:\n%s", p)
 	}
@@ -28,7 +28,7 @@ func TestPromptCarriesSchemaAndHonestNone(t *testing.T) {
 	sch := map[string]json.RawMessage{
 		"hypothesis": json.RawMessage(`{"type":"object","required":["status"]}`),
 	}
-	p := buildPrompt("요청", "/o", []string{"hypothesis"}, sch, nil, 0)
+	p := buildPrompt("요청", "/o", []string{"hypothesis"}, sch, nil, 0, false)
 	if !strings.Contains(p, `"required":["status"]`) {
 		t.Fatal("스키마가 프롬프트에 안 실렸다")
 	}
@@ -40,7 +40,7 @@ func TestPromptCarriesSchemaAndHonestNone(t *testing.T) {
 // 되먹임은 ★ 요청 바로 앞 ★ 에 온다 — 무엇을 고쳐야 하는지가 가장 가깝게 놓인다.
 func TestPromptPutsFeedbackJustBeforeRequest(t *testing.T) {
 	p := buildPrompt("REQUEST_MARKER", "/o", []string{"x"}, nil,
-		map[string]string{"build_log": "error: undefined reference"}, 1)
+		map[string]string{"build_log": "error: undefined reference"}, 1, false)
 	fb := strings.Index(p, "error: undefined reference")
 	req := strings.Index(p, "REQUEST_MARKER")
 	if fb < 0 || req < 0 || fb > req {
@@ -50,7 +50,7 @@ func TestPromptPutsFeedbackJustBeforeRequest(t *testing.T) {
 		t.Fatal("재시도라는 것이 안 보인다")
 	}
 	// 1회차에는 되먹임이 없다
-	if strings.Contains(buildPrompt("R", "/o", []string{"x"}, nil, nil, 0), "앞 시도가 실패했다") {
+	if strings.Contains(buildPrompt("R", "/o", []string{"x"}, nil, nil, 0, false), "앞 시도가 실패했다") {
 		t.Fatal("첫 시도인데 재시도 문구가 붙었다")
 	}
 }
@@ -58,7 +58,7 @@ func TestPromptPutsFeedbackJustBeforeRequest(t *testing.T) {
 // ★ 실패 차선은 스키마가 있든 없든 항상 붙는다 ★ (ADR-038)
 func TestBuildPrompt_실패차선(t *testing.T) {
 	// 스키마 없는 단계
-	p := buildPrompt("빌드해라", "/o", []string{"log"}, nil, nil, 0)
+	p := buildPrompt("빌드해라", "/o", []string{"log"}, nil, nil, 0, false)
 	if !strings.Contains(p, "/o/_cannot") {
 		t.Fatalf("★ 스키마 없는 단계에 차선이 없다 ★:\n%s", p)
 	}
@@ -72,7 +72,7 @@ func TestBuildPrompt_실패차선(t *testing.T) {
 
 	// 스키마 있는 단계에도 붙는다 (ADR-020 문구와 ★ 함께 ★)
 	sch := map[string]json.RawMessage{"r": json.RawMessage(`{"type":"object"}`)}
-	p = buildPrompt("리뷰해라", "/o", []string{"r"}, sch, nil, 0)
+	p = buildPrompt("리뷰해라", "/o", []string{"r"}, sch, nil, 0, false)
 	if !strings.Contains(p, "/o/_cannot") || !strings.Contains(p, "부재는 크래시와 구분되지 않는다") {
 		t.Fatalf("★ 둘이 함께 있어야 한다 ★:\n%s", p)
 	}

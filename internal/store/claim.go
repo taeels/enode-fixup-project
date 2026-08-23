@@ -77,8 +77,14 @@ type Claimed struct {
 	Out          []string        `json:"out,omitempty"`
 	// Schema 는 어댑터가 ★ 프롬프트에 심는 데 ★ 쓴다 (ADR-020).
 	// 최종 검증은 Mediator 가 PUT blob 에서 한다 — 강제 지점은 하나다.
-	Schema  json.RawMessage `json:"schema,omitempty"`
-	Attempt int             `json:"attempt,omitempty"` // 0 부터. 재시도면 1 이상.
+	Schema json.RawMessage `json:"schema,omitempty"`
+	// Expands 는 ★ 이 단계가 계약을 짓는 단계인가 ★ 다 (ADR-045).
+	//
+	// ★ 노드가 알아야 하는 이유 ★ — 어댑터가 프롬프트에 ★ 계약 문법 ★ 을 심는다.
+	// 그 전에는 사람이 매 판 Validate() 를 자연어로 번역해 넣었고, 번역이
+	// 축약되고 퇴행하고 모순됐다. outContract 를 심는 것과 같은 자리다.
+	Expands bool `json:"expands,omitempty"`
+	Attempt int  `json:"attempt,omitempty"` // 0 부터. 재시도면 1 이상.
 	// Requester 는 ★ runctl 로 요청한 사람 ★ 이다 (runs.principal, ADR-015 §1).
 	// 지금은 아무도 안 본다 — R2(하네스가 누구 신원으로 도는가)가 쓸 재료다.
 	// 미리 싣는 이유는, 나중에 필요해졌을 때 ★ 이 표면을 고치지 않기 위해서 ★ 다.
@@ -331,6 +337,7 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 			Out       []string          `json:"out"`
 			Schema    json.RawMessage   `json:"schema"`
 			Feedback  []string          `json:"feedback"`
+			Expands   bool              `json:"expands"`
 		} `json:"steps"`
 		// ★ 판정 조건에서 「확인할 경로」만 뽑아 싣는다 ★ (ADR-037).
 		SuccessWhen []struct {
@@ -344,6 +351,7 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 	st := raw.Steps[c.Seq-1]
 	c.Agent, c.Run, c.Workspace, c.In, c.Out = st.Agent, st.Run, st.Workspace, st.In, st.Out
 	c.Schema, c.Feedback, c.Env, c.Collect = st.Schema, st.Feedback, st.Env, st.Collect
+	c.Expands = st.Expands
 	// ★ 확인할 경로를 실어 보낸다 ★ (ADR-037) — out 이 「무엇을 낼 것인가」를
 	// 싣는 것과 같은 자리다. ★ 노드는 판정 조건을 모른다 ★ — 관찰만 대신하고
 	// 대조는 Verify 가 한다 (ADR-005 조립자=평가자).

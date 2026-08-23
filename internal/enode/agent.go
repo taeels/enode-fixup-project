@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // AgentParams 는 계약의 steps[].agent 다 (ADR-019 에서 with 를 개명한 것).
@@ -67,9 +69,19 @@ const failLane = `
 // 순서에 이유가 있다: 규약을 먼저 두면 모델이 마지막 지시(요청)를 수행하면서도
 // 형식을 유지하고, ★ 되먹임을 요청 바로 앞에 두면 ★ 무엇을 고쳐야 하는지가
 // 가장 가깝게 놓인다.
-func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage, feedback map[string]string, attempt int) string {
+func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage,
+	feedback map[string]string, attempt int, expands bool) string {
 	var b strings.Builder
 	b.WriteString(outContract)
+	// ★ 계약을 짓는 단계에는 계약 문법을 심는다 ★ (ADR-045)
+	//
+	// outContract 가 ★ 네가 무엇을 어떻게 낼 것인가 ★ 를 말한다면, 이것은
+	// ★ 네가 짓는 단계들이 무엇을 지켜야 하는가 ★ 다. 둘은 다른 층이고,
+	// 그래서 계획 위임에서는 ★ 둘 다 필요하다 ★ — 배출 규약만 심으면
+	// 계획의 형식은 여전히 사람이 자연어로 나른다.
+	if expands {
+		b.WriteString("\n" + contract.Grammar + "\n")
+	}
 	for _, n := range outNames {
 		// ★ 실제 경로를 박는다 ★ — $OUT 을 문자 그대로 주면 모델이 확장하지 않는다.
 		// 실물 claude 에서 밟았다: 6턴을 쓰고도 아무 파일도 안 만들었다.
