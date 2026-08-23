@@ -135,4 +135,37 @@ func TestValidate_produces(t *testing.T) {
 		!strings.Contains(err.Error(), "only allowed on an expands step") {
 		t.Fatalf("★ 명령 단계의 produces 를 안 막았다 ★: %v", err)
 	}
+
+	// ④ ★ 약속이 이행된 뒤의 계약도 유효해야 한다 ★
+	//
+	// applyExpands 는 「약속한 이름을 지었는가」를 확인하고 ★ 바로 다음 줄에서 ★
+	// 확장된 계약을 Validate 한다. 그때 그 이름은 ★ 당연히 존재한다 ★ —
+	// 그것이 약속의 이행이다. 예전 규칙("이미 있으면 거절")은 ★ ①이 요구한 것을
+	// ②가 금지했다 ★. vm-scratch-2 의 1판이 이것으로 죽었다: 계획은 옳았다.
+	fulfilled := `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+	  "steps":[{"id":"p","uses":"n","expands":true,"agent":{},"in":{"prompt":"x"},
+	            "out":["plan"],"schema":{"plan":{"type":"object"}},
+	            "produces":["goal_step"]},
+	           {"id":"goal_step","uses":"n","needs":["p"],"run":["true"],"out":["done"]}],
+	  "success_when":[{"step":"goal_step","produced":["done"]}]}`
+	c = Contract{}
+	if err := json.Unmarshal([]byte(fulfilled), &c); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("★ 이행된 약속을 거절했다 ★ — 계획이 지은 단계가 있는 것이 정상이다: %v", err)
+	}
+
+	// ⑤ ★ 자기 자신은 약속할 수 없다 ★ — 계획이 지은 단계는 언제나 뒤에 붙는다.
+	self := strings.Replace(ok, `"produces":["goal_step"]`, `"produces":["p"]`, 1)
+	self = strings.Replace(self, `{"step":"goal_step","produced":["done"]}`,
+		`{"step":"p","produced":["plan"]}`, 1)
+	c = Contract{}
+	if err := json.Unmarshal([]byte(self), &c); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Validate(); err == nil ||
+		!strings.Contains(err.Error(), "at or before this step") {
+		t.Fatalf("★ 자기 자신을 약속했는데 통과했다 ★: %v", err)
+	}
 }

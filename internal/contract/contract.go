@@ -978,7 +978,18 @@ func (c Contract) Validate() error {
 
 	// ★ produces 는 expands 단계에만 쓸 수 있다 ★ (ADR-049) —
 	// 「계획이 지을 것」이므로 계획을 짓지 않는 단계에는 의미가 없다.
-	// 그리고 ★ 이름이 이미 있으면 안 된다 ★ — 그건 약속이 아니라 중복이다.
+	//
+	// ★ 약속한 이름은 이 단계보다 뒤에 서야 한다 ★
+	//
+	// 처음에는 "이미 있으면 거절" 이었다. ★ 그것이 v2 를 막았다 ★ —
+	// 계획이 붙으면 그 이름은 ★ 당연히 존재한다 ★ (그것이 약속의 이행이다).
+	// applyExpands 가 "약속한 이름을 지었는가" 를 확인한 ★ 바로 다음 줄에서 ★
+	// 같은 계약을 Validate 하면 "이미 있다" 로 거절됐다 — ★ ①이 요구한 것을
+	// ②가 금지했다 ★. vm-scratch-2 의 1판이 이것으로 죽었다: 계획은 옳았다.
+	//
+	// 남는 것은 ★ 순서 ★ 다. 계획이 지은 단계는 언제나 뒤에 붙으므로
+	// (next.Steps = 기존 + 계획), 약속한 이름이 ★ 자신이거나 앞 ★ 이면
+	// 그것은 이행이 아니라 ★ 계약 저자의 착각 ★ 이다.
 	for _, st := range c.Steps {
 		if len(st.Produces) == 0 {
 			continue
@@ -988,9 +999,10 @@ func (c Contract) Validate() error {
 				"a step that does not build a plan cannot promise steps", st.ID)
 		}
 		for _, n := range st.Produces {
-			if _, dup := index[n]; dup {
-				return fmt.Errorf("step %q: produces names %q, which already exists; "+
-					"promised names must not collide with existing steps", st.ID, n)
+			if at, dup := index[n]; dup && at <= index[st.ID] {
+				return fmt.Errorf("step %q: produces names %q, which already stands at or "+
+					"before this step; a promised step is built by the plan and comes after",
+					st.ID, n)
 			}
 		}
 	}
