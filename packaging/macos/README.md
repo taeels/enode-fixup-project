@@ -63,9 +63,40 @@ $ ./install.sh
    ③ PATH 의 claude            없으면 harness 속성이 광고에서 빠지고,
                                에이전트를 요구한 계약은 이 노드를 못 고른다(422).
 
-   ④ 크로스 툴체인             자동 탐지는 arm-linux-gnueabihf-gcc ·
+   ④ ★ 시스템 잠자기 ★        디스플레이가 꺼지는 것은 상관없다.
+                               ★ 시스템이 자면 광고가 멈추고 그 노드를 쥔 Run 이 죽는다 ★.
+                               enodectl start 가 caffeinate 를 함께 띄운다.
+
+   ⑤ 크로스 툴체인             자동 탐지는 arm-linux-gnueabihf-gcc ·
                                aarch64-linux-gnu-gcc 둘만 안다.
                                ★ Zephyr SDK 는 그 목록에 없다 ★ → 설정에 arch: 를 적는다.
+```
+
+### ★ 잠자기가 함대를 끊는다 ★
+
+```text
+   디스플레이 잠자기   화면만 꺼진다. ★ enode 는 계속 돈다 ★
+   시스템 잠자기       CPU·네트워크가 멈춘다
+        ▼
+   광고가 끊긴다 → not_after(갱신 60초 × 3 = ★ 180초 ★)가 지난다
+        ▼
+   ★ 그 노드를 쥔 Run 이 「임대 만료로 회수」된다 ★ — 실측에서 밟았다.
+     승인을 기다리던 Run 이 맥이 조용해진 지 정확히 180초 만에 FAILED 가 됐다
+```
+
+`enodectl start` 가 `caffeinate -i -s -w <enode pid>` 를 함께 띄운다 —
+**enode 의 수명에 묶여서** 껐다 잊는 일이 없고 유령이 안 남는다.
+`-d` 는 안 준다: **화면은 꺼져도 된다.**
+
+`enodectl list` 에 `☕` 가 보이면 붙어 있는 것이다.
+
+영구 설정이 필요하면 사람이 한다 — **`sudo` 를 쓰는 일이라 도구가 대신하지 않는다.**
+
+```text
+   sudo pmset -c sleep 0            AC 전원일 때 시스템 잠자기 안 함
+   sudo pmset -c displaysleep 10    화면은 10분 뒤 꺼도 된다
+   sudo pmset -a tcpkeepalive 1     ★ 0 이면 잠자기 중 네트워크가 통째로 끊긴다 ★
+   pmset -g assertions              지금 무엇이 잠자기를 막고 있나
 ```
 
 ## ② 노드를 정의한다 — 설정 파일이 곧 신원이다

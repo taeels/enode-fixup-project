@@ -94,6 +94,11 @@ cmd_list() {
     # ★ ${pid:+A}${pid:-B} 는 A 와 pid 를 ★ 둘 다 ★ 찍는다 ★ (:- 는 「비었을 때만」이
     # 아니라 「비었으면 B, 아니면 pid」다). 실측에서 pid 가 두 번 붙어 나왔다.
     if [ -n "$pid" ]; then state="★ 돈다 pid=$pid"; else state="멈춤"; fi
+    # ★ 잠자기 방지가 붙어 있는지 함께 보인다 ★ — 안 붙어 있으면 시연 중에 끊긴다
+    if [ -n "$pid" ] && [ "$(uname -s)" = "Darwin" ] &&
+       pgrep -f "caffeinate .*-w $pid" >/dev/null 2>&1; then
+      state="$state ☕"
+    fi
     printf '  %-14s %-14s %-24s %s\n' \
       "$n" "$(node_id "$(conf_of "$n")")" "$(node_label "$(conf_of "$n")")" "$state"
   done < <(names)
@@ -133,11 +138,38 @@ cmd_start() {
   if [ -n "$pid" ]; then
     printf '★ 떴다 ★  %s  node=%s  pid=%s\n' "$n" "$(node_id "$c")" "$pid"
     printf '  로그: %s\n' "$log"
+    keep_awake "$pid"
   else
     printf '✗ 못 떴다. 로그 끝:\n' >&2
     tail -20 "$log" >&2
     exit 1
   fi
+}
+
+# keep_awake 는 ★ 시스템 잠자기가 함대를 끊는 것을 막는다 ★ (맥에서만).
+#
+# ★ 왜 필요한가 ★ — 디스플레이가 꺼지는 것은 상관없다. ★ 시스템 잠자기 ★ 가
+# CPU 와 네트워크를 멈추고, 그러면 광고가 끊기고 ★ not_after 가 지나 Run 이 죽는다 ★.
+# 실측에서 밟았다: 승인을 기다리던 Run 이 맥이 조용해진 지 180초 만에
+# "임대 만료로 Run 을 회수했다" 로 FAILED 가 됐다.
+#
+# ★ enode 의 수명에 묶는다 ★ (-w) — 껐다 잊는 일이 없고 유령이 안 남는다.
+#   -i  유휴 시스템 잠자기 방지
+#   -s  시스템 잠자기 방지 (AC 전원. 데스크톱은 항상 AC 다)
+#   ★ -d 는 안 준다 ★ — 화면은 꺼져도 된다. 우리가 막는 것은 그것이 아니다
+#
+# ★ sudo 를 안 쓴다 ★ — 전원 설정을 영구히 바꾸지 않는다. 되돌릴 것이 없다.
+# 영구 설정이 필요하면 사람이 pmset 으로 한다 (README 참고).
+keep_awake() {
+  local pid=$1
+  [ "$(uname -s)" = "Darwin" ] || return 0
+  command -v caffeinate >/dev/null 2>&1 || {
+    printf '  ▲ caffeinate 가 없다 — 시스템 잠자기가 함대를 끊을 수 있다\n' >&2
+    return 0
+  }
+  nohup caffeinate -i -s -w "$pid" >/dev/null 2>&1 &
+  disown || true
+  printf '  ☕ 잠자기 방지 (enode pid=%s 가 사는 동안)\n' "$pid"
 }
 
 cmd_stop() {

@@ -71,7 +71,27 @@ else
   warn "  에이전트 단계를 요구하는 계약은 이 노드를 못 고른다 (422)."
 fi
 
-# ④ 크로스 툴체인. enode 의 자동 탐지는 arm-linux-gnueabihf-gcc /
+# ④ ★ 시스템 잠자기 — 함대를 통째로 끊는다 ★
+#    디스플레이가 꺼지는 것은 상관없다. 시스템이 자면 광고가 멈추고
+#    not_after 가 지나 ★ 그 노드를 쥔 Run 이 죽는다 ★. 실측에서 밟았다.
+#    enodectl start 가 caffeinate 를 함께 띄우지만, 영구 설정은 사람 몫이다.
+if command -v caffeinate >/dev/null 2>&1; then
+  ok "caffeinate 가 있다 — enodectl start 가 잠자기를 막아준다"
+else
+  warn "★ caffeinate 가 없다 ★ — 시스템이 자면 함대에서 사라진다"
+fi
+SLEEP=$(pmset -g custom 2>/dev/null | awk '/^AC Power/,0' | awk '$1=="sleep"{print $2; exit}')
+if [ -n "$SLEEP" ] && [ "$SLEEP" != "0" ]; then
+  warn "AC 전원의 시스템 잠자기가 ${SLEEP}분이다. 상시 노드로 쓸 것이면:"
+  warn "  sudo pmset -c sleep 0        # 시스템은 안 잔다"
+  warn "  sudo pmset -c displaysleep 10 # 화면은 꺼도 된다"
+fi
+if [ "$(pmset -g 2>/dev/null | awk '$1=="tcpkeepalive"{print $2}')" = "0" ]; then
+  warn "★ tcpkeepalive 가 0 이다 ★ — 잠자기 중 네트워크가 통째로 끊긴다"
+  warn "  sudo pmset -a tcpkeepalive 1"
+fi
+
+# ⑤ 크로스 툴체인. enode 의 자동 탐지는 arm-linux-gnueabihf-gcc /
 #    aarch64-linux-gnu-gcc 둘만 본다 — ★ 맥의 Zephyr SDK 는 여기 안 걸린다 ★.
 #    그래서 맥 노드는 설정에 arch 를 ★ 명시 ★ 한다 (Local.Arch 가 그 자리다).
 if command -v arm-zephyr-eabi-gcc >/dev/null 2>&1; then

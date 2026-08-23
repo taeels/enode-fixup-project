@@ -25,10 +25,14 @@ TARGETS=${TARGETS:-"darwin/arm64 darwin/amd64 linux/arm64 linux/amd64"}
 CMDS=${CMDS:-"enode runctl"}
 
 COMMIT=$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
-# ★ 빌드 입력이 커밋과 다른지만 본다 ★ — dist/ 나 문서가 지저분한 것은
-# 실행파일과 무관하다. 무관한 것으로 -dirty 를 붙이면 그 표시가 곧 무시된다.
+# ★ 묶음에 들어가는 것이 커밋과 다른지 본다 ★ — dist/ 나 문서가 지저분한 것은
+# 무관하다. 무관한 것으로 -dirty 를 붙이면 그 표시가 곧 무시된다.
+#
+# ★ packaging/ 도 넣는다 ★ — 실행파일뿐 아니라 install.sh·enodectl·예시가
+# 묶음에 들어간다. 그것만 고치고 다시 구우면 ★ 이름이 같은데 내용이 다른
+# 묶음 ★ 이 나오고, 맥에서 어느 것이 새것인지 구별할 수 없다. 실제로 밟았다.
 DIRTY=""
-if [ -n "$(git status --porcelain -- '*.go' go.mod go.sum 2>/dev/null)" ]; then
+if [ -n "$(git status --porcelain -- '*.go' go.mod go.sum packaging 2>/dev/null)" ]; then
   DIRTY="-dirty"
 fi
 STAMP="${COMMIT}${DIRTY}"
