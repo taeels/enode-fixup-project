@@ -33,11 +33,33 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 
 	// 만료된 임대를 가진 Run 을 먼저 실패시킨다. 이유를 남긴다 —
 	// 왜 안 돌았는지가 없으면 껍데기가 재시도를 못 정한다 (ADR-005).
+	//
+	// ★ 사람의 답을 기다리는 Run 은 제외한다 ★ (ADR-047)
+	//
+	// ADR-032 는 되묻기에 ★ 없으면 무한 대기 ★ 를 못 박았다 —
+	// "사람의 시간을 시스템이 짐작하지 않는다". 그런데 임대는 ★ 기계의 시간 ★ 으로
+	// 만료된다(갱신 주기 × not_after_factor = 오늘 180초). 둘이 어긋나 있었다:
+	//
+	//	★ 실측 ★ 승인을 기다리던 Run 이, 노드가 조용해진 지 정확히 180초 만에
+	//	         "임대 만료로 Run 을 회수했다" 로 FAILED 가 됐다. ★ 사람은 아직 보는 중 ★
+	//
+	// ★ 왜 노드 쪽 만료를 무시해도 되나 ★ — ASKED 인 동안에는 그 노드에서
+	// ★ 아무것도 안 돌고 있다 ★. 임대가 지키는 것은 I1(한 노드에 한 Run)이고,
+	// 실행이 없으면 ADR-008 이 이름 붙인 충돌("옛 Run 의 flash 가 아직 돌고 있다")도
+	// 없다. 자원을 ★ 예약 ★ 해 둘 뿐이다.
+	//
+	// ★ 그럼 영원히 묶이지 않나 ★ — 기한은 ADR-032 가 이미 정한 자리에 있다:
+	// ask.timeout 이다. 선언했으면 위의 ExpireAsks 가 정리하고, 안 했으면
+	// ★ 무한 대기가 계약 저자의 선언 ★ 이다. 시스템이 3분으로 짐작하지 않는다.
+	// 사람이 손으로 세우려면 runctl cancel 이 있다 (ADR-009).
 	reason, _ := json.Marshal(map[string]any{"code": 410, "reason": "임대 만료 — 갱신이 끊겼다"})
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE runs SET state='FAILED', ended_at=now(), reject=$1
 		 WHERE state NOT IN ('SUCCEEDED','FAILED')
-		   AND run_id IN (SELECT run_id FROM leases WHERE not_after <= now())`, reason)
+		   AND run_id IN (SELECT run_id FROM leases WHERE not_after <= now())
+		   AND NOT EXISTS (
+		       SELECT 1 FROM steps st
+		        WHERE st.run_id = runs.run_id AND st.state = 'ASKED')`, reason)
 	if err != nil {
 		return 0, err
 	}

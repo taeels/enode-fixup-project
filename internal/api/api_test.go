@@ -2816,3 +2816,60 @@ func TestExpands_제안도_붙는_순간_검증한다(t *testing.T) {
 		t.Fatalf("★ 유효하지 않은 제안을 단 계획이 붙었다 ★: %v", c)
 	}
 }
+
+// ★ 사람이 답을 기다리는 동안에는 임대가 만료돼도 Run 을 안 죽인다 ★ (ADR-047)
+//
+// ADR-032 는 되묻기에 ★ 없으면 무한 대기 ★ 를 못 박았다 —
+// "사람의 시간을 시스템이 짐작하지 않는다". 그런데 임대는 ★ 기계의 시간 ★ 으로
+// 만료된다(오늘 180초). 둘이 어긋나 있었고 ★ 실측에서 밟았다 ★:
+// 승인을 기다리던 Run 이 노드가 조용해진 지 정확히 180초 만에 FAILED 가 됐다.
+//
+// ASKED 인 동안에는 그 노드에서 ★ 아무것도 안 돌고 있다 ★ — 임대는 자원을
+// 예약해 둘 뿐이고, 실행이 없으면 ADR-008 의 충돌("옛 Run 의 flash 가 아직
+// 돌고 있다")도 없다. 기한은 ask.timeout 이 정한다.
+func TestReap_되묻기를_기다리는_Run은_안_죽인다(t *testing.T) {
+	srv, st := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("na", "a", map[string]string{"role": "x"}), nil)
+	body := contractJSON("asking", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{planStep("b"), askAdopting("plan")})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	// 계획을 내고 보고해서 ask 를 ASKED 로 만든다.
+	do(t, srv, "POST", "/v1/nodes/na/claim", "", nil)
+	do(t, srv, "PUT", "/v1/runs/asking/steps/1/blob/plan",
+		`{"steps":[{"id":"built","uses":"b","run":["true"],"out":["built"]}],`+
+			`"success_when":[{"step":"built","exit_code":0}]}`, nil)
+	do(t, srv, "POST", "/v1/runs/asking/steps/1/result",
+		`{"node":"na","produced":["plan"]}`, nil)
+	_, r := do(t, srv, "GET", "/v1/runs/asking", "", nil)
+	raw, _ := json.Marshal(r)
+	if !strings.Contains(string(raw), "ASKED") {
+		t.Fatalf("ASKED 가 아니다: %s", raw)
+	}
+
+	// ★ 노드가 조용해진 상황을 만든다 ★ — 하트비트가 끊겨 not_after 가 지났다.
+	if err := st.ForceExpire(context.Background(), "asking"); err != nil {
+		t.Fatal(err)
+	}
+	n, err := st.Reap(context.Background(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("★ 사람을 기다리는 Run 을 회수했다 ★ runs=%d", n)
+	}
+	_, run := do(t, srv, "GET", "/v1/runs/asking", "", nil)
+	if run["state"] == "FAILED" {
+		t.Fatal("★ 사람이 아직 보고 있는데 Run 이 죽었다 ★")
+	}
+	// ★ 답이 오면 그대로 이어진다 ★ — 예약해 둔 자원이 살아 있다.
+	if code, _ := do(t, srv, "POST", "/v1/runs/asking/steps/2/answer",
+		`{"verdict":"approve"}`, nil); code >= 300 {
+		t.Fatalf("답이 안 들어갔다: %d", code)
+	}
+	if code, c := do(t, srv, "POST", "/v1/nodes/na/claim", "", nil); code != 200 ||
+		c["name"] != "built" {
+		t.Fatalf("★ 답 뒤에 이어지지 않았다 ★: %d %v", code, c)
+	}
+}
