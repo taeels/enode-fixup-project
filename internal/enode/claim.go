@@ -570,24 +570,41 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		bin = ha.Name()
 	}
 
-	// 되먹임 — 앞 시도의 산출물을 프롬프트에 싣는다 (ADR-013 의 루프).
+	// 되먹임 — 앞의 산출물을 프롬프트에 싣는다 (ADR-013 의 루프).
 	// ★ 되먹이는 것이 LLM 의 의견이 아니라 검증기·빌드의 출력이다 ★
+	//
+	// ★ 두 갈래를 가른다 ★ (ADR-048)
+	//
+	//	★ 자백(_cannot) ★     ★ 재시도일 때만 ★ — 「앞 시도의 나」가 남긴 것이다.
+	//	                       첫 시도에 앞 시도의 자백이 실리면 거짓이 된다.
+	//	★ 계약이 적은 이름 ★  ★ 언제나 ★ — 그것은 ★ 남의 산출물 ★ 이지
+	//	                       내 앞 시도가 아니다. 재시도와 아무 상관이 없다.
+	//
+	// 예전에는 둘 다 attempt > 0 에 묶여 있었다. 그래서 계획이 지은 재계획 단계가
+	// ★ 앞 단계 로그를 하나도 못 봤다 ★ — expands 로 붙은 단계는 attempt 0 이라
+	// 「첫 시도」이기 때문이다. 실측에서 밟았다: 재계획 에이전트가
+	// "요청 섹션이 비어 있고 입력 디렉터리도 비어 있어 무엇을 고칠지 모르겠다" 며
+	// _cannot 을 남겼다 (ADR-038 이 그 자리를 받아준 것은 옳게 동작한 것이다).
 	feedback := map[string]string{}
+	get := func(n string) {
+		if _, dup := feedback[n]; dup {
+			return
+		}
+		var buf bytes.Buffer
+		if err := w.Client.GetBlob(ctx, step.RunID, n, &buf); err == nil {
+			feedback[n] = buf.String()
+		}
+	}
+	// ★ 계약이 지목한 것은 회차와 무관하게 싣는다 ★
+	for _, n := range step.Feedback {
+		get(n)
+	}
 	if step.Attempt > 0 {
 		// ★ 자백은 계약이 안 적어도 되먹인다 ★ (ADR-038) —
 		// 앞 시도가 "왜 못 했는지" 를 남겼으면 다음 시도가 그것을 봐야 한다.
 		// 계약 저자가 feedback 에 _cannot 을 적을 수는 없다 — ★ 밑줄은 예약이라
 		// 계약이 그 이름을 못 쓴다 ★. 그래서 여기서 붙인다.
-		names := append([]string{cannotName}, step.Feedback...)
-		for _, n := range names {
-			if _, dup := feedback[n]; dup {
-				continue
-			}
-			var buf bytes.Buffer
-			if err := w.Client.GetBlob(ctx, step.RunID, n, &buf); err == nil {
-				feedback[n] = buf.String()
-			}
-		}
+		get(cannotName)
 	}
 
 	log.Debug("agent 단계 준비", "attempt", step.Attempt,

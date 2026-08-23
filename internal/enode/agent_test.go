@@ -113,3 +113,32 @@ func TestReasonCannot_완주로_친다(t *testing.T) {
 		}
 	}
 }
+
+// ★ 되먹임은 회차와 무관하게 실린다 ★ (ADR-048)
+//
+// 예전에는 attempt > 0 일 때만 실었다. 그래서 계획이 지은 재계획 단계가
+// ★ 앞 단계 로그를 하나도 못 봤다 ★ — expands 로 붙은 단계는 attempt 0 이다.
+// 실측에서 밟았다: 재계획 에이전트가 "요청 섹션이 비어 있고 입력 디렉터리도
+// 비어 있어 무엇을 고칠지 모르겠다" 며 _cannot 을 남겼다.
+func Test되먹임은_첫_시도에도_실린다(t *testing.T) {
+	fb := map[string]string{"build_log": "error: 뭔가 터졌다"}
+
+	// ★ attempt 0 — 계획이 지은 재계획 단계의 자리 ★
+	got := buildPrompt("다시 짜라", "/o", []string{"plan2"}, nil, fb, 0, true, []string{"a"})
+	if !strings.Contains(got, "error: 뭔가 터졌다") {
+		t.Fatal("★ 첫 시도인데 되먹임이 안 실렸다 ★ — 재계획이 로그를 못 본다")
+	}
+	// ★ 실패했다고 단정하지 않는다 ★ — 성공한 로그를 보고 판단하는 자리이기도 하다.
+	if strings.Contains(got, "앞 시도가 실패했다") {
+		t.Fatal("★ attempt 0 인데 「앞 시도가 실패했다」라고 적었다 ★")
+	}
+	if !strings.Contains(got, "앞 단계들이 남긴 것") {
+		t.Fatalf("제목이 없다: %s", got)
+	}
+
+	// ★ attempt > 0 — 재시도. 앞 시도의 나가 남긴 것이다 ★
+	got = buildPrompt("고쳐라", "/o", []string{"x"}, nil, fb, 2, false, nil)
+	if !strings.Contains(got, "앞 시도가 실패했다 (2회차)") {
+		t.Fatalf("재시도 제목이 없다: %s", got)
+	}
+}

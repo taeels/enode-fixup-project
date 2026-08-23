@@ -116,8 +116,23 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 		b.WriteString("\n결론이 없으면 ★ 파일을 안 내는 것이 아니라 ★ 스키마가 허용하는\n" +
 			"형태로 그 사실을 적는다. 부재는 크래시와 구분되지 않는다.\n")
 	}
-	if attempt > 0 && len(feedback) > 0 {
-		b.WriteString("\n### 앞 시도가 실패했다 (" + strconv.Itoa(attempt) + "회차)\n\n")
+	// ★ 되먹임은 회차와 무관하게 싣는다 ★ (ADR-048)
+	//
+	// 예전에는 attempt > 0 일 때만 실었다. 그래서 계획이 지은 재계획 단계가
+	// ★ 앞 단계 로그를 하나도 못 봤다 ★ — expands 로 붙은 단계는 attempt 0 이다.
+	//
+	// ★ 제목이 회차에 따라 달라진다 ★ — 무엇을 보고 있는지가 달라지기 때문이다:
+	//	attempt > 0  ★ 앞 시도의 나 ★ 가 남긴 것 (자백 포함)
+	//	attempt = 0  ★ 앞 단계들 ★ 이 남긴 것 — 실패했다고 단정하면 안 된다.
+	//	             성공한 로그를 보고 「고칠 것이 없다」를 판단하는 것도 이 자리다
+	if len(feedback) > 0 {
+		if attempt > 0 {
+			b.WriteString("\n### 앞 시도가 실패했다 (" + strconv.Itoa(attempt) + "회차)\n\n")
+		} else {
+			b.WriteString("\n### 앞 단계들이 남긴 것\n\n" +
+				"계약이 이 단계에 되먹이라고 지목한 산출물이다. ★ 읽고 판단하라 ★ —\n" +
+				"실패했을 수도 있고 아무 문제가 없을 수도 있다.\n\n")
+		}
 		names := make([]string, 0, len(feedback))
 		for n := range feedback {
 			names = append(names, n)
