@@ -59,7 +59,7 @@ func Test계획단계에_역할_어휘가_실린다(t *testing.T) {
 // 빈 계획이 나가 ★ 아무것도 안 했는데 Run 이 SUCCEEDED ★ 로 끝났다.
 func Test계획단계에_목표와_약속이_실린다(t *testing.T) {
 	got := buildPrompt("", "/o", []string{"plan2"}, nil, nil, 0, true,
-		[]string{"planner", "mac"}, []string{"vm_node_up"}, "VM 을 노드로 세워라", "")
+		[]string{"planner", "mac"}, []OwedStep{{Name: "vm_node_up"}}, "VM 을 노드로 세워라", "")
 	for _, want := range []string{
 		"이 Run 이 처음 받은 목표", "VM 을 노드로 세워라",
 		"약속했는데 아직 안 지어진 단계", "vm_node_up",
@@ -71,8 +71,52 @@ func Test계획단계에_목표와_약속이_실린다(t *testing.T) {
 	}
 	// ★ 평범한 단계에는 안 싣는다 ★ — 계약을 짓지 않는 단계에는 쓸 데가 없다.
 	got = buildPrompt("일해라", "/o", []string{"x"}, nil, nil, 0, false,
-		nil, []string{"vm_node_up"}, "VM 을 노드로 세워라", "")
+		nil, []OwedStep{{Name: "vm_node_up"}}, "VM 을 노드로 세워라", "")
 	if strings.Contains(got, "처음 받은 목표") || strings.Contains(got, "vm_node_up") {
 		t.Fatal("★ 평범한 단계에 목표·약속이 실렸다 ★")
+	}
+}
+
+// ★ 약속된 단계의 「종류」가 실린다 ★ (ADR-049 보강)
+//
+// 계약이 exit_code 로 판정하는 단계를 계획이 agent 로 지으면 ★ 확장된 계약
+// 전체가 거절된다 ★ (ADR-019). 그런데 계획을 짓는 쪽은 success_when 을
+// 볼 수 없다 — ★ 벽을 보지 못한 채 부딪히고, 재계획은 계획이 짓는 것이라
+// 아직 존재하지도 않는다 ★. 즉 수렴이 아니라 벽이다.
+func Test약속된_단계의_판정이_실린다(t *testing.T) {
+	zero := 0
+	owed := []OwedStep{{
+		Name: "vm_node_up",
+		When: []contract.Condition{{Step: "vm_node_up", ExitCode: &zero}},
+	}}
+	got := buildPrompt("", "/o", []string{"plan"}, nil, nil, 0, true,
+		[]string{"planner", "mac"}, owed, "VM 을 노드로 세워라", "")
+	for _, want := range []string{
+		"vm_node_up",
+		"종료코드 0 으로 판정된다",
+		"명령 단계(run)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("★ %q 가 프롬프트에 없다 ★\n%s", want, got)
+		}
+	}
+
+	// ★ produced 조건이면 낼 이름을 적어준다 ★ — 그것도 계획이 못 보는 값이다.
+	owed = []OwedStep{{
+		Name: "vm_caps",
+		When: []contract.Condition{{Step: "vm_caps", Produced: []string{"caps.txt"}}},
+	}}
+	got = buildPrompt("", "/o", []string{"plan"}, nil, nil, 0, true,
+		nil, owed, "목표", "")
+	if !strings.Contains(got, "caps.txt") {
+		t.Fatal("★ 내야 할 산출물 이름이 안 실렸다 ★")
+	}
+
+	// ★ 조건이 없으면 아무 말도 안 한다 ★ — produces 로 약속만 하고
+	// 판정은 안 걸 수도 있다. 없는 요구를 지어내지 않는다.
+	got = buildPrompt("", "/o", []string{"plan"}, nil, nil, 0, true,
+		nil, []OwedStep{{Name: "just_a_name"}}, "목표", "")
+	if strings.Contains(got, "명령 단계(run)") || strings.Contains(got, "판정된다") {
+		t.Fatal("★ 걸리지 않은 판정을 지어냈다 ★")
 	}
 }

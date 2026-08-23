@@ -43,9 +43,10 @@ type Step struct {
 	// 문법이 「uses 를 적는다」까지만 말하고 ★ 무엇을 적는지 ★ 는 안 말하므로,
 	// 어휘를 아는 쪽(Mediator)이 실어 보낸다.
 	Roles []string `json:"roles,omitempty"`
-	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 이름 ★ 이다 (ADR-049).
+	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 ★ 다 (ADR-049).
 	// ★ 이것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
-	Owed []string `json:"owed,omitempty"`
+	// When 에 그 이름에 걸린 판정이 실려 온다 — ★ 단계의 종류가 거기서 정해진다 ★.
+	Owed []OwedStep `json:"owed,omitempty"`
 	// Goal 은 ★ 이 Run 이 처음 받은 목표 ★ 다 (ADR-049) — 재계획이 향할 곳.
 	Goal string `json:"goal,omitempty"`
 	// Expands 는 ★ 계약을 짓는 단계인가 ★ 다 (ADR-045) — 어댑터가 프롬프트에

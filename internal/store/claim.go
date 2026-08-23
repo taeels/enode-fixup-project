@@ -91,9 +91,9 @@ type Claimed struct {
 	// ★ expands 단계에만 싣는다 ★ — 다른 단계는 자기 uses 만 알면 되고,
 	// 남의 역할 이름을 아는 것은 그 단계에 쓸 데가 없다.
 	Roles []string `json:"roles,omitempty"`
-	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 이름 ★ 이다 (ADR-049).
+	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 ★ 다 (ADR-049).
 	// ★ 이것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
-	Owed []string `json:"owed,omitempty"`
+	Owed []OwedStep `json:"owed,omitempty"`
 	// Goal 은 ★ 이 Run 이 처음 받은 목표 ★ 다 (ADR-049).
 	//
 	// ★ 왜 필요한가 ★ — 계획이 지은 재계획 단계의 in.prompt 가 비면
@@ -129,6 +129,24 @@ type Claimed struct {
 	// enode 가 $IN 에 파일 하나로 깔고, 본문이 필요하면 in.from 이 가져온다.
 	Ledger []LedgerEntry `json:"ledger,omitempty"`
 	Lease  LeaseRow      `json:"lease"`
+}
+
+// OwedStep 은 ★ 아직 안 지어진 약속 ★ 하나다 (ADR-049).
+//
+// ★ 이름만으로는 부족하다 ★ — 계약이 그 단계에 건 판정이 ★ 단계의 종류를
+// 정한다 ★. success_when 이 exit_code 로 판정하면 그것은 명령 단계여야 하고
+// (ADR-019: agent 단계에 exit_code 를 못 건다), 계획이 agent 로 지으면
+// ★ 확장된 계약이 유효하지 않아 통째로 거절된다 ★. 그런데 계획을 짓는 쪽은
+// success_when 을 볼 수 없다 — ★ 벽을 보지 못한 채 부딪힌다 ★.
+//
+// ADR-045 가 역할 어휘에 대해, ADR-049 가 목표에 대해 적은 것과 같은 자리다:
+// ★ 아는 쪽이 적어준다 ★. 조건을 ★ 구조 그대로 ★ 싣고 문장으로 만드는 것은
+// 프롬프트를 짓는 쪽(어댑터)이 한다 — 표현이 Mediator 로 새지 않는다.
+type OwedStep struct {
+	Name string `json:"name"`
+	// When 은 ★ 계약이 이 이름에 건 판정 조건들 ★ 이다. 비어 있을 수 있다 —
+	// produces 로 약속만 하고 판정은 안 걸 수도 있기 때문이다.
+	When []contract.Condition `json:"when,omitempty"`
 }
 
 var ErrNoWork = errors.New("no work available")
@@ -430,9 +448,12 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 		}
 		for _, x := range raw.Steps {
 			for _, n := range x.Produces {
-				if !have[n] {
-					c.Owed = append(c.Owed, n)
+				if have[n] {
+					continue
 				}
+				// ★ 그 이름에 걸린 판정을 함께 싣는다 ★ — 단계의 종류가
+				// 거기서 정해진다. 계획은 success_when 을 볼 수 없다.
+				c.Owed = append(c.Owed, OwedStep{Name: n, When: condsFor(contractJSON, n)})
 			}
 		}
 		// ★ 처음 받은 목표를 나른다 ★ — v1 의 첫 expands 단계가 받은 프롬프트다.
@@ -465,6 +486,24 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 			}
 		}
 	}
+}
+
+// condsFor 는 그 단계 이름에 걸린 success_when 조건들을 원형 그대로 뽑는다
+// (ADR-049 보강). ★ 문장으로 만들지 않는다 ★ — 표현은 프롬프트를 짓는 쪽의 몫이다.
+func condsFor(contractJSON []byte, name string) []contract.Condition {
+	var raw struct {
+		SuccessWhen []contract.Condition `json:"success_when"`
+	}
+	if json.Unmarshal(contractJSON, &raw) != nil {
+		return nil
+	}
+	var out []contract.Condition
+	for _, cond := range raw.SuccessWhen {
+		if cond.Step == name {
+			out = append(out, cond)
+		}
+	}
+	return out
 }
 
 // StepResult 는 enode 가 보고하는 것이다.

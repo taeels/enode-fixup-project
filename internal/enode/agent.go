@@ -16,6 +16,16 @@ import (
 //
 // ★ 매칭 조건이 아니라 실행 파라미터다 ★ (ADR-013 결정 4) —
 // model 을 requires 에 넣으면 그 모델이 없는 노드가 매칭 실패가 된다.
+// OwedStep 은 ★ 아직 안 지어진 약속 ★ 하나다 (ADR-049) — Mediator 가 실어 보낸다.
+//
+// ★ 이름만으로는 부족하다 ★: 계약이 exit_code 로 판정하는 단계를 계획이
+// agent 로 지으면 확장된 계약이 유효하지 않아 ★ 통째로 거절된다 ★ (ADR-019).
+// 계획은 success_when 을 볼 수 없으므로 ★ 벽을 보지 못한 채 부딪힌다 ★.
+type OwedStep struct {
+	Name string               `json:"name"`
+	When []contract.Condition `json:"when,omitempty"`
+}
+
 type AgentParams struct {
 	Model     string `json:"model,omitempty"`
 	MaxTurns  int    `json:"max_turns,omitempty"`
@@ -65,6 +75,32 @@ const failLane = `
 다음 시도가 그것을 읽는다. ★ 검증은 파일이 하지 네 말이 하지 않는다 ★.
 `
 
+// owedHow 는 약속된 단계에 걸린 판정을 ★ 계획이 읽을 문장 ★ 으로 만든다.
+//
+// ★ 표현은 여기서만 만든다 ★ — Mediator 는 조건을 원형 그대로 실어 보낸다.
+// 조건의 종류가 늘면 이 함수만 는다.
+func owedHow(when []contract.Condition) string {
+	var b strings.Builder
+	for _, c := range when {
+		if c.ExitCode != nil {
+			// ★ 이것이 데드락을 막는 문장이다 ★ — 종류를 모르면 계획이
+			// agent 로 짓고, 그러면 확장된 계약 전체가 거절된다 (ADR-019).
+			b.WriteString("      ★ 이 단계는 종료코드 " + strconv.Itoa(*c.ExitCode) +
+				" 으로 판정된다 ⇒ 반드시 ★ 명령 단계(run) ★ 여야 한다 ★ — " +
+				"agent 단계에는 종료코드 조건을 걸 수 없어 계획이 거절된다\n")
+		}
+		if len(c.Produced) > 0 {
+			b.WriteString("      ★ 이 산출물을 내야 한다 ★ (out 에 적어라): " +
+				strings.Join(c.Produced, ", ") + "\n")
+		}
+		if len(c.Changed) > 0 {
+			b.WriteString("      ★ 이 경로가 실제로 바뀌어야 한다 ★: " +
+				strings.Join(c.Changed, ", ") + "\n")
+		}
+	}
+	return b.String()
+}
+
 // buildPrompt 는 ①사출의 일부다 — 규약 · 스키마 · 되먹임 · 요청을 이 순서로 쌓는다.
 //
 // 순서에 이유가 있다: 규약을 먼저 두면 모델이 마지막 지시(요청)를 수행하면서도
@@ -72,7 +108,7 @@ const failLane = `
 // 가장 가깝게 놓인다.
 func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage,
 	feedback map[string]string, attempt int, expands bool,
-	roles, owed []string, goal, envKey string) string {
+	roles []string, owed []OwedStep, goal, envKey string) string {
 	var b strings.Builder
 	b.WriteString(outContract)
 	// ★ 계약을 짓는 단계에는 계약 문법을 심는다 ★ (ADR-045)
@@ -112,8 +148,11 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 		// ★ 무엇이 아직 안 섰는지 ★ (ADR-049) — 계약이 약속한 단계 이름이다.
 		if len(owed) > 0 {
 			b.WriteString("### ★ 계약이 약속했는데 아직 안 지어진 단계 ★\n\n")
-			for _, n := range owed {
-				b.WriteString("    " + n + "\n")
+			for _, o := range owed {
+				b.WriteString("    " + o.Name + "\n")
+				// ★ 그 이름에 걸린 판정이 단계의 종류를 정한다 ★ (ADR-049 보강).
+				// 계획은 success_when 을 볼 수 없다 — ★ 아는 쪽이 적어준다 ★.
+				b.WriteString(owedHow(o.When))
 			}
 			b.WriteString("\n★ 이 이름을 가진 단계를 지어야 한다 ★ — " +
 				"success_when 이 이미 이 이름을 가리키고 있고, " +

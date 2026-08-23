@@ -126,7 +126,7 @@ func Test자를_때_한글이_깨지지_않는다(t *testing.T) {
 func Test목표는_지시로_선언된다(t *testing.T) {
 	goal := "VM 을 노드로 세워라\n\n```sh\ncolima start\n```\n"
 	got := buildPrompt("", "/o", []string{"plan2"}, nil, nil, 0, true,
-		nil, []string{"vm_node_up"}, goal, "0011aabbccdd")
+		nil, []OwedStep{{Name: "vm_node_up"}}, goal, "0011aabbccdd")
 	if !strings.Contains(got, "<<<ENODE-REQUEST") {
 		t.Fatal("★ 목표가 봉투 밖에 있다 ★")
 	}
