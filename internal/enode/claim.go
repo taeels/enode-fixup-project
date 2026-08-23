@@ -186,6 +186,10 @@ func (c *Client) PutBlob(ctx context.Context, runID string, seq int, name string
 // GetBlob 은 이전 단계의 산출물을 받는다. 이름으로 ★ 가장 최근 것 ★ 이 온다.
 // ★ 리다이렉트는 http.Client 가 알아서 따른다 ★ — 나중에 Mediator 가 302 로
 // 저장소를 가리켜도 이 코드는 안 바뀐다 (ADR-018).
+// ErrNoBlob 은 ★ 그 산출물이 이 Run 에 없다 ★ 는 뜻이다 (404).
+// ★ 전송 실패와 다르다 ★ — 없는 것은 값이고, 못 가져온 것은 사고다.
+var ErrNoBlob = errors.New("no such blob")
+
 func (c *Client) GetBlob(ctx context.Context, runID, name string, w io.Writer) error {
 	url := fmt.Sprintf("%s/v1/runs/%s/blob/%s", c.Base, runID, name)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -199,6 +203,13 @@ func (c *Client) GetBlob(ctx context.Context, runID, name string, w io.Writer) e
 		return err
 	}
 	defer resp.Body.Close()
+	// ★ 「없다」와 「못 가져왔다」를 가른다 ★ (ADR-058)
+	//
+	// 뭉뚱그리면 ★ 미디에이터 일시 장애가 「산출물 없음」으로 위장한다 ★ —
+	// 그것이 ADR-020 이 경계한 "부재는 크래시와 구분되지 않는다" 의 반대편이다.
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrNoBlob
+	}
 	if resp.StatusCode/100 != 2 {
 		return fmt.Errorf("cannot fetch blob: %s", resp.Status)
 	}
@@ -421,18 +432,41 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		_ = os.Chmod(in, 0o700)
 		_ = os.RemoveAll(in)
 	}()
+	// ★ 없는 입력은 값이다. 크래시가 아니다 ★ (ADR-058 · ADR-023 §6.2.1)
+	//
+	// §6.2.1 은 in.from 에 대해 ★ "없으면 안 깔린다. 실패가 아니다" ★ 라고
+	// 못 박았다 — dispatch 로 안 간 가지의 산출물을 가리킬 수 있고 그것은
+	// 실행 시에나 정해지기 때문이다. ★ 그런데 코드가 그것을 안 지켰다 ★:
+	// 404 면 단계를 FAILED 로 만들었다. (아이러니하게도 바로 아래 원장 적재는
+	// 같은 §6.2.1 을 인용하며 지킨다.)
+	//
+	//	★ 실측 ★ (vm-scratch-7) VM 노드가 실제로 섰는데, 재계획이 in.from 으로
+	//	앞 단계가 못 낸 vm_caps 를 요구해 ★ 그 단계가 죽었다 ★ —
+	//	★ 재계획은 실패를 고치러 도는 단계인데 실패의 증거가 없다고 죽었다 ★.
+	//
+	// ★ 조용히 넘어가지도 않는다 ★ (ADR-020) — 못 받은 이름을 모아 프롬프트에
+	// 적는다. 에이전트가 ★ 부재를 관찰 ★ 하고 판단한다.
+	var missingIn []string
 	for _, name := range step.In.From {
 		f, err := os.Create(filepath.Join(in, name))
 		if err == nil {
 			err = w.Client.GetBlob(ctx, step.RunID, name, f)
 			f.Close()
 		}
-		if err != nil {
-			log.Error("cannot fetch input blob", "name", name, "err", err)
-			w.report(ctx, step, Result{
-				Node: w.Ident.NodeID, Error: "blob " + name + " could not be fetched"})
-			return
+		if err == nil {
+			continue
 		}
+		_ = os.Remove(filepath.Join(in, name)) // ★ 반쯤 쓴 파일을 안 남긴다 ★
+		if errors.Is(err, ErrNoBlob) {
+			log.Info("input was not produced by this run; recording it as absent",
+				"name", name)
+			missingIn = append(missingIn, name)
+			continue
+		}
+		log.Error("cannot fetch input blob", "name", name, "err", err)
+		w.report(ctx, step, Result{
+			Node: w.Ident.NodeID, Error: "blob " + name + " could not be fetched"})
+		return
 	}
 	// ★ 원장 목록을 $IN 에 깐다 ★ (ADR-023 §6.3.1 의 (가)) —
 	// enode 가 받아서 파일로 깐다. ★ 토큰이 에이전트에 안 간다 ★ (R1).
@@ -486,7 +520,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// ★ 단계는 두 종류다 ★ (ADR-019 결정 3) — 노드는 합쳤지만 단계는 안 합쳤다.
 	// agent 단계는 produced 로, 명령 단계는 exit_code 로 판정한다.
 	if step.Kind == "agent" {
-		w.runAgentStep(runCtx, ctx, step, dir, in, out, stamp, prep, log)
+		w.runAgentStep(runCtx, ctx, step, dir, in, out, stamp, prep, missingIn, log)
 		return
 	}
 	if len(step.Run) == 0 {
@@ -561,7 +595,9 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 
 // runAgentStep 은 ADR-013 의 어댑터 넷 중 ②기동을 부르고 ④수확으로 잇는다.
 // ①사출은 위에서 이미 했다 ($IN + 프롬프트 조립).
-func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, prep Prep, log *slog.Logger) {
+// missingIn 은 ★ 계약이 요청했는데 이 Run 에 없던 입력 이름들 ★ 이다 (ADR-058).
+// 부재를 값으로 나른다 — 프롬프트가 그것을 적어준다.
+func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, prep Prep, missingIn []string, log *slog.Logger) {
 	p, err := parseAgentParams(step.Agent)
 	if err != nil {
 		w.report(ctx, step, Result{
@@ -629,7 +665,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		"out", step.Out, "schema", len(step.Schema))
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
 		step.Attempt, step.Expands, step.Roles, step.RoleAttrs, step.Owed,
-		step.Standing, step.Goal, step.EnvelopeKey)
+		step.Standing, missingIn, step.Goal, step.EnvelopeKey)
 	writePromptFile(out, prompt)
 
 	// ★ R1 — 부모 환경을 통째로 물려주지 않는다 ★

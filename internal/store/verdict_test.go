@@ -1,8 +1,11 @@
 package store
 
-import "testing"
+import (
+	"strings"
+	"testing"
 
-import "github.com/taeels/enode/internal/contract"
+	"github.com/taeels/enode/internal/contract"
+)
 
 func i(n int) *int { return &n }
 
@@ -76,7 +79,7 @@ func TestVerify(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			v := Verify(tc.con, tc.results)
+			v := Verify(tc.con, tc.results, nil)
 			if v.State != tc.want {
 				t.Fatalf("state=%s 기대 %s · checks=%+v", v.State, tc.want, v.Checks)
 			}
@@ -89,7 +92,7 @@ func TestVerdictRecordsWantAndGot(t *testing.T) {
 	v := Verify(
 		c(contract.Condition{Step: "build", ExitCode: i(0), Produced: []string{"build_log", "artifact"}}),
 		map[string]StepResult{"build": {ExitCode: i(2), Produced: []string{"build_log"}}},
-	)
+		nil)
 	if len(v.Checks) != 2 {
 		t.Fatalf("검사 %d 개 기대 2: %+v", len(v.Checks), v.Checks)
 	}
@@ -120,7 +123,7 @@ func TestVerify_건너뛴_단계는_안_묻는다(t *testing.T) {
 	v := Verify(con, map[string]StepResult{
 		"taken":     {Produced: []string{"report"}},
 		"not_taken": {Skipped: true},
-	})
+	}, nil)
 	if v.State != StateSucceeded {
 		t.Fatalf("★ 안 간 경로가 Run 을 죽였다 ★: %+v", v)
 	}
@@ -141,7 +144,7 @@ func TestVerify_결과_없음은_여전히_실패다(t *testing.T) {
 		{Step: "ran", Produced: []string{"x"}},
 		{Step: "crashed", ExitCode: i(0)},
 	}}
-	v := Verify(con, map[string]StepResult{"ran": {Produced: []string{"x"}}})
+	v := Verify(con, map[string]StepResult{"ran": {Produced: []string{"x"}}}, nil)
 	if v.State != StateFailed {
 		t.Fatalf("★ 크래시를 건너뜀으로 봤다 ★: %+v", v)
 	}
@@ -158,7 +161,7 @@ func TestVerify_전부_건너뛰면_실패다(t *testing.T) {
 	}}
 	v := Verify(con, map[string]StepResult{
 		"a": {Skipped: true}, "b": {Skipped: true},
-	})
+	}, nil)
 	if v.State != StateFailed {
 		t.Fatalf("★ 아무것도 안 하고 SUCCEEDED 가 됐다 ★: %+v", v)
 	}
@@ -187,7 +190,7 @@ func Test목표미달이_통과를_뒤집는다(t *testing.T) {
 		"work":   {ExitCode: &zero, Produced: []string{"caps"}},
 		"replan": {Produced: []string{"plan2"}},
 	}
-	if v := Verify(c, base); v.State != StateSucceeded {
+	if v := Verify(c, base, nil); v.State != StateSucceeded {
 		t.Fatalf("★ 기준이 맞는데 실패했다 ★: %+v", v)
 	}
 
@@ -196,7 +199,7 @@ func Test목표미달이_통과를_뒤집는다(t *testing.T) {
 		"work":   {ExitCode: &zero, Produced: []string{"caps"}},
 		"replan": {Produced: []string{"plan2", contract.UnmetName}},
 	}
-	v := Verify(c, unmet)
+	v := Verify(c, unmet, nil)
 	if v.State != StateFailed {
 		t.Fatalf("★ 목표 미달을 보고했는데 통과했다 ★: %+v", v)
 	}
@@ -225,7 +228,7 @@ func Test목표미달은_실패를_되살리지_못한다(t *testing.T) {
 	}, SuccessWhen: []contract.Condition{{Step: "work", ExitCode: &zero}}}
 
 	// 기준이 안 맞는다 — 그리고 _unmet 도 없다. ★ 그래도 실패다 ★.
-	v := Verify(c, map[string]StepResult{"work": {ExitCode: &one}})
+	v := Verify(c, map[string]StepResult{"work": {ExitCode: &one}}, nil)
 	if v.State != StateFailed {
 		t.Fatalf("★ 종료코드가 틀렸는데 통과했다 ★: %+v", v)
 	}
@@ -247,7 +250,7 @@ func Test평범한_단계의_목표미달은_무시된다(t *testing.T) {
 	v := Verify(c, map[string]StepResult{
 		"work":   {ExitCode: &zero, Produced: []string{"caps", contract.UnmetName}},
 		"replan": {Produced: []string{"plan2"}},
-	})
+	}, nil)
 	if v.State != StateSucceeded {
 		t.Fatalf("★ 평범한 단계의 _unmet 이 Run 을 죽였다 ★: %+v", v)
 	}
@@ -292,5 +295,89 @@ func Test종료코드_조건은_명령단계만(t *testing.T) {
 		if err := c.Validate(); err == nil {
 			t.Fatalf("★ %s 단계에 종료코드 조건이 통과했다 ★", tc.name)
 		}
+	}
+}
+
+// ★ 함대 술어 ★ (ADR-058)
+//
+// vm-scratch 일곱 판의 목표는 "노드가 함대에 능력을 광고하며 선다" 인데
+// 계약이 그것을 표현할 수단이 없었다. 그래서 대리를 세 번 갈아탔고
+// (exit_code → produced → _unmet) ★ 갈 때마다 새 결함이 났다 ★.
+func Test함대_술어(t *testing.T) {
+	fleet := func(specs ...map[string]string) []contract.Advert {
+		var out []contract.Advert
+		for i, sp := range specs {
+			out = append(out, contract.Advert{
+				NodeID: string(rune('a' + i)),
+				Capabilities: []contract.Capability{
+					{Capability: contract.CapabilityAgentReason, Attrs: sp}},
+			})
+		}
+		return out
+	}
+	linux := map[string]string{"os": "linux", "host_arch": "arm64", "harness": "claude"}
+	mac := map[string]string{"os": "darwin", "host_arch": "arm64", "harness": "claude"}
+
+	con := contract.Contract{
+		Steps: []contract.Step{{ID: "a", Uses: "n", Run: []string{"true"}, Out: []string{"o"}}},
+		SuccessWhen: []contract.Condition{{
+			FleetHas: &contract.Require{
+				Capability: contract.CapabilityAgentReason,
+				Attrs:      map[string]string{"os": "linux"}},
+		}},
+	}
+	res := map[string]StepResult{"a": {Produced: []string{"o"}}}
+
+	// ① ★ 그런 노드가 있으면 성공 ★
+	if v := Verify(con, res, fleet(linux, mac)); v.State != StateSucceeded {
+		t.Fatalf("★ linux 노드가 있는데 실패했다 ★: %+v", v)
+	}
+	// ② ★ 없으면 실패 ★ — 단계는 다 성공했는데도
+	v := Verify(con, res, fleet(mac))
+	if v.State != StateFailed {
+		t.Fatalf("★ linux 노드가 없는데 통과했다 ★: %+v", v)
+	}
+	// ★ 무엇을 요구했는지가 기록에 남는다 ★ — 속성 어휘가 창발하므로(ADR-012)
+	// 안 보이면 왜 실패했는지 못 찾는다.
+	found := false
+	for _, ch := range v.Checks {
+		if ch.Step == "(fleet)" && strings.Contains(ch.What, "os=linux") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("★ 무엇을 요구했는지가 Checks 에 없다 ★: %+v", v.Checks)
+	}
+
+	// ③ ★ 함대를 관측 못 했으면 실패다 ★ — 조용히 참이 되지 않는다.
+	if v := Verify(con, res, nil); v.State != StateFailed {
+		t.Fatalf("★ 함대를 못 봤는데 통과했다 ★: %+v", v)
+	}
+
+	// ④ ★ min_count ★
+	two := con
+	two.SuccessWhen = []contract.Condition{{
+		FleetHas: &contract.Require{Capability: contract.CapabilityAgentReason,
+			Attrs: map[string]string{"host_arch": "arm64"}},
+		MinCount: 3,
+	}}
+	if v := Verify(two, res, fleet(linux, mac)); v.State != StateFailed {
+		t.Fatalf("★ 둘뿐인데 셋을 요구한 조건이 통과했다 ★: %+v", v)
+	}
+
+	// ⑤ ★ 관측한 함대가 봉인된다 ★ — Verify 는 순수 함수이고 함대는 인자다.
+	// 그 인자를 안 남기면 봉인된 묶음만 보고 판정을 재현할 수 없다.
+	got := Verify(con, res, fleet(linux))
+	if len(got.Fleet) != 1 {
+		t.Fatalf("★ 관측한 함대가 verdict 에 안 남았다 ★: %+v", got.Fleet)
+	}
+
+	// ⑥ ★ 함대 조건이 없으면 함대를 안 봉인한다 ★ — 안 쓰는 것을 안 남긴다.
+	plain := contract.Contract{
+		Steps:       con.Steps,
+		SuccessWhen: []contract.Condition{{Step: "a", Produced: []string{"o"}}},
+	}
+	if v := Verify(plain, res, fleet(linux)); len(v.Fleet) != 0 {
+		t.Fatal("★ 안 쓰는 함대를 봉인했다 ★")
 	}
 }

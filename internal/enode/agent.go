@@ -181,7 +181,7 @@ const unmetLane = `
 func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage,
 	feedback map[string]string, attempt int, expands bool,
 	roles []string, roleAttrs map[string]map[string]string,
-	owed []OwedStep, standing []StandingStep,
+	owed []OwedStep, standing []StandingStep, missingIn []string,
 	goal, envKey string) string {
 	var b strings.Builder
 	b.WriteString(outContract)
@@ -313,6 +313,26 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 		b.WriteString("\n결론이 없으면 ★ 파일을 안 내는 것이 아니라 ★ 스키마가 허용하는\n" +
 			"형태로 그 사실을 적는다. 부재는 크래시와 구분되지 않는다.\n")
 	}
+	// ★ 없는 입력을 값으로 적는다 ★ (ADR-058)
+	//
+	// 계약이 in.from 으로 요청했는데 이 Run 에 없던 것이다. 예전에는 그 단계를
+	// ★ 죽였다 ★ — 그런데 dispatch 로 안 간 가지의 산출물일 수 있고(ADR-023 §6.2.1),
+	// 무엇보다 ★ 재계획은 실패를 고치러 도는 단계인데 실패의 증거가 없다고
+	// 죽는 것은 모순이다 ★ (vm-scratch-7 이 그렇게 죽었다).
+	//
+	// ★ 그렇다고 조용히 넘어가지 않는다 ★ (ADR-020: 부재는 크래시와 구분되지
+	// 않는다) — 없다는 것을 ★ 말해준다 ★. 에이전트가 관찰하고 판단한다.
+	if len(missingIn) > 0 {
+		b.WriteString("\n### ★ 요청했는데 없는 입력 ★\n\n")
+		for _, n := range missingIn {
+			b.WriteString("    " + n + "\n")
+		}
+		b.WriteString("\n계약이 이 이름들을 $IN 에 깔라고 했는데 ★ 이 Run 에 그 산출물이 없다 ★.\n" +
+			"앞 단계가 안 냈거나, 갈림길에서 그 단계로 안 갔다.\n" +
+			"★ 없다는 것 자체가 관찰이다 ★ — 그것을 읽고 판단하라. " +
+			"기다리거나 다시 요청할 방법은 없다.\n\n")
+	}
+
 	// ★ 되먹임은 회차와 무관하게 싣는다 ★ (ADR-048)
 	//
 	// 예전에는 attempt > 0 일 때만 실었다. 그래서 계획이 지은 재계획 단계가

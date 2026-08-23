@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/taeels/enode/internal/contract"
@@ -40,6 +41,22 @@ type Check struct {
 	Note string      `json:"note,omitempty"`
 }
 
+// describeWant 는 함대 조건을 ★ Check 에 사람이 읽게 ★ 적는다 —
+// 속성 어휘가 창발하므로(ADR-012) 무엇을 요구했는지가 안 보이면 원인을 못 찾는다.
+// ★ 순서를 고정한다 ★ — 맵을 그대로 돌면 같은 조건이 매번 다르게 봉인된다.
+func describeWant(r contract.Require) string {
+	keys := make([]string, 0, len(r.Attrs))
+	for k := range r.Attrs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := "fleet_has " + r.Capability
+	for _, k := range keys {
+		out += " " + k + "=" + r.Attrs[k]
+	}
+	return out
+}
+
 // hasName 은 목록에 그 이름이 있는지다.
 func hasName(ss []string, want string) bool {
 	for _, s := range ss {
@@ -53,6 +70,13 @@ func hasName(ss []string, want string) bool {
 type Verdict struct {
 	State  string  `json:"state"`
 	Checks []Check `json:"checks"`
+	// Fleet 은 ★ 판정 시점에 관측한 함대 ★ 다 (ADR-058) — fleet_has 를 쓴
+	// 계약에만 담긴다.
+	//
+	// ★ 왜 봉인하는가 ★ — Verify 는 순수 함수이고 함대는 인자다. 그 인자를
+	// 안 남기면 ★ 봉인된 묶음만 보고 판정을 재현할 수 없다 ★ (ADR-005 성질 4).
+	// 그리고 "왜 실패했나" 의 답이 대개 여기 있다: 그 노드가 그때 없었다.
+	Fleet []contract.Advert `json:"fleet,omitempty"`
 }
 
 // Verify 는 ⑩ 이다 — ★ 계약에 선언된 기계적 조건만 대조한다 ★ (ADR-004 · I3).
@@ -64,7 +88,14 @@ type Verdict struct {
 //
 // ★ 그래서 회귀를 증명한 Run 이 SUCCEEDED 다 ★ — 결과값을 통과 기준에 넣으면
 // 회귀를 찾아낸 Run 이 FAILED 가 되어 ADR-004 의 네 결과표가 뒤집힌다.
-func Verify(c contract.Contract, results map[string]StepResult) Verdict {
+// Verify 는 ★ 순수 함수다 ★ — DB 도 시계도 안 본다.
+//
+// ★ 함대를 인자로 받는다 ★ (ADR-058) — fleet_has 가 보는 것은 이 Run 밖의
+// 사실이지만, 그것을 ★ 여기서 읽으면 순수 함수가 아니게 되고 ★ Record 로
+// 재현할 수 없다. 그래서 ★ 호출자가 읽어 넘기고, 그 스냅샷이 봉인된다 ★.
+// nil 이면 fleet_has 조건은 「관측하지 못했다」로 실패한다 — ★ 조용히 참이
+// 되지 않는다 ★ (공허한 참을 막는 것은 이 파일의 오래된 규칙이다).
+func Verify(c contract.Contract, results map[string]StepResult, fleet []contract.Advert) Verdict {
 	v := Verdict{State: StateSucceeded}
 	// ★ 「목표에 못 닿았다」는 기준을 이긴다 ★ (ADR-054)
 	//
@@ -105,6 +136,31 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 	// ★ 실제로 대조된 조건의 수 ★ — 공허한 참을 막는다 (아래 참조).
 	evaluated := 0
 	for _, cond := range c.SuccessWhen {
+		// ★ 함대 조건 ★ (ADR-058) — 단계가 아니라 그 시점 광고를 본다.
+		if cond.IsFleet() {
+			evaluated++
+			want, min := cond.Want()
+			n := 0
+			for _, a := range fleet {
+				if a.Satisfies(want) {
+					n++
+				}
+			}
+			ok := fleet != nil && n >= min
+			note := ""
+			if fleet == nil {
+				note = "the fleet was not observed"
+			}
+			v.Checks = append(v.Checks, Check{
+				Step: "(fleet)", What: describeWant(want), Want: min, Got: n, OK: ok,
+				Note: note,
+			})
+			if !ok {
+				v.State = StateFailed
+			}
+			v.Fleet = fleet
+			continue
+		}
 		res, ran := results[cond.Step]
 		// ★ 건너뛴 단계의 조건은 공허하게 참이다 ★ (ADR-022 §7.2)
 		//

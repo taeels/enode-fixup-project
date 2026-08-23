@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"github.com/taeels/enode/internal/contract"
 	"log/slog"
 	"time"
 )
@@ -219,6 +220,18 @@ func (s *Store) Cancel(ctx context.Context, runID, by string) (string, error) {
 //	VERIFYING → SUCCEEDED / FAILED   ⑩ 의 대조 결과
 //
 // 종료 시 임대를 해제한다 — ★ I2 ★
+// hasFleetCondition 은 ★ 함대를 읽을 이유가 있는가 ★ 다 — 없으면 안 읽는다.
+// 대부분의 Run 은 함대 조건이 없고, 그때 질의를 하나 아끼는 것보다
+// ★ 「안 쓰는 것을 안 읽는다」가 봉인에도 맞다 ★.
+func hasFleetCondition(c contract.Contract) bool {
+	for _, cond := range c.SuccessWhen {
+		if cond.IsFleet() {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) {
 	var pending, broke int
 	if err := s.pool.QueryRow(ctx, `
@@ -273,7 +286,24 @@ func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) 
 		if lerr != nil {
 			return "", lerr
 		}
-		v = Verify(live, results)
+		// ★ 함대를 여기서 한 번 읽는다 ★ (ADR-058)
+		//
+		// ★ 왜 이 시점인가 ★ — 우리는 수렴 시스템이 아니라 ★ 기록 시스템 ★ 이다
+		// (ADR-005 · I4). 쿠버네티스처럼 조건이 맞을 때까지 기다리지 않는다.
+		// Run 이 끝나는 그 순간의 함대가 ★ 판정의 대상이고 봉인의 대상 ★ 이다.
+		//
+		// ★ 못 읽으면 nil 을 넘긴다 ★ — Verify 가 그것을 「관측하지 못했다」로
+		// 실패시킨다. ★ 조용히 참이 되지 않는다 ★.
+		var fleet []contract.Advert
+		if hasFleetCondition(live) {
+			if ad, ferr := s.LiveAdverts(ctx); ferr == nil {
+				fleet = ad
+			} else {
+				s.log().Warn("cannot read the fleet for verification; "+
+					"fleet conditions will fail", "run", runID, "err", ferr)
+			}
+		}
+		v = Verify(live, results, fleet)
 	}
 
 	verdictJSON, err := json.Marshal(v)

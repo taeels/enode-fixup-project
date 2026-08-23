@@ -120,6 +120,26 @@ at all, so success is judged by what was produced.
 
 success_when may only refer to steps that exist.
 
+### A condition may ask about the fleet instead of a step
+
+    { "fleet_has": { "capability": "agent.reason",
+                     "os": "linux", "host_arch": "arm64" },
+      "min_count": 1 }
+
+This asks whether a node matching that description is ★ actually registered and
+advertising ★ when the run ends. It names no step, and it cannot be combined
+with step conditions in the same entry — write those as separate entries.
+
+★ Use it when the goal is that something now exists in the fleet ★, and a file
+written by an agent would only be a stand-in for it. A report saying "nothing
+is installed" is still a file that exists; an advertisement is not something an
+agent can write.
+
+The attributes are matched the same way requires matches them: a subset match
+on what nodes advertise. Note that some attributes are ★ measured by the machine ★
+(os, host_arch, arch, ws) while others are ★ typed in by a person ★ (board, tag).
+Asking about the second kind is closer to taking someone's word for it.
+
 ### Seeing what earlier steps produced
 
 A step that builds a plan is given a list of everything the run has produced so

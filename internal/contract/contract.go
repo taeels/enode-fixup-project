@@ -824,6 +824,39 @@ type Condition struct {
 	// 다만 「바뀌었다 ≠ 옳게 바뀌었다」이고, 후자는 ADR-004 가 범위 밖으로 뒀다.
 	Changed        []string `json:"changed,omitempty"`
 	WithinAttempts bool     `json:"within_attempts,omitempty"`
+	// FleetHas 는 ★ 함대에 그런 노드가 실제로 서 있는가 ★ 다 (ADR-058).
+	//
+	// ★ 다른 술어와 무엇이 다른가 ★ — 대상이 이 Run 밖이다.
+	//
+	//	produced   에이전트가 ★ 만든 파일 ★ 이 있나        ← 저작한다
+	//	exit_code  에이전트가 ★ 짠 명령 ★ 의 종료코드      ← 저작한다
+	//	changed    ★ 워크스페이스가 실제로 바뀌었나 ★      ← ADR-037: 저작 못한다
+	//	fleet_has  ★ 그런 노드가 광고하고 있나 ★           ← ★ 저작 못한다 ★
+	//
+	// ★ 왜 필요했나 ★ — vm-scratch 일곱 판의 목표가 "노드가 함대에 능력을
+	// 광고하며 선다" 인데, 계약이 그것을 표현할 수단이 없었다. 그래서 대리를
+	// 세 번 갈아탔고 갈 때마다 새 결함이 났다 (ADR-058 §1).
+	//
+	// ★ Require 와 같은 어휘다 ★ — 매처가 이미 그 형태를 푼다(Advert.Satisfies).
+	// 새 술어를 짜지 않는다 (ADR-014 결정 3: 매처를 두 벌 만들지 않는다).
+	//
+	// ★ step 을 안 쓴다 ★ — 단계에 걸리는 조건이 아니다.
+	FleetHas *Require `json:"fleet_has,omitempty"`
+	// MinCount 는 ★ 그런 노드가 몇 이상이어야 하는가 ★ 다. 없으면 1.
+	MinCount int `json:"min_count,omitempty"`
+}
+
+// IsFleet 은 이 조건이 ★ 단계가 아니라 함대 ★ 를 보는가다 (ADR-058).
+func (c Condition) IsFleet() bool { return c.FleetHas != nil }
+
+// Want 는 fleet_has 가 요구하는 것이다. min_count 의 기본값을 여기서 채운다 —
+// ★ 읽는 쪽이 여럿이므로 기본값을 각자 알게 두면 언젠가 한 곳이 어긋난다 ★.
+func (c Condition) Want() (Require, int) {
+	n := c.MinCount
+	if n <= 0 {
+		n = 1
+	}
+	return *c.FleetHas, n
 }
 
 // ★ agent 와 in 이 받는 키 ★ (ADR-057) — 여기가 정본이다.
@@ -1357,6 +1390,26 @@ func (c Contract) Validate() error {
 		}
 	}
 	for _, cond := range c.SuccessWhen {
+		// ★ 함대 조건은 단계에 안 걸린다 ★ (ADR-058) — 그래서 step 을 안 본다.
+		if cond.IsFleet() {
+			if cond.Step != "" {
+				return fmt.Errorf("success_when: fleet_has must not name a step; "+
+					"it asks about the fleet, not about one step (got %q)", cond.Step)
+			}
+			if cond.ExitCode != nil || len(cond.Produced) > 0 ||
+				len(cond.Changed) > 0 || cond.WithinAttempts {
+				return errors.New("success_when: fleet_has cannot be combined with " +
+					"step conditions in one entry; write them as separate entries")
+			}
+			if !knownCapability(cond.FleetHas.Capability) {
+				return fmt.Errorf("success_when: fleet_has names unknown capability %q",
+					cond.FleetHas.Capability)
+			}
+			if cond.MinCount < 0 {
+				return errors.New("success_when: fleet_has min_count must not be negative")
+			}
+			continue
+		}
 		k, ok := kinds[cond.Step]
 		if !ok {
 			if promised[cond.Step] {
