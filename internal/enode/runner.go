@@ -132,7 +132,7 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	// ★ 종료코드보다 ctx 가 우선이다 ★ — 임대가 끝나 죽인 것을
 	// 하네스 오류로 적으면 Record 가 거짓을 남긴다.
 	if ctx.Err() != nil {
-		res = HarnessResult{Reason: ReasonTimeout, Message: "임대 만료 또는 중단"}
+		res = HarnessResult{Reason: ReasonTimeout, Message: "lease expired or aborted"}
 	} else if err != nil && res.Reason == ReasonError && res.Message == "" {
 		res.Message = err.Error()
 	}
@@ -152,7 +152,7 @@ func readCannot(out string) (string, bool) {
 	why := strings.TrimSpace(string(b))
 	if why == "" {
 		// ★ 빈 파일도 자백이다 ★ — 이유를 안 적었을 뿐 못 했다고 말한 것이다.
-		return "이유를 적지 않았다", true
+		return "no reason given", true
 	}
 	return trimTo(why, 2000), true
 }

@@ -117,7 +117,7 @@ func (c *Client) Claim(ctx context.Context, nodeID string) (*Step, error) {
 		var s Step
 		return &s, json.NewDecoder(resp.Body).Decode(&s)
 	default:
-		return nil, fmt.Errorf("claim 거절: %s", resp.Status)
+		return nil, fmt.Errorf("claim rejected: %s", resp.Status)
 	}
 }
 
@@ -138,7 +138,7 @@ func (c *Client) UploadLog(ctx context.Context, runID string, seq int, name stri
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
-		return fmt.Errorf("로그 거절: %s", resp.Status)
+		return fmt.Errorf("log upload rejected: %s", resp.Status)
 	}
 	return nil
 }
@@ -188,7 +188,7 @@ func (c *Client) GetBlob(ctx context.Context, runID, name string, w io.Writer) e
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode/100 != 2 {
-		return fmt.Errorf("산출물을 못 받았다: %s", resp.Status)
+		return fmt.Errorf("cannot fetch blob: %s", resp.Status)
 	}
 	_, err = io.Copy(w, resp.Body)
 	return err
@@ -235,7 +235,7 @@ func (c *Client) Report(ctx context.Context, runID string, seq int, res Result) 
 	}
 	if resp.StatusCode != 200 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("보고 실패: %s %s", resp.Status, b)
+		return fmt.Errorf("report failed: %s %s", resp.Status, b)
 	}
 	return nil
 }
@@ -247,7 +247,7 @@ type ReportRejected struct {
 	Body   string
 }
 
-func (e *ReportRejected) Error() string { return "보고 거절: " + e.Status + " " + e.Body }
+func (e *ReportRejected) Error() string { return "report rejected: " + e.Status + " " + e.Body }
 
 // Worker 는 일을 당겨가서 실행한다.
 //
@@ -286,15 +286,15 @@ func (w *Worker) report(ctx context.Context, step *Step, res Result) {
 		}
 		var rej *ReportRejected
 		if errors.As(err, &rej) {
-			w.Log.Error("보고 거절 — 재시도하지 않는다", "step", step.StepID, "err", err)
+			w.Log.Error("report rejected; not retrying", "step", step.StepID, "err", err)
 			return
 		}
 		if _, ok := w.Held.Valid(step.RunID); !ok {
-			w.Log.Warn("보고를 못 전한 채 임대가 끝났다 — 회수가 정리한다",
+			w.Log.Warn("lease ended before the report was delivered; the reaper will settle it",
 				"step", step.StepID, "err", err)
 			return
 		}
-		w.Log.Warn("보고 실패 — 다시 보낸다", "step", step.StepID, "err", err)
+		w.Log.Warn("report failed; retrying", "step", step.StepID, "err", err)
 		select {
 		case <-ctx.Done():
 			return
@@ -326,7 +326,7 @@ func (w *Worker) Run(ctx context.Context) {
 		case err != nil:
 			if ctx.Err() == nil {
 				// 롱폴 끊김은 ★ 정상 ★ 이다 (ADR-015 §5) — 중간 프록시가 끊는다.
-				w.Log.Debug("claim 끊김 — 다시 건다", "err", err)
+				w.Log.Debug("claim interrupted; retrying", "err", err)
 				select {
 				case <-ctx.Done():
 				case <-time.After(2 * time.Second):
@@ -344,9 +344,9 @@ func (w *Worker) Run(ctx context.Context) {
 func (w *Worker) safeExecute(ctx context.Context, step *Step) {
 	defer func() {
 		if r := recover(); r != nil {
-			w.Log.Error("단계 실행 중 패닉", "step", step.StepID, "panic", r)
+			w.Log.Error("panic while running step", "step", step.StepID, "panic", r)
 			w.report(ctx, step, Result{
-				Node: w.Ident.NodeID, Error: fmt.Sprintf("어댑터 패닉: %v", r)})
+				Node: w.Ident.NodeID, Error: fmt.Sprintf("adapter panic: %v", r)})
 		}
 	}()
 	w.execute(ctx, step)
@@ -359,13 +359,13 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// 지났으면 실행하지 않고 그 자리에서 멈춘다. Mediator 가 죽어도
 	// 실행이 멈추는 장치가 이것이다.
 	if _, ok := w.Held.Valid(step.RunID); !ok {
-		log.Warn("임대가 유효하지 않다 — 실행하지 않는다")
+		log.Warn("lease is not valid; not running")
 		return
 	}
 
 	out, err := os.MkdirTemp("", "enode-out-")
 	if err != nil {
-		log.Error("$OUT 을 만들 수 없다", "err", err)
+		log.Error("cannot create $OUT", "err", err)
 		return
 	}
 	defer os.RemoveAll(out)
@@ -380,9 +380,9 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 			prep, err = w.Prepare(ctx, spec, log)
 		}
 		if err != nil {
-			log.Error("워크스페이스를 세울 수 없다", "err", err)
+			log.Error("cannot prepare workspace", "err", err)
 			w.report(ctx, step, Result{
-				Node: w.Ident.NodeID, Error: "워크스페이스: " + err.Error()})
+				Node: w.Ident.NodeID, Error: "workspace: " + err.Error()})
 			return
 		}
 	}
@@ -401,7 +401,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// 별 모양이므로 노드끼리 직접 주고받지 않고 Mediator 를 경유한다.
 	in, err := os.MkdirTemp("", "enode-in-")
 	if err != nil {
-		log.Error("$IN 을 만들 수 없다", "err", err)
+		log.Error("cannot create $IN", "err", err)
 		return
 	}
 	// ★ 지우려면 쓰기 권한을 돌려놔야 한다 ★ — sealInput 이 0555 로 잠근다.
@@ -416,9 +416,9 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 			f.Close()
 		}
 		if err != nil {
-			log.Error("이전 단계 산출물을 못 받았다", "name", name, "err", err)
+			log.Error("cannot fetch input blob", "name", name, "err", err)
 			w.report(ctx, step, Result{
-				Node: w.Ident.NodeID, Error: "산출물 " + name + " 을 못 받았다"})
+				Node: w.Ident.NodeID, Error: "blob " + name + " could not be fetched"})
 			return
 		}
 	}
@@ -430,13 +430,13 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		if err := os.WriteFile(filepath.Join(in, ledgerFile), step.Ledger, 0o644); err != nil {
 			// ★ 막지 않는다 ★ — 원장은 발견을 돕는 것이지 단계의 성립 조건이 아니다.
 			// 없으면 없는 대로 간다 (ADR-023 §6.2.1 의 "안 깔린다. 실패가 아니다").
-			log.Warn("원장 목록을 못 깔았다", "err", err)
+			log.Warn("cannot write ledger listing", "err", err)
 		}
 	}
 	if why := sealInput(in); why != "" {
 		// ★ 막지는 않는다 ★ — 잠금은 방어이지 단계의 성립 조건이 아니다.
 		// 다만 조용히 넘어가면 훅의 시야 밖 쓰기가 생기므로 이유를 남긴다.
-		log.Warn("$IN 을 읽기 전용으로 못 만들었다", "why", why)
+		log.Warn("cannot make $IN read-only", "why", why)
 	}
 
 	dir := w.Local.Workspace
@@ -463,7 +463,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 				return
 			case <-t.C:
 				if _, ok := w.Held.Valid(step.RunID); !ok {
-					log.Warn("임대가 끝났다 — 실행 중인 단계를 중단한다")
+					log.Warn("lease expired; aborting the running step")
 					cancel()
 					return
 				}
@@ -479,7 +479,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	}
 	if len(step.Run) == 0 {
 		w.report(ctx, step, Result{
-			Node: w.Ident.NodeID, Error: "명령 단계인데 run 이 비었다"})
+			Node: w.Ident.NodeID, Error: "run step has an empty argv"})
 		return
 	}
 
@@ -492,7 +492,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	if left := unexpandedVars(argv); len(left) > 0 {
 		// ★ 조용히 틀리게 두지 않는다 ★ — 셸이 없어 안 풀린 이름을 알려준다.
 		// 막지는 않는다: 판정은 success_when 몫이다 (ADR-004 · I3).
-		log.Warn("argv 에 안 풀린 변수가 있다 — 셸을 안 거친다", "names", left)
+		log.Warn("argv contains unexpanded variables; no shell is used", "names", left)
 	}
 
 	cmd := exec.CommandContext(runCtx, argv[0], argv[1:]...)
@@ -523,24 +523,24 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// ★ 로그를 먼저 올린다 ★ — 단계가 실패해도 원문은 남아야 한다.
 	// 여기서 실패해도 결과 보고는 계속한다. 로그가 없다고 Run 을 멈출 이유는 없다.
 	if err := w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, buf.Bytes()); err != nil && ctx.Err() == nil {
-		log.Warn("로그 업로드 실패", "err", err)
+		log.Warn("log upload failed", "err", err)
 	}
 
 	switch {
 	case runCtx.Err() != nil && ctx.Err() == nil:
 		// ★ 임대가 끝나 중단됐다 — 완주가 아니다 ★
-		res.Error = "임대 만료로 중단됨"
-		log.Warn("임대 만료로 중단됨")
+		res.Error = "aborted: lease expired"
+		log.Warn("aborted: lease expired")
 	case runErr != nil && code < 0:
 		// 프로세스를 못 띄웠다 (실행 파일 없음 등) — 완주가 아니다
 		res.Error = runErr.Error()
-		log.Error("실행할 수 없다", "err", runErr)
+		log.Error("cannot execute", "err", runErr)
 	default:
 		// ★ 완주했다. 종료코드가 무엇이든. ★
 		// exit 2 로 끝난 빌드도 완주한 것이고, 성공 여부는 success_when 이 판정한다
 		// (ADR-004 · I3). 여기서 판정하면 O4 가 성립하지 않는다.
 		res.ExitCode = &code
-		log.Info("단계 끝", "exit", code, "produced", res.Produced,
+		log.Info("step finished", "exit", code, "produced", res.Produced,
 			"took", time.Since(start).Round(time.Millisecond))
 	}
 
@@ -567,7 +567,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		// ★ 조용히 claude 로 떨어뜨리지 않는다 ★ — 계약이 요구한 하네스가
 		// 아닌 것으로 돌면 Record 가 거짓을 남긴다.
 		w.report(ctx, step, Result{
-			Node: w.Ident.NodeID, Error: "모르는 하네스: " + name})
+			Node: w.Ident.NodeID, Error: "unknown harness: " + name})
 		return
 	}
 	bin := w.Local.HarnessBin
@@ -612,7 +612,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		get(cannotName)
 	}
 
-	log.Debug("agent 단계 준비", "attempt", step.Attempt,
+	log.Debug("preparing agent step", "attempt", step.Attempt,
 		"feedback_names", step.Feedback, "feedback_got", len(feedback),
 		"out", step.Out, "schema", len(step.Schema))
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
@@ -629,13 +629,13 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		// ★ 자격증명을 못 만들었으면 안 돌린다 ★ — 조용히 없는 채로 돌리면
 		// 하네스가 엉뚱한 신원으로 붙거나 알 수 없는 이유로 실패한다.
 		w.report(ctx, step, Result{
-			Node: w.Ident.NodeID, Error: "자격증명 준비 실패: " + err.Error()})
+			Node: w.Ident.NodeID, Error: "cannot prepare credentials: " + err.Error()})
 		return
 	}
 	if d := droppedNotable(); len(d) > 0 {
 		// ★ 조용히 버리지 않는다 ★ — 하네스가 인증을 못 찾을 때
 		// 사람이 이 줄을 보고 화이트리스트를 의심할 수 있어야 한다.
-		log.Debug("환경변수를 안 넘겼다", "names", d)
+		log.Debug("environment variables not passed through", "names", d)
 	}
 	logBytes, h := runHarness(runCtx, ha, bin, Job{
 		Params: p, Prompt: prompt,
@@ -647,7 +647,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		Roles:  step.Roles,
 		Stamp:  stamp, // ★ 훅이 볼 기준 시각 ★ — git 이 못 보는 것까지
 		Inject: inject,
-		Emit:   func(e Event) { log.Debug("하네스 사건", "kind", e.Kind) },
+		Emit:   func(e Event) { log.Debug("harness event", "kind", e.Kind) },
 	})
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
@@ -655,14 +655,14 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		Changed: CheckChanged(stamp, step.CheckChanged)}
 	if !h.Reason.Completed() {
 		// ★ 크래시는 완주가 아니다 ★ — 반쯤 쓴 파일을 믿을 수 없다
-		res.Error = "하네스: " + string(h.Reason) + " " + h.Message
-		log.Warn("하네스가 완주하지 못했다", "reason", h.Reason, "msg", h.Message)
+		res.Error = "harness: " + string(h.Reason) + " " + h.Message
+		log.Warn("harness did not complete", "reason", h.Reason, "msg", h.Message)
 		w.report(ctx, step, res)
 		return
 	}
 	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
 	res.Produced = w.uploadProduced(ctx, step, out, stamp, log)
-	log.Info("agent 단계 끝", "reason", h.Reason, "turns", h.Turns,
+	log.Info("agent step finished", "reason", h.Reason, "turns", h.Turns,
 		"cost_usd", h.CostUSD, "produced", res.Produced)
 	w.report(ctx, step, res)
 }
@@ -687,9 +687,9 @@ func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, sta
 	if w.Local.Workspace != "" && len(step.Workspace) > 0 {
 		switch n, err := writeWorkspaceDiff(ctx, w.Local.Workspace, out, maxBlobBytes); {
 		case err != nil:
-			log.Warn("워크스페이스 diff 를 못 걷었다", "err", err)
+			log.Warn("cannot collect workspace diff", "err", err)
 		case n > 0:
-			log.Info("워크스페이스 diff", "bytes", n)
+			log.Info("workspace diff", "bytes", n)
 		}
 	}
 
@@ -710,10 +710,10 @@ func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, sta
 	// "요구했는데 없는 것" 이 정확해진다.
 	if got, notes := collectDeclared(w.Local.Workspace, out, step.Collect); len(got) > 0 || len(notes) > 0 {
 		if len(got) > 0 {
-			log.Info("collect 로 걷었다", "names", got)
+			log.Info("collected", "names", got)
 		}
 		for _, n := range notes {
-			log.Warn("collect 실패", "name", n.Name, "why", n.Why)
+			log.Warn("collect failed", "name", n.Name, "why", n.Why)
 		}
 		collectNotes = notes
 	}
@@ -727,11 +727,11 @@ func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, sta
 		}
 		body, err := os.ReadFile(filepath.Join(out, name))
 		if err != nil {
-			log.Error("산출물을 못 읽었다", "name", name, "err", err)
+			log.Error("cannot read output", "name", name, "err", err)
 			continue
 		}
 		if err := w.Client.PutBlob(ctx, step.RunID, step.Seq, name, body); err != nil {
-			log.Warn("산출물이 거절됐다 — produced 에 넣지 않는다", "name", name, "err", err)
+			log.Warn("blob rejected; not listed in produced", "name", name, "err", err)
 			continue
 		}
 		produced = append(produced, name)
@@ -760,7 +760,7 @@ func writeChangedNote(out string, want []string, stamp Stamp, cnotes []collectNo
 	if stamp.Root != "" {
 		var err error
 		if found, total, err = changedSince(stamp, 2000); err != nil {
-			log.Warn("변경 목록을 못 걷었다", "err", err)
+			log.Warn("cannot collect change list", "err", err)
 		}
 	}
 	if total == 0 && len(missing) == 0 && len(cnotes) == 0 {
@@ -769,15 +769,15 @@ func writeChangedNote(out string, want []string, stamp Stamp, cnotes []collectNo
 
 	var b strings.Builder
 	if len(missing) > 0 {
-		b.WriteString("계약이 요구했는데 $OUT 에 없는 것: ")
+		b.WriteString("required by the contract but missing from $OUT: ")
 		b.WriteString(strings.Join(missing, ", "))
 		b.WriteString("\n\n")
-		log.Warn("요구된 산출물이 $OUT 에 없다", "missing", missing, "changed", total)
+		log.Warn("required outputs are missing from $OUT", "missing", missing, "changed", total)
 	}
 	// ★ collect 가 왜 못 걷었는지 ★ — 이게 없으면 "요구했는데 없다" 만 남고
 	// 사람이 계약과 트리를 대조해 스스로 알아내야 한다.
 	if len(cnotes) > 0 {
-		b.WriteString("collect 가 못 걷은 것:\n")
+		b.WriteString("collect could not gather:\n")
 		for _, n := range cnotes {
 			b.WriteString("  " + n.Name + " — " + n.Why + "\n")
 		}
@@ -788,11 +788,11 @@ func writeChangedNote(out string, want []string, stamp Stamp, cnotes []collectNo
 	} else {
 		// ★ 이 경우가 보드 단계다 ★ — 파일시스템에 흔적이 없다.
 		// 시리얼 출력이 산출물이므로 단계가 직접 $OUT 에 옮겨야 한다.
-		b.WriteString("워크스페이스에 바뀐 파일이 없다.\n" +
-			"(보드·시리얼처럼 파일로 남지 않는 단계라면 정상이다 — 단계가 $OUT 에 옮겨야 한다.)\n")
+		b.WriteString("no files changed in the workspace.\n" +
+			"(expected for steps whose result is not a file; the step must write to $OUT.)\n")
 	}
 	if err := os.WriteFile(filepath.Join(out, changedName), []byte(b.String()), 0o644); err != nil {
-		log.Warn("변경 기록을 못 남겼다", "err", err)
+		log.Warn("cannot write change note", "err", err)
 	}
 }
 

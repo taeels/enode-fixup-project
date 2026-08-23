@@ -21,7 +21,7 @@ func TestCheckPlan_실측에서_밟은_것들(t *testing.T) {
 			plan: `{"steps":[{"id":"r","uses":"claude","expands":true,"agent":{},
 			         "in":{"prompt":"p"},"out":["plan2"],
 			         "schema":{"plan2":{"type":"object"}}}]}`,
-			want: "없는 역할",
+			want: "undeclared role",
 		},
 		{
 			// ★ 11차 ★ — schema 를 산출물 이름으로 안 키잉했다
@@ -29,14 +29,14 @@ func TestCheckPlan_실측에서_밟은_것들(t *testing.T) {
 			plan: `{"steps":[{"id":"r","uses":"planner","expands":true,"agent":{},
 			         "in":{"prompt":"p"},"out":["plan2"],
 			         "schema":{"type":"object","required":["steps"]}}]}`,
-			want: "스키마",
+			want: "schema declared for",
 		},
 		{
 			// ★ 6차 ★ — ask 단계에 uses 를 적었다
 			name: "ask 에 uses 를 적는다",
 			plan: `{"steps":[{"id":"q","uses":"mac","ask":{"prompt":"?"},"out":["a"],
 			         "schema":{"a":{"type":"object","properties":{"v":{"type":"string"}}}}}]}`,
-			want: "ask 단계에는 uses 가 없다",
+			want: "must not set uses",
 		},
 		{
 			// ★ 8차 ★ — agent 단계에 exit_code 를 걸었다
@@ -132,7 +132,7 @@ func TestValidate_produces(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := c.Validate(); err == nil ||
-		!strings.Contains(err.Error(), "expands 단계에만") {
+		!strings.Contains(err.Error(), "only allowed on an expands step") {
 		t.Fatalf("★ 명령 단계의 produces 를 안 막았다 ★: %v", err)
 	}
 }

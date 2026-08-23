@@ -128,7 +128,7 @@ func summarize(found []Changed, total, topN int) string {
 	for _, c := range found {
 		e := strings.ToLower(filepath.Ext(c.Path))
 		if e == "" {
-			e = "(확장자 없음)"
+			e = "(no extension)"
 		}
 		byExt[e]++
 	}
@@ -148,14 +148,14 @@ func summarize(found []Changed, total, topN int) string {
 	})
 
 	var b strings.Builder
-	fmt.Fprintf(&b, "이 단계가 만들거나 고친 파일: %d개", total)
+	fmt.Fprintf(&b, "files created or modified by this step: %d", total)
 	if len(found) < total {
-		fmt.Fprintf(&b, " (아래는 그중 %d개만)", len(found))
+		fmt.Fprintf(&b, " (showing %d)", len(found))
 	}
-	b.WriteString("\n  종류별: ")
+	b.WriteString("\n  by extension: ")
 	for i, e := range exts {
 		if i >= 8 {
-			fmt.Fprintf(&b, " …외 %d종", len(exts)-8)
+			fmt.Fprintf(&b, " and %d more", len(exts)-8)
 			break
 		}
 		if i > 0 {
@@ -163,7 +163,7 @@ func summarize(found []Changed, total, topN int) string {
 		}
 		fmt.Fprintf(&b, "%s %d", e.e, e.n)
 	}
-	b.WriteString("\n  큰 것부터:\n")
+	b.WriteString("\n  largest first:\n")
 	for i, c := range found {
 		if i >= topN {
 			break

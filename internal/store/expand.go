@@ -88,8 +88,8 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 	// 기계이기 때문이다. 넘으면 그 단계가 FAILED 다: 계획을 받아들일 수 없다는
 	// 것이지 계획이 나쁘다는 판정이 아니다 (ADR-004 를 안 건드린다).
 	if max := s.maxContractVersions(); len(prior)+1 >= max {
-		return fmt.Errorf("step %q: 계약의 열이 상한(%d)에 닿았다 — "+
-			"더 자랄 수 없다", st.ID, max)
+		return fmt.Errorf("step %q: contract version limit (%d) reached; "+
+			"the contract cannot grow further", st.ID, max)
 	}
 
 	attempt, err := stepAttemptTx(ctx, tx, runID, seq)
@@ -130,17 +130,17 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		}
 	}
 	if len(owed) > 0 {
-		return fmt.Errorf("step %q: 계약이 약속한 단계를 계획이 안 지었다: %v — "+
-			"★ 목표가 아직 안 섰다 ★", st.ID, owed)
+		return fmt.Errorf("step %q: the plan did not build the promised steps: %v; "+
+			"the goal is not yet in place", st.ID, owed)
 	}
 
 	if len(p.Steps) == 0 {
 		if len(p.SuccessWhen) > 0 {
 			// 늘릴 단계가 없는데 판정할 것이 있다면 계획이 자기모순이다.
-			return fmt.Errorf("step %q: 계획에 단계가 없는데 success_when 이 있다 — "+
-				"판정할 대상이 없다", st.ID)
+			return fmt.Errorf("step %q: plan has no steps but declares success_when; "+
+				"there is nothing to judge", st.ID)
 		}
-		s.log().Info("★ 계획이 비었다 — 고칠 것이 없다 ★ 계약을 안 늘린다",
+		s.log().Info("plan is empty; nothing to fix, contract not extended",
 			"run", runID, "step", st.ID)
 		// ★ 승인할 것이 없으므로 그 ask 를 건너뛴다 ★ — 안 그러면 사람이
 		// 「빈 계획을 승인하라」는 질문을 받고, 그 질문이 Run 을 붙잡는다.
@@ -149,15 +149,15 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		return skipAdopters(ctx, tx, runID, c.Steps, st.ID)
 	}
 	if len(p.SuccessWhen) > 0 && !hasAdopter(c.Steps, st.ID) {
-		return fmt.Errorf("step %q: 계획이 success_when 을 지었는데 ★ 승인할 ask 가 없다 ★ — "+
-			"판정 기준이 효력을 얻으려면 adopts 로 이 단계를 지목한 ask 가 필요하다 (ADR-033)", st.ID)
+		return fmt.Errorf("step %q: the plan declares success_when but no ask adopts it; "+
+			"an ask with adopts pointing at this step is required for the criteria to take effect", st.ID)
 	}
 
 	// ★ v2 를 만든다 — 차분이 아니라 전문이다 ★ (성질 4: 각 판이 그 자체로 완결).
 	next := c
 	next.Steps = append(append([]contract.Step{}, c.Steps...), p.Steps...)
 	if err := next.Validate(); err != nil {
-		return fmt.Errorf("step %q: 지어진 계약이 유효하지 않다: %w", st.ID, err)
+		return fmt.Errorf("step %q: the extended contract is not valid: %w", st.ID, err)
 	}
 	// ★ 제안도 지금 검증한다 ★ (ADR-044)
 	//
@@ -173,7 +173,7 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		withProposed.SuccessWhen = append(
 			append([]contract.Condition{}, next.SuccessWhen...), p.SuccessWhen...)
 		if err := withProposed.Validate(); err != nil {
-			return fmt.Errorf("step %q: 계획이 제안한 success_when 이 유효하지 않다: %w",
+			return fmt.Errorf("step %q: the success_when proposed by the plan is not valid: %w",
 				st.ID, err)
 		}
 	}
@@ -318,11 +318,11 @@ func stepAttemptTx(ctx context.Context, tx pgx.Tx, runID string, seq int) (int, 
 // 유효성이고 그것은 Validate 가 한다.
 func (s *Store) readPlan(runID, name string) (*plan, error) {
 	if s.Records == nil {
-		return nil, fmt.Errorf("기록 저장소가 없다")
+		return nil, fmt.Errorf("record store is not configured")
 	}
 	rc, _, err := s.Records.OpenBlob(runID, name)
 	if err != nil {
-		return nil, fmt.Errorf("계획 %q 를 못 읽었다: %w", name, err)
+		return nil, fmt.Errorf("cannot read plan %q: %w", name, err)
 	}
 	defer rc.Close() //nolint:errcheck
 	b, err := io.ReadAll(rc)
@@ -331,7 +331,7 @@ func (s *Store) readPlan(runID, name string) (*plan, error) {
 	}
 	var p plan
 	if err := json.Unmarshal(b, &p); err != nil {
-		return nil, fmt.Errorf("계획 %q 가 steps 를 든 객체가 아니다: %w", name, err)
+		return nil, fmt.Errorf("plan %q is not an object with steps: %w", name, err)
 	}
 	return &p, nil
 }

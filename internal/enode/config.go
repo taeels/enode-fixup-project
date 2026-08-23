@@ -62,10 +62,10 @@ func LoadLocal(path string) (Local, error) {
 	var l Local
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return l, fmt.Errorf("설정 %s: %w", path, err)
+		return l, fmt.Errorf("config %s: %w", path, err)
 	}
 	if err := yaml.Unmarshal(b, &l); err != nil {
-		return l, fmt.Errorf("설정 %s: %w", path, err)
+		return l, fmt.Errorf("config %s: %w", path, err)
 	}
 	if l.MinFreeGB == 0 {
 		l.MinFreeGB = 10

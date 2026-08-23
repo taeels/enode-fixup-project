@@ -26,78 +26,83 @@ package contract
 // "그 규칙을 어긴 계약이 실제로 거절되는가" 를 잰다. Validate 가 늘었는데
 // 여기가 안 늘면 ★ 그 테스트가 깨진다 ★. go.mod 의 toolchain 을 CI 가
 // go-version-file 로 읽는 것과 같은 장치다 — ★ 두 곳에 안 적는다 ★.
-const Grammar = `## 계약 문법 (★ 네가 짓는 단계는 이 규칙을 지켜야 채택된다 ★)
+const Grammar = `## Contract grammar (the steps you write must follow these rules)
 
-어긴 계획은 ★ 통째로 버려진다 ★ — 스키마 검증이 422 로 거절하거나
-계약 검증이 400 으로 거절한다. 부분 채택은 없다.
+A plan that breaks a rule is rejected as a whole: schema validation returns 422,
+or contract validation returns 400. There is no partial acceptance.
 
-### 단계는 네 종류이고 필드가 다르다
+### There are four kinds of step, with different fields
 
-    명령(run)    uses ○   run ○(argv 배열)   out ○
-    에이전트     uses ○   agent ○  in ○  out ○  schema ○
-    재계획       uses ○   expands:true  agent ○  in ○  out ★ 정확히 하나 ★  schema ★ 필수 ★
-    되묻기(ask)  ★ uses 를 적지 않는다 ★   ask ○   out ★ 정확히 하나 ★  schema ★ 필수 ★
+    run       uses, run (argv array), out
+    agent     uses, agent, in, out, schema
+    expands   uses, expands:true, agent, in, out (exactly one), schema (required)
+    ask       no uses, ask, out (exactly one), schema (required)
 
-★ ask 에 uses 를 적으면 거절된다 ★ — 사람이 수행하므로 노드가 없다.
+An ask step must not set uses; it is performed by a person.
 
-### success_when 은 단계 종류마다 쓸 수 있는 조건이 다르다
+### success_when conditions differ by step kind
 
-    명령(run) 단계        exit_code ○   produced ○
-    에이전트 · 재계획      exit_code ★ ✗ ★   produced ○
-    되묻기(ask)           exit_code ★ ✗ ★   produced ○
+    run             exit_code and produced
+    agent, expands  produced only
+    ask             produced only
 
-★ 에이전트 단계에 exit_code 를 걸면 거절된다 ★ —
-하네스는 헛소리를 하고도 종료코드 0 으로 끝난다. 그래서 성패는
-★ 무엇을 냈는가 ★ 로만 잰다.
+exit_code condition is not allowed on an agent step: a harness can produce
+nonsense and still exit 0, so success is judged by what it produced.
 
-success_when 은 ★ 실존하는 단계 ★ 만 가리킬 수 있다.
+success_when may only refer to steps that exist.
 
-### 산출물은 $OUT 에 그 이름 그대로 파일로 놓는다
+### Outputs go to $OUT under the exact declared name
 
-    ○  cmd > "$OUT/<out 에 적은 이름>" 2>&1
-    ✗  cmd > <이름> 2>&1        ← 워크스페이스에 떨어져 ★ 수확되지 않는다 ★
+    ok   cmd > "$OUT/<name declared in out>" 2>&1
+    bad  cmd > <name> 2>&1        # lands in the workspace and is not collected
 
-명령 단계의 작업 디렉터리는 워크스페이스다. $OUT 은 그 밖에 있다.
+The working directory of a run step is the workspace; $OUT is outside it.
 
-### run 은 argv 배열이다 — 셸을 안 거친다
+### run is an argv array; no shell is involved
 
-'&&' · '|' · '>' · '$VAR' 가 안 풀린다. 셸이 필요하면 명시적으로 부른다:
+'&&', '|', '>' and '$VAR' are not expanded. Invoke a shell explicitly if needed:
+
     ["/bin/sh", "-c", "..."]
 
-### 스키마는 형식만 제약한다
+### A schema constrains form only
 
-    쓸 수 있다  type · required · properties · enum · items ·
-                additionalProperties · title · description
-    ★ 거절된다 ★  minimum · maximum · minLength · maxLength ·
-                pattern · format · minItems · maxItems …
+    allowed   type, required, properties, enum, items,
+              additionalProperties, title, description
+    rejected  minimum, maximum, minLength, maxLength,
+              pattern, format, minItems, maxItems, ...
 
-값의 크기나 내용으로 판정하면 안 되기 때문이다 — 그건 계약이 할 일이다.
+Judging by magnitude or content is the contract's job, not the schema's.
 
-### 재계획이 success_when 을 제안하면 그것을 승인할 ask 가 있어야 한다
+### schema is keyed by output name
 
-    { "id":"replan_1", "uses":"…", "expands":true, "out":["plan2"], "schema":{…} }
-    { "id":"approve_replan_1", "ask":{ "adopts":"replan_1", "prompt":"…" },
+    "out": ["plan2"],
+    "schema": { "plan2": { "type": "object", ... } }
+
+Not the JSON Schema directly.
+
+### A proposed success_when needs an ask that adopts it
+
+    { "id":"replan_1", "uses":"...", "expands":true, "out":["plan2"],
+      "schema":{ "plan2": { ... } } }
+    { "id":"approve_replan_1", "ask":{ "adopts":"replan_1", "prompt":"..." },
       "out":["approval2"], "schema":{ "approval2":{ "type":"object",
         "required":["verdict"],
         "properties":{ "verdict":{"enum":["approve","reject"]} } } } }
 
-★ 판정 기준의 저자는 기계일 수 있으나, 효력을 얻는 유일한 길은 사람의 답이다 ★.
-승인할 ask 가 없으면 그 계획은 거절된다.
+Success criteria may be authored by a machine, but they take effect only
+through a person's answer. Without an adopting ask the plan is rejected.
 
-### ★ 계약이 「반드시 지어라」고 약속한 단계가 있을 수 있다 ★
+### The contract may promise steps you must build
 
-프롬프트에 「계약이 약속했는데 아직 안 지어진 단계」 목록이 실려 있으면,
-★ 그 이름을 가진 단계를 반드시 지어야 한다 ★. success_when 이 이미 그 이름을
-가리키고 있고, 안 지으면 ★ 계획 전체가 거절된다 ★.
+If the prompt lists steps promised by the contract but not yet built, you must
+build steps with those exact ids. success_when already refers to them, and a
+plan that omits them is rejected. While any promise is outstanding you cannot
+submit an empty plan.
 
-    { "id": "<약속된 이름>", "uses": "…", … }
-
-★ 그것이 남아 있는 한 빈 계획을 낼 수 없다 ★ — 목표가 아직 안 섰다는 뜻이다.
-
-### ★ 고칠 것이 없으면 빈 계획을 낸다 ★
+### If there is nothing to fix, submit an empty plan
 
     { "steps": [], "success_when": [] }
 
-★ 이것은 오류가 아니라 판단이다 ★ — 계약이 안 늘고, 그것을 승인할 ask 는
-건너뛰어진다. 억지로 단계를 지어내면 사슬이 끝나지 않는다.
+This is a judgment, not an error. The contract is not extended and the ask that
+would adopt it is skipped. Do not invent steps to fill the plan.
 `

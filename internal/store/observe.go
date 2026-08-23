@@ -95,7 +95,7 @@ type LedgerEntry struct {
 // 각자의 blobs/ 를 나열하는 것이다. ★ 검색 계층도 질의 언어도 안 는다 ★.
 func (s *Store) Ledger(ctx context.Context, runID string) ([]LedgerEntry, error) {
 	if s.Records == nil {
-		return nil, fmt.Errorf("기록 저장소가 없다")
+		return nil, fmt.Errorf("record store is not configured")
 	}
 	run, err := s.GetRun(ctx, runID)
 	if err != nil {

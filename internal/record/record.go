@@ -67,7 +67,7 @@ func (s *Store) AppendLog(runID string, seq int, name string, r io.Reader, limit
 	}
 	// 상한을 넘으면 잘라 저장하고 ★ 잘렸음을 표시한다 ★ (ADR-015 §5)
 	if n == limit {
-		_, _ = fmt.Fprintf(f, "\n… 로그가 %d 바이트에서 잘렸습니다\n", limit)
+		_, _ = fmt.Fprintf(f, "\n... log truncated at %d bytes\n", limit)
 	}
 	return n, nil
 }
@@ -202,7 +202,7 @@ func unseal(dir string) error {
 	})
 }
 
-var ErrNotSealed = errors.New("봉인되지 않았다")
+var ErrNotSealed = errors.New("not sealed")
 
 // Tar 는 봉인된 묶음을 통째로 내보낸다.
 //
@@ -286,8 +286,8 @@ func (s *Store) WriteBlob(runID string, seq, attempt int, name string, r io.Read
 }
 
 var (
-	ErrTooBig = errors.New("산출물이 상한을 넘는다")
-	ErrNoBlob = errors.New("그런 산출물이 없다")
+	ErrTooBig = errors.New("blob exceeds the size limit")
+	ErrNoBlob = errors.New("no such blob")
 )
 
 // parseBlobName 은 "%02d.%d-이름" 에서 순번과 회차를 뽑는다.

@@ -68,9 +68,9 @@ func TestValidate(t *testing.T) {
 	}
 
 	bad := map[string]string{
-		`{"hypothesis":"x"}`:                "status", // 필수가 없다
-		`{"status":"maybe"}`:                "enum",   // 어휘 밖
-		`{"status":"found","hypothesis":3}`: "타입",     // 타입이 틀렸다
+		`{"hypothesis":"x"}`:                "status",        // 필수가 없다
+		`{"status":"maybe"}`:                "enum",          // 어휘 밖
+		`{"status":"found","hypothesis":3}`: "expected type", // 타입이 틀렸다
 		`not json`:                          "JSON",
 	}
 	for doc, want := range bad {
@@ -92,7 +92,7 @@ func TestValidate(t *testing.T) {
 func TestViolationIsActionable(t *testing.T) {
 	sch := mustSchema(t, `{"type":"object","required":["status"]}`)
 	v := Validate(sch, []byte(`{}`))
-	if len(v) != 1 || v[0].Path != "status" || v[0].Got != "없음" {
+	if len(v) != 1 || v[0].Path != "status" || v[0].Got != "missing" {
 		t.Fatalf("위반 내역이 부실하다: %+v", v)
 	}
 	if !strings.Contains(v[0].String(), "status") {

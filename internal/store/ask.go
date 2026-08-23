@@ -71,7 +71,7 @@ func (s *Store) raiseAsks(ctx context.Context, tx pgx.Tx, runID string) ([]AskEv
 			return nil, err
 		}
 		st := c.Steps[seq-1]
-		s.log().Info("되묻기 — 답을 기다린다", "run", runID, "seq", seq, "step", st.ID)
+		s.log().Info("ask: awaiting an answer", "run", runID, "seq", seq, "step", st.ID)
 		raised = append(raised, AskEvent{
 			Event: "ask", RunID: runID, Seq: seq, Step: st.ID,
 			Prompt: st.Ask.Prompt, Answerers: st.Ask.Answerers, Deadline: deadline,
@@ -112,7 +112,7 @@ func (s *Store) PushAsks(events []AskEvent) {
 			}
 			resp, err := cl.Post(s.NotifyURL, "application/json", bytes.NewReader(body))
 			if err != nil {
-				s.log().Warn("되묻기 알림 실패 — 인박스가 정본이다", "err", err)
+				s.log().Warn("ask notification failed; the inbox remains authoritative", "err", err)
 				continue
 			}
 			resp.Body.Close()
@@ -247,15 +247,15 @@ func (s *Store) PendingAsks(ctx context.Context) ([]AskView, error) {
 
 var (
 	// ErrNoAsk 는 답을 기다리는 단계가 아니다 — 없거나, 이미 답했거나, ask 가 아니다.
-	ErrNoAsk = errors.New("답을 기다리는 단계가 아니다")
+	ErrNoAsk = errors.New("step is not awaiting an answer")
 	// ErrNotAnswerer 는 answerers 에 없는 사람이다.
-	ErrNotAnswerer = errors.New("이 질문에 답할 수 있는 사람이 아니다")
+	ErrNotAnswerer = errors.New("principal is not an allowed answerer")
 )
 
 // SchemaViolation 은 답이 질문의 형태를 어겼다 — PUT blob 의 422 와 같은 자리다.
 type SchemaViolation struct{ Details string }
 
-func (e *SchemaViolation) Error() string { return "스키마 위반 — " + e.Details }
+func (e *SchemaViolation) Error() string { return "schema violation: " + e.Details }
 
 // AnswerStep 은 ★ 답을 받는다 ★ (ADR-032 §1②) — 주소 있는 단일 쓰기.
 //
@@ -312,7 +312,7 @@ func (s *Store) AnswerStep(ctx context.Context, runID string, seq int,
 		return false, &SchemaViolation{Details: strings.Join(parts, " / ")}
 	}
 	if s.Records == nil {
-		return false, fmt.Errorf("기록 저장소가 없다")
+		return false, fmt.Errorf("record store is not configured")
 	}
 	if _, err := s.Records.WriteBlob(runID, seq, attempt, name,
 		bytes.NewReader(body), limit); err != nil {
@@ -325,7 +325,7 @@ func (s *Store) AnswerStep(ctx context.Context, runID string, seq int,
 			Produced: []string{name}, AnsweredBy: principal})); err != nil {
 		return false, err
 	}
-	s.log().Info("되묻기 — 답을 받았다", "run", runID, "step", st.ID, "by", principal)
+	s.log().Info("ask: answer received", "run", runID, "step", st.ID, "by", principal)
 	// ★ 채택 — 목표 위임의 승인 지점 ★ (ADR-033).
 	//
 	// 이 ask 가 expands 단계를 adopts 로 지목했고 답이 approve 면, 그 계획이
@@ -396,7 +396,7 @@ func (s *Store) adoptProposal(ctx context.Context, tx pgx.Tx, runID string,
 	// 지금은 그 단계가 live 에 있으므로 통과한다. 그것이 P4 가 그어둔
 	// 「지어진 단계의 성패는 판정에 안 들어간다」는 경계가 ★ 여기서 열리는 ★ 방식이다.
 	if err := next.Validate(); err != nil {
-		return fmt.Errorf("채택하면 계약이 유효하지 않다: %w", err)
+		return fmt.Errorf("adopting the proposal would make the contract invalid: %w", err)
 	}
 	ver := ContractVersion{
 		V:  len(vers) + 2, // v1 은 runs.contract
@@ -417,7 +417,7 @@ func (s *Store) adoptProposal(ctx context.Context, tx pgx.Tx, runID string,
 		`UPDATE runs SET contract_versions=$2 WHERE run_id=$1`, runID, nextJSON); err != nil {
 		return err
 	}
-	s.log().Info("제안 채택 — 판정 기준이 효력을 얻었다",
+	s.log().Info("proposal adopted; success criteria are now in effect",
 		"run", runID, "by", byAnswer(ask.ID), "conditions", len(proposal.Proposed))
 	return nil
 }
@@ -444,7 +444,7 @@ func (s *Store) ExpireAsks(ctx context.Context) ([]string, error) {
 		   AND s.state = 'ASKED' AND s.ask_deadline IS NOT NULL
 		   AND s.ask_deadline <= now()
 		 RETURNING s.run_id`,
-		mustJSON(map[string]string{"error": "되묻기 기한이 지났다"}))
+		mustJSON(map[string]string{"error": "ask deadline passed"}))
 	if err != nil {
 		return nil, err
 	}

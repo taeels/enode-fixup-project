@@ -18,7 +18,7 @@ import (
 // $USER 로 대체하면 한 사람이 기계마다 다른 신원을 갖고,
 // hostname 으로 대체하면 같은 기계의 두 사람이 한 신원이 된다.
 // 어긋남은 Run Record 의 노드 귀속이 쓸모없어질 때까지 안 보인다.
-var ErrNoEmail = errors.New("git 이메일이 없다: git config --global user.email 을 설정하라")
+var ErrNoEmail = errors.New("no git email: set it with git config --global user.email")
 
 // Identity 는 이 enode 가 누구인가다.
 type Identity struct {

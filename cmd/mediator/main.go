@@ -20,19 +20,19 @@ import (
 )
 
 func main() {
-	cfgPath := flag.String("config", "", "설정 파일 (기본: ADR-015 §4 의 우선순위)")
+	cfgPath := flag.String("config", "", "path to the config file")
 	flag.Parse()
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 	cfg, err := config.Load(*cfgPath)
 	if err != nil {
-		log.Error("설정을 읽을 수 없다", "err", err)
+		log.Error("cannot read config", "err", err)
 		os.Exit(1)
 	}
 	if cfg.Token == "" {
 		// ADR-015 의 원칙 — 조용한 대체를 하지 않는다. 없으면 그 자리에서 죽는다.
-		log.Error("토큰이 없다. config 의 token 또는 $ENODE_MEDIATOR_TOKEN 을 설정하라")
+		log.Error("no token: set token in the config file or $ENODE_MEDIATOR_TOKEN")
 		os.Exit(1)
 	}
 
@@ -41,14 +41,14 @@ func main() {
 
 	st, err := store.Open(ctx, cfg.Database.URL)
 	if err != nil {
-		log.Error("DB 를 열 수 없다", "err", err)
+		log.Error("cannot open database", "err", err)
 		os.Exit(1)
 	}
 	defer st.Close()
 	// Run Record 는 ★ DB 가 아니라 파일시스템 ★ 에 산다 (ADR-015 §3) —
 	// I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 한다.
 	if err := os.MkdirAll(cfg.Artifacts.Root, 0o755); err != nil {
-		log.Error("아티팩트 디렉터리를 만들 수 없다", "root", cfg.Artifacts.Root, "err", err)
+		log.Error("cannot create artifacts directory", "root", cfg.Artifacts.Root, "err", err)
 		os.Exit(1)
 	}
 	st.Records = record.New(cfg.Artifacts.Root)
@@ -60,7 +60,7 @@ func main() {
 	st.MaxLeasesPerRun = cfg.Lease.MaxPerRun
 	st.NotifyURL = cfg.Notify.AsksURL
 	if err := st.Migrate(ctx); err != nil {
-		log.Error("스키마 적용 실패", "err", err)
+		log.Error("cannot apply database schema", "err", err)
 		os.Exit(1)
 	}
 
@@ -77,15 +77,15 @@ func main() {
 		// 롱폴이기 때문이다 (ADR-015 §5). 걸면 정상 대기가 끊긴다.
 	}
 	go func() {
-		log.Info("Mediator 시작", "listen", cfg.Listen)
+		log.Info("mediator started", "listen", cfg.Listen)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Error("서버가 죽었다", "err", err)
+			log.Error("server stopped", "err", err)
 			os.Exit(1)
 		}
 	}()
 
 	<-ctx.Done()
-	log.Info("종료 중")
+	log.Info("shutting down")
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(shutdown)

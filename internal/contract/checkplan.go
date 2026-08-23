@@ -42,12 +42,12 @@ type PlanDoc struct {
 func CheckPlan(raw []byte, roles []string) error {
 	var p PlanDoc
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("계획이 JSON 이 아니다: %w", err)
+		return fmt.Errorf("plan is not valid JSON: %w", err)
 	}
 	// ★ 빈 계획은 값이다 ★ (ADR-043) — 검사할 것이 없다.
 	if len(p.Steps) == 0 {
 		if len(p.SuccessWhen) > 0 {
-			return fmt.Errorf("단계가 없는데 success_when 이 있다 — 판정할 대상이 없다")
+			return fmt.Errorf("plan has no steps but declares success_when; there is nothing to judge")
 		}
 		return nil
 	}

@@ -44,7 +44,7 @@ func New(st *store.Store, cfg config.Config, log *slog.Logger) *Server {
 // cmd/mediator 는 항상 붙이지만, 없으면 ★ 패닉이 아니라 503 ★ 이어야 한다.
 func (s *Server) needRecords(w http.ResponseWriter) bool {
 	if s.records == nil {
-		fail(w, 503, "Record 저장소가 설정되지 않았다")
+		fail(w, 503, "record store is not configured")
 		return false
 	}
 	return true
@@ -87,7 +87,7 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		got := r.Header.Get("Authorization")
 		if s.cfg.Token == "" || len(got) <= len(prefix) ||
 			subtle.ConstantTimeCompare([]byte(got[len(prefix):]), []byte(s.cfg.Token)) != 1 {
-			fail(w, 401, "토큰이 없거나 틀렸다")
+			fail(w, 401, "missing or invalid token")
 			return
 		}
 		ctx := context.WithValue(r.Context(), principalKey, r.Header.Get("X-Enode-Principal"))
@@ -140,7 +140,7 @@ type runView struct {
 func (s *Server) view(ctx context.Context, r *store.Run) runView {
 	steps, err := s.st.Steps(ctx, r.RunID)
 	if err != nil {
-		s.log.Error("단계 조회 실패", "run", r.RunID, "err", err)
+		s.log.Error("cannot query steps", "run", r.RunID, "err", err)
 	}
 	return runView{RunID: r.RunID, State: r.State, Assigned: r.Assigned,
 		Reject: r.Reject, Verdict: r.Verdict, Steps: steps}
@@ -164,11 +164,11 @@ type advertResponse struct {
 func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 	var a contract.Advert
 	if err := json.NewDecoder(r.Body).Decode(&a); err != nil {
-		fail(w, 400, "광고를 읽을 수 없다: "+err.Error())
+		fail(w, 400, "cannot parse advertisement: "+err.Error())
 		return
 	}
 	if a.NodeID == "" {
-		fail(w, 400, "node_id 가 없다")
+		fail(w, 400, "node_id is missing")
 		return
 	}
 	// 광고는 만료된다 (ADR-012). 만료 = 갱신 주기의 배수다 (ADR-016).
@@ -176,8 +176,8 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 	// 이 계산과 어긋날 수 있다 (ADR-028).
 	ttl := time.Duration(s.cfg.Lease.RenewSeconds*s.cfg.Lease.NotAfterFactor) * time.Second
 	if err := s.st.UpsertAdvert(r.Context(), a, principal(r), ttl); err != nil {
-		s.log.Error("광고 저장 실패", "node", a.NodeID, "err", err)
-		fail(w, 503, "저장 실패")
+		s.log.Error("cannot store advertisement", "node", a.NodeID, "err", err)
+		fail(w, 503, "store failed")
 		return
 	}
 	// ★ 재시작 판정이 임대 갱신보다 먼저다 ★ (ADR-030) — 다른 생이 집어둔
@@ -187,15 +187,15 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 	if a.Instance != "" {
 		runs, err := s.st.FailRestarted(r.Context(), a.NodeID, a.Instance)
 		if err != nil {
-			s.log.Error("재시작 판정 실패", "node", a.NodeID, "err", err)
+			s.log.Error("cannot detect node restart", "node", a.NodeID, "err", err)
 		}
 		for _, runID := range runs {
 			state, err := s.st.SettleIfDone(r.Context(), runID)
 			if err != nil {
-				s.log.Error("재시작 정산 실패", "run", runID, "err", err)
+				s.log.Error("cannot settle after node restart", "run", runID, "err", err)
 				continue
 			}
-			s.log.Warn("노드 재시작 — 진행 중이던 단계를 실패시켰다",
+			s.log.Warn("node restarted; in-flight steps marked failed",
 				"node", a.NodeID, "run", runID, "state", state)
 		}
 	}
@@ -205,8 +205,8 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 	leaseTTL := time.Duration(s.cfg.Lease.RenewSeconds*s.cfg.Lease.NotAfterFactor) * time.Second
 	leases, err := s.st.RenewLeases(r.Context(), a.NodeID, leaseTTL)
 	if err != nil {
-		s.log.Error("임대 갱신 실패", "node", a.NodeID, "err", err)
-		fail(w, 503, "갱신 실패")
+		s.log.Error("cannot renew leases", "node", a.NodeID, "err", err)
+		fail(w, 503, "renew failed")
 		return
 	}
 	write(w, 200, advertResponse{Leases: leases, RenewSeconds: s.cfg.Lease.RenewSeconds})
@@ -236,8 +236,8 @@ func (s *Server) postClaim(w http.ResponseWriter, r *http.Request) {
 			write(w, 200, c)
 			return
 		case !errors.Is(err, store.ErrNoWork):
-			s.log.Error("claim 실패", "node", nodeID, "err", err)
-			fail(w, 503, "claim 실패")
+			s.log.Error("claim failed", "node", nodeID, "err", err)
+			fail(w, 503, "claim failed")
 			return
 		}
 		if time.Now().After(deadline) {
@@ -265,7 +265,7 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 	runID := r.PathValue("run")
 	seq, err := strconv.Atoi(r.PathValue("seq"))
 	if err != nil || seq <= 0 {
-		fail(w, 400, "단계 순번이 이상하다: "+r.PathValue("seq"))
+		fail(w, 400, "invalid step sequence: "+r.PathValue("seq"))
 		return
 	}
 	var body struct {
@@ -275,7 +275,7 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 		Error    string   `json:"error"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		fail(w, 400, "결과를 읽을 수 없다: "+err.Error())
+		fail(w, 400, "cannot parse result: "+err.Error())
 		return
 	}
 	res := body.StepResult
@@ -300,12 +300,12 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 	}
 	state, err := s.st.SettleIfDone(r.Context(), runID)
 	if err != nil {
-		s.log.Error("정산 실패", "run", runID, "err", err)
-		fail(w, 503, "정산 실패")
+		s.log.Error("settle failed", "run", runID, "err", err)
+		fail(w, 503, "settle failed")
 		return
 	}
 	if state != "" {
-		s.log.Info("Run 종료", "run", runID, "state", state)
+		s.log.Info("run finished", "run", runID, "state", state)
 	}
 	write(w, 200, map[string]any{"run_id": runID, "seq": seq, "run_state": state})
 }
@@ -322,7 +322,7 @@ func (s *Server) postDryRun(w http.ResponseWriter, r *http.Request) { s.submit(w
 func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 	var c contract.Contract
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-		fail(w, 400, "계약을 읽을 수 없다: "+err.Error())
+		fail(w, 400, "cannot parse contract: "+err.Error())
 		return
 	}
 	if err := c.Validate(); err != nil {
@@ -338,24 +338,24 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 			write(w, 200, s.view(ctx, existing))
 			return
 		} else if !errors.Is(err, store.ErrNotFound) {
-			s.log.Error("Run 조회 실패", "run", c.RunID, "err", err)
-			fail(w, 503, "조회 실패")
+			s.log.Error("cannot query run", "run", c.RunID, "err", err)
+			fail(w, 503, "query failed")
 			return
 		}
 	}
 
 	adverts, err := s.st.LiveAdverts(ctx)
 	if err != nil {
-		s.log.Error("광고 조회 실패", "err", err)
-		fail(w, 503, "조회 실패")
+		s.log.Error("cannot query advertisements", "err", err)
+		fail(w, 503, "query failed")
 		return
 	}
 
 	busy := map[string]bool{}
 	if !dry {
 		if busy, err = s.st.BusyNodes(ctx); err != nil {
-			s.log.Error("점유 장부 조회 실패", "err", err)
-			fail(w, 503, "조회 실패")
+			s.log.Error("cannot query leases", "err", err)
+			fail(w, 503, "query failed")
 			return
 		}
 	}
@@ -366,7 +366,7 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 			// 거절도 기록한다 — 왜 안 돌았는지가 없으면 껍데기가 재시도를 못 정한다.
 			run := store.Run{RunID: c.RunID, Principal: principal(r), Contract: c, Reject: rej}
 			if err := s.st.CreateRejectedRun(ctx, run); err != nil {
-				s.log.Error("거절 기록 실패", "run", c.RunID, "err", err)
+				s.log.Error("cannot record rejection", "run", c.RunID, "err", err)
 			}
 		}
 		fail(w, rej.Code, rej.Reason)
@@ -384,11 +384,11 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 		}
 		if len(nodes) > max {
 			rej := &match.Reject{Code: match.CodeNoCandidate,
-				Reason: fmt.Sprintf("요구가 폭 상한을 넘는다 — 노드 %d, 상한 %d", len(nodes), max)}
+				Reason: fmt.Sprintf("requires exceeds the width limit: %d nodes, limit %d", len(nodes), max)}
 			if !dry {
 				run := store.Run{RunID: c.RunID, Principal: principal(r), Contract: c, Reject: rej}
 				if err := s.st.CreateRejectedRun(ctx, run); err != nil {
-					s.log.Error("거절 기록 실패", "run", c.RunID, "err", err)
+					s.log.Error("cannot record rejection", "run", c.RunID, "err", err)
 				}
 			}
 			fail(w, rej.Code, rej.Reason)
@@ -423,7 +423,7 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 	case errors.Is(err, store.ErrNodeTaken):
 		// ★ I5 ★ 그 사이 다른 Run 이 가져갔다. 트랜잭션이 전부 롤백했으므로
 		// 손으로 해제할 것이 없다. 일시적 실패이므로 409 다.
-		fail(w, match.CodeAllBusy, "배정 중 다른 Run 이 노드를 가져갔다")
+		fail(w, match.CodeAllBusy, "another run took the node during allocation")
 		return
 	case err != nil:
 		// 같은 run_id 로 동시에 들어온 경우도 여기로 온다 — 다시 읽어 200 으로 답한다.
@@ -431,8 +431,8 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 			write(w, 200, s.view(ctx, existing))
 			return
 		}
-		s.log.Error("Run 생성 실패", "run", c.RunID, "err", err)
-		fail(w, 503, "생성 실패")
+		s.log.Error("cannot create run", "run", c.RunID, "err", err)
+		fail(w, 503, "create failed")
 		return
 	}
 	write(w, 201, s.view(ctx, &run))
@@ -443,12 +443,12 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	run, err := s.st.GetRun(r.Context(), r.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
-		fail(w, 404, "그런 Run 이 없다")
+		fail(w, 404, "no such run")
 		return
 	}
 	if err != nil {
-		s.log.Error("Run 조회 실패", "err", err)
-		fail(w, 503, "조회 실패")
+		s.log.Error("cannot query run", "err", err)
+		fail(w, 503, "query failed")
 		return
 	}
 	write(w, 200, s.view(r.Context(), run))
@@ -462,8 +462,8 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getAsks(w http.ResponseWriter, r *http.Request) {
 	asks, err := s.st.PendingAsks(r.Context())
 	if err != nil {
-		s.log.Error("인박스 조회 실패", "err", err)
-		fail(w, 503, "조회 실패")
+		s.log.Error("cannot query inbox", "err", err)
+		fail(w, 503, "query failed")
 		return
 	}
 	me := principal(r)
@@ -490,34 +490,34 @@ func (s *Server) postAnswer(w http.ResponseWriter, r *http.Request) {
 	runID := r.PathValue("run")
 	seq, err := strconv.Atoi(r.PathValue("seq"))
 	if err != nil || seq <= 0 {
-		fail(w, 400, "단계 순번이 이상하다")
+		fail(w, 400, "invalid step sequence")
 		return
 	}
 	limit := s.cfg.Artifacts.MaxBlobBytes
 	body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
 	if err != nil {
-		fail(w, 503, "읽기 실패")
+		fail(w, 503, "read failed")
 		return
 	}
 	if int64(len(body)) > limit {
-		fail(w, 413, "답이 상한을 넘는다")
+		fail(w, 413, "answer exceeds the size limit")
 		return
 	}
 	rolled, err := s.st.AnswerStep(r.Context(), runID, seq, principal(r), body, limit)
 	var sv *store.SchemaViolation
 	switch {
 	case errors.Is(err, store.ErrNoAsk):
-		fail(w, 409, "답을 기다리는 단계가 아니다 — 없거나, 이미 답했거나, 기한이 지났다")
+		fail(w, 409, "step is not awaiting an answer: unknown, already answered, or expired")
 		return
 	case errors.Is(err, store.ErrNotAnswerer):
-		fail(w, 403, "이 질문에 답할 수 있는 사람이 아니다")
+		fail(w, 403, "principal is not an allowed answerer")
 		return
 	case errors.As(err, &sv):
 		fail(w, 422, sv.Error())
 		return
 	case err != nil:
-		s.log.Error("답 처리 실패", "run", runID, "seq", seq, "err", err)
-		fail(w, 503, "답 처리 실패")
+		s.log.Error("cannot process answer", "run", runID, "seq", seq, "err", err)
+		fail(w, 503, "cannot process answer")
 		return
 	}
 	if rolled {
@@ -526,8 +526,8 @@ func (s *Server) postAnswer(w http.ResponseWriter, r *http.Request) {
 	}
 	state, err := s.st.SettleIfDone(r.Context(), runID)
 	if err != nil {
-		s.log.Error("정산 실패", "run", runID, "err", err)
-		fail(w, 503, "정산 실패")
+		s.log.Error("settle failed", "run", runID, "err", err)
+		fail(w, 503, "settle failed")
 		return
 	}
 	write(w, 200, map[string]any{"run_id": runID, "seq": seq, "run_state": state})
@@ -547,12 +547,12 @@ func (s *Server) postAnswer(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getLedger(w http.ResponseWriter, r *http.Request) {
 	entries, err := s.st.Ledger(r.Context(), r.PathValue("id"))
 	if errors.Is(err, store.ErrNotFound) {
-		fail(w, 404, "그런 Run 이 없다")
+		fail(w, 404, "no such run")
 		return
 	}
 	if err != nil {
-		s.log.Error("원장 조회 실패", "run", r.PathValue("id"), "err", err)
-		fail(w, 503, "조회 실패")
+		s.log.Error("cannot query ledger", "run", r.PathValue("id"), "err", err)
+		fail(w, 503, "query failed")
 		return
 	}
 	write(w, 200, map[string]any{"entries": entries})
@@ -569,8 +569,8 @@ func (s *Server) getLedger(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getCapabilities(w http.ResponseWriter, r *http.Request) {
 	caps, err := s.st.Capabilities(r.Context())
 	if err != nil {
-		s.log.Error("어휘 조회 실패", "err", err)
-		fail(w, 503, "조회 실패")
+		s.log.Error("cannot query capabilities", "err", err)
+		fail(w, 503, "query failed")
 		return
 	}
 	write(w, 200, map[string]any{"capabilities": caps})
@@ -585,15 +585,15 @@ func (s *Server) postCancel(w http.ResponseWriter, r *http.Request) {
 	runID := r.PathValue("id")
 	state, err := s.st.Cancel(r.Context(), runID, principal(r))
 	if errors.Is(err, store.ErrNotFound) {
-		fail(w, 404, "그런 Run 이 없다")
+		fail(w, 404, "no such run")
 		return
 	}
 	if err != nil {
-		s.log.Error("취소 실패", "run", runID, "err", err)
-		fail(w, 503, "취소 실패")
+		s.log.Error("cancel failed", "run", runID, "err", err)
+		fail(w, 503, "cancel failed")
 		return
 	}
-	s.log.Info("취소", "run", runID, "by", principal(r))
+	s.log.Info("cancelled", "run", runID, "by", principal(r))
 	write(w, 200, map[string]any{"run_id": runID, "state": state})
 }
 
@@ -611,21 +611,21 @@ func (s *Server) putLog(w http.ResponseWriter, r *http.Request) {
 	runID := r.PathValue("run")
 	seq, err := strconv.Atoi(r.PathValue("seq"))
 	if err != nil || seq <= 0 {
-		fail(w, 400, "단계 순번이 이상하다")
+		fail(w, 400, "invalid step sequence")
 		return
 	}
 	run, err := s.st.GetRun(r.Context(), runID)
 	if errors.Is(err, store.ErrNotFound) {
-		fail(w, 404, "그런 Run 이 없다")
+		fail(w, 404, "no such run")
 		return
 	}
 	if err != nil {
-		fail(w, 503, "조회 실패")
+		fail(w, 503, "query failed")
 		return
 	}
 	// ★ I4 — 봉인된 것에는 못 쓴다 ★
 	if run.State == store.StateSucceeded || run.State == store.StateFailed {
-		fail(w, 410, "Run 이 이미 종료됐다")
+		fail(w, 410, "run has already finished")
 		return
 	}
 	name := r.URL.Query().Get("name")
@@ -633,8 +633,8 @@ func (s *Server) putLog(w http.ResponseWriter, r *http.Request) {
 		name = "step"
 	}
 	if _, err := s.records.AppendLog(runID, seq, name, r.Body, s.cfg.Artifacts.MaxBlobBytes); err != nil {
-		s.log.Error("로그 저장 실패", "run", runID, "seq", seq, "err", err)
-		fail(w, 503, "저장 실패")
+		s.log.Error("cannot store log", "run", runID, "seq", seq, "err", err)
+		fail(w, 503, "store failed")
 		return
 	}
 	w.WriteHeader(204)
@@ -661,21 +661,21 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 	runID, name := r.PathValue("run"), r.PathValue("name")
 	seq, err := strconv.Atoi(r.PathValue("seq"))
 	if err != nil || seq <= 0 {
-		fail(w, 400, "단계 순번이 이상하다")
+		fail(w, 400, "invalid step sequence")
 		return
 	}
 	run, err := s.st.GetRun(r.Context(), runID)
 	if errors.Is(err, store.ErrNotFound) {
-		fail(w, 404, "그런 Run 이 없다")
+		fail(w, 404, "no such run")
 		return
 	}
 	if err != nil {
-		fail(w, 503, "조회 실패")
+		fail(w, 503, "query failed")
 		return
 	}
 	// ★ I4 — 봉인된 것에는 못 쓴다 ★
 	if run.State == store.StateSucceeded || run.State == store.StateFailed {
-		fail(w, 410, "Run 이 이미 종료됐다")
+		fail(w, 410, "run has already finished")
 		return
 	}
 
@@ -683,7 +683,7 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 	// 회차는 ★ Mediator 가 안다 ★ — 클라이언트가 보내지 않는다.
 	attempt, err := s.st.StepAttempt(r.Context(), runID, seq)
 	if err != nil {
-		fail(w, 404, "그런 단계가 없다")
+		fail(w, 404, "no such step")
 		return
 	}
 	// ★ 늘어난 계약의 스키마도 본다 ★ — 제출본만 보면 계획이 지은 단계의
@@ -691,7 +691,7 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 	// 한다」의 같은 계열 — ADR-030 커밋이 찾은 결의 연장).
 	live, err := s.st.LiveContract(r.Context(), runID)
 	if err != nil {
-		fail(w, 503, "조회 실패")
+		fail(w, 503, "query failed")
 		return
 	}
 	sch := schemaFor(live, seq, name)
@@ -700,11 +700,11 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 		// 형식 검증 대상이라 상한 안쪽이라는 전제가 있다.
 		body, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
 		if err != nil {
-			fail(w, 503, "읽기 실패")
+			fail(w, 503, "read failed")
 			return
 		}
 		if int64(len(body)) > limit {
-			fail(w, 413, "산출물이 상한을 넘는다")
+			fail(w, 413, "blob exceeds the size limit")
 			return
 		}
 		if vs := schema.Validate(sch, body); len(vs) > 0 {
@@ -714,12 +714,12 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 			for _, v := range vs {
 				parts = append(parts, v.String())
 			}
-			fail(w, 422, "스키마 위반 — "+strings.Join(parts, " / "))
+			fail(w, 422, "schema violation: "+strings.Join(parts, " / "))
 			return
 		}
 		if _, err := s.records.WriteBlob(runID, seq, attempt, name, bytes.NewReader(body), limit); err != nil {
-			s.log.Error("산출물 저장 실패", "run", runID, "name", name, "err", err)
-			fail(w, 503, "저장 실패")
+			s.log.Error("cannot store blob", "run", runID, "name", name, "err", err)
+			fail(w, 503, "store failed")
 			return
 		}
 		w.WriteHeader(204)
@@ -730,11 +730,11 @@ func (s *Server) putBlob(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, record.ErrTooBig) {
 			// ★ 잘라 저장하지 않는다 ★ — 잘린 산출물은 산출물이 아니다.
 			// (로그는 잘라 표시한다. 자리가 다르다.)
-			fail(w, 413, "산출물이 상한을 넘는다")
+			fail(w, 413, "blob exceeds the size limit")
 			return
 		}
-		s.log.Error("산출물 저장 실패", "run", runID, "name", name, "err", err)
-		fail(w, 503, "저장 실패")
+		s.log.Error("cannot store blob", "run", runID, "name", name, "err", err)
+		fail(w, 503, "store failed")
 		return
 	}
 	w.WriteHeader(204)
@@ -750,7 +750,7 @@ func (s *Server) getBlob(w http.ResponseWriter, r *http.Request) {
 	// 지금은 직접 서빙한다. enode 코드는 그때도 안 바뀐다.
 	f, size, err := s.records.OpenBlob(runID, name)
 	if err != nil {
-		fail(w, 404, "그런 산출물이 없다")
+		fail(w, 404, "no such blob")
 		return
 	}
 	defer f.Close()
@@ -779,17 +779,17 @@ func (s *Server) getRecord(w http.ResponseWriter, r *http.Request) {
 	}
 	runID := r.PathValue("id")
 	if _, err := s.st.GetRun(r.Context(), runID); errors.Is(err, store.ErrNotFound) {
-		fail(w, 404, "그런 Run 이 없다")
+		fail(w, 404, "no such run")
 		return
 	}
 	if !s.records.Sealed(runID) {
-		fail(w, 409, "아직 봉인되지 않았다 — 봉인되지 않은 것은 Record 가 아니다")
+		fail(w, 409, "run is not sealed yet")
 		return
 	}
 	w.Header().Set("Content-Type", "application/x-tar")
 	w.Header().Set("Content-Disposition", `attachment; filename="run-`+runID+`.tar"`)
 	if err := s.records.Tar(runID, w); err != nil {
-		s.log.Error("Record 내보내기 실패", "run", runID, "err", err)
+		s.log.Error("cannot export record", "run", runID, "err", err)
 	}
 }
 

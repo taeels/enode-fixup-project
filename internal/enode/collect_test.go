@@ -82,7 +82,7 @@ func TestCollect_심링크를_안_따라간다(t *testing.T) {
 		b, _ := os.ReadFile(filepath.Join(out, "x"))
 		t.Fatalf("★ 심링크를 따라가 밖을 걷었다 ★: %q", b)
 	}
-	if len(notes) != 1 || !strings.Contains(notes[0].Why, "맞는 파일이 없다") {
+	if len(notes) != 1 || !strings.Contains(notes[0].Why, "no file matches") {
 		t.Fatalf("이유: %+v", notes)
 	}
 }
@@ -106,7 +106,7 @@ func TestCollect_심링크_부모를_안_따라간다(t *testing.T) {
 		b, _ := os.ReadFile(filepath.Join(out, "leak"))
 		t.Fatalf("★ 심링크 부모를 통과해 밖을 걷었다 ★: %q", b)
 	}
-	if len(notes) != 1 || !strings.Contains(notes[0].Why, "맞는 파일이 없다") {
+	if len(notes) != 1 || !strings.Contains(notes[0].Why, "no file matches") {
 		t.Fatalf("이유: %+v", notes)
 	}
 }
@@ -142,7 +142,7 @@ func TestCollect_여럿이면_안_걷고_알린다(t *testing.T) {
 	if len(got) != 0 {
 		t.Fatalf("걷으면 안 된다: %v", got)
 	}
-	if len(notes) != 1 || !strings.Contains(notes[0].Why, "2개가 맞는다") {
+	if len(notes) != 1 || !strings.Contains(notes[0].Why, "matches 2 files") {
 		t.Fatalf("이유가 부실하다: %+v", notes)
 	}
 	if !strings.Contains(notes[0].Why, "a.ko") || !strings.Contains(notes[0].Why, "b.ko") {
@@ -209,7 +209,7 @@ func TestCollect_이유가_기록에_실린다(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := string(b)
-	if !strings.Contains(got, "collect 가 못 걷은 것") || !strings.Contains(got, "zImage") {
+	if !strings.Contains(got, "collect could not gather") || !strings.Contains(got, "zImage") {
 		t.Fatalf("이유가 안 실렸다:\n%s", got)
 	}
 }

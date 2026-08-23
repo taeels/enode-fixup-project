@@ -29,10 +29,10 @@ func main() {
 		os.Exit(runHookCmd(os.Args[2:]))
 	}
 
-	cfgPath := flag.String("config", "/etc/enode/local.yaml", "설정 파일. ★ 이 경로가 신원의 일부다 ★")
-	mediator := flag.String("mediator", "", "Mediator 주소 (설정을 덮어쓴다)")
-	token := flag.String("token", "", "토큰 (설정을 덮어쓴다)")
-	every := flag.Duration("every", 60*time.Second, "광고 · 하트비트 · 임대 갱신 주기 (한 값이다)")
+	cfgPath := flag.String("config", "/etc/enode/local.yaml", "path to the config file (also determines node identity)")
+	mediator := flag.String("mediator", "", "mediator address (overrides config)")
+	token := flag.String("token", "", "auth token (overrides config)")
+	every := flag.Duration("every", 60*time.Second, "interval for advertise, heartbeat and lease renewal")
 	debug := flag.Bool("debug", false, "")
 	flag.Parse()
 
@@ -44,7 +44,7 @@ func main() {
 
 	local, err := enode.LoadLocal(*cfgPath)
 	if err != nil {
-		log.Error("설정을 읽을 수 없다", "err", err)
+		log.Error("cannot read config", "err", err)
 		os.Exit(1)
 	}
 	if *mediator != "" {
@@ -57,21 +57,21 @@ func main() {
 		local.Token = v
 	}
 	if local.Mediator == "" || local.Token == "" {
-		log.Error("mediator 와 token 이 필요하다")
+		log.Error("mediator and token are required")
 		os.Exit(1)
 	}
 
 	// 신원. 이메일이 없으면 ★ 그 자리에서 죽는다 ★ — 조용한 대체를 안 한다.
 	ident, err := enode.Derive(*cfgPath)
 	if err != nil {
-		log.Error("신원을 계산할 수 없다", "err", err)
+		log.Error("cannot derive node identity", "err", err)
 		os.Exit(1)
 	}
 
 	// ★ 중복 실행 방지는 로컬에서 ★ — Mediator 는 재시작과 중복을 구분할 수 없다.
 	lock, err := enode.Acquire(ident.Config)
 	if err != nil {
-		log.Error("잠금 실패", "err", err)
+		log.Error("cannot acquire lock", "err", err)
 		os.Exit(1)
 	}
 	defer lock.Release()
@@ -83,7 +83,7 @@ func main() {
 	// 재시작해도 같지만, 이것은 ★ 재시작하면 달라지는 것 ★ 이 존재 이유다.
 	inst := make([]byte, 8)
 	if _, err := rand.Read(inst); err != nil {
-		log.Error("생 표식을 못 뽑았다", "err", err)
+		log.Error("cannot generate instance id", "err", err)
 		os.Exit(1)
 	}
 
@@ -97,7 +97,7 @@ func main() {
 		Poll: &http.Client{},
 	}
 	caps := enode.Detect(local, log)
-	log.Info("enode 시작",
+	log.Info("enode started",
 		"node", ident.NodeID, "label", ident.Label,
 		"config", ident.Config, "caps", caps)
 
@@ -119,5 +119,5 @@ func main() {
 	go func() { defer wg.Done(); adv.Run(ctx) }()
 	go func() { defer wg.Done(); worker.Run(ctx) }()
 	wg.Wait()
-	log.Info("종료")
+	log.Info("stopped")
 }

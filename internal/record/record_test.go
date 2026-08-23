@@ -168,7 +168,7 @@ func TestLogTruncationIsMarked(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), "잘렸") {
+	if !strings.Contains(string(b), "truncated") {
 		t.Fatalf("잘렸다는 표시가 없다: %q", b)
 	}
 }

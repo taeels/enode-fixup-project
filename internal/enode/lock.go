@@ -23,11 +23,11 @@ func Acquire(configPath string) (*Lock, error) {
 	path := configPath + ".lock"
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
-		return nil, fmt.Errorf("잠금 파일 %s: %w", path, err)
+		return nil, fmt.Errorf("lock file %s: %w", path, err)
 	}
 	if err := lockFile(f); err != nil {
 		f.Close()
-		return nil, fmt.Errorf("이미 이 설정으로 enode 가 돌고 있다 (%s): %w", configPath, err)
+		return nil, fmt.Errorf("another enode is already running with this config (%s): %w", configPath, err)
 	}
 	_ = f.Truncate(0)
 	fmt.Fprintf(f, "%d\n", os.Getpid())

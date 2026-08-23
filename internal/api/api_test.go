@@ -2616,7 +2616,7 @@ func TestChanged_바꾸지_않으면_실패한다(t *testing.T) {
 		t.Fatalf("★ 아무것도 안 바꿨는데 %v ★", v["state"])
 	}
 	vr, _ := json.Marshal(v["verdict"])
-	if !strings.Contains(string(vr), "changed") || !strings.Contains(string(vr), "바뀌지 않았다") {
+	if !strings.Contains(string(vr), "changed") || !strings.Contains(string(vr), "not changed during this step") {
 		t.Fatalf("★ 이유가 verdict 에 없다 ★: %s", vr)
 	}
 }

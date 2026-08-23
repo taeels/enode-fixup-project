@@ -71,14 +71,14 @@ func permute(args []string) []string {
 }
 
 func run() int {
-	base := flag.String("mediator", os.Getenv("ENODE_MEDIATOR"), "Mediator 주소 ($ENODE_MEDIATOR)")
-	token := flag.String("token", os.Getenv("ENODE_TOKEN"), "토큰 ($ENODE_TOKEN)")
-	wait := flag.Bool("wait", false, "종료 상태가 될 때까지 기다린다")
-	out := flag.String("o", "", "record 를 쓸 파일 (기본: 표준출력)")
-	every := flag.Duration("poll", 2*time.Second, "--wait 의 폴링 주기")
-	answerJSON := flag.String("json", "", "answer 의 본문 전체 (JSON)")
+	base := flag.String("mediator", os.Getenv("ENODE_MEDIATOR"), "mediator address ($ENODE_MEDIATOR)")
+	token := flag.String("token", os.Getenv("ENODE_TOKEN"), "auth token ($ENODE_TOKEN)")
+	wait := flag.Bool("wait", false, "wait until the run reaches a terminal state")
+	out := flag.String("o", "", "file to write the record to (default: stdout)")
+	every := flag.Duration("poll", 2*time.Second, "polling interval for --wait")
+	answerJSON := flag.String("json", "", "full answer body (JSON)")
 	var sets stringList
-	flag.Var(&sets, "set", "answer 의 필드=값 (반복 가능. 값은 문자열)")
+	flag.Var(&sets, "set", "answer field=value (repeatable; values are strings)")
 	flag.Usage = usage
 	// ★ 표준 flag 는 첫 위치인자에서 파싱을 멈춘다 ★
 	// 그런데 사람은 `runctl submit x.json --wait` 라고 쓴다. 그 순서를 안 받으면
@@ -93,7 +93,7 @@ func run() int {
 		return exitRequest
 	}
 	if *base == "" || *token == "" {
-		fmt.Fprintln(os.Stderr, "mediator 와 token 이 필요하다 (--mediator/--token 또는 환경변수)")
+		fmt.Fprintln(os.Stderr, "mediator and token are required (--mediator/--token or environment)")
 		return exitRequest
 	}
 
@@ -131,8 +131,8 @@ func run() int {
 				fmt.Printf("  %-10s %s\n", k, strings.Join(cp.Attrs[k], ", "))
 			}
 		}
-		fmt.Println("\n※ nodes 는 총수(존재)다. 지금 비어 있는지는 알려주지 않는다 —")
-		fmt.Println("  속성 조합으로 세려면 dry-run 을 쓴다.")
+		fmt.Println("\nnote: nodes is a total count, not availability.")
+		fmt.Println("  use dry-run to check a specific attribute combination.")
 		return exitOK
 
 	case "asks":
@@ -141,7 +141,7 @@ func run() int {
 			return code
 		}
 		if len(asks) == 0 {
-			fmt.Println("답을 기다리는 질문이 없다")
+			fmt.Println("no questions awaiting an answer")
 			return exitOK
 		}
 		for _, a := range asks {
@@ -151,7 +151,7 @@ func run() int {
 			}
 			line := fmt.Sprintf("%s %s #%d %-14s %s", mark, a.RunID, a.Seq, a.Step, a.Prompt)
 			if a.Deadline != nil {
-				line += fmt.Sprintf("  (기한 %s)", a.Deadline.Local().Format("01-02 15:04"))
+				line += fmt.Sprintf("  (deadline %s)", a.Deadline.Local().Format("01-02 15:04"))
 			}
 			fmt.Println(line)
 			// ★ 질문과 함께 볼 것 ★ (ask.show) — 보지 않고 답하게 만들지 않는다.
@@ -162,14 +162,14 @@ func run() int {
 				}
 				mark2 := ""
 				if sh.Truncated {
-					mark2 = " (잘림 — 전문은 record/blob 으로)"
+					mark2 = " (truncated; see record/blob for the full text)"
 				}
 				fmt.Printf("    ┆ %s%s: %s\n", sh.Name, mark2, c)
 			}
 			// ★ 제안된 판정 기준 ★ (adopts) — 무엇을 승인하는지 보여준다.
 			if len(a.Proposes) > 0 {
 				pb, _ := json.Marshal(a.Proposes)
-				fmt.Printf("    ┆ 제안된 판정 기준: %s\n", pb)
+				fmt.Printf("    | proposed success criteria: %s\n", pb)
 			}
 			// ★ 스키마가 곧 질문의 형태다 ★ — 무엇을 적어야 하는지 보여준다.
 			var form struct {
@@ -207,7 +207,7 @@ func run() int {
 			}
 		}
 		fmt.Println()
-		fmt.Println("답하기:  runctl answer <run-id> <seq> --set 필드=값")
+		fmt.Println("to answer: runctl answer <run-id> <seq> --set field=value")
 		return exitOK
 
 	case "answer":
@@ -217,27 +217,27 @@ func run() int {
 		}
 		seq, err := strconv.Atoi(flag.Arg(2))
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "단계 순번이 이상하다:", flag.Arg(2))
+			fmt.Fprintln(os.Stderr, "invalid step sequence:", flag.Arg(2))
 			return exitRequest
 		}
 		// ★ 답을 조립한다 ★ — --json 이 통짜, --set k=v 가 문자열 필드.
 		answer := map[string]any{}
 		if *answerJSON != "" {
 			if err := json.Unmarshal([]byte(*answerJSON), &answer); err != nil {
-				fmt.Fprintln(os.Stderr, "--json 을 못 읽는다:", err)
+				fmt.Fprintln(os.Stderr, "cannot parse --json:", err)
 				return exitRequest
 			}
 		}
 		for _, kv := range sets {
 			k, v, ok := strings.Cut(kv, "=")
 			if !ok {
-				fmt.Fprintln(os.Stderr, "--set 은 필드=값 형태다:", kv)
+				fmt.Fprintln(os.Stderr, "--set expects field=value:", kv)
 				return exitRequest
 			}
 			answer[k] = v
 		}
 		if len(answer) == 0 {
-			fmt.Fprintln(os.Stderr, "답이 비었다 — --set 이나 --json 으로 채운다")
+			fmt.Fprintln(os.Stderr, "answer is empty; use --set or --json")
 			return exitRequest
 		}
 		body, _ := json.Marshal(answer)
@@ -245,7 +245,7 @@ func run() int {
 		if code := report(err); code != 0 {
 			return code
 		}
-		fmt.Printf("답했다  %s #%d", arg, seq)
+		fmt.Printf("answered  %s #%d", arg, seq)
 		if r.State != "" {
 			fmt.Printf("  → run %s", r.State)
 		}
@@ -352,7 +352,7 @@ func printRun(r *runctl.Run) {
 	for _, st := range r.Steps {
 		line := fmt.Sprintf("  %2d %-16s %-8s %s", st.Seq, st.ID, st.State, st.Node)
 		if st.Attempt > 0 {
-			line += fmt.Sprintf("  (%d회차)", st.Attempt+1)
+			line += fmt.Sprintf("  (attempt %d)", st.Attempt+1)
 		}
 		// 기다리는 중이면 ★ 무엇을 기다리는지 ★ 를 같이 보여준다.
 		if st.State == "PENDING" && len(st.Needs) > 0 {
@@ -389,24 +389,24 @@ func (l *stringList) String() string     { return strings.Join(*l, ",") }
 func (l *stringList) Set(v string) error { *l = append(*l, v); return nil }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `runctl — Run 을 만들고 지켜보고 기록을 받는다
+	fmt.Fprint(os.Stderr, `runctl - submit, watch and fetch runs
 
   runctl submit  <contract.json> [--wait]
-  runctl dry-run <contract.json>          매칭만 해본다. 아무것도 점유하지 않는다.
+  runctl dry-run <contract.json>          match only; allocates nothing
   runctl status  <run-id>
-  runctl record  <run-id> [-o out.tar]    ★ 봉인된 Run Record ★
+  runctl record  <run-id> [-o out.tar]    fetch the sealed run record
   runctl cancel  <run-id>
-  runctl capabilities                     ★ 함대의 속성 어휘 ★ — 계약을 쓰기 전에
-  runctl asks                             ★ 답을 기다리는 질문들 ★ (인박스)
-  runctl answer <run-id> <seq> --set k=v [--set …]   질문에 답한다
+  runctl capabilities                     attribute vocabulary of the fleet
+  runctl asks                             questions awaiting an answer
+  runctl answer <run-id> <seq> --set k=v [--set ...]   answer a question
 
-종료코드
-  0  Run 이 SUCCEEDED (또는 아직 진행 중)
-  1  ★ Run 이 FAILED ★ — 요청은 정상이었다
-  2  ★ 요청이 거절됐다 ★ — 계약을 고치거나(400/422) 나중에 다시(409)
-  3  ★ Mediator 에 못 닿았다 ★
+Exit codes
+  0  run succeeded (or is still running)
+  1  run failed; the request itself was valid
+  2  request rejected; fix the contract (400/422) or retry later (409)
+  3  cannot reach the mediator
 
-옵션
+Options
 `)
 	flag.PrintDefaults()
 }

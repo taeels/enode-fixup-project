@@ -77,7 +77,7 @@ func (s *Store) doAcquire(ctx context.Context, tx pgx.Tx, runID string, seq int)
 		return err
 	}
 	if seq < 1 || seq > len(c.Steps) || c.Steps[seq-1].Acquire == nil {
-		return fmt.Errorf("%s#%d 이 획득 단계가 아니다", runID, seq)
+		return fmt.Errorf("%s#%d is not an acquire step", runID, seq)
 	}
 	st := c.Steps[seq-1]
 
@@ -153,7 +153,7 @@ func (s *Store) tryGrab(ctx context.Context, tx pgx.Tx, runID string,
 			return "", "", err
 		}
 		if held >= max {
-			s.log().Warn("획득이 폭 상한에 막혔다", "run", runID, "held", held, "max", max)
+			s.log().Warn("acquire blocked by the width limit", "run", runID, "held", held, "max", max)
 			return "", "", nil
 		}
 	}

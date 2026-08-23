@@ -30,18 +30,18 @@ const okStep = `{"id":"a","uses":"n","run":["true"],"out":["log"]}`
 func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.T) {
 	cases := []bad{
 		{
-			name:    "ask 에 uses 를 적으면 거절된다",
-			mustSay: "ask 에 uses 를 적으면 거절된다",
+			name:    "An ask step must not set uses",
+			mustSay: "An ask step must not set uses",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[` + okStep + `,
 			   {"id":"q","uses":"n","ask":{"prompt":"?"},"out":["ans"],
 			    "schema":{"ans":{"type":"object","properties":{"v":{"type":"string"}}}}}],
 			  "success_when":[{"step":"a","exit_code":0}]}`,
-			wantErr: "ask 단계에는 uses 가 없다",
+			wantErr: "must not set uses",
 		},
 		{
-			name:    "에이전트 단계에 exit_code 를 걸면 거절된다",
-			mustSay: "에이전트 단계에 exit_code 를 걸면 거절된다",
+			name:    "exit_code condition is not allowed on an agent step",
+			mustSay: "exit_code condition is not allowed on an agent step",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[{"id":"a","uses":"n","agent":{},"in":{"prompt":"p"},"out":["x"]}],
 			  "success_when":[{"step":"a","exit_code":0}]}`,
@@ -49,29 +49,29 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 		},
 		{
 			name:    "success_when 은 실존하는 단계만 가리킬 수 있다",
-			mustSay: "success_when 은 ★ 실존하는 단계 ★ 만 가리킬 수 있다",
+			mustSay: "success_when may only refer to steps that exist",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[` + okStep + `],
 			  "success_when":[{"step":"없는단계","exit_code":0}]}`,
-			wantErr: "없는 단계",
+			wantErr: "unknown step",
 		},
 		{
 			name:    "재계획은 out 이 정확히 하나여야 한다",
-			mustSay: "out ★ 정확히 하나 ★",
+			mustSay: "out (exactly one)",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[{"id":"p","uses":"n","expands":true,"agent":{},"in":{"prompt":"x"},
 			            "out":["a","b"],"schema":{"a":{"type":"object"}}}],
 			  "success_when":[{"step":"p","produced":["a"]}]}`,
-			wantErr: "정확히 하나",
+			wantErr: "exactly one output",
 		},
 		{
 			name:    "재계획의 산출물에는 스키마가 필수다",
-			mustSay: "schema ★ 필수 ★",
+			mustSay: "schema (required)",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[{"id":"p","uses":"n","expands":true,"agent":{},"in":{"prompt":"x"},
 			            "out":["plan"]}],
 			  "success_when":[{"step":"p","produced":["plan"]}]}`,
-			wantErr: "스키마가 없다",
+			wantErr: "has no schema",
 		},
 	}
 
@@ -121,7 +121,7 @@ func Test문법_스키마어휘가_실제와_같다(t *testing.T) {
 // ★ 빈 계획이 값이라는 것을 문법이 말해야 한다 ★ (ADR-043)
 // 이 문장이 없으면 계획은 고칠 것이 없을 때도 억지로 단계를 지어낸다 — 실측에서 밟았다.
 func Test문법_빈계획을_말한다(t *testing.T) {
-	for _, want := range []string{`"steps": []`, "오류가 아니라 판단"} {
+	for _, want := range []string{`"steps": []`, "a judgment, not an error"} {
 		if !strings.Contains(Grammar, want) {
 			t.Errorf("★ 문법에 %q 가 없다 ★", want)
 		}

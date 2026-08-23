@@ -40,18 +40,18 @@ func (w *Worker) Prepare(ctx context.Context, spec *WorkspaceSpec, log *slog.Log
 		if w.Local.Workspace == "" {
 			return PrepNone, nil
 		}
-		log.Warn("★ 준비하지 않은 워크스페이스 ★ — 저장소가 없어 되돌리지 않았다",
+		log.Warn("workspace not prepared: no repository, so nothing was reset",
 			"dir", w.Local.Workspace)
 		return PrepUnprepared, nil
 	}
 	dir := w.Local.Workspace
 	if dir == "" {
-		return PrepNone, fmt.Errorf("계약이 워크스페이스를 요구하는데 이 노드에는 없다")
+		return PrepNone, fmt.Errorf("the contract requires a workspace but this node has none")
 	}
 
 	// 매칭이 이미 걸렀지만 확인한다 — 다른 저장소를 빌드하면 조용히 틀린 결과가 나온다.
 	if got := DetectRepo(dir); got != spec.Repo {
-		return PrepNone, fmt.Errorf("워크스페이스의 저장소가 다르다: %q 인데 계약은 %q", got, spec.Repo)
+		return PrepNone, fmt.Errorf("workspace repository mismatch: node has %q, contract wants %q", got, spec.Repo)
 	}
 
 	// ★ 순서가 셋이고 뒤바꾸면 안 된다 ★
@@ -75,7 +75,7 @@ func (w *Worker) Prepare(ctx context.Context, spec *WorkspaceSpec, log *slog.Log
 	if err := w.clean(ctx, dir); err != nil {
 		return PrepNone, err
 	}
-	log.Info("워크스페이스 준비", "repo", spec.Repo, "rev", spec.Rev,
+	log.Info("workspace prepared", "repo", spec.Repo, "rev", spec.Rev,
 		"took", time.Since(start).Round(time.Millisecond))
 	return PrepClean, nil
 }
@@ -133,11 +133,11 @@ func isRepo(dir string) bool {
 // ★ 임대가 그 시간을 묶는다 ★ (not_after).
 func (w *Worker) checkout(ctx context.Context, dir, rev string, log *slog.Logger) error {
 	if err := run(ctx, dir, "git", "rev-parse", "--verify", rev+"^{commit}"); err != nil {
-		log.Info("리비전이 로컬에 없다 — 받아온다", "rev", rev)
+		log.Info("revision not present locally; fetching", "rev", rev)
 		if err := run(ctx, dir, "git", "fetch", "--quiet", "origin", rev); err != nil {
 			// 브랜치명이나 태그일 수도 있다. 전체 fetch 로 한 번 더.
 			if err2 := run(ctx, dir, "git", "fetch", "--quiet", "--all"); err2 != nil {
-				return fmt.Errorf("리비전 %s 를 못 받았다: %w", rev, err)
+				return fmt.Errorf("cannot fetch revision %s: %w", rev, err)
 			}
 		}
 	}

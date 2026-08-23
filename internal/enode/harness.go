@@ -102,11 +102,11 @@ func ParseClaude(stdout []byte, exitCode int) HarnessResult {
 	line := lastJSONObject(stdout)
 	if line == "" {
 		return HarnessResult{Reason: ReasonError,
-			Message: "봉투가 없다 (exit " + itoa(exitCode) + ")"}
+			Message: "no result envelope (exit " + itoa(exitCode) + ")"}
 	}
 	var e claudeEnvelope
 	if err := json.Unmarshal([]byte(line), &e); err != nil {
-		return HarnessResult{Reason: ReasonError, Message: "봉투를 못 읽었다: " + err.Error()}
+		return HarnessResult{Reason: ReasonError, Message: "cannot parse result envelope: " + err.Error()}
 	}
 	h := HarnessResult{Turns: e.NumTurns, CostUSD: e.TotalCost, Session: e.SessionID}
 	switch {

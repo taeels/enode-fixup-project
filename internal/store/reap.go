@@ -19,15 +19,15 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 	// ★ 기한이 지난 되묻기를 먼저 정리한다 ★ (ADR-032 §2 — then:"fail").
 	// 만료된 질문의 Run 을 정산하면 임대도 함께 풀리므로 아래 스캔과 안 겹친다.
 	if runs, err := s.ExpireAsks(ctx); err != nil {
-		log.Error("되묻기 만료 처리 실패", "err", err)
+		log.Error("cannot expire asks", "err", err)
 	} else {
 		for _, runID := range runs {
 			state, err := s.SettleIfDone(ctx, runID)
 			if err != nil {
-				log.Error("되묻기 만료 정산 실패", "run", runID, "err", err)
+				log.Error("cannot settle after ask expiry", "run", runID, "err", err)
 				continue
 			}
-			log.Warn("되묻기 기한이 지났다 — 단계를 실패시켰다", "run", runID, "state", state)
+			log.Warn("ask deadline passed; step marked failed", "run", runID, "state", state)
 		}
 	}
 
@@ -41,7 +41,7 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 	// 만료된다(갱신 주기 × not_after_factor = 오늘 180초). 둘이 어긋나 있었다:
 	//
 	//	★ 실측 ★ 승인을 기다리던 Run 이, 노드가 조용해진 지 정확히 180초 만에
-	//	         "임대 만료로 Run 을 회수했다" 로 FAILED 가 됐다. ★ 사람은 아직 보는 중 ★
+	//	         "reclaimed runs with expired leases" 로 FAILED 가 됐다. ★ 사람은 아직 보는 중 ★
 	//
 	// ★ 왜 노드 쪽 만료를 무시해도 되나 ★ — ASKED 인 동안에는 그 노드에서
 	// ★ 아무것도 안 돌고 있다 ★. 임대가 지키는 것은 I1(한 노드에 한 Run)이고,
@@ -52,7 +52,7 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 	// ask.timeout 이다. 선언했으면 위의 ExpireAsks 가 정리하고, 안 했으면
 	// ★ 무한 대기가 계약 저자의 선언 ★ 이다. 시스템이 3분으로 짐작하지 않는다.
 	// 사람이 손으로 세우려면 runctl cancel 이 있다 (ADR-009).
-	reason, _ := json.Marshal(map[string]any{"code": 410, "reason": "임대 만료 — 갱신이 끊겼다"})
+	reason, _ := json.Marshal(map[string]any{"code": 410, "reason": "lease expired: renewal stopped"})
 	tag, err := s.pool.Exec(ctx, `
 		UPDATE runs SET state='FAILED', ended_at=now(), reject=$1
 		 WHERE state NOT IN ('SUCCEEDED','FAILED')
@@ -83,11 +83,11 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 	}
 	if n > 0 {
 		if log != nil {
-			log.Warn("임대 만료로 Run 을 회수했다", "runs", n)
+			log.Warn("reclaimed runs with expired leases", "runs", n)
 		}
 		// 회수된 Run 도 봉인한다 — ★ 왜 안 돌았는지가 Record 에 남아야 한다 ★ (ADR-005)
 		if err := s.sealExpired(ctx, log); err != nil && log != nil {
-			log.Error("회수된 Run 봉인 실패", "err", err)
+			log.Error("cannot seal reclaimed run", "err", err)
 		}
 	}
 	return n, nil
@@ -122,7 +122,7 @@ func (s *Store) sealExpired(ctx context.Context, log *slog.Logger) error {
 		}
 		if v.State == "" {
 			v = Verdict{State: StateFailed, Checks: []Check{{
-				What: "ran", OK: false, Note: "임대 만료 — 갱신이 끊겼다"}}}
+				What: "ran", OK: false, Note: "lease expired: renewal stopped"}}}
 		}
 		items = append(items, item{id, v})
 	}
@@ -149,7 +149,7 @@ func (s *Store) RunReaper(ctx context.Context, every time.Duration, log *slog.Lo
 		case <-t.C:
 		}
 		if _, err := s.Reap(ctx, log); err != nil && ctx.Err() == nil {
-			log.Error("회수 스캔 실패", "err", err)
+			log.Error("reaper scan failed", "err", err)
 		}
 		t.Reset(every)
 	}
@@ -175,7 +175,7 @@ func (s *Store) Cancel(ctx context.Context, runID, by string) (string, error) {
 		return run.State, nil
 	}
 	v := Verdict{State: StateFailed, Checks: []Check{{
-		What: "cancelled", OK: false, Note: "사람이 취소했다: " + by,
+		What: "cancelled", OK: false, Note: "cancelled by: " + by,
 	}}}
 	verdictJSON, err := json.Marshal(v)
 	if err != nil {
@@ -236,7 +236,7 @@ func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) 
 		// 완주하지 못한 단계가 있다. 재개하지 않는다 —
 		// RUNNING → RUNNING 이 멱등이 아니기 때문이다 (INVARIANTS §2).
 		v = Verdict{State: StateFailed, Checks: []Check{{
-			What: "ran", OK: false, Note: "단계가 완주하지 못했다",
+			What: "ran", OK: false, Note: "a step did not complete",
 		}}}
 	} else {
 		run, err := s.GetRun(ctx, runID)

@@ -119,7 +119,7 @@ type Claimed struct {
 	Lease  LeaseRow      `json:"lease"`
 }
 
-var ErrNoWork = errors.New("할 일이 없다")
+var ErrNoWork = errors.New("no work available")
 
 // ClaimStep 은 이 노드가 할 단계 하나를 집는다.
 //
@@ -201,7 +201,7 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID, instance string) (*Claime
 		`SELECT run_id, node_id, not_after, nonce FROM leases WHERE node_id = $1 AND run_id = $2`,
 		nodeID, c.RunID).
 		Scan(&c.Lease.RunID, &c.Lease.Node, &c.Lease.NotAfter, &c.Lease.Nonce); err != nil {
-		return nil, fmt.Errorf("임대가 없는데 단계가 배정돼 있다 (%s#%d): %w", c.RunID, c.Seq, err)
+		return nil, fmt.Errorf("step is assigned but has no lease (%s#%d): %w", c.RunID, c.Seq, err)
 	}
 	c.Lease.Capability = "agent.reason"
 
@@ -299,7 +299,7 @@ func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claime
 	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
 	fillFromContract(&c, contractJSON)
 	s.stampLedger(ctx, &c, contractJSON)
-	s.log().Info("재전달 — 같은 생이 다시 물었다", "node", nodeID, "step", c.StepID)
+	s.log().Info("redelivering to the same instance", "node", nodeID, "step", c.StepID)
 	return &c, nil
 }
 
@@ -323,7 +323,7 @@ func (s *Store) FailRestarted(ctx context.Context, nodeID, instance string) ([]s
 		   AND coalesce(s.claimed_instance,'') NOT IN ('', $2)
 		 RETURNING s.run_id`,
 		nodeID, instance,
-		mustJSON(map[string]string{"error": "노드가 재시작해 진행 중이던 단계를 신뢰할 수 없다"}))
+		mustJSON(map[string]string{"error": "node restarted; in-flight step cannot be trusted"}))
 	if err != nil {
 		return nil, err
 	}
@@ -510,7 +510,7 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 		return false, err
 	}
 	if tag.RowsAffected() == 0 {
-		return false, fmt.Errorf("집지 않은 단계를 보고했다 (%s#%d)", runID, seq)
+		return false, fmt.Errorf("reported a step that was not claimed (%s#%d)", runID, seq)
 	}
 	if ok {
 		// ★ 되돌릴지가 먼저다 ★ — 되돌리면 이 단계의 효과는 없던 일이 된다.

@@ -20,18 +20,18 @@ import (
 func runHookCmd(args []string) int {
 	if len(args) == 0 || args[0] != "stop" {
 		fmt.Fprintln(os.Stderr,
-			"쓰임: enode hook stop --out <dir> [--workspace <dir>] [--expect a,b] "+
+			"usage: enode hook stop --out <dir> [--workspace <dir>] [--expect a,b] "+
 				"[--stamp <file>] [--plan <name>] [--roles a,b]")
 		return 2
 	}
 	fs := flag.NewFlagSet("hook stop", flag.ContinueOnError)
-	out := fs.String("out", "", "$OUT 경로")
-	ws := fs.String("workspace", "", "워크스페이스 경로")
-	expect := fs.String("expect", "", "계약이 요구한 산출물 이름 (쉼표)")
-	stamp := fs.String("stamp", "", "기준 시각 파일 — ★ 이게 있어야 빌드 산출물이 보인다 ★")
+	out := fs.String("out", "", "output directory ($OUT)")
+	ws := fs.String("workspace", "", "workspace directory")
+	expect := fs.String("expect", "", "comma-separated output names required by the contract")
+	stamp := fs.String("stamp", "", "baseline timestamp file (needed to see ignored build artifacts)")
 	// ★ 계획 단계의 보조 ★ (ADR-046) — 어긴 계획을 하네스가 끝나기 전에 짚는다.
-	plan := fs.String("plan", "", "계획 산출물 이름 (expands 단계에만)")
-	roles := fs.String("roles", "", "uses 에 쓸 수 있는 역할 (쉼표)")
+	plan := fs.String("plan", "", "plan output name (expands steps only)")
+	roles := fs.String("roles", "", "comma-separated roles allowed in uses")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 0 // ★ 인자가 이상해도 하네스를 막지 않는다 ★
 	}
@@ -48,7 +48,7 @@ func runHookCmd(args []string) int {
 	a := enode.HookArgs{Out: *out, Workspace: *ws, Expect: split(*expect), Stamp: *stamp,
 		Plan: *plan, Roles: split(*roles)}
 	if err := enode.RunStopHook(a, os.Stdin, os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "훅 실패(무시하고 통과):", err)
+		fmt.Fprintln(os.Stderr, "hook error (ignored):", err)
 	}
 	return 0
 }

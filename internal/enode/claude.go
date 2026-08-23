@@ -175,7 +175,7 @@ func (claudeHarness) Argv(p AgentParams, io IOPaths) []string {
 func (claudeHarness) Decode(r io.Reader, exitCode int, emit func(Event)) HarnessResult {
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return HarnessResult{Reason: ReasonError, Message: "출력을 못 읽었다: " + err.Error()}
+		return HarnessResult{Reason: ReasonError, Message: "cannot read output: " + err.Error()}
 	}
 	h := ParseClaude(b, exitCode)
 	emit(Event{Kind: EventFinal, Text: h.Message})

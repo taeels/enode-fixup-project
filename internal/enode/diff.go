@@ -27,9 +27,9 @@ import (
 // 시작점이 알려진 상태라야 끝점의 차분이 의미가 있다.
 
 // diffNote 는 상한을 넘었을 때 요약 앞에 붙는 머리말이다.
-const diffNote = "# ★ 워크스페이스 diff 가 상한을 넘어 요약으로 대체했다 ★\n" +
-	"# 전체 diff 는 이 기록에 없다. 아래는 git diff --stat 이다.\n" +
-	"# 원래 크기: %d bytes / 상한: %d bytes\n#\n"
+const diffNote = "# workspace diff exceeded the size limit and was replaced by a summary\n" +
+	"# the full diff is not in this record; below is git diff --stat\n" +
+	"# original size: %d bytes / limit: %d bytes\n#\n"
 
 // workspaceDiff 는 단계가 워크스페이스에 남긴 변경을 diff 로 만든다.
 //
@@ -66,7 +66,7 @@ func workspaceDiff(ctx context.Context, dir string, limit int64) ([]byte, error)
 	env := []string{"GIT_INDEX_FILE=" + idx.Name()}
 
 	if _, err := gitOut(ctx, dir, env, "read-tree", "HEAD"); err != nil {
-		return nil, fmt.Errorf("임시 인덱스 준비: %w", err)
+		return nil, fmt.Errorf("cannot prepare temporary index: %w", err)
 	}
 	// ★ add -N . 은 순수 intent-to-add 가 아니다 ★ — 실측에서 알았다.
 	// `.` 를 주면 ★ 삭제까지 인덱스에 반영 ★ 하므로, 그 뒤의 `git diff`

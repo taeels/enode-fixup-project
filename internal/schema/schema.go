@@ -31,14 +31,14 @@ var allowed = map[string]bool{
 
 // 거절하는 것 — 정직한 답을 떨어뜨릴 수 있다.
 var rejected = map[string]string{
-	"minimum": "값의 크기로 판정한다", "maximum": "값의 크기로 판정한다",
-	"exclusiveMinimum": "값의 크기로 판정한다", "exclusiveMaximum": "값의 크기로 판정한다",
-	"multipleOf": "값으로 판정한다",
-	"minLength":  "길이로 품질을 잰다", "maxLength": "길이로 품질을 잰다",
-	"minItems": "개수로 판정한다", "maxItems": "개수로 판정한다",
-	"pattern":       "내용으로 판정한다 — 어휘를 좁히려면 enum 을 쓴다",
-	"format":        "내용으로 판정한다",
-	"minProperties": "개수로 판정한다", "maxProperties": "개수로 판정한다",
+	"minimum": "judges by magnitude", "maximum": "judges by magnitude",
+	"exclusiveMinimum": "judges by magnitude", "exclusiveMaximum": "judges by magnitude",
+	"multipleOf": "judges by value",
+	"minLength":  "judges quality by length", "maxLength": "judges quality by length",
+	"minItems": "judges by count", "maxItems": "judges by count",
+	"pattern":       "judges by content; use enum to narrow the vocabulary",
+	"format":        "judges by content",
+	"minProperties": "judges by count", "maxProperties": "judges by count",
 }
 
 // CheckBoundary 는 스키마가 ★ 형식만 제약하는지 ★ 본다.
@@ -57,11 +57,11 @@ func boundary(s any, path string) error {
 	sort.Strings(keys) // 에러 메시지를 결정적으로
 	for _, k := range keys {
 		if why, bad := rejected[k]; bad {
-			return fmt.Errorf("스키마 %s%s 는 쓸 수 없다 — %s (ADR-020: 스키마는 형식만 제약한다)",
+			return fmt.Errorf("schema %s%s is not allowed: it %s; a schema may constrain form only",
 				at(path), k, why)
 		}
 		if !allowed[k] {
-			return fmt.Errorf("스키마 %s%s 는 허용 어휘가 아니다 (ADR-020)", at(path), k)
+			return fmt.Errorf("schema %s%s is not in the allowed vocabulary", at(path), k)
 		}
 	}
 	if p, ok := m["properties"].(map[string]any); ok {
@@ -86,7 +86,7 @@ func at(path string) string {
 	if path == "" {
 		return ""
 	}
-	return strings.TrimPrefix(path, ".") + " 의 "
+	return strings.TrimPrefix(path, ".") + " of "
 }
 
 // Violation 은 검증 실패 하나다. ★ feedback 으로 되먹여진다 ★ (ADR-013 의 루프) —
@@ -100,16 +100,16 @@ type Violation struct {
 func (v Violation) String() string {
 	p := v.Path
 	if p == "" {
-		p = "(최상위)"
+		p = "(root)"
 	}
-	return fmt.Sprintf("%s: %s — 받은 것: %s", p, v.Want, v.Got)
+	return fmt.Sprintf("%s: %s (got: %s)", p, v.Want, v.Got)
 }
 
 // Validate 는 문서가 스키마를 만족하는지 본다.
 func Validate(sch any, doc []byte) []Violation {
 	var v any
 	if err := json.Unmarshal(doc, &v); err != nil {
-		return []Violation{{Path: "", Want: "JSON 이어야 한다", Got: err.Error()}}
+		return []Violation{{Path: "", Want: "must be JSON", Got: err.Error()}}
 	}
 	var out []Violation
 	check(sch, v, "", &out)
@@ -122,7 +122,7 @@ func check(sch, v any, path string, out *[]Violation) {
 		return
 	}
 	if t, ok := m["type"].(string); ok && !typeOK(t, v) {
-		*out = append(*out, Violation{path, "타입이 " + t, typeName(v)})
+		*out = append(*out, Violation{path, "expected type " + t, typeName(v)})
 		return // 타입이 틀리면 아래를 볼 의미가 없다
 	}
 	if e, ok := m["enum"].([]any); ok {
@@ -152,7 +152,7 @@ func check(sch, v any, path string, out *[]Violation) {
 		for _, r := range req {
 			name, _ := r.(string)
 			if _, has := obj[name]; !has {
-				*out = append(*out, Violation{join(path, name), "필수다", "없음"})
+				*out = append(*out, Violation{join(path, name), "is required", "missing"})
 			}
 		}
 	}
@@ -167,7 +167,7 @@ func check(sch, v any, path string, out *[]Violation) {
 			if p, ok := props[n]; ok {
 				check(p, obj[n], join(path, n), out)
 			} else if extra, ok := m["additionalProperties"].(bool); ok && !extra {
-				*out = append(*out, Violation{join(path, n), "이 키는 허용되지 않는다", "있음"})
+				*out = append(*out, Violation{join(path, n), "key is not allowed", "present"})
 			}
 		}
 	}

@@ -73,7 +73,7 @@ func (c *Client) Advertise(ctx context.Context, a contract.Advert) (*AdvertRespo
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("광고 거절: %s", resp.Status)
+		return nil, fmt.Errorf("advertise rejected: %s", resp.Status)
 	}
 	var out AdvertResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
@@ -127,7 +127,7 @@ func (a *Advertiser) Run(ctx context.Context) {
 		resp, err := a.Client.Advertise(ctx, ad)
 		switch {
 		case err != nil && ctx.Err() == nil:
-			a.Log.Warn("광고 실패 — 다시 건다", "err", err)
+			a.Log.Warn("advertise failed; retrying", "err", err)
 		case err == nil:
 			if a.OnLeases != nil {
 				a.OnLeases(resp.Leases)
@@ -137,12 +137,12 @@ func (a *Advertiser) Run(ctx context.Context) {
 			// 어긋나면 ★ 조용히 함대에서 사라진다 ★ (claim 은 계속 도니까 안 보인다).
 			if n := resp.RenewSeconds; n > 0 {
 				if want := time.Duration(n) * time.Second; want != a.Every {
-					a.Log.Info("광고 주기를 Mediator 가 말한 값으로 바꾼다",
+					a.Log.Info("adopting advertise interval from mediator",
 						"was", a.Every, "now", want)
 					a.Every = want
 				}
 			}
-			a.Log.Debug("광고", "node", ad.NodeID, "caps", len(ad.Capabilities), "leases", len(resp.Leases))
+			a.Log.Debug("advertise", "node", ad.NodeID, "caps", len(ad.Capabilities), "leases", len(resp.Leases))
 		}
 		t.Reset(a.Every)
 	}

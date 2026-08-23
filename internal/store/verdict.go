@@ -69,14 +69,14 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 		if ran && res.Skipped {
 			v.Checks = append(v.Checks, Check{
 				Step: cond.Step, What: "skipped", OK: true,
-				Note: "그 단계는 실행되지 않았다 — 조건을 묻지 않는다",
+				Note: "the step did not run; the condition is not evaluated",
 			})
 			continue
 		}
 		if !ran {
 			v.Checks = append(v.Checks, Check{
 				Step: cond.Step, What: "ran", OK: false,
-				Note: "그 단계가 결과를 남기지 않았다",
+				Note: "the step left no result",
 			})
 			v.State = StateFailed
 			continue
@@ -101,7 +101,7 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 			ok := !res.Exhausted
 			v.Checks = append(v.Checks, Check{
 				Step: cond.Step, What: "within_attempts", Want: true, Got: ok, OK: ok,
-				Note: noteIf(!ok, "재시도를 소진했다"),
+				Note: noteIf(!ok, "attempts exhausted"),
 			})
 			if !ok {
 				v.State = StateFailed
@@ -124,7 +124,7 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 			ok := len(missing) == 0
 			v.Checks = append(v.Checks, Check{
 				Step: cond.Step, What: "changed", Want: cond.Changed, Got: res.Changed, OK: ok,
-				Note: noteIf(!ok, "이 단계 안에 바뀌지 않았다: "+strings.Join(missing, ", ")),
+				Note: noteIf(!ok, "not changed during this step: "+strings.Join(missing, ", ")),
 			})
 			if !ok {
 				v.State = StateFailed
@@ -147,7 +147,7 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 				Want: cond.Produced, Got: res.Produced, OK: ok,
 			}
 			if !ok {
-				ch.Note = fmt.Sprintf("없는 것: %v", missing)
+				ch.Note = fmt.Sprintf("missing: %v", missing)
 				v.State = StateFailed
 			}
 			v.Checks = append(v.Checks, ch)
@@ -161,8 +161,8 @@ func Verify(c contract.Contract, results map[string]StepResult) Verdict {
 	// 그 단계에 조건이 걸려야 한다. 그게 이 규칙이 요구하는 것이다.
 	if len(c.SuccessWhen) > 0 && evaluated == 0 {
 		v.Checks = append(v.Checks, Check{
-			What: "any", Want: "대조된 조건 1개 이상", Got: 0, OK: false,
-			Note: "조건이 걸린 단계가 전부 건너뛰어졌다 — 무엇으로도 완주를 못 묻는다",
+			What: "any", Want: "at least one evaluated condition", Got: 0, OK: false,
+			Note: "every step with a condition was skipped; nothing was evaluated",
 		})
 		v.State = StateFailed
 	}

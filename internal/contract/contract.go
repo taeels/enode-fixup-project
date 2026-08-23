@@ -296,7 +296,7 @@ func (r *Require) UnmarshalJSON(b []byte) error {
 			// 표현식도 범위도 없다 — 속성 일치뿐이다.
 			var s string
 			if err := json.Unmarshal(v, &s); err != nil {
-				return fmt.Errorf("requires[].%s 는 문자열이어야 한다: %w", k, err)
+				return fmt.Errorf("requires[].%s must be a string: %w", k, err)
 			}
 			r.Attrs[k] = s
 		}
@@ -311,7 +311,7 @@ func (r Require) MarshalJSON() ([]byte, error) {
 	}
 	for k, v := range r.Attrs {
 		if requireKnown[k] {
-			return nil, fmt.Errorf("속성 이름이 예약어와 겹친다: %s", k)
+			return nil, fmt.Errorf("attribute name is reserved: %s", k)
 		}
 		m[k] = v
 	}
@@ -618,16 +618,16 @@ func hasVerdict(sch interface{}) bool {
 func checkAskForm(sch interface{}) error {
 	m, ok := sch.(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("ask 스키마가 객체가 아니다")
+		return fmt.Errorf("ask schema is not an object")
 	}
 	if t, _ := m["type"].(string); t != "object" {
-		return fmt.Errorf("ask 스키마의 최상위는 type:\"object\" 여야 한다")
+		return fmt.Errorf("ask schema must have top-level type:\"object\"")
 	}
 	props, _ := m["properties"].(map[string]interface{})
 	for name, raw := range props {
 		p, ok := raw.(map[string]interface{})
 		if !ok {
-			return fmt.Errorf("ask 필드 %q 의 정의가 객체가 아니다", name)
+			return fmt.Errorf("ask field %q: definition is not an object", name)
 		}
 		if _, hasEnum := p["enum"]; hasEnum {
 			continue // 선택 필드
@@ -635,11 +635,11 @@ func checkAskForm(sch interface{}) error {
 		switch t, _ := p["type"].(string); t {
 		case "string", "number", "integer", "boolean":
 		case "object", "array":
-			return fmt.Errorf("ask 필드 %q: %s 는 안 된다 — 평면 폼만 허용한다 "+
-				"(웹 폼 렌더러 단순화를 위해 의도적으로 뺐다)", name, t)
+			return fmt.Errorf("ask field %q: type %s is not allowed; only flat forms are supported "+
+				"(nested objects and arrays are excluded)", name, t)
 		default:
-			return fmt.Errorf("ask 필드 %q: type 이 없거나 모른다 — "+
-				"string·number·integer·boolean 또는 enum 이어야 한다", name)
+			return fmt.Errorf("ask field %q: missing or unknown type; expected "+
+				"string, number, integer, boolean, or enum", name)
 		}
 	}
 	return nil
@@ -747,7 +747,7 @@ func (s Step) Kind() (StepKind, error) {
 		}
 	}
 	if n > 1 {
-		return KindUnknown, fmt.Errorf("step %q: agent · run · acquire · ask 중 둘 이상이 있다", s.ID)
+		return KindUnknown, fmt.Errorf("step %q: more than one of agent, run, acquire, ask is set", s.ID)
 	}
 	switch {
 	case hasAgent:
@@ -759,7 +759,7 @@ func (s Step) Kind() (StepKind, error) {
 	case hasAsk:
 		return KindAsk, nil
 	}
-	return KindUnknown, fmt.Errorf("step %q: agent 도 run 도 acquire 도 ask 도 없다", s.ID)
+	return KindUnknown, fmt.Errorf("step %q: none of agent, run, acquire, ask is set", s.ID)
 }
 
 // Loop 은 구간 반복 하나다 (ADR-026).
@@ -812,14 +812,14 @@ func contains(ss []string, want string) bool {
 }
 
 var (
-	ErrNoRunID       = errors.New("run_id 가 없다")
-	ErrNoRequires    = errors.New("requires 가 비어 있다")
-	ErrNoSteps       = errors.New("steps 가 비어 있다")
-	ErrUnknownCap    = errors.New("capability 는 agent.reason 하나뿐이다 (ADR-019)")
-	ErrDupAs         = errors.New("requires[].as 가 중복이다")
-	ErrDupStepID     = errors.New("steps[].id 가 중복이다")
-	ErrExitOnAgent   = errors.New("agent 단계에 exit_code 조건을 쓸 수 없다 (ADR-019)")
-	ErrCondUnknownID = errors.New("success_when 이 없는 단계를 가리킨다")
+	ErrNoRunID       = errors.New("run_id is missing")
+	ErrNoRequires    = errors.New("requires is empty")
+	ErrNoSteps       = errors.New("steps is empty")
+	ErrUnknownCap    = errors.New("unknown capability")
+	ErrDupAs         = errors.New("duplicate requires[].as")
+	ErrDupStepID     = errors.New("duplicate steps[].id")
+	ErrExitOnAgent   = errors.New("exit_code condition is not allowed on an agent step")
+	ErrCondUnknownID = errors.New("success_when refers to an unknown step")
 )
 
 // Validate 는 계약이 문법적으로 성립하는지만 본다. 400 의 근거다.
@@ -841,7 +841,7 @@ func (c Contract) Validate() error {
 			return fmt.Errorf("%w: %q", ErrUnknownCap, r.Capability)
 		}
 		if r.As == "" {
-			return fmt.Errorf("requires[].as 가 비었다")
+			return fmt.Errorf("requires[].as is empty")
 		}
 		if roles[r.As] {
 			return fmt.Errorf("%w: %q", ErrDupAs, r.As)
@@ -858,7 +858,7 @@ func (c Contract) Validate() error {
 			continue
 		}
 		if roles[st.Acquire.Want.As] || acquired[st.Acquire.Want.As] {
-			return fmt.Errorf("step %q: acquire 의 역할 %q 가 이미 있다", st.ID, st.Acquire.Want.As)
+			return fmt.Errorf("step %q: acquire role %q already exists", st.ID, st.Acquire.Want.As)
 		}
 		acquired[st.Acquire.Want.As] = true
 		roles[st.Acquire.Want.As] = true
@@ -867,7 +867,7 @@ func (c Contract) Validate() error {
 	kinds := map[string]StepKind{}
 	for _, s := range c.Steps {
 		if s.ID == "" {
-			return fmt.Errorf("steps[].id 가 비었다")
+			return fmt.Errorf("steps[].id is empty")
 		}
 		if _, dup := kinds[s.ID]; dup {
 			return fmt.Errorf("%w: %q", ErrDupStepID, s.ID)
@@ -879,17 +879,17 @@ func (c Contract) Validate() error {
 		kinds[s.ID] = k
 		// ★ 획득·되묻기 단계는 uses 가 없다 ★ — 노드가 수행하지 않는다.
 		if k != KindAcquire && k != KindAsk && !roles[s.Uses] {
-			return fmt.Errorf("step %q 가 없는 역할 %q 를 쓴다", s.ID, s.Uses)
+			return fmt.Errorf("step %q uses undeclared role %q", s.ID, s.Uses)
 		}
 		// ★ ADR-020 의 경계선을 여기서 400 으로 만든다 ★
 		// "스키마는 형식만 제약한다" 를 산문으로 두면 새어나가고,
 		// 그 순간 ADR-004(기계적 판정만)가 스키마를 통해 무너진다.
 		for name, sch := range s.Schema {
 			if err := schema.CheckBoundary(sch); err != nil {
-				return fmt.Errorf("step %q 의 %s: %w", s.ID, name, err)
+				return fmt.Errorf("step %q: %s: %w", s.ID, name, err)
 			}
 			if !contains(s.Out, name) {
-				return fmt.Errorf("step %q 가 내지 않는 산출물 %q 에 스키마를 달았다", s.ID, name)
+				return fmt.Errorf("step %q: schema declared for %q, which the step does not produce", s.ID, name)
 			}
 		}
 	}
@@ -906,8 +906,8 @@ func (c Contract) Validate() error {
 	for _, st := range c.Steps {
 		for _, o := range st.Out {
 			if strings.HasPrefix(o, "_") {
-				return fmt.Errorf("step %q: 산출물 이름 %q — "+
-					"밑줄로 시작하는 이름은 예약이다 ($IN 의 이름 공간)", st.ID, o)
+				return fmt.Errorf("step %q: output name %q is invalid; "+
+					"names starting with an underscore are reserved", st.ID, o)
 			}
 		}
 	}
@@ -927,7 +927,7 @@ func (c Contract) Validate() error {
 	for _, st := range c.Steps {
 		for _, name := range inFrom(st.In) {
 			if !produced[name] {
-				return fmt.Errorf("step %q: in.from 이 아무도 내지 않는 %q 를 가리킨다",
+				return fmt.Errorf("step %q: in.from refers to %q, which no step produces",
 					st.ID, name)
 			}
 		}
@@ -940,17 +940,17 @@ func (c Contract) Validate() error {
 		switch st.See.Ledger {
 		case "", SeeNone, SeeList:
 		default:
-			return fmt.Errorf("step %q: see.ledger %q 를 모른다 — 아는 것은 %q 와 %q 다",
+			return fmt.Errorf("step %q: unknown see.ledger %q; expected %q or %q",
 				st.ID, st.See.Ledger, SeeNone, SeeList)
 		}
 		if len(st.See.From) > 0 {
-			return fmt.Errorf("step %q: see.from 은 아직 없다 — "+
-				"오늘은 in.from 을 직접 줄인다 (ADR-023 §6.4)", st.ID)
+			return fmt.Errorf("step %q: see.from is not supported; "+
+				"use in.from instead", st.ID)
 		}
 	}
 
 	if c.Ledger != nil && !knownScope(c.Ledger.Scope) {
-		return fmt.Errorf("ledger.scope %q 를 모른다 — 아는 것은 %q 와 %q 다",
+		return fmt.Errorf("unknown ledger.scope %q; expected %q or %q",
 			c.Ledger.Scope, ScopeRun, ScopeWork)
 	}
 
@@ -966,13 +966,13 @@ func (c Contract) Validate() error {
 		}
 		// ★ 계획은 산출물이다 ★ — 이름이 없으면 무엇을 읽어야 할지 모른다.
 		if len(st.Out) != 1 {
-			return fmt.Errorf("step %q: expands 단계는 산출물 이름이 정확히 하나여야 한다", st.ID)
+			return fmt.Errorf("step %q: an expands step must declare exactly one output", st.ID)
 		}
 		// ★ 스키마가 없으면 무엇이든 계약으로 들어온다 ★ — 형태 검증이
 		// PUT blob 에서 걸리게 하려면 계약이 스키마를 들고 있어야 한다 (ADR-020).
 		if _, ok := st.Schema[st.Out[0]]; !ok {
-			return fmt.Errorf("step %q: expands 단계의 산출물 %q 에 스키마가 없다 — "+
-				"형태가 틀린 계약이 함대로 들어온다", st.ID, st.Out[0])
+			return fmt.Errorf("step %q: expands step output %q has no schema; "+
+				"a schema is required to validate the generated contract", st.ID, st.Out[0])
 		}
 	}
 
@@ -984,13 +984,13 @@ func (c Contract) Validate() error {
 			continue
 		}
 		if !st.Expands {
-			return fmt.Errorf("step %q: produces 는 expands 단계에만 쓸 수 있다 — "+
-				"계획을 짓지 않는 단계는 약속할 것이 없다", st.ID)
+			return fmt.Errorf("step %q: produces is only allowed on an expands step; "+
+				"a step that does not build a plan cannot promise steps", st.ID)
 		}
 		for _, n := range st.Produces {
 			if _, dup := index[n]; dup {
-				return fmt.Errorf("step %q: produces 의 %q 가 이미 있는 단계다 — "+
-					"약속이 아니라 중복이다", st.ID, n)
+				return fmt.Errorf("step %q: produces names %q, which already exists; "+
+					"promised names must not collide with existing steps", st.ID, n)
 			}
 		}
 	}
@@ -1002,19 +1002,19 @@ func (c Contract) Validate() error {
 			continue
 		}
 		if st.Uses != "" {
-			return fmt.Errorf("step %q: ask 단계에는 uses 가 없다 — 사람이 수행한다", st.ID)
+			return fmt.Errorf("step %q: an ask step must not set uses; it is performed by a person", st.ID)
 		}
 		if a.Prompt == "" {
-			return fmt.Errorf("step %q: ask.prompt 가 비었다 — 무엇을 묻는지 적는다", st.ID)
+			return fmt.Errorf("step %q: ask.prompt is empty", st.ID)
 		}
 		// ★ 답은 산출물이다 ★ — 이름과 형태가 있어야 검증하고 분기한다.
 		if len(st.Out) != 1 {
-			return fmt.Errorf("step %q: ask 단계는 산출물 이름이 정확히 하나여야 한다", st.ID)
+			return fmt.Errorf("step %q: an ask step must declare exactly one output", st.ID)
 		}
 		sch, ok := st.Schema[st.Out[0]]
 		if !ok {
-			return fmt.Errorf("step %q: ask 단계의 산출물 %q 에 스키마가 없다 — "+
-				"질문의 형태가 곧 이 스키마다", st.ID, st.Out[0])
+			return fmt.Errorf("step %q: ask step output %q has no schema; "+
+				"the schema defines the form of the question", st.ID, st.Out[0])
 		}
 		// ★ 평면 폼 부분집합 ★ (ADR-032 §1③) — 조사에서 여섯 시스템이 독립적으로
 		// 수렴한 형태이고, MCP 는 이유까지 적었다: 클라이언트(웹 폼 렌더러)
@@ -1024,34 +1024,34 @@ func (c Contract) Validate() error {
 		}
 		for _, name := range a.Show {
 			if !produced[name] {
-				return fmt.Errorf("step %q: show 가 아무도 내지 않는 %q 를 가리킨다", st.ID, name)
+				return fmt.Errorf("step %q: show refers to %q, which no step produces", st.ID, name)
 			}
 		}
 		if a.Adopts != "" {
 			j, ok := index[a.Adopts]
 			if !ok {
-				return fmt.Errorf("step %q: adopts 가 없는 단계 %q 를 가리킨다", st.ID, a.Adopts)
+				return fmt.Errorf("step %q: adopts refers to unknown step %q", st.ID, a.Adopts)
 			}
 			if !c.Steps[j].Expands {
-				return fmt.Errorf("step %q: adopts 대상 %q 가 expands 단계가 아니다 — "+
-					"채택할 제안이 없다", st.ID, a.Adopts)
+				return fmt.Errorf("step %q: adopts target %q is not an expands step; "+
+					"there is no proposal to adopt", st.ID, a.Adopts)
 			}
 			// ★ 승인의 어휘를 못 박는다 ★ — verdict 에 approve 와 reject 가 있어야
 			// 답이 채택인지 아닌지가 기계적으로 갈린다 (표현식이 아니라 값 일치).
 			if !hasVerdict(sch) {
-				return fmt.Errorf("step %q: adopts 하는 ask 의 스키마에는 verdict 필드가 "+
-					"있어야 하고 enum 에 approve 와 reject 가 있어야 한다", st.ID)
+				return fmt.Errorf("step %q: an adopting ask must define a verdict field "+
+					"whose enum includes approve and reject", st.ID)
 			}
 		}
 		if t := a.Timeout; t != nil {
 			d, err := time.ParseDuration(t.After)
 			if err != nil || d <= 0 {
-				return fmt.Errorf("step %q: ask.timeout.after %q 를 못 읽는다", st.ID, t.After)
+				return fmt.Errorf("step %q: cannot parse ask.timeout.after %q", st.ID, t.After)
 			}
 			// ★ 오늘 then 은 "fail" 뿐이다 ★ — default·escalate 는 순연 (ADR-032 §2).
 			// 모르는 값을 조용히 무시하지 않는다 (ADR-013 의 --interactive 와 같은 자세).
 			if t.Then != "fail" {
-				return fmt.Errorf("step %q: ask.timeout.then %q 는 아직 없다 — 오늘은 \"fail\" 뿐이다", st.ID, t.Then)
+				return fmt.Errorf("step %q: unsupported ask.timeout.then %q; only \"fail\" is supported", st.ID, t.Then)
 			}
 		}
 	}
@@ -1064,28 +1064,28 @@ func (c Contract) Validate() error {
 			continue
 		}
 		if st.ValidateWith != "" {
-			return fmt.Errorf("step %q: loop 과 validate_with 를 함께 쓴다 — "+
-				"되돌리는 주체가 둘이면 회차가 어긋난다", st.ID)
+			return fmt.Errorf("step %q: loop and validate_with cannot be combined; "+
+				"two retry drivers would desynchronize the attempt counter", st.ID)
 		}
 		j, ok := index[lp.BackTo]
 		if !ok {
-			return fmt.Errorf("step %q: loop.back_to 가 없는 단계 %q 를 가리킨다", st.ID, lp.BackTo)
+			return fmt.Errorf("step %q: loop.back_to refers to unknown step %q", st.ID, lp.BackTo)
 		}
 		if j >= i {
-			return fmt.Errorf("step %q: loop.back_to 의 %q 가 자기보다 뒤다 — "+
-				"반복은 ★ 뒤로 ★ 가는 것이다", st.ID, lp.BackTo)
+			return fmt.Errorf("step %q: loop.back_to target %q comes after this step; "+
+				"a loop must go backward", st.ID, lp.BackTo)
 		}
 		if lp.Max < 2 {
-			return fmt.Errorf("step %q: loop.max 는 2 이상이어야 한다 — "+
-				"한 번만 돌 것이면 반복이 아니다", st.ID)
+			return fmt.Errorf("step %q: loop.max must be at least 2; "+
+				"a single pass is not a loop", st.ID)
 		}
 		if lp.Until.ExitCode == nil && len(lp.Until.Produced) == 0 {
-			return fmt.Errorf("step %q: loop.until 이 비었다 — "+
-				"exit_code 나 produced 로 그만 돌 조건을 적는다", st.ID)
+			return fmt.Errorf("step %q: loop.until is empty; "+
+				"specify a stop condition with exit_code or produced", st.ID)
 		}
 		if lp.Until.Step != "" {
-			return fmt.Errorf("step %q: loop.until 에는 step 을 적지 않는다 — "+
-				"구간의 끝이 이 단계이므로 조건의 주어도 이 단계다", st.ID)
+			return fmt.Errorf("step %q: loop.until must not name a step; "+
+				"the condition always applies to this step", st.ID)
 		}
 		if lp.Until.ExitCode != nil && (kinds[st.ID] == KindAgent || kinds[st.ID] == KindAsk) {
 			return fmt.Errorf("%w: %q (loop.until)", ErrExitOnAgent, st.ID)
@@ -1094,14 +1094,14 @@ func (c Contract) Validate() error {
 		// 놓은 것은 되돌릴 수 없다.
 		for k := j; k <= i; k++ {
 			if len(c.Steps[k].Release) > 0 {
-				return fmt.Errorf("step %q: loop 구간 안의 step %q 가 자원을 놓는다 — "+
-					"놓은 것은 되돌릴 수 없고 다음 회차가 그것을 쓴다", st.ID, c.Steps[k].ID)
+				return fmt.Errorf("step %q: step %q inside the loop range releases a resource; "+
+					"a release cannot be undone and the next pass needs it", st.ID, c.Steps[k].ID)
 			}
 			// ★ 중첩은 오늘 막는다 ★ — 여는 조건은 중첩이 필요한 실물 계약이
 			// 나올 때이고, 그때 깊이 상한이 따라온다 (ADR-026 §6).
 			if k != i && c.Steps[k].Loop != nil {
-				return fmt.Errorf("step %q: loop 구간 안에 또 loop 이 있다 — "+
-					"중첩은 아직 없다", st.ID)
+				return fmt.Errorf("step %q: nested loop inside the loop range; "+
+					"nesting is not supported", st.ID)
 			}
 		}
 	}
@@ -1113,36 +1113,36 @@ func (c Contract) Validate() error {
 		}
 		a := st.Acquire
 		if a.Want == nil || a.Want.As == "" {
-			return fmt.Errorf("step %q: acquire.want.as 가 없다", st.ID)
+			return fmt.Errorf("step %q: acquire.want.as is missing", st.ID)
 		}
 		if !knownCapability(a.Want.Capability) {
-			return fmt.Errorf("step %q: acquire 의 capability %q 를 모른다",
+			return fmt.Errorf("step %q: unknown acquire capability %q",
 				st.ID, a.Want.Capability)
 		}
 		if a.Want.Count > 1 {
-			return fmt.Errorf("step %q: acquire 는 아직 자원 하나씩이다 — "+
-				"여럿을 한 요청으로 잡으려면 부분 점유를 남기지 않는 롤백이 필요하다", st.ID)
+			return fmt.Errorf("step %q: acquire takes one resource at a time; "+
+				"acquiring several at once requires all-or-nothing rollback", st.ID)
 		}
 		if st.Uses != "" {
-			return fmt.Errorf("step %q: acquire 단계에는 uses 가 없다 — "+
-				"잡기 전이고 Mediator 가 수행한다", st.ID)
+			return fmt.Errorf("step %q: an acquire step must not set uses; "+
+				"it runs on the mediator before the resource is held", st.ID)
 		}
 		// ★ 분기의 규칙을 그대로 쓴다 ★ (ADR-022 §7.2) — 실존 · 서로 다름 ·
 		// ★ 전부 뒤 ★. 뒤로 못 가면 DAG 이고 종료가 제출 시점에 보장된다.
 		if a.Acquired == "" || a.Unavailable == "" {
-			return fmt.Errorf("step %q: acquire 의 acquired · unavailable 목적지가 필요하다 — "+
-				"★ 실패는 중단이 아니라 값이다 ★", st.ID)
+			return fmt.Errorf("step %q: acquire requires both acquired and unavailable targets; "+
+				"an unavailable resource is a value, not an abort", st.ID)
 		}
 		if a.Acquired == a.Unavailable {
-			return fmt.Errorf("step %q: acquire 의 두 목적지가 같다", st.ID)
+			return fmt.Errorf("step %q: acquire targets are identical", st.ID)
 		}
 		for _, dst := range []string{a.Acquired, a.Unavailable} {
 			j, ok := index[dst]
 			if !ok {
-				return fmt.Errorf("step %q: acquire 가 없는 단계 %q 를 가리킨다", st.ID, dst)
+				return fmt.Errorf("step %q: acquire refers to unknown step %q", st.ID, dst)
 			}
 			if j <= i {
-				return fmt.Errorf("step %q: acquire 의 %q 가 자기보다 앞이다", st.ID, dst)
+				return fmt.Errorf("step %q: acquire target %q comes before this step", st.ID, dst)
 			}
 		}
 		// ★ 잡기 전에는 못 쓴다 ★ — 그 역할을 쓰는 단계는 전부 이 단계의 후손이어야 한다.
@@ -1151,8 +1151,8 @@ func (c Contract) Validate() error {
 				continue
 			}
 			if !ancestors(c.Steps, j)[i] {
-				return fmt.Errorf("step %q: acquire 로 잡는 %q 를 step %q 가 쓰는데 "+
-					"★ 이 단계 뒤라는 보장이 없다 ★", st.ID, a.Want.As, other.ID)
+				return fmt.Errorf("step %q: role %q acquired here is used by step %q, which "+
+					"is not guaranteed to run after this step", st.ID, a.Want.As, other.ID)
 			}
 		}
 	}
@@ -1172,19 +1172,19 @@ func (c Contract) Validate() error {
 		seen := map[string]bool{}
 		for _, role := range st.Release {
 			if seen[role] {
-				return fmt.Errorf("step %q: release 에 %q 가 두 번 있다", st.ID, role)
+				return fmt.Errorf("step %q: duplicate %q in release", st.ID, role)
 			}
 			seen[role] = true
 			if !roles[role] {
-				return fmt.Errorf("step %q: 없는 역할 %q 를 놓는다", st.ID, role)
+				return fmt.Errorf("step %q: release names undeclared role %q", st.ID, role)
 			}
 			for j, other := range c.Steps {
 				if other.Uses != role || j == i {
 					continue
 				}
 				if !anc[j] {
-					return fmt.Errorf("step %q: %q 를 놓는데 step %q 가 그것을 쓴다 — "+
-						"놓는 단계보다 ★ 앞선다는 보장이 없다 ★ (되돌릴 수 없으므로 거절한다)",
+					return fmt.Errorf("step %q: releases %q but step %q uses it and "+
+						"is not guaranteed to run first; a release cannot be undone",
 						st.ID, role, other.ID)
 				}
 			}
@@ -1198,18 +1198,18 @@ func (c Contract) Validate() error {
 		seen := map[string]bool{}
 		for _, n := range st.Needs {
 			if seen[n] {
-				return fmt.Errorf("step %q: needs 에 %q 가 두 번 있다", st.ID, n)
+				return fmt.Errorf("step %q: duplicate %q in needs", st.ID, n)
 			}
 			seen[n] = true
 			j, ok := index[n]
 			if !ok {
-				return fmt.Errorf("step %q: needs 가 없는 단계 %q 를 가리킨다", st.ID, n)
+				return fmt.Errorf("step %q: needs refers to unknown step %q", st.ID, n)
 			}
 			// ★ 뒤로 못 간다 ★ — 자기 자신도 여기서 걸린다 (j == i).
 			// 뒤로 가야 하는 것은 의존이 아니라 반복이고 그건 repeat 의 자리다.
 			if j >= i {
-				return fmt.Errorf("step %q: needs 의 %q 가 자기보다 뒤다 — "+
-					"의존은 뒤로 못 간다 (뒤로 가야 하면 repeat 다)", st.ID, n)
+				return fmt.Errorf("step %q: needs target %q comes after this step; "+
+					"dependencies must point backward", st.ID, n)
 			}
 		}
 	}
@@ -1220,35 +1220,35 @@ func (c Contract) Validate() error {
 			continue
 		}
 		if d.From == "" {
-			return fmt.Errorf("step %q: dispatch.from 이 비었다", st.ID)
+			return fmt.Errorf("step %q: dispatch.from is empty", st.ID)
 		}
 		// from 의 첫 조각은 ★ 이 단계가 실제로 내는 산출물 ★ 이어야 한다.
 		// 아니면 실행 시에 "고를 값이 없다" 로 조용히 죽는다.
 		blob, _, _ := strings.Cut(d.From, ".")
 		if !contains(st.Out, blob) {
-			return fmt.Errorf("step %q: dispatch.from 이 내지 않는 산출물 %q 를 가리킨다",
+			return fmt.Errorf("step %q: dispatch.from refers to %q, which this step does not produce",
 				st.ID, blob)
 		}
 		// ★ 갈림길이 하나면 갈림길이 아니다 ★ — 순차로 쓰면 될 것을
 		// 분기로 쓰면 읽는 사람이 경로가 갈린다고 오해한다.
 		if len(d.To) < 2 {
-			return fmt.Errorf("step %q: dispatch.to 가 둘 미만이다", st.ID)
+			return fmt.Errorf("step %q: dispatch.to needs at least two targets", st.ID)
 		}
 		seen := map[string]bool{}
 		for _, t := range d.To {
 			if seen[t] {
-				return fmt.Errorf("step %q: dispatch.to 에 %q 가 두 번 있다", st.ID, t)
+				return fmt.Errorf("step %q: duplicate %q in dispatch.to", st.ID, t)
 			}
 			seen[t] = true
 			j, ok := index[t]
 			if !ok {
-				return fmt.Errorf("step %q: dispatch.to 가 없는 단계 %q 를 가리킨다", st.ID, t)
+				return fmt.Errorf("step %q: dispatch.to refers to unknown step %q", st.ID, t)
 			}
 			// ★ 뒤로 못 간다 = DAG = 종료가 정적으로 보장된다 ★ (ADR-022 §7.2).
 			// 뒤로 가야 하는 것은 분기가 아니라 ★ 반복 ★ 이고 그건 repeat 의 자리다.
 			if j <= i {
-				return fmt.Errorf("step %q: dispatch.to 의 %q 가 자기보다 앞이다 — "+
-					"분기는 뒤로 못 간다 (뒤로 가야 하면 repeat 다)", st.ID, t)
+				return fmt.Errorf("step %q: dispatch.to target %q comes before this step; "+
+					"branches must point forward", st.ID, t)
 			}
 		}
 	}
@@ -1282,12 +1282,12 @@ func (c Contract) Validate() error {
 		if len(cond.Changed) > 0 {
 			j := index[cond.Step]
 			if c.Steps[j].Workspace == nil {
-				return fmt.Errorf("step %q: changed 를 요구하는데 그 단계에 workspace 가 없다 — "+
-					"바뀐 것을 잴 기준이 없다", cond.Step)
+				return fmt.Errorf("step %q: changed requires a workspace on that step; "+
+					"there is no baseline to compare against", cond.Step)
 			}
 			for _, p := range cond.Changed {
 				if strings.HasPrefix(p, "/") || strings.Contains(p, "..") {
-					return fmt.Errorf("step %q: changed 의 %q 는 워크스페이스 기준 상대경로여야 한다",
+					return fmt.Errorf("step %q: changed path %q must be relative to the workspace",
 						cond.Step, p)
 				}
 			}

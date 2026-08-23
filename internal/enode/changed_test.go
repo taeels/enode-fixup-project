@@ -102,7 +102,7 @@ func TestChanged_많으면_요약한다(t *testing.T) {
 		t.Fatalf("total=%d found=%d — 세되 자르는 게 맞다", total, len(found))
 	}
 	sum := summarize(found, total, 5)
-	if !strings.Contains(sum, "51개") || !strings.Contains(sum, "그중 10개만") {
+	if !strings.Contains(sum, "files created or modified by this step: 51") || !strings.Contains(sum, "(showing 10)") {
 		t.Fatalf("★ 자른 사실을 안 밝혔다 ★:\n%s", sum)
 	}
 	if !strings.Contains(sum, "vmlinux") {
@@ -193,7 +193,7 @@ func TestNote_다_냈으면_안_짚는다(t *testing.T) {
 
 	writeChangedNote(out, []string{"artifact"}, s, nil, testLog())
 	b, _ := os.ReadFile(filepath.Join(out, changedName))
-	if strings.Contains(string(b), "없는 것") {
+	if strings.Contains(string(b), "missing") {
 		t.Fatalf("다 냈는데 짚었다:\n%s", b)
 	}
 }
@@ -217,7 +217,7 @@ func TestNote_흔적이_없는_단계도_설명한다(t *testing.T) {
 	if !strings.Contains(got, "kunit_result") {
 		t.Fatalf("안 낸 것을 안 짚었다:\n%s", got)
 	}
-	if !strings.Contains(got, "바뀐 파일이 없다") {
+	if !strings.Contains(got, "no files changed") {
 		t.Fatalf("★ 흔적이 없다는 사실을 안 적었다 ★ — 보드 단계가 이렇다:\n%s", got)
 	}
 }

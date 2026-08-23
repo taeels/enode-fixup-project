@@ -34,7 +34,7 @@ type Client struct {
 func Principal() (string, error) {
 	out, err := exec.Command("git", "config", "--get", "user.email").Output()
 	if err != nil || strings.TrimSpace(string(out)) == "" {
-		return "", fmt.Errorf("git 이메일이 없다: git config user.email 을 설정하라")
+		return "", fmt.Errorf("no git email: set it with git config user.email")
 	}
 	return strings.TrimSpace(string(out)), nil
 }

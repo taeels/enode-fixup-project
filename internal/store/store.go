@@ -60,7 +60,7 @@ func Open(ctx context.Context, url string) (*Store, error) {
 	}
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("DB 연결 실패: %w", err)
+		return nil, fmt.Errorf("cannot connect to database: %w", err)
 	}
 	return &Store{pool: pool}, nil
 }
@@ -153,7 +153,7 @@ const (
 	StateFailed     = "FAILED"
 )
 
-var ErrNotFound = errors.New("없다")
+var ErrNotFound = errors.New("not found")
 
 // GetRun 은 없으면 ErrNotFound 다.
 // liveContract 는 ★ 지금 유효한 계약 ★ 을 주는 SQL 조각이다.
@@ -167,7 +167,7 @@ var ErrNotFound = errors.New("없다")
 // 판이 평평하게 임베드돼 있어(ContractVersion) 그대로 계약으로 읽힌다.
 const liveContract = `coalesce(contract_versions -> -1, contract)`
 
-// nullable 은 빈 문자열을 NULL 로 보낸다 — ★ "" 와 "없다" 를 섞지 않는다 ★.
+// nullable 은 빈 문자열을 NULL 로 보낸다 — ★ "" 와 "not found" 를 섞지 않는다 ★.
 func nullable(v string) any {
 	if v == "" {
 		return nil
@@ -219,7 +219,7 @@ type LeaseGrant struct {
 
 // ErrNodeTaken 은 ★ 기본키 충돌 ★ 이다 — 그 사이 다른 Run 이 노드를 가져갔다.
 // 호출자는 409 로 답하고 전체를 롤백한다. 그것이 I5 다.
-var ErrNodeTaken = errors.New("노드가 이미 다른 Run 에 묶여 있다")
+var ErrNodeTaken = errors.New("node is already held by another run")
 
 // CreateRun 은 ★ 하나의 트랜잭션 ★ 안에서 Run · 임대 · 단계를 만든다.
 //

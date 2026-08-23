@@ -55,7 +55,7 @@ func (s *Store) applyDispatch(ctx context.Context, tx pgx.Tx, runID string, seq 
 		}
 	}
 	if !keep {
-		return fmt.Errorf("step %q: 고른 이름 %q 가 dispatch.to 에 없다", st.ID, chosen)
+		return fmt.Errorf("step %q: chosen target %q is not in dispatch.to", st.ID, chosen)
 	}
 
 	// ★ 안 간 쪽만 SKIPPED 로 ★ — 갈림길 밖의 단계는 건드리지 않는다.
@@ -121,11 +121,11 @@ func propagateSkips(ctx context.Context, tx pgx.Tx, runID string) error {
 // 것과 같은 이유). ★ 필요한 것은 값 하나를 가리키는 것뿐이다 ★.
 func (s *Store) readDispatchValue(runID, blob, path string) (string, error) {
 	if s.Records == nil {
-		return "", fmt.Errorf("기록 저장소가 없다")
+		return "", fmt.Errorf("record store is not configured")
 	}
 	rc, _, err := s.Records.OpenBlob(runID, blob)
 	if err != nil {
-		return "", fmt.Errorf("산출물 %q 를 못 읽었다: %w", blob, err)
+		return "", fmt.Errorf("cannot read blob %q: %w", blob, err)
 	}
 	defer rc.Close() //nolint:errcheck
 	b, err := io.ReadAll(rc)
@@ -134,23 +134,23 @@ func (s *Store) readDispatchValue(runID, blob, path string) (string, error) {
 	}
 	var v any
 	if err := json.Unmarshal(b, &v); err != nil {
-		return "", fmt.Errorf("산출물 %q 가 JSON 이 아니다: %w", blob, err)
+		return "", fmt.Errorf("blob %q is not valid JSON: %w", blob, err)
 	}
 	if path != "" {
 		for _, key := range strings.Split(path, ".") {
 			m, ok := v.(map[string]any)
 			if !ok {
-				return "", fmt.Errorf("%q 를 따라가다 객체가 아닌 것을 만났다", path)
+				return "", fmt.Errorf("path %q traverses a non-object", path)
 			}
 			v, ok = m[key]
 			if !ok {
-				return "", fmt.Errorf("산출물에 %q 가 없다", path)
+				return "", fmt.Errorf("blob has no %q", path)
 			}
 		}
 	}
 	sv, ok := v.(string)
 	if !ok {
-		return "", fmt.Errorf("%q 가 문자열이 아니다 — 이름이어야 한다", path)
+		return "", fmt.Errorf("%q is not a string; a step name is expected", path)
 	}
 	return sv, nil
 }

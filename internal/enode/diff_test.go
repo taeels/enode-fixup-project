@@ -143,7 +143,7 @@ func TestDiff_상한을_넘으면_요약한다(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(d)
-	if !strings.Contains(s, "상한을 넘어 요약으로 대체했다") {
+	if !strings.Contains(s, "exceeded the size limit") {
 		t.Fatalf("요약으로 안 바뀌었다:\n%s", s)
 	}
 	if strings.Contains(s, "+아주 긴 줄이다") {

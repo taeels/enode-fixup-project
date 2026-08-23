@@ -100,10 +100,10 @@ func Load(flagPath string) (Config, error) {
 	if path != "" {
 		b, err := os.ReadFile(path)
 		if err != nil {
-			return c, fmt.Errorf("설정 %s: %w", path, err)
+			return c, fmt.Errorf("config %s: %w", path, err)
 		}
 		if err := yaml.Unmarshal(b, &c); err != nil {
-			return c, fmt.Errorf("설정 %s: %w", path, err)
+			return c, fmt.Errorf("config %s: %w", path, err)
 		}
 		if err := warnIfWorldReadable(path); err != nil {
 			return c, err
@@ -147,7 +147,7 @@ func warnIfWorldReadable(path string) error {
 		return err
 	}
 	if fi.Mode().Perm()&0o077 != 0 {
-		fmt.Fprintf(os.Stderr, "경고: %s 권한이 %04o 다. 0600 을 권한다 (DB 자격증명이 들어간다)\n",
+		fmt.Fprintf(os.Stderr, "warning: %s has mode %04o; 0600 is recommended (it contains database credentials)\n",
 			path, fi.Mode().Perm())
 	}
 	return nil

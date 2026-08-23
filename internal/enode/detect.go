@@ -57,7 +57,7 @@ func Detect(l Local, log *slog.Logger) []contract.Capability {
 		if ok, free := hasRoom(l, log); ok {
 			attrs["arch"] = arch
 		} else {
-			log.Warn("디스크가 모자라 빌드 능력을 광고에서 뺀다",
+			log.Warn("not enough free disk; dropping build capability from the advertisement",
 				"free_gb", free, "min_gb", l.MinFreeGB)
 		}
 	}
@@ -118,7 +118,7 @@ func hasRoom(l Local, log *slog.Logger) (bool, uint64) {
 	}
 	free, err := freeBytes(path)
 	if err != nil {
-		log.Warn("디스크 여유를 못 재서 있다고 본다", "path", path, "err", err)
+		log.Warn("cannot measure free disk; assuming enough", "path", path, "err", err)
 		return true, 0
 	}
 	freeGB := free / (1 << 30)

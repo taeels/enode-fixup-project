@@ -96,7 +96,7 @@ func Match(reqs []contract.Require, adverts []contract.Advert, busy map[string]b
 		if n := countSatisfying(sorted, r, nil); n < r.Wanted() {
 			return nil, &Reject{
 				Code: CodeNoCandidate, As: r.As,
-				Reason: fmt.Sprintf("요구 %d, 함대에 %d — %s", r.Wanted(), n, describe(r)),
+				Reason: fmt.Sprintf("need %d, fleet has %d - %s", r.Wanted(), n, describe(r)),
 			}
 		}
 	}
@@ -114,7 +114,7 @@ func Match(reqs []contract.Require, adverts []contract.Advert, busy map[string]b
 		if len(free) < want {
 			return nil, &Reject{
 				Code: CodeAllBusy, As: r.As,
-				Reason: fmt.Sprintf("요구 %d, 지금 %d — %s", want, len(free), describe(r)),
+				Reason: fmt.Sprintf("need %d, currently %d - %s", want, len(free), describe(r)),
 			}
 		}
 		out = append(out, Assignment{As: r.As, Nodes: append([]string(nil), free[:want]...)})

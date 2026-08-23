@@ -182,7 +182,7 @@ func Test훅_어긴_계획을_짚는다(t *testing.T) {
 		t.Fatalf("★ 막지 않았다 ★: %+v", so)
 	}
 	// ★ 오류 문장을 그대로 전한다 ★ — 번역하면 ADR-045 의 실수를 되풀이한다.
-	if !strings.Contains(so.Reason, "없는 역할") {
+	if !strings.Contains(so.Reason, "undeclared role") {
 		t.Fatalf("Validate 의 말이 안 실렸다: %s", so.Reason)
 	}
 	// ★ 어휘도 함께 준다 ★ — 무엇을 써야 하는지 모르면 또 추측한다.

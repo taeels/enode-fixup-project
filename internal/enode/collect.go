@@ -65,14 +65,14 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 
 		hits, err := filepath.Glob(filepath.Join(ws, pat))
 		if err != nil {
-			notes = append(notes, collectNote{name, "글롭이 이상하다: " + err.Error()})
+			notes = append(notes, collectNote{name, "invalid glob: " + err.Error()})
 			continue
 		}
 		hits = onlyRegularInside(ws, hits)
 		switch {
 		case len(hits) == 0:
 			notes = append(notes, collectNote{name,
-				fmt.Sprintf("%q 에 맞는 파일이 없다", pat)})
+				fmt.Sprintf("no file matches %q", pat)})
 		case len(hits) > 1:
 			// ★ 하나의 blob 이름에 여럿을 넣지 않는다 ★ — 소비자가 예측을 못 한다
 			// (어떨 땐 .ko, 어떨 땐 묶음). 계약 저자가 글롭을 좁히는 것이 맞다.
@@ -81,14 +81,14 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 				rel[i], _ = filepath.Rel(ws, h)
 			}
 			if len(rel) > 6 {
-				rel = append(rel[:6], fmt.Sprintf("…외 %d개", len(hits)-6))
+				rel = append(rel[:6], fmt.Sprintf("and %d more", len(hits)-6))
 			}
 			notes = append(notes, collectNote{name,
-				fmt.Sprintf("%q 에 %d개가 맞는다 (%s) — 하나만 맞게 좁혀라",
+				fmt.Sprintf("%q matches %d files (%s); narrow it to exactly one",
 					pat, len(hits), strings.Join(rel, ", "))})
 		default:
 			if err := copyFile(hits[0], dst); err != nil {
-				notes = append(notes, collectNote{name, "옮기지 못했다: " + err.Error()})
+				notes = append(notes, collectNote{name, "cannot move: " + err.Error()})
 				continue
 			}
 			got = append(got, name)
@@ -104,17 +104,17 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 // 그리고 계약은 ★ 노드 주인이 아닌 사람 ★ 이 낸다.
 func badPattern(pat string) string {
 	if pat == "" {
-		return "경로가 비었다"
+		return "path is empty"
 	}
 	if filepath.IsAbs(pat) || strings.HasPrefix(pat, "/") || strings.HasPrefix(pat, `\`) {
-		return "절대경로는 안 된다 — 워크스페이스 상대경로만 쓴다"
+		return "absolute paths are not allowed; use a workspace-relative path"
 	}
 	if vol := filepath.VolumeName(pat); vol != "" {
-		return "드라이브 지정은 안 된다 — 워크스페이스 상대경로만 쓴다"
+		return "drive letters are not allowed; use a workspace-relative path"
 	}
 	clean := filepath.ToSlash(filepath.Clean(pat))
 	if clean == ".." || strings.HasPrefix(clean, "../") {
-		return "워크스페이스 밖을 가리킬 수 없다"
+		return "path escapes the workspace"
 	}
 	return ""
 }

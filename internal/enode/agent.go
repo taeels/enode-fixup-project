@@ -198,7 +198,7 @@ func writePromptFile(dir, prompt string) {
 func parseAgentParams(raw json.RawMessage) (AgentParams, error) {
 	var p AgentParams
 	if len(raw) == 0 {
-		return p, fmt.Errorf("agent 파라미터가 없다")
+		return p, fmt.Errorf("agent parameters are missing")
 	}
 	return p, json.Unmarshal(raw, &p)
 }

@@ -67,7 +67,7 @@ func (s *Store) loopBack(ctx context.Context, tx pgx.Tx, runID string, seq int,
 	}
 	if attempt+1 >= st.Loop.Max {
 		// ★ 소진했다. 그냥 진행한다 ★ — 성패는 success_when 이 정한다(I3).
-		s.log().Warn("반복 소진", "run", runID, "step", st.ID, "attempts", attempt+1)
+		s.log().Warn("loop exhausted", "run", runID, "step", st.ID, "attempts", attempt+1)
 		return false, nil
 	}
 	// ★ 구간을 통째로 되돌린다 ★ — SKIPPED 도 되돌려 다음 회차가 다른 경로를
@@ -79,7 +79,7 @@ func (s *Store) loopBack(ctx context.Context, tx pgx.Tx, runID string, seq int,
 		runID, from, seq, attempt+1); err != nil {
 		return false, err
 	}
-	s.log().Info("반복 — 구간을 되돌린다", "run", runID, "step", st.ID,
+	s.log().Info("loop: rolling back the range", "run", runID, "step", st.ID,
 		"back_to", st.Loop.BackTo, "attempt", attempt+2, "max", st.Loop.Max)
 	return true, nil
 }
@@ -120,7 +120,7 @@ func (s *Store) validateBack(ctx context.Context, tx pgx.Tx, runID string, seq i
 	}
 	if attempt+1 >= max {
 		// ★ 소진했다 ★ — 성패는 success_when 의 within_attempts 가 판정한다.
-		s.log().Warn("재시도 소진", "run", runID, "step", target.ID, "attempts", attempt+1)
+		s.log().Warn("attempts exhausted", "run", runID, "step", target.ID, "attempts", attempt+1)
 		return false, nil
 	}
 	// ★ 대상과 검증자를 함께 되돌린다 ★ — 검증자의 회차도 올린다.
@@ -133,7 +133,7 @@ func (s *Store) validateBack(ctx context.Context, tx pgx.Tx, runID string, seq i
 			return false, err
 		}
 	}
-	s.log().Info("검증 실패 — 되먹여 재시도", "run", runID, "step", target.ID,
+	s.log().Info("validation failed; retrying with feedback", "run", runID, "step", target.ID,
 		"validator", validator.ID, "attempt", attempt+2, "max", max)
 	return true, nil
 }
