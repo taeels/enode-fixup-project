@@ -43,6 +43,11 @@ type Step struct {
 	// 문법이 「uses 를 적는다」까지만 말하고 ★ 무엇을 적는지 ★ 는 안 말하므로,
 	// 어휘를 아는 쪽(Mediator)이 실어 보낸다.
 	Roles []string `json:"roles,omitempty"`
+	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 이름 ★ 이다 (ADR-049).
+	// ★ 이것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
+	Owed []string `json:"owed,omitempty"`
+	// Goal 은 ★ 이 Run 이 처음 받은 목표 ★ 다 (ADR-049) — 재계획이 향할 곳.
+	Goal string `json:"goal,omitempty"`
 	// Expands 는 ★ 계약을 짓는 단계인가 ★ 다 (ADR-045) — 어댑터가 프롬프트에
 	// 계약 문법을 심을지 정한다. ★ 노드는 그것으로 판정하지 않는다 ★.
 	Expands   bool     `json:"expands,omitempty"`
@@ -611,7 +616,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		"feedback_names", step.Feedback, "feedback_got", len(feedback),
 		"out", step.Out, "schema", len(step.Schema))
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
-		step.Attempt, step.Expands, step.Roles)
+		step.Attempt, step.Expands, step.Roles, step.Owed, step.Goal)
 	writePromptFile(out, prompt)
 
 	// ★ R1 — 부모 환경을 통째로 물려주지 않는다 ★

@@ -111,6 +111,29 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 	//
 	// ADR-020 이 「가설 없음」을 부재가 아니라 status:none 이라는 ★ 값 ★ 으로 만든 것과
 	// 같은 자리다. 부재(파일 없음)는 크래시와 구분되지 않지만, ★ 빈 배열은 판단이다 ★.
+	// ★ 약속한 이름을 지었는가 ★ (ADR-049)
+	//
+	// 계약이 produces 로 "계획은 이 단계를 반드시 짓는다" 를 선언했으면,
+	// ★ 그것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
+	// 빈 계획으로 끝내려면 ★ 약속이 이미 지어져 있어야 한다 ★.
+	built := map[string]bool{}
+	for _, st := range c.Steps {
+		built[st.ID] = true
+	}
+	for _, ns := range p.Steps {
+		built[ns.ID] = true
+	}
+	var owed []string
+	for _, n := range st.Produces {
+		if !built[n] {
+			owed = append(owed, n)
+		}
+	}
+	if len(owed) > 0 {
+		return fmt.Errorf("step %q: 계약이 약속한 단계를 계획이 안 지었다: %v — "+
+			"★ 목표가 아직 안 섰다 ★", st.ID, owed)
+	}
+
 	if len(p.Steps) == 0 {
 		if len(p.SuccessWhen) > 0 {
 			// 늘릴 단계가 없는데 판정할 것이 있다면 계획이 자기모순이다.

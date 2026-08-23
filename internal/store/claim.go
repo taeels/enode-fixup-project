@@ -89,6 +89,17 @@ type Claimed struct {
 	// ★ expands 단계에만 싣는다 ★ — 다른 단계는 자기 uses 만 알면 되고,
 	// 남의 역할 이름을 아는 것은 그 단계에 쓸 데가 없다.
 	Roles []string `json:"roles,omitempty"`
+	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 이름 ★ 이다 (ADR-049).
+	// ★ 이것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
+	Owed []string `json:"owed,omitempty"`
+	// Goal 은 ★ 이 Run 이 처음 받은 목표 ★ 다 (ADR-049).
+	//
+	// ★ 왜 필요한가 ★ — 계획이 지은 재계획 단계의 in.prompt 가 비면
+	// ★ 재료를 받고도 무엇을 향해 지을지 모른다 ★. 실측에서 밟았다:
+	// 재계획이 "요청 섹션이 비어 있다. 목표는 어디에도 명시돼 있지 않다" 며
+	// _cannot 을 냈다. 목표는 v1 의 expands 단계에만 있었고 다음 판으로
+	// 전달되는 경로가 없었다. ★ 아는 쪽이 적어준다 ★ (ADR-045 와 같은 자리).
+	Goal string `json:"goal,omitempty"`
 	// Expands 는 ★ 이 단계가 계약을 짓는 단계인가 ★ 다 (ADR-045).
 	//
 	// ★ 노드가 알아야 하는 이유 ★ — 어댑터가 프롬프트에 ★ 계약 문법 ★ 을 심는다.
@@ -349,6 +360,7 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 			Schema    json.RawMessage   `json:"schema"`
 			Feedback  []string          `json:"feedback"`
 			Expands   bool              `json:"expands"`
+			Produces  []string          `json:"produces"`
 		} `json:"steps"`
 		// ★ 판정 조건에서 「확인할 경로」만 뽑아 싣는다 ★ (ADR-037).
 		SuccessWhen []struct {
@@ -372,6 +384,31 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 		for _, r := range raw.Requires {
 			if r.As != "" {
 				c.Roles = append(c.Roles, r.As)
+			}
+		}
+		// ★ 약속했는데 아직 없는 이름 ★ — 이것이 이 판이 향할 곳이다 (ADR-049)
+		have := map[string]bool{}
+		for _, x := range raw.Steps {
+			have[x.ID] = true
+		}
+		for _, x := range raw.Steps {
+			for _, n := range x.Produces {
+				if !have[n] {
+					c.Owed = append(c.Owed, n)
+				}
+			}
+		}
+		// ★ 처음 받은 목표를 나른다 ★ — v1 의 첫 expands 단계가 받은 프롬프트다.
+		// 그 단계 자신이면 자기 프롬프트가 이미 in 에 있으므로 안 싣는다.
+		for _, x := range raw.Steps {
+			if x.Expands && x.ID != st.ID {
+				var in struct {
+					Prompt string `json:"prompt"`
+				}
+				if json.Unmarshal(x.In, &in) == nil && in.Prompt != "" {
+					c.Goal = in.Prompt
+					break
+				}
 			}
 		}
 	}

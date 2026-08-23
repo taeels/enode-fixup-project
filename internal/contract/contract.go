@@ -442,6 +442,29 @@ type Step struct {
 	//   DAG 검사를 다시 받고, 늘어나는 횟수가 유계다.
 	Expands bool `json:"expands,omitempty"`
 
+	// Produces 는 ★ 이 계획이 반드시 지어야 할 단계 이름 ★ 이다 (ADR-049).
+	//
+	// ★ 왜 필요한가 — 목표를 계약이 표현할 수 없었다 ★
+	//
+	// success_when 은 ★ 제출 시점에 있는 단계 ★ 만 지목할 수 있다(ErrCondUnknownID).
+	// 그런데 계획 위임에서는 ★ 목표를 이루는 단계를 계획이 짓는다 ★ — 그래서
+	// 계약 저자가 "무엇이 되면 끝인가" 를 적을 자리가 없었다.
+	//
+	//	실측 (vm-scratch-1): 조사만 하고 재계획이 빈 계획을 내자 Run 이 SUCCEEDED 로
+	//	끝났다. ★ VM 에는 아무것도 안 깔렸다 ★. 9차의 「성공한 일이 FAILED」를
+	//	고쳤더니 이번엔 ★ 「안 한 일이 SUCCEEDED」 ★ 가 나왔다.
+	//
+	// ★ 이 필드가 여는 것 ★ — success_when 이 여기 적힌 이름을 ★ 미리 ★ 가리킬 수 있다.
+	// 그리고 계획이 그 이름을 안 지으면 ★ 계약 적용이 거절한다 ★ (applyExpands).
+	//
+	// ★ 기준의 저자는 여전히 사람이다 ★ — 계획보다 먼저, 어떤 계획도 없을 때
+	// 못 박힌다. ADR-037(판정하는 술어를 에이전트가 저작하지 못하게 한다)을
+	// ★ 약화시키지 않고 강화한다 ★.
+	//
+	// ★ 빈 계획과의 관계 ★ — 약속한 이름이 아직 안 지어졌으면 빈 계획을 못 낸다.
+	// ADR-043 의 「고칠 것이 없다」는 ★ 목표가 이미 선 뒤 ★ 의 판단이다.
+	Produces []string `json:"produces,omitempty"`
+
 	// Needs 는 ★ 이 단계가 기다리는 단계들 ★ 이다 (ADR-023 §4).
 	//
 	// 오늘까지 의존은 ★ 목록에서의 위치 ★ 였다 — steps[] 가 리스트이므로
@@ -953,6 +976,25 @@ func (c Contract) Validate() error {
 		}
 	}
 
+	// ★ produces 는 expands 단계에만 쓸 수 있다 ★ (ADR-049) —
+	// 「계획이 지을 것」이므로 계획을 짓지 않는 단계에는 의미가 없다.
+	// 그리고 ★ 이름이 이미 있으면 안 된다 ★ — 그건 약속이 아니라 중복이다.
+	for _, st := range c.Steps {
+		if len(st.Produces) == 0 {
+			continue
+		}
+		if !st.Expands {
+			return fmt.Errorf("step %q: produces 는 expands 단계에만 쓸 수 있다 — "+
+				"계획을 짓지 않는 단계는 약속할 것이 없다", st.ID)
+		}
+		for _, n := range st.Produces {
+			if _, dup := index[n]; dup {
+				return fmt.Errorf("step %q: produces 의 %q 가 이미 있는 단계다 — "+
+					"약속이 아니라 중복이다", st.ID, n)
+			}
+		}
+	}
+
 	// ★ ask 는 「사람이 수행하는」 단계다 ★ (ADR-032).
 	for _, st := range c.Steps {
 		a := st.Ask
@@ -1211,9 +1253,24 @@ func (c Contract) Validate() error {
 		}
 	}
 
+	// ★ 계획이 짓기로 약속한 이름 ★ 은 아직 없어도 지목할 수 있다 (ADR-049).
+	// 그래야 사람이 ★ 계획보다 먼저 ★ 「무엇이 되면 끝인가」를 못 박는다 —
+	// 목표를 이루는 단계를 계획이 짓기 때문이다.
+	promised := map[string]bool{}
+	for _, st := range c.Steps {
+		for _, n := range st.Produces {
+			promised[n] = true
+		}
+	}
 	for _, cond := range c.SuccessWhen {
 		k, ok := kinds[cond.Step]
 		if !ok {
+			if promised[cond.Step] {
+				// ★ 아직 안 지어졌다 ★ — 계획이 지으면 그때 종류가 정해지고,
+				// 늘어난 계약이 다시 Validate 를 받으므로 검사가 안 새어나간다.
+				// 그리고 안 지으면 applyExpands 가 거절한다.
+				continue
+			}
 			return fmt.Errorf("%w: %q", ErrCondUnknownID, cond.Step)
 		}
 		if cond.ExitCode != nil && k == KindAgent {

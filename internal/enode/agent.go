@@ -70,7 +70,8 @@ const failLane = `
 // 형식을 유지하고, ★ 되먹임을 요청 바로 앞에 두면 ★ 무엇을 고쳐야 하는지가
 // 가장 가깝게 놓인다.
 func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage,
-	feedback map[string]string, attempt int, expands bool, roles []string) string {
+	feedback map[string]string, attempt int, expands bool,
+	roles, owed []string, goal string) string {
 	var b strings.Builder
 	b.WriteString(outContract)
 	// ★ 계약을 짓는 단계에는 계약 문법을 심는다 ★ (ADR-045)
@@ -90,6 +91,26 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 			}
 			b.WriteString("\n★ 여기 없는 이름을 쓰면 계획 전체가 거절된다 ★ — " +
 				"자원은 계약 저자가 선언한다.\n\n")
+		}
+		// ★ 목표를 나른다 ★ (ADR-049) — 계획이 지은 재계획 단계는 자기 프롬프트가
+		// 비어 있을 수 있다. 그러면 ★ 재료를 받고도 무엇을 향해 지을지 모른다 ★.
+		// 실측에서 밟았다: "요청 섹션이 비어 있다. 목표는 어디에도 명시돼 있지 않다".
+		if goal != "" {
+			b.WriteString("### ★ 이 Run 이 처음 받은 목표 ★\n\n" +
+				"아래는 이 Run 을 시작한 사람이 적은 것이다. " +
+				"★ 네가 짓는 계획은 여전히 이것을 향한다 ★.\n\n" +
+				"```\n" + trimTo(goal, 6000) + "\n```\n\n")
+		}
+		// ★ 무엇이 아직 안 섰는지 ★ (ADR-049) — 계약이 약속한 단계 이름이다.
+		if len(owed) > 0 {
+			b.WriteString("### ★ 계약이 약속했는데 아직 안 지어진 단계 ★\n\n")
+			for _, n := range owed {
+				b.WriteString("    " + n + "\n")
+			}
+			b.WriteString("\n★ 이 이름을 가진 단계를 지어야 한다 ★ — " +
+				"success_when 이 이미 이 이름을 가리키고 있고, " +
+				"안 지으면 ★ 계획이 거절된다 ★. 그리고 이것이 남아 있는 한 " +
+				"★ 빈 계획을 낼 수 없다 ★.\n\n")
 		}
 	}
 	for _, n := range outNames {

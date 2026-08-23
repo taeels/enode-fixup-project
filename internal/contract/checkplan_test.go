@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -93,5 +94,45 @@ func TestCheckPlan_역할을_모르면_통과시킨다(t *testing.T) {
 	plan := `{"steps":[{"id":"a","uses":"뭐든","run":["true"],"out":["l"]}]}`
 	if err := CheckPlan([]byte(plan), nil); err != nil {
 		t.Fatalf("역할을 모르는데 막았다: %v", err)
+	}
+}
+
+// ★ 계약이 약속한 단계를 계획이 안 지으면 거절된다 ★ (ADR-049)
+func TestValidate_produces(t *testing.T) {
+	// ① success_when 이 ★ 아직 없는 단계 ★ 를 가리켜도 통과한다 — 약속했으므로.
+	ok := `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+	  "steps":[{"id":"p","uses":"n","expands":true,"agent":{},"in":{"prompt":"x"},
+	            "out":["plan"],"schema":{"plan":{"type":"object"}},
+	            "produces":["goal_step"]}],
+	  "success_when":[{"step":"goal_step","produced":["done"]}]}`
+	var c Contract
+	if err := json.Unmarshal([]byte(ok), &c); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("★ 약속한 이름을 미리 못 가리켰다 ★: %v", err)
+	}
+
+	// ② 약속이 없으면 여전히 거절한다 — ErrCondUnknownID 가 살아 있어야 한다.
+	bad := strings.Replace(ok, `"produces":["goal_step"]`, `"produces":[]`, 1)
+	c = Contract{}
+	if err := json.Unmarshal([]byte(bad), &c); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Validate(); err == nil {
+		t.Fatal("★ 약속 없이 없는 단계를 가리켰는데 통과했다 ★")
+	}
+
+	// ③ produces 는 expands 단계에만 — 계획을 안 짓는 단계는 약속할 것이 없다.
+	notExpands := `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+	  "steps":[{"id":"a","uses":"n","run":["true"],"out":["l"],"produces":["z"]}],
+	  "success_when":[{"step":"a","exit_code":0}]}`
+	c = Contract{}
+	if err := json.Unmarshal([]byte(notExpands), &c); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Validate(); err == nil ||
+		!strings.Contains(err.Error(), "expands 단계에만") {
+		t.Fatalf("★ 명령 단계의 produces 를 안 막았다 ★: %v", err)
 	}
 }
