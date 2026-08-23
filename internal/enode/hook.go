@@ -1,6 +1,8 @@
 package enode
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"os"
@@ -111,6 +113,10 @@ func RunStopHook(a HookArgs, in io.Reader, out io.Writer) error {
 	// 아니다. 그래서 이유의 종류마다 한 번씩 짚고, 그것을 $OUT 에 기록한다.
 	// 종류는 오늘 둘뿐이라 상한이 저절로 선다.
 	seen := hookSeen(a.Out)
+	if len(seen) >= hookBlockBudget {
+		// ★ 전체 상한 ★ — 이유가 계속 새로우면 영원히 막을 수 있다.
+		return nil
+	}
 
 	if missing := missingOutputs(a.Out, a.Expect); len(missing) > 0 {
 		if seen[seenMissing] || !markSeen(a.Out, seenMissing) {
@@ -129,7 +135,16 @@ func RunStopHook(a HookArgs, in io.Reader, out io.Writer) error {
 	// 새 지시가 아니라 ★ 상기 ★ 다. 훅이 계약 밖을 시키면 모델이 거절한다는
 	// 실측(위 표)과 어긋나지 않는다.
 	if why := planProblem(a); why != "" {
-		if seen[seenPlan] || !markSeen(a.Out, seenPlan) {
+		// ★ 같은 이유가 아니라 같은 문제로 좁힌다 ★ (ADR-051 §4 가 예고한 자리)
+		//
+		// ★ 실측 ★ (vm-scratch-4) 훅이 문법을 한 번 짚었고 모델이 그것을
+		// 고쳤는데 ★ 다른 자리에서 또 틀렸다 ★ (produced 는 고쳐졌고 이번엔
+		// in 이 배열이었다). 종류로 세면 두 번째 위반은 못 짚는다.
+		//
+		// ★ 계획 문법은 여러 곳에서 틀릴 수 있고 모델은 하나씩 고친다 ★.
+		// 그래서 「무엇이 틀렸나」로 세고, 전체 상한이 루프를 막는다.
+		key := seenPlan + ":" + fingerprint(why)
+		if seen[key] || !markSeen(a.Out, key) {
 			return nil
 		}
 		return json.NewEncoder(out).Encode(StopOutput{
@@ -137,6 +152,15 @@ func RunStopHook(a HookArgs, in io.Reader, out io.Writer) error {
 		})
 	}
 	return nil // 다 냈고 모양도 맞다. 통과.
+}
+
+// fingerprint 는 되묻기 사유를 ★ 짧고 안정된 열쇠 ★ 로 만든다.
+//
+// 문장을 그대로 쓰면 경로나 이름이 섞여 ★ 같은 문제가 매번 달라 보인다 ★.
+// 해시는 그런 흔들림을 없애지는 않지만, 적어도 파일에 한 줄로 남는다.
+func fingerprint(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:6])
 }
 
 // ★ 이 단계에서 이미 짚은 이유들 ★ (ADR-051).
@@ -148,6 +172,13 @@ const (
 	hookSeenFile = ".enode-hook-seen"
 	seenMissing  = "missing"
 	seenPlan     = "plan"
+	// hookBlockBudget 은 ★ 한 단계에서 되물을 수 있는 총 횟수 ★ 다.
+	//
+	// 이유를 「무엇이 틀렸나」로 세면 종류가 무한히 늘 수 있다 — 계획 문법은
+	// 여러 곳에서 틀리고, 고칠 때마다 새 문제가 드러날 수 있다.
+	// ★ 값이 다섯인 이유 ★: 실측에서 계획 하나가 밟은 문법 위반이 최대 넷이었고
+	// (6·8·10·11차), 산출물 누락 한 번을 더한 것이다.
+	hookBlockBudget = 5
 )
 
 func hookSeen(outDir string) map[string]bool {

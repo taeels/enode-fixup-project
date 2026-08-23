@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -70,9 +71,48 @@ func TestHook_산출물을_짚은_뒤에도_문법을_짚는다(t *testing.T) {
 		t.Fatalf("★ 문법 문제라고 말하지 않았다 ★: %+v", o)
 	}
 
-	// ③ 문법도 ★ 한 번만 ★ 짚는다.
+	// ③ ★ 같은 문법 문제로는 한 번만 ★ 짚는다.
 	if o = hookRun(t, a, StopInput{StopHookActive: true}); o.Decision != "" {
 		t.Fatalf("★ 같은 문법 문제로 또 막았다 ★: %+v", o)
+	}
+
+	// ④ ★ 다른 문법 문제면 다시 짚는다 ★ (ADR-051 §4)
+	//
+	// ★ 실측 ★ (vm-scratch-4) 훅이 문법을 한 번 짚었고 모델이 그것을 고쳤는데
+	// ★ 다른 자리에서 또 틀렸다 ★ — produced 는 배열이 됐고 이번엔 in 이
+	// 배열이었다. 이유를 종류로 세면 두 번째 위반은 못 짚는다.
+	other := `{"steps":[{"id":"a","uses":"n","run":["true"],"out":["x"],"in":["oops"]}],
+	           "success_when":[{"step":"a","produced":["x"]}]}`
+	if err := os.WriteFile(filepath.Join(out, "plan2"), []byte(other), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if o = hookRun(t, a, StopInput{StopHookActive: true}); o.Decision != "block" {
+		t.Fatalf("★ 다른 문법 문제인데 안 짚었다 ★: %+v", o)
+	}
+}
+
+// ★ 되묻기에는 총 상한이 있다 ★ — 이유를 「무엇이 틀렸나」로 세면
+// 종류가 무한히 늘 수 있고, 그러면 영원히 막을 수 있다 (ADR-051).
+func TestHook_되묻기_총량이_넘으면_통과시킨다(t *testing.T) {
+	out := t.TempDir()
+	a := HookArgs{Out: out, Expect: []string{"plan2"}, Plan: "plan2", Roles: []string{"n"}}
+	blocked := 0
+	for i := 0; i < hookBlockBudget+3; i++ {
+		// ★ 매번 다른 문법 위반 ★ — 이름이 다르면 오류 문장도 다르다.
+		bad := `{"steps":[{"id":"s` + strconv.Itoa(i) + `","uses":"없는역할",` +
+			`"run":["true"],"out":["x"]}],"success_when":[]}`
+		if err := os.WriteFile(filepath.Join(out, "plan2"), []byte(bad), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if hookRun(t, a, StopInput{}).Decision == "block" {
+			blocked++
+		}
+	}
+	if blocked > hookBlockBudget {
+		t.Fatalf("★ 상한을 넘겨 %d 번 막았다 ★ — 무한 루프의 자리다", blocked)
+	}
+	if blocked == 0 {
+		t.Fatal("★ 한 번도 안 막았다 ★ — 상한이 되묻기 자체를 죽였다")
 	}
 }
 
