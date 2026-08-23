@@ -114,3 +114,15 @@ ALTER TABLE steps ADD COLUMN IF NOT EXISTS claimed_instance text;
 -- ★ 되묻기의 기한 ★ (ADR-032). ASKED 로 만들 때 timeout.after 에서 계산해 박는다.
 -- NULL 이면 무한 대기 — 사람의 시간을 시스템이 짐작하지 않는다.
 ALTER TABLE steps ADD COLUMN IF NOT EXISTS ask_deadline timestamptz;
+
+-- ★ 되먹임 봉투의 열쇠 ★ (ADR-050) — 그 단계의 프롬프트에서 앞 단계의 도구
+-- 출력을 감싸는 구분자에 붙는다.
+--
+-- ★ 왜 단계마다 다른가 ★ — 앞 단계도 에이전트다. 구분자가 고정이면 앞 단계가
+-- 산출물 안에 종료 표식을 적어 ★ 봉투를 빠져나올 수 있다 ★. 열쇠는 집을 때
+-- 뽑으므로, 앞 단계가 산출물을 쓰던 시점에 ★ 다음 단계의 열쇠는 존재하지 않는다 ★.
+--
+-- ★ 왜 행에 남기는가 ★ — 재전달(ADR-030)이 같은 프롬프트를 만들어야 하고,
+-- 봉인된 Record 를 열었을 때 그 프롬프트가 왜 그 모양이었는지 설명돼야 한다.
+-- NULL 이면 열쇠 없이 봉투만 씌운다 — ★ 열쇠는 강화이지 봉투의 조건이 아니다 ★.
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS envelope_key text;

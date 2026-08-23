@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -106,7 +108,17 @@ type Claimed struct {
 	// 그 전에는 사람이 매 판 Validate() 를 자연어로 번역해 넣었고, 번역이
 	// 축약되고 퇴행하고 모순됐다. outContract 를 심는 것과 같은 자리다.
 	Expands bool `json:"expands,omitempty"`
-	Attempt int  `json:"attempt,omitempty"` // 0 부터. 재시도면 1 이상.
+	// EnvelopeKey 는 ★ 되먹임 봉투의 열쇠 ★ 다 (ADR-050).
+	//
+	// 어댑터가 앞 단계의 도구 출력을 프롬프트에 실을 때, 그 출력을 감싸는
+	// 구분자에 이 값을 붙인다. ★ 격을 선언하는 것은 봉투의 안내문이고,
+	// 열쇠는 그 봉투를 앞 단계가 흉내내지 못하게 한다 ★.
+	//
+	// ★ 집을 때 뽑는다 ★ — 앞 단계가 산출물을 쓰던 시점에 이 값은 아직
+	// 존재하지 않았다. 재전달(ADR-030)이면 행에 남은 것을 그대로 쓴다.
+	// 비어 있으면 어댑터가 열쇠 없이 봉투만 씌운다 — 오늘 그대로 동작한다.
+	EnvelopeKey string `json:"envelope_key,omitempty"`
+	Attempt     int    `json:"attempt,omitempty"` // 0 부터. 재시도면 1 이상.
 	// Requester 는 ★ runctl 로 요청한 사람 ★ 이다 (runs.principal, ADR-015 §1).
 	// 지금은 아무도 안 본다 — R2(하네스가 누구 신원으로 도는가)가 쓸 재료다.
 	// 미리 싣는 이유는, 나중에 필요해졌을 때 ★ 이 표면을 고치지 않기 위해서 ★ 다.
@@ -120,6 +132,22 @@ type Claimed struct {
 }
 
 var ErrNoWork = errors.New("no work available")
+
+// newEnvelopeKey 는 되먹임 봉투의 구분자에 붙일 열쇠를 뽑는다 (ADR-050).
+//
+// ★ 48비트면 충분하다 ★ — 막으려는 것은 무차별 대입이 아니라 ★ 앞 단계가
+// 다음 단계의 구분자를 미리 적어두는 것 ★ 이고, 그 단계는 값을 볼 기회가
+// 한 번도 없다. 짧게 두는 이유는 프롬프트에 봉투마다 두 번씩 실리기 때문이다.
+//
+// ★ 못 뽑으면 빈 값을 돌려준다 ★ — 봉투 자체는 열쇠 없이도 격을 선언한다.
+// 여기서 실패했다고 단계를 못 돌게 하는 것은 ★ 강화 장치가 본체를 막는 것 ★ 이다.
+func newEnvelopeKey() string {
+	var b [6]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b[:])
+}
 
 // ClaimStep 은 이 노드가 할 단계 하나를 집는다.
 //
@@ -206,10 +234,17 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID, instance string) (*Claime
 	c.Lease.Capability = "agent.reason"
 
 	// ★ 어느 생이 집었는지를 함께 적는다 ★ (ADR-030) — 재전달과 재시작 판정의 재료다.
+	//
+	// ★ 봉투의 열쇠도 여기서 뽑는다 ★ (ADR-050) — 집는 순간이 곧 「앞 단계가
+	// 더는 손댈 수 없게 된 시점」이다. 재시도면 여기를 다시 지나므로
+	// ★ 회차마다 새 열쇠 ★ 가 된다: 앞 회차의 자백을 되먹일 때, 그것을 쓴
+	// 것이 자기 자신이어도 그때 본 열쇠는 이미 쓸모가 없다.
+	c.EnvelopeKey = newEnvelopeKey()
 	if _, err := tx.Exec(ctx,
-		`UPDATE steps SET state='CLAIMED', started_at=now(), claimed_instance=$3
+		`UPDATE steps SET state='CLAIMED', started_at=now(), claimed_instance=$3,
+		        envelope_key=$4
 		  WHERE run_id=$1 AND seq=$2`,
-		c.RunID, c.Seq, nullable(instance)); err != nil {
+		c.RunID, c.Seq, nullable(instance), nullable(c.EnvelopeKey)); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -269,7 +304,8 @@ func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claime
 	var contractJSON []byte
 	err := s.pool.QueryRow(ctx, `
 		SELECT s.run_id, s.seq, s.name, s.uses, s.kind, s.attempt,
-		       coalesce(r.contract_versions -> -1, r.contract), r.principal
+		       coalesce(r.contract_versions -> -1, r.contract), r.principal,
+		       coalesce(s.envelope_key, '')
 		  FROM steps s
 		  JOIN runs r ON r.run_id = s.run_id
 		  JOIN leases l ON l.node_id = s.node_id AND l.run_id = s.run_id
@@ -277,7 +313,8 @@ func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claime
 		   AND s.claimed_instance = $2
 		   AND r.state = 'RUNNING' AND l.not_after > now()
 		 ORDER BY s.run_id, s.seq LIMIT 1`, nodeID, instance).
-		Scan(&c.RunID, &c.Seq, &c.Name, &c.Uses, &c.Kind, &c.Attempt, &contractJSON, &c.Requester)
+		Scan(&c.RunID, &c.Seq, &c.Name, &c.Uses, &c.Kind, &c.Attempt, &contractJSON, &c.Requester,
+			&c.EnvelopeKey)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}

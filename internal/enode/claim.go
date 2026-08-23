@@ -50,10 +50,14 @@ type Step struct {
 	Goal string `json:"goal,omitempty"`
 	// Expands 는 ★ 계약을 짓는 단계인가 ★ 다 (ADR-045) — 어댑터가 프롬프트에
 	// 계약 문법을 심을지 정한다. ★ 노드는 그것으로 판정하지 않는다 ★.
-	Expands   bool     `json:"expands,omitempty"`
-	Attempt   int      `json:"attempt,omitempty"`
-	Requester string   `json:"requester,omitempty"` // ★ 요청한 사람 ★ (R2 재료)
-	Feedback  []string `json:"feedback,omitempty"`
+	Expands bool `json:"expands,omitempty"`
+	// EnvelopeKey 는 ★ 되먹임 봉투의 열쇠 ★ 다 (ADR-050) — Mediator 가 집을 때
+	// 뽑아 실어 보낸다. 어댑터가 도구 출력을 감싸는 구분자에 붙인다.
+	// ★ 비어 있으면 열쇠 없이 봉투만 씌운다 ★ — 옛 Mediator 와도 돈다.
+	EnvelopeKey string   `json:"envelope_key,omitempty"`
+	Attempt     int      `json:"attempt,omitempty"`
+	Requester   string   `json:"requester,omitempty"` // ★ 요청한 사람 ★ (R2 재료)
+	Feedback    []string `json:"feedback,omitempty"`
 	// Ledger 는 ★ 그 시점 원장의 목록 ★ 이다 — 계약이 see.ledger:"list" 라고
 	// 했을 때만 온다 (ADR-023 §6.4). ★ 본문이 아니다 ★: $IN 에 파일 하나로 깔고,
 	// 본문이 필요하면 계약이 in.from 에 이름을 적어 그 경로로 받는다.
@@ -616,7 +620,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		"feedback_names", step.Feedback, "feedback_got", len(feedback),
 		"out", step.Out, "schema", len(step.Schema))
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
-		step.Attempt, step.Expands, step.Roles, step.Owed, step.Goal)
+		step.Attempt, step.Expands, step.Roles, step.Owed, step.Goal, step.EnvelopeKey)
 	writePromptFile(out, prompt)
 
 	// ★ R1 — 부모 환경을 통째로 물려주지 않는다 ★
