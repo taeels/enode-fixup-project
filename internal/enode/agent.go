@@ -26,6 +26,13 @@ type OwedStep struct {
 	When []contract.Condition `json:"when,omitempty"`
 }
 
+// StandingStep 은 ★ 이미 계약에 선 단계 ★ 다 (ADR-052) — Mediator 가 싣는다.
+type StandingStep struct {
+	Name     string `json:"name"`
+	State    string `json:"state"`
+	ExitCode *int   `json:"exit_code,omitempty"`
+}
+
 type AgentParams struct {
 	Model     string `json:"model,omitempty"`
 	MaxTurns  int    `json:"max_turns,omitempty"`
@@ -108,7 +115,8 @@ func owedHow(when []contract.Condition) string {
 // 가장 가깝게 놓인다.
 func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage,
 	feedback map[string]string, attempt int, expands bool,
-	roles []string, owed []OwedStep, goal, envKey string) string {
+	roles []string, owed []OwedStep, standing []StandingStep,
+	goal, envKey string) string {
 	var b strings.Builder
 	b.WriteString(outContract)
 	// ★ 계약을 짓는 단계에는 계약 문법을 심는다 ★ (ADR-045)
@@ -158,6 +166,33 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 				"success_when 이 이미 이 이름을 가리키고 있고, " +
 				"안 지으면 ★ 계획이 거절된다 ★. 그리고 이것이 남아 있는 한 " +
 				"★ 빈 계획을 낼 수 없다 ★.\n\n")
+		}
+		// ★ 이미 선 것을 알려준다 ★ (ADR-052) — owed 의 반대쪽이다.
+		// 이것이 없으면 계획은 ★ 자기가 어디에 붙는지 모른 채 ★ 짓는다.
+		if len(standing) > 0 {
+			b.WriteString("### ★ 이미 계약에 서 있는 단계 ★\n\n")
+			for _, st := range standing {
+				b.WriteString("    " + st.Name)
+				for i := len(st.Name); i < 24; i++ {
+					b.WriteString(" ")
+				}
+				b.WriteString(st.State)
+				if st.ExitCode != nil {
+					// ★ 완주와 성공은 다르다 ★ — DONE 이면서 0 이 아닐 수 있고,
+					// 그 자리가 재계획이 봐야 할 곳이다.
+					b.WriteString("  종료코드 " + strconv.Itoa(*st.ExitCode))
+					if *st.ExitCode != 0 {
+						b.WriteString(" ★ 실패했다 ★")
+					}
+				}
+				b.WriteString("\n")
+			}
+			b.WriteString("\n★ 이 이름들은 이미 있다 ★ — 같은 이름으로 새 단계를 " +
+				"지으면 ★ 계획 전체가 거절된다 ★.\n" +
+				"★ 이미 끝난 일을 다시 짓지 마라 ★ — 조사는 이미 했고 그 결과가 " +
+				"아래 봉투에 실려 있다.\n" +
+				"★ 네가 짓는 단계는 이 뒤에 붙는다 ★. 실패한 단계가 있으면 " +
+				"그것을 ★ 고치는 단계 ★ 를 새로 지어라.\n\n")
 		}
 	}
 	for _, n := range outNames {

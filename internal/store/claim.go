@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -94,6 +95,19 @@ type Claimed struct {
 	// Owed 는 ★ 계약이 약속했는데 아직 안 지어진 단계 ★ 다 (ADR-049).
 	// ★ 이것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
 	Owed []OwedStep `json:"owed,omitempty"`
+	// Standing 은 ★ 이미 계약에 서 있는 단계와 그 결말 ★ 이다 (ADR-052).
+	//
+	// ★ owed 의 반대쪽이다 ★ — owed 는 「아직 안 지어진 것」을 나르고,
+	// 이것은 「★ 이미 지어진 것 ★」을 나른다. 계획은 자기가 어디에 붙는지
+	// 모른 채 지어 왔다.
+	//
+	//	★ 실측 ★ (vm-scratch-3) 재계획이 이미 끝난 조사 단계를 ★ 또 짓고 ★,
+	//	이미 있는 이름(replan_1 · approve_replan_1)을 ★ 다시 썼다 ★.
+	//	되먹임으로 조사 결과는 받았는데 ★ 그것이 계약의 어디에 있는지 ★ 는 몰랐다.
+	//
+	// ★ 결말까지 싣는다 ★ — 실패한 단계를 고치는 것과 없는 단계를 짓는 것은
+	// 다른 일이고, 무엇이 실패했는지는 시스템만 안다.
+	Standing []StandingStep `json:"standing,omitempty"`
 	// Goal 은 ★ 이 Run 이 처음 받은 목표 ★ 다 (ADR-049).
 	//
 	// ★ 왜 필요한가 ★ — 계획이 지은 재계획 단계의 in.prompt 가 비면
@@ -147,6 +161,15 @@ type OwedStep struct {
 	// When 은 ★ 계약이 이 이름에 건 판정 조건들 ★ 이다. 비어 있을 수 있다 —
 	// produces 로 약속만 하고 판정은 안 걸 수도 있기 때문이다.
 	When []contract.Condition `json:"when,omitempty"`
+}
+
+// StandingStep 은 ★ 이미 선 단계 하나 ★ 다 (ADR-052).
+type StandingStep struct {
+	Name  string `json:"name"`
+	State string `json:"state"`
+	// ExitCode 는 명령 단계가 끝났을 때만 있다 — ★ 완주와 성공은 다르므로 ★
+	// DONE 이면서 0 이 아닐 수 있고, 그 자리가 재계획이 봐야 할 곳이다.
+	ExitCode *int `json:"exit_code,omitempty"`
 }
 
 var ErrNoWork = errors.New("no work available")
@@ -271,8 +294,46 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID, instance string) (*Claime
 
 	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
 	fillFromContract(&c, contractJSON)
+	s.stampStanding(ctx, &c)
 	s.stampLedger(ctx, &c, contractJSON)
 	return &c, nil
+}
+
+// stampStanding 은 ★ 이미 선 단계와 그 결말 ★ 을 싣는다 (ADR-052).
+//
+// ★ 계획을 짓는 단계에만 ★ — 다른 단계는 남의 상태를 알 필요가 없고,
+// 알면 그것으로 자기 판정을 흉내낼 여지만 생긴다 (ADR-037).
+//
+// ★ 트랜잭션 밖이다 ★ — stampLedger 와 같은 이유이고, 집은 직후라
+// 「시작할 때의 그림」과 같은 시점이다. 실패해도 단계를 막지 않는다.
+func (s *Store) stampStanding(ctx context.Context, c *Claimed) {
+	if !c.Expands {
+		return
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT name, state, result->>'exit_code'
+		   FROM steps WHERE run_id=$1 ORDER BY seq`, c.RunID)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	var out []StandingStep
+	for rows.Next() {
+		var st StandingStep
+		var code *string
+		if err := rows.Scan(&st.Name, &st.State, &code); err != nil {
+			return
+		}
+		if code != nil {
+			if n, err := strconv.Atoi(*code); err == nil {
+				st.ExitCode = &n
+			}
+		}
+		out = append(out, st)
+	}
+	if rows.Err() == nil {
+		c.Standing = out
+	}
 }
 
 // stampLedger 는 ★ 워터마크를 남기고, 계약이 원하면 목록을 함께 내려보낸다 ★
@@ -353,6 +414,7 @@ func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claime
 	}
 	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
 	fillFromContract(&c, contractJSON)
+	s.stampStanding(ctx, &c)
 	s.stampLedger(ctx, &c, contractJSON)
 	s.log().Info("redelivering to the same instance", "node", nodeID, "step", c.StepID)
 	return &c, nil

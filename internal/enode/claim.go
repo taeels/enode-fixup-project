@@ -47,6 +47,10 @@ type Step struct {
 	// ★ 이것이 곧 목표다 ★ — success_when 이 이미 그 이름을 가리키고 있다.
 	// When 에 그 이름에 걸린 판정이 실려 온다 — ★ 단계의 종류가 거기서 정해진다 ★.
 	Owed []OwedStep `json:"owed,omitempty"`
+	// Standing 은 ★ 이미 계약에 서 있는 단계와 그 결말 ★ 이다 (ADR-052) —
+	// owed 의 반대쪽이다. 계획이 ★ 자기가 어디에 붙는지 ★ 알아야
+	// 이름을 겹쳐 쓰지 않고, 이미 끝난 일을 또 짓지 않는다.
+	Standing []StandingStep `json:"standing,omitempty"`
 	// Goal 은 ★ 이 Run 이 처음 받은 목표 ★ 다 (ADR-049) — 재계획이 향할 곳.
 	Goal string `json:"goal,omitempty"`
 	// Expands 는 ★ 계약을 짓는 단계인가 ★ 다 (ADR-045) — 어댑터가 프롬프트에
@@ -621,7 +625,8 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		"feedback_names", step.Feedback, "feedback_got", len(feedback),
 		"out", step.Out, "schema", len(step.Schema))
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
-		step.Attempt, step.Expands, step.Roles, step.Owed, step.Goal, step.EnvelopeKey)
+		step.Attempt, step.Expands, step.Roles, step.Owed, step.Standing,
+		step.Goal, step.EnvelopeKey)
 	writePromptFile(out, prompt)
 
 	// ★ R1 — 부모 환경을 통째로 물려주지 않는다 ★

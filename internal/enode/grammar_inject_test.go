@@ -14,12 +14,12 @@ import (
 // 사람이 다시 자연어로 번역하게 된다 — 그것이 아홉 판의 사고였다.
 func Test문법은_계획단계에만_실린다(t *testing.T) {
 	// 계획을 짓는 단계
-	got := buildPrompt("계획을 짜라", "/o", []string{"plan"}, nil, nil, 0, true, nil, nil, "", "")
+	got := buildPrompt("계획을 짜라", "/o", []string{"plan"}, nil, nil, 0, true, nil, nil, nil, "", "")
 	if !strings.Contains(got, contract.Grammar) {
 		t.Fatal("★ expands 단계인데 계약 문법이 안 실렸다 ★")
 	}
 	// 평범한 에이전트 단계
-	got = buildPrompt("가설을 내라", "/o", []string{"hypothesis"}, nil, nil, 0, false, nil, nil, "", "")
+	got = buildPrompt("가설을 내라", "/o", []string{"hypothesis"}, nil, nil, 0, false, nil, nil, nil, "", "")
 	if strings.Contains(got, contract.Grammar) {
 		t.Fatal("★ 평범한 단계에 계약 문법이 실렸다 — 쓸 데가 없다 ★")
 	}
@@ -37,7 +37,7 @@ func Test문법은_계획단계에만_실린다(t *testing.T) {
 // ADR-012 가 capability 어휘에 대해 적은 문장이 한 층 위에서 되풀이된 것이다.
 func Test계획단계에_역할_어휘가_실린다(t *testing.T) {
 	got := buildPrompt("계획을 짜라", "/o", []string{"plan"}, nil, nil, 0, true,
-		[]string{"planner", "mac"}, nil, "", "")
+		[]string{"planner", "mac"}, nil, nil, "", "")
 	for _, want := range []string{"planner", "mac", "uses 에 쓸 수 있는 역할"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("★ %q 가 프롬프트에 없다 ★", want)
@@ -45,7 +45,7 @@ func Test계획단계에_역할_어휘가_실린다(t *testing.T) {
 	}
 	// ★ 평범한 단계에는 안 싣는다 ★ — 남의 역할 이름은 그 단계에 쓸 데가 없다.
 	got = buildPrompt("가설을 내라", "/o", []string{"h"}, nil, nil, 0, false,
-		[]string{"planner", "mac"}, nil, "", "")
+		[]string{"planner", "mac"}, nil, nil, "", "")
 	if strings.Contains(got, "uses 에 쓸 수 있는 역할") {
 		t.Fatal("★ 평범한 단계에 역할 어휘가 실렸다 ★")
 	}
@@ -59,7 +59,7 @@ func Test계획단계에_역할_어휘가_실린다(t *testing.T) {
 // 빈 계획이 나가 ★ 아무것도 안 했는데 Run 이 SUCCEEDED ★ 로 끝났다.
 func Test계획단계에_목표와_약속이_실린다(t *testing.T) {
 	got := buildPrompt("", "/o", []string{"plan2"}, nil, nil, 0, true,
-		[]string{"planner", "mac"}, []OwedStep{{Name: "vm_node_up"}}, "VM 을 노드로 세워라", "")
+		[]string{"planner", "mac"}, []OwedStep{{Name: "vm_node_up"}}, nil, "VM 을 노드로 세워라", "")
 	for _, want := range []string{
 		"이 Run 이 처음 받은 목표", "VM 을 노드로 세워라",
 		"약속했는데 아직 안 지어진 단계", "vm_node_up",
@@ -71,7 +71,7 @@ func Test계획단계에_목표와_약속이_실린다(t *testing.T) {
 	}
 	// ★ 평범한 단계에는 안 싣는다 ★ — 계약을 짓지 않는 단계에는 쓸 데가 없다.
 	got = buildPrompt("일해라", "/o", []string{"x"}, nil, nil, 0, false,
-		nil, []OwedStep{{Name: "vm_node_up"}}, "VM 을 노드로 세워라", "")
+		nil, []OwedStep{{Name: "vm_node_up"}}, nil, "VM 을 노드로 세워라", "")
 	if strings.Contains(got, "처음 받은 목표") || strings.Contains(got, "vm_node_up") {
 		t.Fatal("★ 평범한 단계에 목표·약속이 실렸다 ★")
 	}
@@ -90,7 +90,7 @@ func Test약속된_단계의_판정이_실린다(t *testing.T) {
 		When: []contract.Condition{{Step: "vm_node_up", ExitCode: &zero}},
 	}}
 	got := buildPrompt("", "/o", []string{"plan"}, nil, nil, 0, true,
-		[]string{"planner", "mac"}, owed, "VM 을 노드로 세워라", "")
+		[]string{"planner", "mac"}, owed, nil, "VM 을 노드로 세워라", "")
 	for _, want := range []string{
 		"vm_node_up",
 		"종료코드 0 으로 판정된다",
@@ -107,7 +107,7 @@ func Test약속된_단계의_판정이_실린다(t *testing.T) {
 		When: []contract.Condition{{Step: "vm_caps", Produced: []string{"caps.txt"}}},
 	}}
 	got = buildPrompt("", "/o", []string{"plan"}, nil, nil, 0, true,
-		nil, owed, "목표", "")
+		nil, owed, nil, "목표", "")
 	if !strings.Contains(got, "caps.txt") {
 		t.Fatal("★ 내야 할 산출물 이름이 안 실렸다 ★")
 	}
@@ -115,8 +115,50 @@ func Test약속된_단계의_판정이_실린다(t *testing.T) {
 	// ★ 조건이 없으면 아무 말도 안 한다 ★ — produces 로 약속만 하고
 	// 판정은 안 걸 수도 있다. 없는 요구를 지어내지 않는다.
 	got = buildPrompt("", "/o", []string{"plan"}, nil, nil, 0, true,
-		nil, []OwedStep{{Name: "just_a_name"}}, "목표", "")
+		nil, []OwedStep{{Name: "just_a_name"}}, nil, "목표", "")
 	if strings.Contains(got, "명령 단계(run)") || strings.Contains(got, "판정된다") {
 		t.Fatal("★ 걸리지 않은 판정을 지어냈다 ★")
+	}
+}
+
+// ★ 이미 선 단계를 알려준다 ★ (ADR-052)
+//
+// owed 의 반대쪽이다. 실측(vm-scratch-3): 재계획이 ★ 이미 끝난 조사를 또 짓고 ★,
+// ★ 이미 있는 이름(replan_1)을 다시 썼다 ★. 되먹임으로 조사 결과는 받았는데
+// 그것이 ★ 계약의 어디에 있는지 ★ 는 몰랐다.
+func Test계획단계에_이미_선_단계가_실린다(t *testing.T) {
+	one := 1
+	standing := []StandingStep{
+		{Name: "plan_setup", State: "DONE"},
+		{Name: "mac_survey_1", State: "DONE"},
+		{Name: "vm_node_up", State: "DONE", ExitCode: &one},
+		{Name: "replan_1", State: "CLAIMED"},
+	}
+	got := buildPrompt("", "/o", []string{"plan2"}, nil, nil, 0, true,
+		nil, nil, standing, "목표", "")
+	for _, want := range []string{
+		"이미 계약에 서 있는 단계",
+		"mac_survey_1", "replan_1",
+		"종료코드 1", "★ 실패했다 ★", // ★ 완주와 성공은 다르다 ★
+		"같은 이름으로 새 단계를",
+		"이미 끝난 일을 다시 짓지 마라",
+		"고치는 단계",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("★ %q 가 프롬프트에 없다 ★\n%s", want, got)
+		}
+	}
+	// ★ 성공한 단계에 실패 표시를 붙이지 않는다 ★
+	if strings.Contains(got, "plan_setup") &&
+		strings.Contains(got, "plan_setup           DONE  종료코드") {
+		t.Fatal("★ 종료코드가 없는 단계에 종료코드를 지어냈다 ★")
+	}
+
+	// ★ 평범한 단계에는 안 싣는다 ★ — 남의 상태는 그 단계에 쓸 데가 없고,
+	// 알면 그것으로 자기 판정을 흉내낼 여지만 생긴다 (ADR-037).
+	got = buildPrompt("일해라", "/o", []string{"x"}, nil, nil, 0, false,
+		nil, nil, standing, "목표", "")
+	if strings.Contains(got, "이미 계약에 서 있는 단계") {
+		t.Fatal("★ 평범한 단계에 남의 상태가 실렸다 ★")
 	}
 }

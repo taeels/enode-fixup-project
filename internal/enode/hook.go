@@ -97,30 +97,84 @@ func RunStopHook(a HookArgs, in io.Reader, out io.Writer) error {
 		// 안전망이 정규 경로를 무너뜨리는 것이 가장 나쁘다.
 		return nil
 	}
-	// ★ 한 번만 되묻는다 ★ — 안 보면 영원히 돈다.
-	if si.StopHookActive {
-		return nil
-	}
+	// ★ 되묻기는 이유마다 한 번씩이다 ★ (ADR-051)
+	//
+	// 예전에는 StopHookActive 하나로 ★ 한 번 물었으면 끝 ★ 이었다. 그래서
+	// ★ 첫 되묻기가 산출물 누락이면 문법은 영영 안 봤다 ★.
+	//
+	//	★ 실측 ★  vm-scratch-3 의 replan_1 이 11턴을 돌고 문법이 틀린 계획을
+	//	          냈는데 훅이 ★ 한 번도 안 짚었다 ★ — 첫 Stop 에서 "plan2 를
+	//	          안 냈다" 로 이미 예산을 썼기 때문이다. 서버가 그 계획을
+	//	          거절했고 재계획 단계가 FAILED 로 끝났다.
+	//
+	// 무한 루프는 ★ 같은 이유로 또 막는 것 ★ 이지 ★ 다른 문제를 짚는 것 ★ 이
+	// 아니다. 그래서 이유의 종류마다 한 번씩 짚고, 그것을 $OUT 에 기록한다.
+	// 종류는 오늘 둘뿐이라 상한이 저절로 선다.
+	seen := hookSeen(a.Out)
 
-	missing := missingOutputs(a.Out, a.Expect)
-	if len(missing) == 0 {
-		// ★ 다 냈다. 그런데 계획이면 ★ 모양 ★ 까지 본다 ★ (ADR-046).
-		//
-		// 계약은 이미 ★ 유효한 계획 ★ 을 요구하고 있다 — 어긴 것을 짚는 것은
-		// 새 지시가 아니라 ★ 상기 ★ 다. 훅이 계약 밖을 시키면 모델이 거절한다는
-		// 실측(위 표)과 어긋나지 않는다.
-		if why := planProblem(a); why != "" {
-			return json.NewEncoder(out).Encode(StopOutput{
-				Decision: "block", Reason: why,
-			})
+	if missing := missingOutputs(a.Out, a.Expect); len(missing) > 0 {
+		if seen[seenMissing] || !markSeen(a.Out, seenMissing) {
+			// ★ 기억을 못 남기면 짚지 않는다 ★ — 무한 루프보다 덜 짚는 편이 낫다.
+			return nil
 		}
-		return nil // 다 냈다. 통과.
+		return json.NewEncoder(out).Encode(StopOutput{
+			Decision: "block",
+			Reason:   stopReason(a, missing),
+		})
 	}
 
-	return json.NewEncoder(out).Encode(StopOutput{
-		Decision: "block",
-		Reason:   stopReason(a, missing),
-	})
+	// ★ 다 냈다. 그런데 계획이면 ★ 모양 ★ 까지 본다 ★ (ADR-046).
+	//
+	// 계약은 이미 ★ 유효한 계획 ★ 을 요구하고 있다 — 어긴 것을 짚는 것은
+	// 새 지시가 아니라 ★ 상기 ★ 다. 훅이 계약 밖을 시키면 모델이 거절한다는
+	// 실측(위 표)과 어긋나지 않는다.
+	if why := planProblem(a); why != "" {
+		if seen[seenPlan] || !markSeen(a.Out, seenPlan) {
+			return nil
+		}
+		return json.NewEncoder(out).Encode(StopOutput{
+			Decision: "block", Reason: why,
+		})
+	}
+	return nil // 다 냈고 모양도 맞다. 통과.
+}
+
+// ★ 이 단계에서 이미 짚은 이유들 ★ (ADR-051).
+//
+// ★ $OUT 에 두고 .enode- 로 시작한다 ★ — 그 접두사는 산출물 수확에서
+// 걸러지므로(claim.go) 이 파일이 계약의 산출물로 오르지 않는다. 단계마다
+// $OUT 이 새로 생기므로 ★ 회차가 바뀌면 기억도 새로 시작한다 ★.
+const (
+	hookSeenFile = ".enode-hook-seen"
+	seenMissing  = "missing"
+	seenPlan     = "plan"
+)
+
+func hookSeen(outDir string) map[string]bool {
+	seen := map[string]bool{}
+	b, err := os.ReadFile(filepath.Join(outDir, hookSeenFile))
+	if err != nil {
+		return seen
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			seen[line] = true
+		}
+	}
+	return seen
+}
+
+// markSeen 은 그 이유를 적어둔다. ★ 못 적으면 false ★ — 호출자는 그때
+// 막지 않는다. 기억이 없으면 다음 Stop 에서 또 막게 되고, 그것이 루프다.
+func markSeen(outDir, kind string) bool {
+	f, err := os.OpenFile(filepath.Join(outDir, hookSeenFile),
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return false
+	}
+	defer f.Close() //nolint:errcheck
+	_, err = f.WriteString(kind + "\n")
+	return err == nil
 }
 
 // planProblem 은 계획이 계약 문법을 어겼으면 ★ 그 이유를 그대로 ★ 돌려준다.

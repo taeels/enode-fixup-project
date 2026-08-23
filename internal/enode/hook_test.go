@@ -26,13 +26,64 @@ func hookRun(t *testing.T, a HookArgs, in StopInput) StopOutput {
 	return o
 }
 
-// ★ 한 번만 되묻는다 ★ — stop_hook_active 를 안 보면 영원히 돈다.
-func TestHook_두번째는_통과시킨다(t *testing.T) {
+// ★ 같은 이유로는 두 번 안 막는다 ★ — 안 그러면 영원히 돈다 (ADR-051).
+func TestHook_같은_이유로는_한_번만_막는다(t *testing.T) {
 	out := t.TempDir()
-	o := hookRun(t, HookArgs{Out: out, Expect: []string{"없는것"}},
-		StopInput{StopHookActive: true})
-	if o.Decision != "" {
-		t.Fatalf("★ 두 번째에도 막았다 — 무한 루프다 ★: %+v", o)
+	a := HookArgs{Out: out, Expect: []string{"없는것"}}
+	if o := hookRun(t, a, StopInput{}); o.Decision != "block" {
+		t.Fatalf("★ 첫 번째에 안 막았다 ★: %+v", o)
+	}
+	if o := hookRun(t, a, StopInput{StopHookActive: true}); o.Decision != "" {
+		t.Fatalf("★ 같은 이유로 또 막았다 — 무한 루프다 ★: %+v", o)
+	}
+}
+
+// ★ 되묻기는 이유마다 한 번씩이다 ★ (ADR-051)
+//
+// 예전에는 stop_hook_active 하나로 「한 번 물었으면 끝」이었다. 그래서
+// ★ 첫 되묻기가 산출물 누락이면 문법은 영영 안 봤다 ★.
+//
+//	★ 실측 ★  vm-scratch-3 의 replan_1 이 11턴을 돌고 ★ 문법이 틀린 계획 ★ 을
+//	          냈는데 훅이 한 번도 안 짚었다. 서버가 그것을 거절해 단계가 죽었다.
+func TestHook_산출물을_짚은_뒤에도_문법을_짚는다(t *testing.T) {
+	out := t.TempDir()
+	a := HookArgs{Out: out, Expect: []string{"plan2"}, Plan: "plan2", Roles: []string{"n"}}
+
+	// ① 아직 아무것도 안 냈다 — 산출물 누락으로 막는다.
+	o := hookRun(t, a, StopInput{})
+	if o.Decision != "block" || !strings.Contains(o.Reason, "plan2") {
+		t.Fatalf("★ 산출물 누락을 안 짚었다 ★: %+v", o)
+	}
+
+	// ② 모델이 파일을 냈다. 그런데 ★ 문법이 틀렸다 ★ —
+	//    success_when[].produced 는 배열이어야 하는데 문자열이다.
+	bad := `{"steps":[{"id":"a","uses":"n","run":["true"],"out":["x"]}],
+	         "success_when":[{"step":"a","produced":"x"}]}`
+	if err := os.WriteFile(filepath.Join(out, "plan2"), []byte(bad), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o = hookRun(t, a, StopInput{StopHookActive: true})
+	if o.Decision != "block" {
+		t.Fatalf("★ 산출물을 짚었다는 이유로 문법을 안 봤다 ★: %+v", o)
+	}
+	if !strings.Contains(o.Reason, "계약 문법") {
+		t.Fatalf("★ 문법 문제라고 말하지 않았다 ★: %+v", o)
+	}
+
+	// ③ 문법도 ★ 한 번만 ★ 짚는다.
+	if o = hookRun(t, a, StopInput{StopHookActive: true}); o.Decision != "" {
+		t.Fatalf("★ 같은 문법 문제로 또 막았다 ★: %+v", o)
+	}
+}
+
+// ★ 기억 파일은 산출물이 아니다 ★ — .enode- 접두사가 수확에서 걸러진다.
+func TestHook_기억파일이_산출물로_안_오른다(t *testing.T) {
+	out := t.TempDir()
+	hookRun(t, HookArgs{Out: out, Expect: []string{"없는것"}}, StopInput{})
+	for _, n := range harvest(out) {
+		if !strings.HasPrefix(n, ".enode-") {
+			t.Fatalf("★ $OUT 에 산출물로 오를 파일이 생겼다 ★: %s", n)
+		}
 	}
 }
 
