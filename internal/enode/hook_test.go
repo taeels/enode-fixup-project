@@ -154,3 +154,71 @@ func TestHook_공백_경로가_안_깨진다(t *testing.T) {
 		t.Fatalf("★ 공백 경로가 인용되지 않았다 ★: %s", cmd)
 	}
 }
+
+// ★ 훅이 어긴 계획을 하네스가 끝나기 전에 짚는다 ★ (ADR-046)
+//
+// 이것이 없으면 어긴 계획은 ★ 계약 적용 시점 ★ 에야 거절되고, 그때는
+// 하네스가 이미 끝나 고칠 기회가 없다 — 판 하나가 통째로 버려진다.
+// 실측에서 두 번 밟았다 (10차 없는 역할 · 11차 schema 키잉).
+func Test훅_어긴_계획을_짚는다(t *testing.T) {
+	dir := t.TempDir()
+	// ★ 산출물은 냈다 ★ — missingOutputs 는 통과한다. 모양만 틀렸다.
+	if err := os.WriteFile(filepath.Join(dir, "plan"),
+		[]byte(`{"steps":[{"id":"r","uses":"★없는역할★","run":["true"],"out":["l"]}]}`),
+		0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := HookArgs{Out: dir, Expect: []string{"plan"}, Plan: "plan",
+		Roles: []string{"planner", "mac"}}
+	var out bytes.Buffer
+	if err := RunStopHook(a, strings.NewReader(`{"stop_hook_active":false}`), &out); err != nil {
+		t.Fatal(err)
+	}
+	var so StopOutput
+	if err := json.Unmarshal(out.Bytes(), &so); err != nil {
+		t.Fatalf("★ 막지 않았다 ★: %q", out.String())
+	}
+	if so.Decision != "block" {
+		t.Fatalf("★ 막지 않았다 ★: %+v", so)
+	}
+	// ★ 오류 문장을 그대로 전한다 ★ — 번역하면 ADR-045 의 실수를 되풀이한다.
+	if !strings.Contains(so.Reason, "없는 역할") {
+		t.Fatalf("Validate 의 말이 안 실렸다: %s", so.Reason)
+	}
+	// ★ 어휘도 함께 준다 ★ — 무엇을 써야 하는지 모르면 또 추측한다.
+	if !strings.Contains(so.Reason, "planner") {
+		t.Fatalf("역할 목록이 안 실렸다: %s", so.Reason)
+	}
+}
+
+// ★ 정당한 계획은 안 막는다 ★ — 안전망이 정규 경로를 무너뜨리는 것이 가장 나쁘다.
+func Test훅_정당한_계획은_통과시킨다(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "plan"),
+		[]byte(`{"steps":[{"id":"w","uses":"mac","needs":["approve_plan"],`+
+			`"run":["true"],"out":["l"]}],`+
+			`"success_when":[{"step":"w","exit_code":0,"produced":["l"]}]}`), 0o644)
+	a := HookArgs{Out: dir, Expect: []string{"plan"}, Plan: "plan",
+		Roles: []string{"planner", "mac"}}
+	var out bytes.Buffer
+	if err := RunStopHook(a, strings.NewReader(`{"stop_hook_active":false}`), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("★ 정당한 계획을 막았다 ★: %s", out.String())
+	}
+}
+
+// ★ 계획 단계가 아니면 안 본다 ★ — Plan 이 비면 그냥 지나간다.
+func Test훅_계획단계가_아니면_안_본다(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "x"), []byte(`이건 계획이 아니다`), 0o644)
+	a := HookArgs{Out: dir, Expect: []string{"x"}} // Plan 이 비어 있다
+	var out bytes.Buffer
+	if err := RunStopHook(a, strings.NewReader(`{"stop_hook_active":false}`), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("★ 계획도 아닌데 막았다 ★: %s", out.String())
+	}
+}

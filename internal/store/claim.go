@@ -78,6 +78,17 @@ type Claimed struct {
 	// Schema 는 어댑터가 ★ 프롬프트에 심는 데 ★ 쓴다 (ADR-020).
 	// 최종 검증은 Mediator 가 PUT blob 에서 한다 — 강제 지점은 하나다.
 	Schema json.RawMessage `json:"schema,omitempty"`
+	// Roles 는 ★ 계획이 uses 에 쓸 수 있는 이름들 ★ 이다 (ADR-045).
+	//
+	// ★ 왜 필요한가 ★ — 문법은 "uses 를 적는다" 까지만 말한다. ★ 무엇을 적는지 ★ 는
+	// 그 계약의 requires 에 있고, 계획을 짓는 쪽은 그것을 볼 수 없다.
+	// ADR-012 가 적은 문장이 한 층 위에서 되풀이된다 —
+	// ★ 읽는 경로가 없으면 계약을 쓰는 쪽이 문자열을 추측한다 ★.
+	// 실측에서 밟았다 (colima-enode-1: replan_1 이 uses:"claude" 를 지어냈다).
+	//
+	// ★ expands 단계에만 싣는다 ★ — 다른 단계는 자기 uses 만 알면 되고,
+	// 남의 역할 이름을 아는 것은 그 단계에 쓸 데가 없다.
+	Roles []string `json:"roles,omitempty"`
 	// Expands 는 ★ 이 단계가 계약을 짓는 단계인가 ★ 다 (ADR-045).
 	//
 	// ★ 노드가 알아야 하는 이유 ★ — 어댑터가 프롬프트에 ★ 계약 문법 ★ 을 심는다.
@@ -344,6 +355,9 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 			Step    string   `json:"step"`
 			Changed []string `json:"changed"`
 		} `json:"success_when"`
+		Requires []struct {
+			As string `json:"as"`
+		} `json:"requires"`
 	}
 	if json.Unmarshal(contractJSON, &raw) != nil || c.Seq-1 >= len(raw.Steps) {
 		return
@@ -352,6 +366,15 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 	c.Agent, c.Run, c.Workspace, c.In, c.Out = st.Agent, st.Run, st.Workspace, st.In, st.Out
 	c.Schema, c.Feedback, c.Env, c.Collect = st.Schema, st.Feedback, st.Env, st.Collect
 	c.Expands = st.Expands
+	// ★ 계획을 짓는 단계에만 어휘를 실어준다 ★ (ADR-045).
+	// acquire 로 실행 중에 생기는 역할도 이 계약의 역할이다 (ADR-022 §7.5).
+	if c.Expands {
+		for _, r := range raw.Requires {
+			if r.As != "" {
+				c.Roles = append(c.Roles, r.As)
+			}
+		}
+	}
 	// ★ 확인할 경로를 실어 보낸다 ★ (ADR-037) — out 이 「무엇을 낼 것인가」를
 	// 싣는 것과 같은 자리다. ★ 노드는 판정 조건을 모른다 ★ — 관찰만 대신하고
 	// 대조는 Verify 가 한다 (ADR-005 조립자=평가자).

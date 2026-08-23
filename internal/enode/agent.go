@@ -70,7 +70,7 @@ const failLane = `
 // 형식을 유지하고, ★ 되먹임을 요청 바로 앞에 두면 ★ 무엇을 고쳐야 하는지가
 // 가장 가깝게 놓인다.
 func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage,
-	feedback map[string]string, attempt int, expands bool) string {
+	feedback map[string]string, attempt int, expands bool, roles []string) string {
 	var b strings.Builder
 	b.WriteString(outContract)
 	// ★ 계약을 짓는 단계에는 계약 문법을 심는다 ★ (ADR-045)
@@ -81,6 +81,16 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 	// 계획의 형식은 여전히 사람이 자연어로 나른다.
 	if expands {
 		b.WriteString("\n" + contract.Grammar + "\n")
+		// ★ 문법은 uses 를 적으라고만 말한다 ★ — 무엇을 적는지는 그 계약의
+		// requires 에 있고 계획을 짓는 쪽은 그것을 못 본다. ★ 아는 쪽이 적어준다 ★.
+		if len(roles) > 0 {
+			b.WriteString("### ★ uses 에 쓸 수 있는 역할은 이것뿐이다 ★\n\n")
+			for _, r := range roles {
+				b.WriteString("    " + r + "\n")
+			}
+			b.WriteString("\n★ 여기 없는 이름을 쓰면 계획 전체가 거절된다 ★ — " +
+				"자원은 계약 저자가 선언한다.\n\n")
+		}
 	}
 	for _, n := range outNames {
 		// ★ 실제 경로를 박는다 ★ — $OUT 을 문자 그대로 주면 모델이 확장하지 않는다.

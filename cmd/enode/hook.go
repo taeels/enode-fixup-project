@@ -20,7 +20,8 @@ import (
 func runHookCmd(args []string) int {
 	if len(args) == 0 || args[0] != "stop" {
 		fmt.Fprintln(os.Stderr,
-			"쓰임: enode hook stop --out <dir> [--workspace <dir>] [--expect a,b] [--stamp <file>]")
+			"쓰임: enode hook stop --out <dir> [--workspace <dir>] [--expect a,b] "+
+				"[--stamp <file>] [--plan <name>] [--roles a,b]")
 		return 2
 	}
 	fs := flag.NewFlagSet("hook stop", flag.ContinueOnError)
@@ -28,17 +29,24 @@ func runHookCmd(args []string) int {
 	ws := fs.String("workspace", "", "워크스페이스 경로")
 	expect := fs.String("expect", "", "계약이 요구한 산출물 이름 (쉼표)")
 	stamp := fs.String("stamp", "", "기준 시각 파일 — ★ 이게 있어야 빌드 산출물이 보인다 ★")
+	// ★ 계획 단계의 보조 ★ (ADR-046) — 어긴 계획을 하네스가 끝나기 전에 짚는다.
+	plan := fs.String("plan", "", "계획 산출물 이름 (expands 단계에만)")
+	roles := fs.String("roles", "", "uses 에 쓸 수 있는 역할 (쉼표)")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 0 // ★ 인자가 이상해도 하네스를 막지 않는다 ★
 	}
 
-	var names []string
-	for _, n := range strings.Split(*expect, ",") {
-		if n = strings.TrimSpace(n); n != "" {
-			names = append(names, n)
+	split := func(s string) []string {
+		var out []string
+		for _, n := range strings.Split(s, ",") {
+			if n = strings.TrimSpace(n); n != "" {
+				out = append(out, n)
+			}
 		}
+		return out
 	}
-	a := enode.HookArgs{Out: *out, Workspace: *ws, Expect: names, Stamp: *stamp}
+	a := enode.HookArgs{Out: *out, Workspace: *ws, Expect: split(*expect), Stamp: *stamp,
+		Plan: *plan, Roles: split(*roles)}
 	if err := enode.RunStopHook(a, os.Stdin, os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, "훅 실패(무시하고 통과):", err)
 	}

@@ -39,6 +39,10 @@ type Step struct {
 	} `json:"in,omitempty"`
 	Out    []string                   `json:"out,omitempty"`
 	Schema map[string]json.RawMessage `json:"schema,omitempty"`
+	// Roles 는 ★ 계획이 uses 에 쓸 수 있는 이름들 ★ 이다 (ADR-045).
+	// 문법이 「uses 를 적는다」까지만 말하고 ★ 무엇을 적는지 ★ 는 안 말하므로,
+	// 어휘를 아는 쪽(Mediator)이 실어 보낸다.
+	Roles []string `json:"roles,omitempty"`
 	// Expands 는 ★ 계약을 짓는 단계인가 ★ 다 (ADR-045) — 어댑터가 프롬프트에
 	// 계약 문법을 심을지 정한다. ★ 노드는 그것으로 판정하지 않는다 ★.
 	Expands   bool     `json:"expands,omitempty"`
@@ -50,6 +54,17 @@ type Step struct {
 	// 본문이 필요하면 계약이 in.from 에 이름을 적어 그 경로로 받는다.
 	Ledger json.RawMessage `json:"ledger,omitempty"`
 	Lease  Lease           `json:"lease"`
+}
+
+// planOutName 은 계획 산출물의 이름이다 — ★ 계획 단계가 아니면 빈 문자열 ★.
+//
+// 훅은 이 값이 있을 때만 계획을 검사한다 (ADR-046). 빈 값이면 그냥 안 본다 —
+// ★ 모르는 것으로 막지 않는다 ★.
+func planOutName(step *Step) string {
+	if step == nil || !step.Expands || len(step.Out) != 1 {
+		return ""
+	}
+	return step.Out[0]
 }
 
 // ledgerFile 은 원장 목록이 $IN 에 깔리는 이름이다.
@@ -579,7 +594,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		"feedback_names", step.Feedback, "feedback_got", len(feedback),
 		"out", step.Out, "schema", len(step.Schema))
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
-		step.Attempt, step.Expands)
+		step.Attempt, step.Expands, step.Roles)
 	writePromptFile(out, prompt)
 
 	// ★ R1 — 부모 환경을 통째로 물려주지 않는다 ★
@@ -604,7 +619,11 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		Params: p, Prompt: prompt,
 		IO:     IOPaths{Dir: dir, In: in, Out: out},
 		Expect: step.Out, // ★ 훅이 짚을 이름 ★ — 계약이 요구한 산출물
-		Stamp:  stamp,    // ★ 훅이 볼 기준 시각 ★ — git 이 못 보는 것까지
+		// ★ 계획 단계면 훅이 모양까지 본다 ★ (ADR-046).
+		// expands 단계는 산출물이 정확히 하나임을 계약 검증이 보장한다.
+		Plan:   planOutName(step),
+		Roles:  step.Roles,
+		Stamp:  stamp, // ★ 훅이 볼 기준 시각 ★ — git 이 못 보는 것까지
 		Inject: inject,
 		Emit:   func(e Event) { log.Debug("하네스 사건", "kind", e.Kind) },
 	})

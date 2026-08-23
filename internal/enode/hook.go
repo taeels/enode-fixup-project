@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // ★ R5③ · R6 — enode 전용 종료 훅 ★
@@ -70,6 +72,16 @@ type HookArgs struct {
 	// 지켜서 zImage 도 .ko 도 안 보여준다. 빌드 단계는 산출물이 전부
 	// 무시 목록에 있어 ★ git 만 보면 아무 일도 안 한 것처럼 보인다 ★.
 	Stamp string
+
+	// Plan 은 ★ 계획 산출물의 이름 ★ 이다 — expands 단계에만 있다 (ADR-046).
+	//
+	// ★ 왜 훅이 계획을 보나 ★ — 문법을 프롬프트에 심어도(ADR-045) 모델이 어긴다.
+	// 어긴 계획은 계약 적용 시점에 거절되는데 ★ 그때는 하네스가 이미 끝나 있다 ★.
+	// 판 하나(약 $0.2~0.45)와 사람의 검토가 통째로 버려진다.
+	// 훅이 짚으면 ★ 같은 세션에서 고친다 ★.
+	Plan string
+	// Roles 는 uses 에 쓸 수 있는 이름이다 (ADR-045). 비면 역할 검사를 건너뛴다.
+	Roles []string
 }
 
 // RunStopHook 은 `enode hook stop` 의 본체다.
@@ -92,6 +104,16 @@ func RunStopHook(a HookArgs, in io.Reader, out io.Writer) error {
 
 	missing := missingOutputs(a.Out, a.Expect)
 	if len(missing) == 0 {
+		// ★ 다 냈다. 그런데 계획이면 ★ 모양 ★ 까지 본다 ★ (ADR-046).
+		//
+		// 계약은 이미 ★ 유효한 계획 ★ 을 요구하고 있다 — 어긴 것을 짚는 것은
+		// 새 지시가 아니라 ★ 상기 ★ 다. 훅이 계약 밖을 시키면 모델이 거절한다는
+		// 실측(위 표)과 어긋나지 않는다.
+		if why := planProblem(a); why != "" {
+			return json.NewEncoder(out).Encode(StopOutput{
+				Decision: "block", Reason: why,
+			})
+		}
 		return nil // 다 냈다. 통과.
 	}
 
@@ -99,6 +121,40 @@ func RunStopHook(a HookArgs, in io.Reader, out io.Writer) error {
 		Decision: "block",
 		Reason:   stopReason(a, missing),
 	})
+}
+
+// planProblem 은 계획이 계약 문법을 어겼으면 ★ 그 이유를 그대로 ★ 돌려준다.
+//
+// ★ 오류 문장을 번역하지 않는다 ★ — Validate() 가 내는 말을 그대로 전한다.
+// 사람이 번역하다 축약하고 모순낸 것이 ADR-045 가 닫은 문제이고,
+// 여기서 다시 번역하면 ★ 같은 실수를 코드가 되풀이한다 ★.
+//
+// ★ 못 읽으면 통과시킨다 ★ — 안전망이 정규 경로를 무너뜨리는 것이 가장 나쁘다.
+func planProblem(a HookArgs) string {
+	if a.Plan == "" || a.Out == "" {
+		return ""
+	}
+	raw, err := os.ReadFile(filepath.Join(a.Out, a.Plan))
+	if err != nil {
+		return "" // 아직 없거나 못 읽는다 — missingOutputs 가 이미 봤다
+	}
+	err = contract.CheckPlan(raw, a.Roles)
+	if err == nil {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("계약 문법을 어겼다. ★ 이대로는 계획 전체가 거절된다 ★:\n\n  ")
+	b.WriteString(err.Error())
+	b.WriteString("\n\n")
+	b.WriteString(filepath.Join(a.Out, a.Plan))
+	b.WriteString(" 를 고쳐서 다시 써라. ")
+	b.WriteString("위에 실린 「계약 문법」 절이 규칙 전부다.\n")
+	if len(a.Roles) > 0 {
+		b.WriteString("uses 에 쓸 수 있는 역할: ")
+		b.WriteString(strings.Join(a.Roles, " · "))
+		b.WriteString("\n")
+	}
+	return b.String()
 }
 
 // missingOutputs 는 요구된 이름 중 $OUT 에 없는 것이다.
@@ -156,6 +212,13 @@ func WriteHookSettings(dir string, self string, a HookArgs) ([]string, error) {
 	}
 	if len(a.Expect) > 0 {
 		cmd = append(cmd, "--expect", strings.Join(a.Expect, ","))
+	}
+	// ★ 계획 단계에만 붙는다 ★ (ADR-046) — 다른 단계에는 검사할 계획이 없다.
+	if a.Plan != "" {
+		cmd = append(cmd, "--plan", a.Plan)
+		if len(a.Roles) > 0 {
+			cmd = append(cmd, "--roles", strings.Join(a.Roles, ","))
+		}
 	}
 
 	settings := map[string]any{
