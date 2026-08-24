@@ -337,8 +337,21 @@ func (s *Store) AnswerStep(ctx context.Context, runID string, seq int,
 		var ans struct {
 			Verdict string `json:"verdict"`
 		}
-		if json.Unmarshal(body, &ans) == nil && ans.Verdict == "approve" {
+		// ★ 어느 답이 채택인가는 계약이 정한다 ★ (ADR-061 §2.4) —
+		// 안 적었으면 오늘 그대로 "approve" 다.
+		adoptOn := st.Ask.AdoptWhen
+		if adoptOn == "" {
+			adoptOn = "approve"
+		}
+		if json.Unmarshal(body, &ans) == nil && ans.Verdict == adoptOn {
 			if err := s.adoptProposal(ctx, tx, runID, seq, attempt, st, c); err != nil {
+				return false, err
+			}
+		} else if st.Dispatch != nil {
+			// ★ 갈 곳이 있을 때만 물린다 ★ (ADR-061 §2.5) — dispatch 가 없으면
+			// 거절은 ★ 채택을 안 하는 것 ★ 뿐이고 계획은 그대로 돈다(ADR-033).
+			// 그 동작을 여기서 바꾸면 ★ 계약이 안 적은 결말을 Mediator 가 정한다 ★.
+			if err := s.retirePlan(ctx, tx, runID, seq, attempt, st); err != nil {
 				return false, err
 			}
 		}
@@ -472,4 +485,110 @@ func (s *Store) ExpireAsks(ctx context.Context) ([]string, error) {
 		}
 	}
 	return runs, rows.Err()
+}
+
+// retirePlan 은 ★ 거절당한 계획을 물린다 ★ (ADR-061 §2.5).
+//
+// ★ 무엇이 문제였나 ★ — 계획은 expands 가 끝나는 ★ 그 순간 계약에 붙는다 ★.
+// 거절은 채택만 안 할 뿐이므로 그 단계들이 유효 계약에 그대로 남고, 그래서
+// 재계획이 ★ 같은 목표를 다시 지으려 하면 이름이 이미 점유돼 있다 ★:
+//
+//	실측 (reject-3): replan 이 "duplicate steps[].id: make_note" 로 실패했다.
+//	거절 이유는 제대로 전달돼 읽혔는데, ★ 지을 자리가 없었다 ★.
+//
+// ★ 지우지 않는다. 더한다 ★ (ADR-005) — 계획이 붙기 ★ 직전 ★ 의 계약을
+// ★ 새 판으로 다시 적는다 ★. 판의 목록은 여전히 앞으로만 자라고, 무엇이
+// 제안됐고 무엇이 거절됐는지가 봉인에 다 남는다.
+//
+//	v2  by: step:plan        ← 계획이 붙었다 (제안 포함)
+//	v3  by: answer:approve   ← ★ 거절 ★. 내용은 v1 과 같다
+//	v4  by: step:replan      ← 재계획이 여기 붙는다. 이름이 비어 있다
+//
+// ★ liveContract 규칙을 안 건드린다 ★ — 여전히 "마지막 판" 이다.
+func (s *Store) retirePlan(ctx context.Context, tx pgx.Tx, runID string,
+	seq, attempt int, ask contract.Step) error {
+	var raw []byte
+	if err := tx.QueryRow(ctx,
+		`SELECT contract_versions FROM runs WHERE run_id=$1`, runID).Scan(&raw); err != nil {
+		return err
+	}
+	var vers []ContractVersion
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &vers); err != nil {
+			return err
+		}
+	}
+	// 물릴 대상은 ★ 그 단계가 붙인 마지막 판 ★ 이다.
+	at := -1
+	for i := len(vers) - 1; i >= 0; i-- {
+		if vers[i].By == byStep(ask.Ask.Adopts) {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
+		return nil // 계획이 안 붙었으면 물릴 것이 없다
+	}
+	// ★ 그 앞의 계약 ★ — v1(runs.contract)이면 vers 에 없으므로 그때는
+	// 지금 유효 계약에서 계획이 지은 단계를 걷어낸 것과 같다.
+	var back contract.Contract
+	if at == 0 {
+		if err := tx.QueryRow(ctx,
+			`SELECT contract FROM runs WHERE run_id=$1`, runID).Scan(&raw); err != nil {
+			return err
+		}
+		if err := json.Unmarshal(raw, &back); err != nil {
+			return err
+		}
+	} else {
+		back = vers[at-1].Contract
+	}
+	// ★ 그 계획이 지은 단계의 행도 함께 물린다 ★ — 계약에서 뺐는데 행이 남으면
+	// 재계획이 ★ 같은 seq 에 INSERT 하다 기본키에 걸린다 ★ (실측에서 밟았다:
+	// "current transaction is aborted" 로 다음 보고가 409 가 됐다).
+	//
+	// ★ 행은 파생이다 ★ — 계약에서 유도된 것이므로 계약이 물러나면 함께 물러난다.
+	// 계약 판은 그대로 남으므로 ★ 무엇이 있었는지는 봉인이 안다 ★.
+	//
+	// ★ 안 돈 것만 지운다 ★ — 이미 돌았으면 그 사실이 기록이고, 지우면
+	// Run Record 가 "일어난 일" 을 잃는다. 그때는 남겨서 SKIPPED 로도 안 바꾼다.
+	kept := map[string]bool{}
+	for _, st := range back.Steps {
+		kept[st.ID] = true
+	}
+	var retired []string
+	for _, st := range vers[at].Steps {
+		if !kept[st.ID] {
+			retired = append(retired, st.ID)
+		}
+	}
+	if len(retired) > 0 {
+		if _, err := tx.Exec(ctx, `
+			DELETE FROM steps
+			 WHERE run_id=$1 AND name = ANY($2) AND state='PENDING'`,
+			runID, retired); err != nil {
+			return err
+		}
+	}
+	vers = append(vers, ContractVersion{
+		V:  len(vers) + 2,
+		At: time.Now().UTC(),
+		By: byAnswer(ask.ID),
+		// ★ 무엇으로 물렸나 ★ — 사람의 답 blob 이다. 채택과 같은 자리다.
+		Evidence: fmt.Sprintf("blobs/%02d.%d-%s", seq, attempt, ask.Out[0]),
+		// ★ 무엇을 물렸나 ★ — 거절당한 계획이 실린 판의 근거다.
+		Cause:    []string{vers[at].Evidence},
+		Contract: back,
+	})
+	nextJSON, err := json.Marshal(vers)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx,
+		`UPDATE runs SET contract_versions=$2 WHERE run_id=$1`, runID, nextJSON); err != nil {
+		return err
+	}
+	s.log().Info("plan rejected; the contract went back to what it was",
+		"run", runID, "by", byAnswer(ask.ID), "retired", len(retired))
+	return nil
 }

@@ -149,6 +149,25 @@ type Ask struct {
 	// 그것이 효력을 얻는 유일한 길은 ★ 목표를 준 사람의 답 ★ 이다.
 	// 그래야 「판정 기준을 판정 대상이 정한다」가 안 된다 (ADR-004 개정).
 	Adopts string `json:"adopts,omitempty"`
+
+	// AdoptWhen 은 ★ 어느 답이 채택인가 ★ 다 (ADR-061 §2.4).
+	//
+	// ★ 왜 필요한가 — 두 규칙이 서로를 배제했다 ★
+	//
+	//	adopts 를 쓰면  verdict 의 enum 에 approve · reject 가 있어야 한다
+	//	dispatch 는     ★ 값을 그대로 목적지 이름으로 쓴다 ★ (ADR-022 §7.2)
+	//	     ▼
+	//	거절에 갈 곳을 주려면 ★ approve · reject 라는 이름의 단계 ★ 를 지어야 한다
+	//	= ★ 판정 어휘가 단계 이름을 정한다 ★. 실측 두 번으로 확인했다(reject-1·2).
+	//
+	// 이 필드가 있으면 verdict 의 어휘를 ★ 계약 저자가 정한다 ★ — dispatch 의
+	// 목적지 이름을 그대로 쓸 수 있고, 그중 ★ 어느 것이 채택인지 ★ 를 여기 적는다.
+	//
+	// ★ dispatch 를 안 건드린다 ★ — "값이 곧 이름" 이 그대로 산다. ADR-049 가
+	// produces 로 "어느 단계가 목표인가" 를 적게 한 것과 ★ 같은 모양 ★ 이다.
+	//
+	// 없으면 오늘 그대로다 — verdict 가 "approve" 면 채택한다.
+	AdoptWhen string `json:"adopt_when,omitempty"`
 }
 
 // AskTimeout 은 기한과 그때의 행동이다.
@@ -1179,9 +1198,23 @@ func (c Contract) Validate() error {
 			}
 			// ★ 승인의 어휘를 못 박는다 ★ — verdict 에 approve 와 reject 가 있어야
 			// 답이 채택인지 아닌지가 기계적으로 갈린다 (표현식이 아니라 값 일치).
-			if !hasVerdict(sch) {
+			if a.AdoptWhen != "" {
+				// ★ 적었으면 그 값이 실제로 나올 수 있어야 한다 ★ —
+				// enum 에 없는 값을 기다리면 ★ 영원히 채택되지 않는다 ★.
+				if !enumHas(sch, "verdict", a.AdoptWhen) {
+					return fmt.Errorf("step %q: adopt_when is %q, which the verdict enum "+
+						"does not offer; the answer could never adopt", st.ID, a.AdoptWhen)
+				}
+				// ★ 갈림길이 있으면 그쪽 목적지여야 한다 ★ — 채택이 어느 경로인지
+				// 계약만 보고 알 수 있어야 한다.
+				if st.Dispatch != nil && !contains(st.Dispatch.To, a.AdoptWhen) {
+					return fmt.Errorf("step %q: adopt_when is %q, which is not one of "+
+						"this step's dispatch targets", st.ID, a.AdoptWhen)
+				}
+			} else if !hasVerdict(sch) {
 				return fmt.Errorf("step %q: an adopting ask must define a verdict field "+
-					"whose enum includes approve and reject", st.ID)
+					"whose enum includes approve and reject, or say which answer adopts "+
+					"with adopt_when", st.ID)
 			}
 		}
 		if t := a.Timeout; t != nil {
@@ -1645,4 +1678,24 @@ func Warnings(c Contract) []string {
 			st.ID, st.Ask.Adopts))
 	}
 	return out
+}
+
+// enumHas 는 그 필드의 enum 에 그 값이 있는지다 (ADR-061 §2.4).
+func enumHas(sch interface{}, field, want string) bool {
+	m, ok := sch.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	props, _ := m["properties"].(map[string]interface{})
+	f, ok := props[field].(map[string]interface{})
+	if !ok {
+		return false
+	}
+	enum, _ := f["enum"].([]interface{})
+	for _, e := range enum {
+		if s, ok := e.(string); ok && s == want {
+			return true
+		}
+	}
+	return false
 }
