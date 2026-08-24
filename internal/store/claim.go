@@ -693,6 +693,10 @@ type StepResult struct {
 	// 건너뛴 것은 경로가 갈렸을 뿐이다. Verify 가 둘을 갈라 본다.
 	// 와이어로 안 나간다 — 노드가 보고하는 값이 아니라 DB 에서 채우는 것이다.
 	Skipped bool `json:"-"`
+	// Chosen 은 ★ 갈림길이 이 단계를 골랐던 적이 있는가 ★ 다 (ADR-060 §3).
+	// SKIPPED 와 함께 서면 ★ 골랐는데 못 닿았다 ★ 는 뜻이고, 그것은 경로가
+	// 갈린 것이 아니라 ★ 목표 미달 ★ 이다. 와이어로 안 나간다 — DB 에서 채운다.
+	Chosen bool `json:"-"`
 	// AnsweredBy 는 ★ 누가 답했는가 ★ 다 (ADR-032) — ask 단계에만 채워진다.
 	// 조사에서 예외 없는 공통분모가 「답에는 항상 who/when」이었다.
 	AnsweredBy string `json:"answered_by,omitempty"`

@@ -1378,6 +1378,22 @@ func (c Contract) Validate() error {
 					"branches must point forward", st.ID, t)
 			}
 		}
+		// ★ 고른 뒤에 닿을 수 있는가 ★ (ADR-060 §2) — DAG 검사는 ★ 종료 ★ 를
+		// 보장하지 ★ 도달 ★ 을 보장하지 않는다. 목적지가 안 간 쪽의 뒷단계에
+		// 매달려 있으면, 그것을 골라도 SKIPPED 전파가 그 자리를 지운다.
+		//
+		// ★ 실측이 이것을 밟았다 ★ (third-run-1) — 계획이 재시도 루프를 loop 없이
+		// 선형으로 펴고 final_verify 를 세 분기의 공통 출구로 삼았는데,
+		// 그 needs 는 사슬의 끝(build_4)만 가리켜서 어느 분기로도 못 닿았다.
+		// 그런데 계약은 통과했고 Run 은 SUCCEEDED 로 봉인됐다.
+		for _, t := range d.To {
+			if dead := skipClosure(c, index, st.Dispatch.To, t); dead[t] {
+				return fmt.Errorf("step %q: dispatch.to target %q cannot be reached when it is "+
+					"chosen; its needs hang off a branch this dispatch would skip. "+
+					"a retry loop belongs in loop (back_to/max/until), not in a chain of "+
+					"branches that share one exit", st.ID, t)
+			}
+		}
 	}
 
 	// ★ 계획이 짓기로 약속한 이름 ★ 은 아직 없어도 지목할 수 있다 (ADR-049).
@@ -1449,4 +1465,112 @@ func (c Contract) Validate() error {
 		}
 	}
 	return nil
+}
+
+// HasCondition 은 ★ 같은 조건이 이미 목록에 있는가 ★ 다 (ADR-060 §4).
+//
+// 계약 저자가 쓴 조건을 계획이 다시 제안하는 것은 흔하다. 그때 그냥 붙이면
+// ★ 같은 조건이 두 번 선다 ★ — 오늘은 사본이 같아 판정이 안 바뀌지만,
+// Verify 가 ★ 대조된 조건의 수 ★ 를 「전부 건너뛰었나」의 하한으로 쓰므로
+// 그 수가 사본만큼 부풀면 하한이 잘못된 근거로 판단한다.
+func HasCondition(list []Condition, want Condition) bool {
+	for _, c := range list {
+		if sameCondition(c, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func sameCondition(a, b Condition) bool {
+	if a.Step != b.Step || a.WithinAttempts != b.WithinAttempts {
+		return false
+	}
+	if (a.ExitCode == nil) != (b.ExitCode == nil) {
+		return false
+	}
+	if a.ExitCode != nil && *a.ExitCode != *b.ExitCode {
+		return false
+	}
+	if !sameStrings(a.Produced, b.Produced) || !sameStrings(a.Changed, b.Changed) {
+		return false
+	}
+	// ★ 함대 조건은 속성 맵까지 봐야 같다 ★ (ADR-058) — 어휘가 창발하므로
+	// 이름만 맞춰서는 다른 요구를 같다고 부를 수 있다.
+	if (a.FleetHas == nil) != (b.FleetHas == nil) {
+		return false
+	}
+	if a.FleetHas != nil {
+		wa, na := a.Want()
+		wb, nb := b.Want()
+		if na != nb || wa.Capability != wb.Capability || len(wa.Attrs) != len(wb.Attrs) {
+			return false
+		}
+		for k, v := range wa.Attrs {
+			if wb.Attrs[k] != v {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// sameStrings 는 ★ 순서까지 같은가 ★ 다. 조건의 목록은 계약 저자가 쓴 순서를
+// 그대로 지니고, 순서가 다르면 다르게 봉인되므로 여기서도 다르게 본다.
+func sameStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// skipClosure 는 ★ 이 분기가 chosen 을 골랐을 때 죽는 단계들 ★ 을 계약 위에서
+// 미리 돈다 (ADR-060 §2). ★ store 의 propagateSkips 와 같은 규칙 ★ 이다 —
+// needs 가 ★ 전부 ★ 죽었을 때만 죽고, 하나라도 살아 있으면 산다.
+//
+// ★ chosen 자신도 대상에 넣는다 ★ — applyDispatch 가 고른 것을 되살리지만,
+// 되살린 뒤에도 전파는 그대로 돌기 때문이다. 되살리는 것은 ★ 분기의 판단 ★ 이지
+// 도달 가능성이 아니고, needs 가 전부 죽었으면 다시 죽는 것이 맞다.
+func skipClosure(c Contract, index map[string]int, to []string, chosen string) map[string]bool {
+	dead := map[string]bool{}
+	for _, t := range to {
+		if t != chosen {
+			dead[t] = true
+		}
+	}
+	for {
+		grew := false
+		for i, st := range c.Steps {
+			// ★ NeedsOf 로 본다 ★ — 안 적은 needs 는 [직전 단계] 또는
+			// [갈림길을 낸 단계] 로 채워져 들어오므로, 여기서 st.Needs 를
+			// 그대로 보면 ★ 실행 시의 그래프와 다른 그래프 ★ 를 검사하게 된다.
+			needs := NeedsOf(c.Steps, i)
+			if dead[st.ID] || len(needs) == 0 {
+				continue
+			}
+			all := true
+			for _, n := range needs {
+				if _, ok := index[n]; !ok {
+					all = false // 모르는 이름은 다른 검사가 잡는다
+					break
+				}
+				if !dead[n] {
+					all = false
+					break
+				}
+			}
+			if all {
+				dead[st.ID] = true
+				grew = true
+			}
+		}
+		if !grew {
+			return dead
+		}
+	}
 }

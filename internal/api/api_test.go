@@ -1132,6 +1132,84 @@ func TestSkipped_간선을_따라_전파된다(t *testing.T) {
 	}
 }
 
+// ★ 두 분기가 같은 목적지를 나눠 가지면 첫 분기가 그 목적지를 영구히 닫는다 ★
+//
+// third-run-1 의 최소 재현이다. 계획이 재시도 루프를 loop 없이 선형으로 펴면
+// 회차마다 dispatch 가 서고, ★ 조기종료 출구가 그 분기들의 공통 목적지 ★ 가 된다.
+// 1회차가 "아직 아니다" 로 그 출구를 안 고르면 applyDispatch 가 그것을 SKIPPED 로
+// 만드는데, 2회차가 같은 출구를 골라도 ★ 되살리는 코드가 없다 ★.
+//
+//	verify_1  dispatch.to = [final, fix_1]   → fix_1 을 고른다 ⇒ ★ final 이 죽는다 ★
+//	verify_2  dispatch.to = [final, fix_2]   → final 을 고른다 ⇒ ★ 이미 죽어 있다 ★
+func TestDispatch_두_분기가_나눠_가진_목적지가_되살아난다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("s1", "a", map[string]string{"role": "x"}), nil)
+
+	verify := func(id, out string, to []string) map[string]any {
+		return map[string]any{
+			"id": id, "uses": "b",
+			"agent": map[string]any{"ask": "never"},
+			"out":   []string{out},
+			"schema": map[string]any{out: map[string]any{
+				"type": "object", "required": []string{"next"},
+				"properties": map[string]any{
+					"next": map[string]any{"enum": to}}}},
+			"dispatch": map[string]any{"from": out + ".next", "to": to},
+		}
+	}
+	fix1 := runStep("fix_1", "b")
+	fix1["needs"] = []string{"verify_1"}
+	v2 := verify("verify_2", "status_2", []string{"final", "fix_2"})
+	v2["needs"] = []string{"fix_1"}
+	fix2 := runStep("fix_2", "b")
+	fix2["needs"] = []string{"verify_2"}
+	// ★ needs 를 두 분기 모두에 건다 ★ — 그래야 어느 쪽을 골라도 도달할 수 있고
+	// (join 은 살아 있는 가지가 하나라도 있으면 성립한다) 계약 검증의 도달 가능성
+	// 검사를 통과한다. ★ 그런데도 되살림이 필요하다 ★ — verify_1 이 안 고른 순간
+	// final 은 SKIPPED 가 되고, 그것은 도달 가능성과 무관한 ★ 분기의 판단 ★ 이다.
+	final := runStep("final", "b")
+	final["needs"] = []string{"verify_1", "verify_2"}
+
+	body := contractJSON("dsh", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{
+			verify("verify_1", "status_1", []string{"final", "fix_1"}),
+			fix1, v2, fix2, final,
+		})
+	if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+
+	// ── 1회차: 아직 못 고친다 ⇒ fix_1 로 간다
+	do(t, srv, "POST", "/v1/nodes/s1/claim", "", nil) // verify_1
+	do(t, srv, "PUT", "/v1/runs/dsh/steps/1/blob/status_1", `{"next":"fix_1"}`, nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs/dsh/steps/1/result",
+		`{"node":"s1","produced":["status_1"]}`, nil); code != 200 {
+		t.Fatalf("verify_1 보고 실패: %d", code)
+	}
+	if code, c := do(t, srv, "POST", "/v1/nodes/s1/claim", "", nil); code != 200 || c["name"] != "fix_1" {
+		t.Fatalf("fix_1 이 안 나왔다: %d %v", code, c)
+	}
+	do(t, srv, "POST", "/v1/runs/dsh/steps/2/result", `{"node":"s1","produced":["fix_1"]}`, nil)
+
+	// ── 2회차: 고쳐졌다 ⇒ ★ final 로 간다 ★
+	if code, c := do(t, srv, "POST", "/v1/nodes/s1/claim", "", nil); code != 200 || c["name"] != "verify_2" {
+		t.Fatalf("verify_2 가 안 나왔다: %d %v", code, c)
+	}
+	do(t, srv, "PUT", "/v1/runs/dsh/steps/3/blob/status_2", `{"next":"final"}`, nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs/dsh/steps/3/result",
+		`{"node":"s1","produced":["status_2"]}`, nil); code != 200 {
+		t.Fatalf("verify_2 보고 실패: %d", code)
+	}
+
+	// ★ 여기가 결함이 드러나는 자리다 ★
+	code, next := do(t, srv, "POST", "/v1/nodes/s1/claim", "", nil)
+	if code != 200 || next["name"] != "final" {
+		t.Fatalf("★ 고른 목적지가 안 살아났다 ★: %d %v — "+
+			"verify_1 이 안 고른 탓에 SKIPPED 가 된 final 을 "+
+			"verify_2 가 골랐는데도 되돌리지 않았다", code, next)
+	}
+}
+
 // ═══ 계획 위임 — ★ 오케스트레이터가 나머지 단계를 짓는다 ★ (ADR-022 §6.3) ═══
 //
 // 에이전트가 계약을 ★ 파일로 쓰고 ★ enode 가 제출한다 — 토큰은 enode 에만 남아

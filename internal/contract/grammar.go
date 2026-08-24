@@ -92,6 +92,31 @@ Rules for both:
 Branch targets are siblings, not a chain: the path not taken is skipped, and
 conditions on a skipped step are vacuously true.
 
+### Repeat a range until a condition holds
+
+    { "id":"build", "uses":"builder", "run":["make"],
+      "loop":{ "back_to":"write_test", "max":5, "until":{ "exit_code":0 } } }
+
+Read it as: when this step ends and until is not satisfied, start again from
+back_to. The range is [back_to .. this step]; there is no block to write,
+because the order of steps already fixes it. When max is spent the run simply
+moves on, and success_when decides the outcome.
+
+    back_to   an earlier step; this is the only edge that may point backward
+    max       at least 2; this is what guarantees the loop terminates
+    until     exit_code or produced, and it always applies to this step
+
+A retry loop belongs here, not in a chain of branches. Writing the passes out
+by hand -- build_1, verify_1, fix_1, build_2, verify_2, fix_2 -- and letting
+each verify dispatch to a shared exit does not work: a dispatch has no notion
+of a pass, so the first verify that does not pick the exit marks it skipped,
+and picking it later cannot bring back a step whose needs were skipped along
+with it. loop rolls the whole range back to PENDING, skipped steps included,
+so the next pass is free to choose a different path.
+
+Steps inside the range must not release a resource, an acquire inside it is
+not taken again, and loops do not nest.
+
 ### Ask for the smallest set of resources up front
 
 requires is taken all-or-nothing before the run starts, so a resource listed

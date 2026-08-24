@@ -169,6 +169,24 @@ func Verify(c contract.Contract, results map[string]StepResult, fleet []contract
 		// ★ 안 간 쪽의 조건이 Run 을 죽인다 ★ — 계약 저자가 경로별로 조건을
 		// 나눠 쓸 방법이 없으므로(경로는 실행 시 정해진다) 이쪽이 유일한 답이다.
 		if ran && res.Skipped {
+			// ★ 골랐는데도 SKIPPED 면 공허하게 참이 아니다 ★ (ADR-060 §3).
+			//
+			// 갈림길이 이 단계를 목적지로 ★ 골랐다 ★ 는 것은 "이 경로로 간다" 는
+			// 선언이다. 그런데도 안 돌았다면 경로가 갈린 것이 아니라
+			// ★ 그 자리에 못 닿은 것 ★ 이고, 계약이 그 단계에 조건을 건 이상
+			// ★ 목표 판정이 통째로 빠진 것 ★ 이다. 실측이 이것을 밟았다
+			// (third-run-1: 목표 단계가 SKIPPED 인데 Run 이 SUCCEEDED 로 봉인됐다).
+			//
+			// ★ 방향이 한쪽뿐이라 I3 을 안 깬다 ★ — 통과할 Run 을 실패시킬 뿐
+			// 실패할 Run 을 통과시키지 못한다. ADR-054 의 _unmet 과 같은 비대칭이다.
+			if res.Chosen {
+				v.Checks = append(v.Checks, Check{
+					Step: cond.Step, What: "skipped", Want: false, Got: true, OK: false,
+					Note: "a branch chose this step, yet it never ran; the goal was not judged",
+				})
+				v.State = StateFailed
+				continue
+			}
 			v.Checks = append(v.Checks, Check{
 				Step: cond.Step, What: "skipped", OK: true,
 				Note: "the step did not run; the condition is not evaluated",
@@ -283,7 +301,7 @@ func (s *Store) StepResults(ctx context.Context, runID string) (map[string]StepR
 	// ★ 건너뛴 단계도 싣는다 ★ — 결과는 없지만 "실행 안 됐다" 를 Verify 가
 	// 알아야 한다. 안 실으면 크래시(결과 없음)와 구분이 안 된다.
 	rows, err := s.pool.Query(ctx,
-		`SELECT name, result, attempt, state FROM steps
+		`SELECT name, result, attempt, state, chosen FROM steps
 		  WHERE run_id=$1 AND (result IS NOT NULL OR state='SKIPPED')`, runID)
 	if err != nil {
 		return nil, err
@@ -294,7 +312,8 @@ func (s *Store) StepResults(ctx context.Context, runID string) (map[string]StepR
 		var name, state string
 		var raw []byte
 		var attempt int
-		if err := rows.Scan(&name, &raw, &attempt, &state); err != nil {
+		var chosen bool
+		if err := rows.Scan(&name, &raw, &attempt, &state, &chosen); err != nil {
 			return nil, err
 		}
 		var r StepResult
@@ -305,6 +324,7 @@ func (s *Store) StepResults(ctx context.Context, runID string) (map[string]StepR
 		}
 		r.Attempt = attempt
 		r.Skipped = state == StepSkipped
+		r.Chosen = chosen
 		out[name] = r
 	}
 	return out, rows.Err()

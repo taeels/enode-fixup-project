@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -796,5 +798,33 @@ func TestValidate_adopts(t *testing.T) {
 	// ★ verdict 어휘가 없으면 채택이 기계적으로 못 갈린다 ★
 	if err := mk("plan", verdictSch("yes", "no")).Validate(); err == nil {
 		t.Fatal("approve/reject 없는 스키마가 통과했다")
+	}
+}
+
+// ★ 사고를 낸 실제 계약이 이제 거부된다 ★ (ADR-060 §2)
+//
+// third-run-1 의 봉인된 v3 그대로다. 계획이 재시도 루프를 loop 없이 선형으로
+// 펴고 final_verify 를 세 분기의 공통 출구로 삼았는데, 그 needs 는 사슬의
+// 끝(build_4)만 가리켜서 ★ 어느 분기로도 못 닿았다 ★. 그런데 계약은 통과했고
+// Run 은 목표 판정 없이 SUCCEEDED 로 봉인됐다.
+func TestThirdRun1_도달할_수_없는_출구를_거절한다(t *testing.T) {
+	b, err := os.ReadFile(filepath.Join("testdata", "third-run-1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c Contract
+	if err := json.Unmarshal(b, &c); err != nil {
+		t.Fatal(err)
+	}
+	err = c.Validate()
+	if err == nil {
+		t.Fatal("★ 통과했다 ★ — 도달 가능성 검사가 사고 계약을 못 잡는다")
+	}
+	if !strings.Contains(err.Error(), "cannot be reached") {
+		t.Fatalf("다른 이유로 거절됐다: %v", err)
+	}
+	// ★ 오류가 갈 곳을 가리켜야 한다 ★ — 계획이 이 문장을 읽고 고친다.
+	if !strings.Contains(err.Error(), "loop") {
+		t.Fatalf("★ loop 을 안 가리킨다 ★: %v", err)
 	}
 }

@@ -126,3 +126,19 @@ ALTER TABLE steps ADD COLUMN IF NOT EXISTS ask_deadline timestamptz;
 -- 봉인된 Record 를 열었을 때 그 프롬프트가 왜 그 모양이었는지 설명돼야 한다.
 -- NULL 이면 열쇠 없이 봉투만 씌운다 — ★ 열쇠는 강화이지 봉투의 조건이 아니다 ★.
 ALTER TABLE steps ADD COLUMN IF NOT EXISTS envelope_key text;
+
+-- ★ 이 단계가 갈림길에 골라진 적이 있는가 ★ (ADR-060 §3).
+--
+-- SKIPPED 하나로는 ★ 두 가지 서로 다른 것 ★ 을 구분할 수 없다:
+--
+--     안 고른 SKIPPED         경로가 갈렸다 — 조건은 ★ 공허하게 참 ★ 이 옳다
+--     고른 뒤에도 SKIPPED     골랐는데 ★ 못 닿았다 ★ — 목표 미달이다
+--
+-- 계약 저자는 경로별로 조건을 나눠 쓸 방법이 없으므로(경로는 실행 시 정해진다)
+-- 앞의 것은 참으로 둘 수밖에 없다. 그러나 뒤의 것까지 참으로 두면
+-- ★ 목표 판정 단계가 통째로 빠진 Run 이 SUCCEEDED 로 봉인된다 ★ (third-run-1).
+--
+-- ★ 되돌리지 않는다 ★ — 한 번 골라진 사실은 뒤 회차가 지우지 않는다.
+-- loop 이 구간을 되돌릴 때도 남는다: "골랐었다" 는 그 회차의 기록이 아니라
+-- ★ 이 Run 에서 그 자리가 목표였다는 사실 ★ 이다.
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS chosen boolean NOT NULL DEFAULT false;

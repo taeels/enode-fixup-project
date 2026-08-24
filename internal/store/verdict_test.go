@@ -381,3 +381,47 @@ func Test함대_술어(t *testing.T) {
 		t.Fatal("★ 안 쓰는 함대를 봉인했다 ★")
 	}
 }
+
+// ★ 고른 목적지가 안 돌았으면 공허하게 참이 아니다 ★ (ADR-060 §3)
+//
+// third-run-1 의 판정 쪽 재현이다. 목표 단계가 SKIPPED 인데 절차 단계 둘이
+// 조건을 채워서 Run 이 SUCCEEDED 로 봉인됐다 — evaluated 하한도 0 이 아니라
+// 발동하지 못했다.
+func Test고른_단계가_안_돌면_목표_미달이다(t *testing.T) {
+	c := contract.Contract{
+		Steps: []contract.Step{
+			{ID: "plan"}, {ID: "approve"}, {ID: "final"},
+		},
+		SuccessWhen: []contract.Condition{
+			{Step: "plan", Produced: []string{"plan"}},
+			{Step: "approve", Produced: []string{"approval"}},
+			{Step: "final", Produced: []string{"verify_result"}},
+		},
+	}
+	base := map[string]StepResult{
+		"plan":    {Produced: []string{"plan"}},
+		"approve": {Produced: []string{"approval"}},
+	}
+
+	// ① 안 골라서 건너뛰었다 — ★ 공허하게 참 ★ 이 옳다 (경로가 갈렸다)
+	notChosen := map[string]StepResult{}
+	for k, v := range base {
+		notChosen[k] = v
+	}
+	notChosen["final"] = StepResult{Skipped: true}
+	if got := Verify(c, notChosen, nil); got.State != StateSucceeded {
+		t.Fatalf("안 고른 SKIPPED 는 통과해야 한다: %s", got.State)
+	}
+
+	// ② ★ 골랐는데도 건너뛰었다 ★ — 목표 판정이 통째로 빠졌다
+	chosen := map[string]StepResult{}
+	for k, v := range base {
+		chosen[k] = v
+	}
+	chosen["final"] = StepResult{Skipped: true, Chosen: true}
+	got := Verify(c, chosen, nil)
+	if got.State != StateFailed {
+		t.Fatalf("★ 고른 목적지가 안 돌았는데 통과했다 ★: %s — "+
+			"third-run-1 이 이렇게 SUCCEEDED 로 봉인됐다", got.State)
+	}
+}

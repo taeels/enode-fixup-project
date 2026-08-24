@@ -390,8 +390,18 @@ func (s *Store) adoptProposal(ctx context.Context, tx pgx.Tx, runID string,
 		return nil
 	}
 	next := live
-	next.SuccessWhen = append(
-		append([]contract.Condition{}, live.SuccessWhen...), proposal.Proposed...)
+	// ★ 이미 선 조건과 겹치는 제안은 안 더한다 ★ — 계약 저자가 쓴 조건을
+	// 계획이 다시 제안하는 것은 흔하고, 그때 그냥 붙이면 ★ 같은 조건이 두 번 ★
+	// 선다. 오늘은 사본이 같아 판정이 안 바뀌지만, ★ Verify 가 대조된 조건의
+	// 수를 세어 「전부 건너뛰었나」의 하한으로 쓰므로 ★ 그 수가 사본만큼 부풀면
+	// 하한이 잘못된 근거로 판단하게 된다.
+	next.SuccessWhen = append([]contract.Condition{}, live.SuccessWhen...)
+	for _, c := range proposal.Proposed {
+		if contract.HasCondition(next.SuccessWhen, c) {
+			continue
+		}
+		next.SuccessWhen = append(next.SuccessWhen, c)
+	}
 	// ★ 채택 시점에 전체를 다시 검증한다 ★ — 제안이 지어진 단계를 가리켜도
 	// 지금은 그 단계가 live 에 있으므로 통과한다. 그것이 P4 가 그어둔
 	// 「지어진 단계의 성패는 판정에 안 들어간다」는 경계가 ★ 여기서 열리는 ★ 방식이다.

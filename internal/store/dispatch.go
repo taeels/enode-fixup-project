@@ -58,6 +58,27 @@ func (s *Store) applyDispatch(ctx context.Context, tx pgx.Tx, runID string, seq 
 		return fmt.Errorf("step %q: chosen target %q is not in dispatch.to", st.ID, chosen)
 	}
 
+	// ★ 고른 목적지는 되살린다 ★ — 여러 분기가 ★ 같은 목적지를 나눠 가질 수 ★
+	// 있고(펼친 재시도 루프의 조기종료 출구가 그 형태다), 앞선 분기가 그것을
+	// 안 골랐으면 이미 SKIPPED 다. ★ 공유 목적지는 「누구든 하나가 고르면 산다」★
+	// 이므로, 안 되살리면 ★ 1 회차의 「아직 아니다」가 「영원히 아니다」가 된다 ★.
+	//
+	// ★ 되살린 뒤에도 propagateSkips 를 그대로 돈다 ★ — needs 가 전부 SKIPPED 라
+	// 도달할 수 없으면 다시 죽는 것이 맞다. 되살리는 것은 ★ 분기의 판단 ★ 이지
+	// 도달 가능성이 아니다.
+	// ★ 골랐다는 사실을 남긴다 ★ (ADR-060 §3) — SKIPPED 하나로는 「안 골랐다」와
+	// 「골랐는데 못 닿았다」가 구분되지 않고, 뒤의 것은 ★ 목표 미달 ★ 이다.
+	// 되살림과 같은 문장에서 박는다: 되살릴 대상이 없어도(이미 PENDING) 표시는 남는다.
+	if _, err := tx.Exec(ctx, `
+		UPDATE steps
+		   SET chosen = true,
+		       state = CASE WHEN state=$3 THEN 'PENDING' ELSE state END,
+		       ended_at = CASE WHEN state=$3 THEN NULL ELSE ended_at END
+		 WHERE run_id=$1 AND name=$2`,
+		runID, chosen, StepSkipped); err != nil {
+		return err
+	}
+
 	// ★ 안 간 쪽만 SKIPPED 로 ★ — 갈림길 밖의 단계는 건드리지 않는다.
 	// PENDING 인 것만 바꾼다: 이미 돈 것을 되돌리지 않는다.
 	others := make([]string, 0, len(st.Dispatch.To))
