@@ -2,6 +2,9 @@ package enode
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os/exec"
 	"strconv"
@@ -83,14 +86,61 @@ func (claudeHarness) Probe(ctx context.Context, bin string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// ★ 「있다」와 「쓸 수 있다」를 가른다 ★ (ADR-059)
+	//
+	// 예전에는 --version 만 봤다. 그런데 ★ --version 은 로그인 없이도 답한다 ★.
+	//
+	//	★ 실측 ★ (2026-08-24) vm-scratch-7 이 colima VM 에 세운 노드가
+	//	harness=claude 를 광고했는데, agent 단계가 ★ 1턴 1초에 죽었다 ★:
+	//	  terminal_reason: api_error
+	//	  result: "Not logged in · Please run /login"
+	//	★ 매칭은 통과하고 실행 시점에 죽는다 ★ — 가장 늦게 아는 실패다.
+	//
+	// ADR-012 가 적은 그대로다 — "못 하는 것을 ★ 빼고 ★ 보내는 것이
+	// 「지금은 못 한다」를 표현하는 방법이다".
+	if err := claudeUsable(ctx, path); err != nil {
+		return "", err
+	}
 	out, err := exec.CommandContext(ctx, path, "--version").Output()
 	if err != nil {
-		// ★ 있는데 --version 이 실패하면 「있다」로 본다 ★.
-		// 버전을 모르는 것과 없는 것은 다르다 — 없다고 하면 광고가 빠져
+		// ★ 쓸 수 있는데 --version 이 실패하면 「있다」로 본다 ★.
+		// 버전을 모르는 것과 못 쓰는 것은 다르다 — 없다고 하면 광고가 빠져
 		// 시연 직전에 노드가 통째로 사라진다.
 		return "unknown", nil
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+// errNotUsable 은 ★ 있는데 못 쓴다 ★ 는 뜻이다 (ADR-059).
+var errNotUsable = errors.New("harness is installed but not usable")
+
+// claudeUsable 은 이 claude 로 실제로 일을 시킬 수 있는지 본다.
+//
+// ★ 값싸야 한다 ★ — Detect 는 광고마다 돈다(기본 60초). 그래서
+// `claude auth status` 를 쓴다: ★ 로컬 확인이고 0.5 초 안에 답한다 ★.
+// 짧은 프롬프트를 실제로 돌려보는 방법은 ★ 매 분 토큰을 태운다 ★.
+//
+// ★ 모르면 「쓸 수 있다」로 본다 ★ — 이 하위명령이 없는 옛 CLI 나 형식이
+// 바뀐 새 CLI 에서 ★ 노드가 통째로 사라지면 안 된다 ★. 확실히 아니라고
+// 말할 때만 뺀다. (틀리면 닫히는 쪽이 아니라 ★ 열리는 쪽 ★ 인데, 그 이유는
+// 여기서는 ★ 조용한 사라짐이 조용한 실패보다 나쁘기 때문 ★ 이다 —
+// 못 쓰는 노드는 실행 시점에 _cannot 으로 드러나지만, 사라진 노드는
+// 「왜 매칭이 안 되지」로 남는다.)
+func claudeUsable(ctx context.Context, path string) error {
+	out, err := exec.CommandContext(ctx, path, "auth", "status", "--json").Output()
+	if err != nil {
+		return nil // 하위명령이 없거나 못 돌았다 — 모르는 것이지 아닌 것이 아니다
+	}
+	var st struct {
+		LoggedIn *bool `json:"loggedIn"`
+	}
+	if json.Unmarshal(out, &st) != nil || st.LoggedIn == nil {
+		return nil // 형식을 모른다 — 위와 같다
+	}
+	if !*st.LoggedIn {
+		return fmt.Errorf("%w: claude is not logged in", errNotUsable)
+	}
+	return nil
 }
 
 // Instrument 는 enode 전용 종료 훅을 심는다 (R5③ · R6).

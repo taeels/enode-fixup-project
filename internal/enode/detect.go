@@ -2,6 +2,7 @@ package enode
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"os/exec"
 	"runtime"
@@ -42,6 +43,16 @@ func Detect(l Local, log *slog.Logger) []contract.Capability {
 		}
 		ver, err := h.Probe(context.Background(), bin)
 		if err != nil {
+			// ★ 「있는데 못 쓴다」는 조용히 빠지면 안 된다 ★ (ADR-059)
+			//
+			// 없는 것은 당연한 일이라 로그가 필요 없다 — 그 기계에 안 깔았을 뿐이다.
+			// ★ 그런데 깔려 있는데 못 쓰는 것은 사람이 고칠 수 있는 문제다 ★.
+			// 알려주지 않으면 "왜 매칭이 안 되지" 로 남는다.
+			if errors.Is(err, errNotUsable) {
+				log.Warn("harness is installed but not usable; "+
+					"dropping it from the advertisement",
+					"harness", h.Name(), "err", err)
+			}
 			continue
 		}
 		attrs["harness"] = h.Name()
