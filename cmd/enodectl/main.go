@@ -90,8 +90,10 @@ func envOr(key, def string) string {
 	return def
 }
 
-func confDir() string  { return envOr("ENODE_CONFDIR", filepath.Join(home(), ".config", "enode")) }
-func stateDir() string { return envOr("ENODE_STATEDIR", filepath.Join(home(), ".local", "state", "enode")) }
+func confDir() string { return envOr("ENODE_CONFDIR", filepath.Join(home(), ".config", "enode")) }
+func stateDir() string {
+	return envOr("ENODE_STATEDIR", filepath.Join(home(), ".local", "state", "enode"))
+}
 func confOf(n string) string { return filepath.Join(confDir(), n+".yaml") }
 func logOf(n string) string  { return filepath.Join(stateDir(), n+".log") }
 

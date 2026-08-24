@@ -489,6 +489,21 @@ type Step struct {
 	// ADR-043 의 「고칠 것이 없다」는 ★ 목표가 이미 선 뒤 ★ 의 판단이다.
 	Produces []string `json:"produces,omitempty"`
 
+	// Adopt 는 ★ 이 계획의 제안을 묻지 않고 채택한다 ★ 는 선언이다 (ADR-061).
+	//
+	// 값은 ★ "yolo" ★ 하나다. 점잖은 말(unattended · auto · preapproved)로
+	// 적으면 ★ 위험이 문장에서 사라진다 ★ — 이 값은 "사람이 안 본다" 를 뜻하고,
+	// 계약을 읽는 사람이 그것을 ★ 한눈에 알아채야 한다 ★.
+	//
+	// ★ ADR-037 을 안 깬다 ★ — 전권을 주는 결정 자체를 ★ 사람이 계약에 미리 ★
+	// 적는다. 계획보다 먼저, 어떤 계획도 없을 때 못 박힌다. 기계가 스스로
+	// "나를 믿어라" 고 말하지는 못한다.
+	//
+	// ★ 봉인에 남는다 ★ — 채택 판의 by 가 "contract:yolo" 다.
+	// evidence 는 ★ 없다 ★ — 사람의 답 blob 이 없으므로 지어내지 않는다.
+	// ⇒ ★ 왜 사람의 승인이 없는지 ★ 를 봉인만 보고 알 수 있다.
+	Adopt string `json:"adopt,omitempty"`
+
 	// Needs 는 ★ 이 단계가 기다리는 단계들 ★ 이다 (ADR-023 §4).
 	//
 	// 오늘까지 의존은 ★ 목록에서의 위치 ★ 였다 — steps[] 가 리스트이므로
@@ -1396,6 +1411,31 @@ func (c Contract) Validate() error {
 		}
 	}
 
+	// ★ adopt 는 expands 단계만 · 값은 하나 ★ (ADR-061 §3)
+	for _, st := range c.Steps {
+		if st.Adopt == "" {
+			continue
+		}
+		if !st.Expands {
+			return fmt.Errorf("step %q: adopt is only allowed on an expands step; "+
+				"it says whether this plan's proposal is adopted without asking", st.ID)
+		}
+		if st.Adopt != AdoptYolo {
+			return fmt.Errorf("step %q: adopt must be %q (got %q); "+
+				"the name is blunt on purpose — it means a person does not look",
+				st.ID, AdoptYolo, st.Adopt)
+		}
+		// ★ 묻는 것과 안 묻는 것을 함께 선언하지 않는다 ★ — 어느 쪽이 채택의
+		// 근거인지 봉인만 보고 알 수 없게 된다. ADR-054 가 "빈 계획 + _unmet"
+		// 을 모순으로 거절한 것과 같은 자리다.
+		for _, other := range c.Steps {
+			if other.Ask != nil && other.Ask.Adopts == st.ID {
+				return fmt.Errorf("step %q: adopt is set, yet step %q asks to adopt it; "+
+					"a contract either asks or does not", st.ID, other.ID)
+			}
+		}
+	}
+
 	// ★ 계획이 짓기로 약속한 이름 ★ 은 아직 없어도 지목할 수 있다 (ADR-049).
 	// 그래야 사람이 ★ 계획보다 먼저 ★ 「무엇이 되면 끝인가」를 못 박는다 —
 	// 목표를 이루는 단계를 계획이 짓기 때문이다.
@@ -1573,4 +1613,36 @@ func skipClosure(c Contract, index map[string]int, to []string, chosen string) m
 			return dead
 		}
 	}
+}
+
+// AdoptYolo 는 ★ 묻지 않고 채택한다 ★ 는 값이다 (ADR-061 §3).
+//
+// ★ 왜 이 글자인가 ★ — 점잖은 말로 적으면 위험이 문장에서 사라진다.
+// 계약을 읽는 사람이 "여기서는 사람이 안 본다" 를 한눈에 알아채야 한다.
+const AdoptYolo = "yolo"
+
+// Warnings 는 ★ 틀리지는 않았지만 뜻대로 안 도는 것 ★ 을 짚는다 (ADR-061 §2).
+//
+// ★ 거절과 다른 단계다 ★ — 틀린 것을 알려주는 것과 못 쓰게 막는 것은 다르고,
+// 여기서는 앞의 것부터 한다. 함대의 계약이 전부 옮겨진 뒤에 거절로 올린다
+// (ADR-061 §2.3 이 그 조건을 적었다).
+func Warnings(c Contract) []string {
+	var out []string
+	// ★ 물어놓고 답의 절반을 버린다 ★ — adopts 는 "이 계획을 승인받겠다" 는
+	// 선언인데, 거절이 갈 곳이 없으면 그 선언이 반쪽이다. reject 로 답해도
+	// 채택만 안 될 뿐 ★ 계획이 지은 단계는 그대로 돈다 ★ (실측으로 확인했다).
+	for _, st := range c.Steps {
+		if st.Ask == nil || st.Ask.Adopts == "" {
+			continue
+		}
+		if st.Dispatch != nil && len(st.Dispatch.To) >= 2 {
+			continue
+		}
+		out = append(out, fmt.Sprintf(
+			"step %q adopts %q but declares no dispatch: rejecting the plan would do nothing, "+
+				"because the plan is already in the contract by then. give reject somewhere to go "+
+				"(a replan step, or a step that reports the goal was not reached)",
+			st.ID, st.Ask.Adopts))
+	}
+	return out
 }

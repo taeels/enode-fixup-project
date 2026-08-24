@@ -93,6 +93,8 @@ type Run struct {
 	// Steps 는 ★ 실행 중 관측 ★ 이다 (ADR-025). 폭이 1 을 넘으면 여러 가지가
 	// 각각 다른 상태에 있어서 Run 상태 한 줄로는 어디까지 갔는지 안 보인다.
 	Steps []Step `json:"steps,omitempty"`
+	// Warnings 는 ★ 받았지만 뜻대로 안 돌 것 ★ 이다 (ADR-061 §2).
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 type Step struct {

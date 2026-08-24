@@ -181,7 +181,11 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		// ★ 공허하게 참 ★ 이다 (verdict.go). 뒷단계는 needs 를 따라 전파된다.
 		return skipAdopters(ctx, tx, runID, c.Steps, st.ID)
 	}
-	if len(p.SuccessWhen) > 0 && !hasAdopter(c.Steps, st.ID) {
+	// ★ yolo 는 스스로 채택자다 ★ (ADR-061 §3) — 계약이 "묻지 않고 채택한다" 를
+	// 미리 적었으므로 물어볼 ask 를 요구하지 않는다. 그 선언 자체가 사람의
+	// 것이므로 ADR-033 의 "승인할 ask 가 없으면 거절한다" 를 우회하는 것이
+	// 아니라 ★ 명시적으로 여는 다른 문 ★ 이다.
+	if len(p.SuccessWhen) > 0 && st.Adopt != contract.AdoptYolo && !hasAdopter(c.Steps, st.ID) {
 		return fmt.Errorf("step %q: the plan declares success_when but no ask adopts it; "+
 			"an ask with adopts pointing at this step is required for the criteria to take effect", st.ID)
 	}
@@ -229,6 +233,40 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 		ver.Cause = causeOf(c.Steps, seq-1)
 	}
 	prior = append(prior, ver)
+
+	// ★ 묻지 않고 채택한다 ★ (ADR-061 §3) — 계약이 adopt:"yolo" 를 달았으면
+	// 제안이 ★ 이 트랜잭션 안에서 ★ 효력을 얻는다. 물어볼 ask 가 없으므로
+	// 나중이 없다.
+	//
+	// ★ 판을 따로 붙인다 ★ — 제안(by: step:…)과 채택(by: contract:yolo)이
+	// 한 판에 섞이면 ★ 저자와 승인자가 봉인에서 겹친다 ★ (ADR-033). 사람이
+	// 답하는 경로에서 판이 둘인 것과 같은 모양을 지킨다.
+	if st.Adopt == contract.AdoptYolo && len(ver.Proposed) > 0 {
+		adopted := next
+		adopted.SuccessWhen = append([]contract.Condition{}, next.SuccessWhen...)
+		for _, cond := range ver.Proposed {
+			if contract.HasCondition(adopted.SuccessWhen, cond) {
+				continue
+			}
+			adopted.SuccessWhen = append(adopted.SuccessWhen, cond)
+		}
+		// ★ 채택 시점에 전체를 다시 검증한다 ★ — 사람이 답하는 경로와 같다.
+		if err := adopted.Validate(); err != nil {
+			return fmt.Errorf("adopting the proposal would make the contract invalid: %w", err)
+		}
+		prior = append(prior, ContractVersion{
+			V:  len(prior) + 2,
+			At: time.Now().UTC(),
+			By: byYolo(),
+			// ★ evidence 를 지어내지 않는다 ★ — 사람의 답 blob 이 없다.
+			// 「없음」이 곧 "묻지 않았다" 는 값이다 (ADR-020 · ADR-058).
+			Cause:    []string{ver.Evidence},
+			Contract: adopted,
+		})
+		s.log().Info("proposal adopted without asking; the contract said so",
+			"run", runID, "step", st.ID, "conditions", len(ver.Proposed))
+	}
+
 	nextJSON, err := json.Marshal(prior)
 	if err != nil {
 		return err
@@ -303,6 +341,10 @@ func byStep(id string) string { return "step:" + id }
 
 // byAnswer 는 ★ 사람의 답이 채택한 판 ★ 이다 (ADR-033).
 func byAnswer(id string) string { return "answer:" + id }
+
+// byYolo 는 ★ 계약이 미리 맡긴 채택 ★ 이다 (ADR-061 §3).
+// ★ 답이 없다 ★ — 그래서 answer:<ask> 가 아니라 계약 자신을 가리킨다.
+func byYolo() string { return "contract:" + contract.AdoptYolo }
 
 // hasAdopter 는 이 expands 단계를 adopts 로 지목한 ask 가 있는지 본다.
 // skipAdopters 는 ★ 채택할 것이 없어진 ask 를 건너뛴다 ★ (ADR-043).

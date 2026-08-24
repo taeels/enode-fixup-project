@@ -348,6 +348,11 @@ func verdictCode(r *runctl.Run) int {
 
 func printRun(r *runctl.Run) {
 	fmt.Printf("%s  %s\n", r.RunID, r.State)
+	// ★ 경고를 먼저 찍는다 ★ (ADR-061 §2) — 제출은 됐지만 뜻대로 안 도는 것이
+	// 있으면 그것부터 보여야 한다. 아래 줄들에 묻히면 못 읽는다.
+	for _, wmsg := range r.Warnings {
+		fmt.Printf("  ▲ %s\n", wmsg)
+	}
 	for _, a := range r.Assigned {
 		for _, n := range a.Nodes {
 			fmt.Printf("  %-10s %s  %s\n", a.As, n.Node, n.Label)

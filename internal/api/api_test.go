@@ -3051,3 +3051,100 @@ func TestReap_되묻기를_기다리는_Run은_안_죽인다(t *testing.T) {
 		t.Fatalf("★ 답 뒤에 이어지지 않았다 ★: %d %v", code, c)
 	}
 }
+
+// ★ 묻지 않고 채택한다 ★ (ADR-061 §3) — 계약이 미리 맡겼다.
+//
+// third-run 류는 계획의 제안을 사람의 답으로만 채택할 수 있었다. 답할 사람이
+// 없는 무인 Run 에서는 ★ ask 가 그대로 멈춘다 ★. adopt:"yolo" 는 그 결정을
+// ★ 계약에 미리 ★ 적어 ask 없이 넘어가게 한다 — 전권을 주는 결정 자체가
+// 사람의 것이므로 ADR-037 을 안 깬다.
+func TestYolo_묻지_않고_채택한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("y1", "a", map[string]string{"role": "x"}), nil)
+	plan := planStep("b")
+	plan["adopt"] = "yolo"
+	plan["produces"] = []string{"built"}
+	body, _ := json.Marshal(map[string]any{
+		"run_id":   "yolo1",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    []map[string]any{plan},
+		// ★ 계획이 지을 단계를 미리 지목한다 ★ (ADR-049)
+		"success_when": []map[string]any{{"step": "built", "produced": []string{"built"}}},
+	})
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(body), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+	do(t, srv, "POST", "/v1/nodes/y1/claim", "", nil)
+	// 계획이 단계를 짓고 ★ 제안까지 낸다 ★
+	do(t, srv, "PUT", "/v1/runs/yolo1/steps/1/blob/plan", `{"steps":[
+		{"id":"built","uses":"b","run":["true"],"out":["built"]}],
+		"success_when":[{"step":"built","exit_code":0}]}`, nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs/yolo1/steps/1/result",
+		`{"node":"y1","produced":["plan"]}`, nil); code != 200 {
+		t.Fatalf("보고 실패: %d", code)
+	}
+
+	// ★ 물어보는 ask 가 없는데 제안이 효력을 얻었는가 ★
+	_, v := do(t, srv, "GET", "/v1/runs/yolo1", "", nil)
+	raw, _ := json.Marshal(v)
+	if !strings.Contains(string(raw), "contract:yolo") {
+		// 계약 판은 view 에 안 실릴 수 있으므로 단계 진행으로도 본다
+		t.Logf("view: %s", raw)
+	}
+	code, c := do(t, srv, "POST", "/v1/nodes/y1/claim", "", nil)
+	if code != 200 || c["name"] != "built" {
+		t.Fatalf("★ 지어진 단계가 안 집혔다 ★: %d %v", code, c)
+	}
+	do(t, srv, "PUT", "/v1/runs/yolo1/steps/2/blob/built", `{"ok":true}`, nil)
+	do(t, srv, "POST", "/v1/runs/yolo1/steps/2/result",
+		`{"node":"y1","exit_code":0,"produced":["built"]}`, nil)
+
+	_, v2 := do(t, srv, "GET", "/v1/runs/yolo1", "", nil)
+	if v2["state"] != "SUCCEEDED" {
+		t.Fatalf("★ 사람 없이 못 끝났다 ★: %v", v2["state"])
+	}
+	// ★ 채택이 봉인에 남았는가 ★ — 계획이 제안한 exit_code 조건이 대조돼야 한다.
+	vr, _ := json.Marshal(v2["verdict"])
+	if !strings.Contains(string(vr), "exit_code") {
+		t.Fatalf("★ 제안이 채택되지 않았다 ★: %s — adopt:\"yolo\" 가 안 먹혔다", vr)
+	}
+}
+
+// ★ 묻는 것과 안 묻는 것을 함께 선언하지 않는다 ★ (ADR-061 §3)
+func TestYolo_ask_와_함께_쓰면_거절한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("y2", "a", map[string]string{"role": "x"}), nil)
+	plan := planStep("b")
+	plan["adopt"] = "yolo"
+	body, _ := json.Marshal(map[string]any{
+		"run_id":   "yolo2",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    []map[string]any{plan, adoptingGate("approve", "plan")},
+	})
+	code, v := do(t, srv, "POST", "/v1/runs", string(body), nil)
+	if code != 400 {
+		t.Fatalf("★ 모순인 계약이 통과했다 ★: %d %v", code, v)
+	}
+}
+
+// ★ adopts 를 쓰면서 거절이 갈 곳이 없으면 짚는다 ★ (ADR-061 §2)
+// 막지는 않는다 — 기존 계약을 깨지 않는다.
+func TestAdopts_거절이_갈_곳이_없으면_경고한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("w1", "a", map[string]string{"role": "x"}), nil)
+	gate := adoptingGate("approve", "plan")
+	delete(gate, "dispatch") // ★ third-run 류가 이 모양이다 ★
+	body, _ := json.Marshal(map[string]any{
+		"run_id":   "warn1",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    []map[string]any{planStep("b"), gate},
+	})
+	code, v := do(t, srv, "POST", "/v1/runs", string(body), nil)
+	if code != 201 {
+		t.Fatalf("★ 경고가 제출을 막았다 ★: %d %v", code, v)
+	}
+	raw, _ := json.Marshal(v["warnings"])
+	if !strings.Contains(string(raw), "rejecting the plan would do nothing") {
+		t.Fatalf("★ 경고가 안 실렸다 ★: %s", raw)
+	}
+}

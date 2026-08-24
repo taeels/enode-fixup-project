@@ -131,6 +131,9 @@ type runView struct {
 	// 각각 다른 상태에 있고, GET record 는 종료 전이면 409 다(I4).
 	// ★ 새 표면을 만들지 않고 이미 있는 조회를 넓힌다 ★ — 표면 개수가 비용이다.
 	Steps []store.StepView `json:"steps,omitempty"`
+	// Warnings 는 ★ 받았지만 뜻대로 안 돌 것 ★ 이다 (ADR-061 §2).
+	// 제출을 막지 않는다 — 계약 저자가 읽고 고칠 자리다.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // view 는 Run 하나를 밖에서 읽는 형태로 만든다.
@@ -329,6 +332,11 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 		fail(w, 400, err.Error())
 		return
 	}
+	// ★ 경고는 막지 않는다 ★ (ADR-061 §2.3) — 응답에 싣고 로그에 남긴다.
+	warnings := contract.Warnings(c)
+	for _, wmsg := range warnings {
+		s.log.Warn("contract warning", "run", c.RunID, "warning", wmsg)
+	}
 	ctx := r.Context()
 
 	// ★ 같은 run_id 재제출은 200 + 기존 Run ★ (INVARIANTS §2 첫 행).
@@ -396,7 +404,8 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 		}
 	}
 	if dry {
-		write(w, 200, runView{RunID: c.RunID, State: "DRY_RUN", Assigned: label(assign, adverts)})
+		write(w, 200, runView{RunID: c.RunID, State: "DRY_RUN", Assigned: label(assign, adverts),
+			Warnings: warnings})
 		return
 	}
 
@@ -435,7 +444,9 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 		fail(w, 503, "create failed")
 		return
 	}
-	write(w, 201, s.view(ctx, &run))
+	v := s.view(ctx, &run)
+	v.Warnings = warnings
+	write(w, 201, v)
 }
 
 // ── GET /v1/runs/{id} ────────────────────────────────────────────────────
