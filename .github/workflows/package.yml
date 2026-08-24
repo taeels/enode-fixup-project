@@ -73,7 +73,7 @@ jobs:
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
       - name: 굽는다
-        run: PKG_VERSION="${{ steps.v.outputs.version }}" packaging/build-installers.sh
+        run: PKG_VERSION="${{ steps.v.outputs.version }}" bash packaging/build-installers.sh
 
       # ★ 무엇이 나왔는지 눈으로 본다 ★ — 조용히 빠진 것을 잡는 유일한 자리다.
       - name: 목록
@@ -106,7 +106,11 @@ jobs:
       - name: 굽는다
         run: |
           chmod +x stage/darwin-*/* || true
-          PKG_VERSION="${{ needs.build.outputs.version }}" packaging/macos/pkg.sh stage
+          # ★ bash 로 부른다 ★ — 실행 권한에 안 건다. git 의 파일 모드는
+          # `git add` 한 번에 되돌아갈 수 있고(실측: update-index --chmod 를
+          # 걸어도 다음 add 가 디스크 모드로 덮었다), 그러면 릴리즈가
+          # ★ 맥 잡에서만 ★ 죽는다 — 리눅스는 다 초록불인 채로.
+          PKG_VERSION="${{ needs.build.outputs.version }}" bash packaging/macos/pkg.sh stage
       - uses: actions/upload-artifact@v4
         with:
           name: installer-macos
