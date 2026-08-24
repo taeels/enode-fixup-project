@@ -30,8 +30,16 @@ func Test첫_광고가_성공하면_알린다(t *testing.T) {
 		Log:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		OnReady: func() { mu.Lock(); ready++; mu.Unlock() },
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	// ★ 시간이 아니라 횟수로 끝낸다 ★ — 타이밍에 기대면 시험이 흔들린다.
+	// 광고가 세 번 돌면 ctx 를 끝낸다. 그래야 「한 번만」을 잴 수 있다.
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	go func() {
+		for calls() < 3 {
+			time.Sleep(5 * time.Millisecond)
+		}
+		cancel()
+	}()
 	a.Run(ctx)
 
 	mu.Lock()
@@ -43,9 +51,6 @@ func Test첫_광고가_성공하면_알린다(t *testing.T) {
 	if ready != 1 {
 		t.Fatalf("★ %d 번 알렸다 ★ — 한 번이어야 한다 (광고는 %d 번 돌았다)",
 			ready, calls())
-	}
-	if calls() < 2 {
-		t.Fatalf("★ 광고가 %d 번만 돌아 「한 번만」을 못 쟀다 ★", calls())
 	}
 }
 
