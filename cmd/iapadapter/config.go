@@ -110,7 +110,7 @@ func LoadConfig(path string) (*Config, error) {
 	return &c, nil
 }
 
-func (c *Config) Poll() time.Duration      { return time.Duration(c.ItsAPlan.PollSeconds) * time.Second }
+func (c *Config) Poll() time.Duration { return time.Duration(c.ItsAPlan.PollSeconds) * time.Second }
 func (c *Config) Heartbeat() time.Duration {
 	return time.Duration(c.ItsAPlan.HeartbeatSeconds) * time.Second
 }

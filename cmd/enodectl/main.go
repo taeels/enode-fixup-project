@@ -28,7 +28,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
+
+	"github.com/taeels/enode/internal/build"
 	"time"
 
 	"github.com/taeels/enode/internal/enode"
@@ -56,8 +57,13 @@ func main() {
 		err = cmdStatus()
 	case "-h", "--help", "help":
 		usage()
+	// ★ 도구는 자기가 무엇인지 말할 수 있어야 한다 ★ (ADR-056) — enode 와
+	// runctl 은 답하는데 이것만 못 답했다. 실측(vm-scratch-5)에서 계획이
+	// `enode --version` 에 막힌 것과 같은 종류의 구멍이다.
+	case "--version", "-version", "version":
+		fmt.Println(build.Version("enodectl"))
 	default:
-		err = fmt.Errorf("모르는 명령: %s  (list · id · start · stop · logs · status)", cmd)
+		err = fmt.Errorf("모르는 명령: %s  (list · id · start · stop · logs · status · version)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "✗ %v\n", err)
@@ -161,7 +167,7 @@ func alive(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
-	return syscall.Kill(pid, 0) == nil
+	return processAlive(pid)
 }
 
 // ── 명령 ─────────────────────────────────────────────────────────────────
@@ -236,7 +242,7 @@ func cmdStart(args []string) error {
 	c := exec.Command(bin, append([]string{"--config", conf}, rest...)...)
 	c.Stdout, c.Stderr = log, log
 	// ★ 부모에서 떼어낸다 ★ — enodectl 이 끝나도 노드는 살아 있어야 한다.
-	c.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	c.SysProcAttr = detachAttr()
 	if err := c.Start(); err != nil {
 		return err
 	}
@@ -267,7 +273,8 @@ func cmdStop(args []string) error {
 		return nil
 	}
 	// SIGTERM 이면 signal.NotifyContext 가 받아 ★ 스스로 정리하고 끝난다 ★.
-	if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+	// ★ 윈도우에는 그 길이 없다 ★ — proc_windows.go 가 이유를 적는다.
+	if err := signalStop(pid); err != nil {
 		return err
 	}
 	for i := 0; i < 20; i++ {
@@ -278,7 +285,7 @@ func cmdStop(args []string) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 	fmt.Fprintf(os.Stderr, "▲ 10초 안에 안 끝났다. 강제로 죽인다 (pid=%d)\n", pid)
-	return syscall.Kill(pid, syscall.SIGKILL)
+	return signalKill(pid)
 }
 
 func cmdLogs(args []string) error {
@@ -357,7 +364,7 @@ func keepAwake(pid int) {
 		return
 	}
 	c := exec.Command("caffeinate", "-i", "-s", "-w", strconv.Itoa(pid))
-	c.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	c.SysProcAttr = detachAttr()
 	if err := c.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "  ▲ caffeinate 를 못 띄웠다: %v\n", err)
 		return

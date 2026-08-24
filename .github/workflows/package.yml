@@ -1,0 +1,180 @@
+# 설치본을 굽고 ★ 실제로 깔아 본다 ★.
+#
+# ★ 이것은 아직 릴리즈가 아니다 ★ — 실험 레인이다. 굽는 것과 깔리는 것은
+# 다른 문제라서, 릴리즈로 승격하기 전에 ★ 세 운영체제에서 설치까지 ★ 돌려
+# 본다. 릴리즈 워크플로는 이 워크플로가 초록불이 된 뒤에 붙인다.
+#
+# 도는 조건 — 셋 다 ★ 사람이 고르는 자리 ★ 다. main 에 밀어넣는 커밋마다
+# 돌지 않는다: 설치본은 커밋마다 필요하지 않고, 맥 러너는 비공개 저장소에서
+# ★ 분 단위 요금이 10배 ★ 다.
+#
+#   ① packaging-experiment 브랜치에 밀 때
+#   ② 손으로 돌릴 때 (workflow_dispatch) — 맥을 켤지 끌지 고른다
+name: package
+
+on:
+  push:
+    branches: ['packaging-experiment']
+  workflow_dispatch:
+    inputs:
+      macos:
+        description: '맥 .pkg 도 굽는다 (비공개 저장소에서 맥 러너는 분 요금 10배)'
+        type: boolean
+        default: true
+      version:
+        description: '판 번호 (비우면 0.0.0 — 실험본이라는 뜻)'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # ── ① 리눅스에서 되는 것 전부 ────────────────────────────────────────
+  # deb · rpm · msi · tar.gz · zip 이 한 잡에서 나온다.
+  # ★ 윈도우 설치본도 여기서 굽는다 ★ — msitools 의 wixl 이 리눅스에서 돈다.
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: false
+
+      - id: v
+        name: 판 번호를 정한다
+        run: |
+          v="${{ inputs.version }}"
+          [ -z "$v" ] && v="0.0.0"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "판 번호 = $v"
+
+      - name: 패키징 도구
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wixl zip
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.43.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: 굽는다
+        run: PKG_VERSION="${{ steps.v.outputs.version }}" packaging/build-installers.sh
+
+      # ★ 무엇이 나왔는지 눈으로 본다 ★ — 조용히 빠진 것을 잡는 유일한 자리다.
+      - name: 목록
+        run: ls -la dist/installers && cat dist/installers/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-linux-windows
+          path: dist/installers/
+          retention-days: 7
+      # 맥 잡이 이것을 받아 포장만 한다 — ★ 컴파일은 한 번만 ★.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stage-darwin
+          path: dist/stage/darwin-*/
+          retention-days: 1
+
+  # ── ② 맥 .pkg — 포장만 맥에서 ────────────────────────────────────────
+  macos-pkg:
+    needs: build
+    if: github.event_name == 'push' || inputs.macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: stage-darwin
+          path: stage
+      - name: 굽는다
+        run: |
+          chmod +x stage/darwin-*/* || true
+          PKG_VERSION="${{ needs.build.outputs.version }}" packaging/macos/pkg.sh stage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-macos
+          path: dist/installers/*.pkg
+          retention-days: 7
+
+  # ── ③ 깔아 본다 — ★ 여기가 이 워크플로의 목적이다 ★ ──────────────────
+  verify-linux:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: debian:12-slim
+            install: 'dpkg -i /w/enode_*_amd64.deb'
+          - image: ubuntu:24.04
+            install: 'dpkg -i /w/enode_*_amd64.deb'
+          - image: rockylinux:9
+            install: 'rpm -i /w/enode-*.x86_64.rpm'
+          - image: fedora:41
+            install: 'rpm -i /w/enode-*.x86_64.rpm'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: installers-linux-windows
+          path: w
+      - name: ${{ matrix.image }} 에 깐다
+        run: |
+          docker run --rm -v "$PWD/w":/w:ro ${{ matrix.image }} sh -c '
+            set -e
+            ${{ matrix.install }}
+            enode --version
+            runctl --version
+            enodectl --version
+            test -d /etc/enode
+            ls /usr/share/doc/enode/examples/
+          '
+
+  verify-windows:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: installers-linux-windows
+          path: w
+      # ★ 리눅스에서 구운 msi 를 윈도우가 받아주는지 ★ — 이것을 확인하려고 있다.
+      - name: msi 를 깐다
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem w\*.msi | Select-Object -First 1
+          Write-Host "설치본: $($msi.Name)"
+          $p = Start-Process msiexec -ArgumentList "/i `"$($msi.FullName)`" /qn /l*v install.log" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Get-Content install.log -Tail 40; exit $p.ExitCode }
+      - name: 깔린 것을 돌린다
+        shell: pwsh
+        run: |
+          $exe = "C:\Program Files\enode\enode.exe"
+          if (-not (Test-Path $exe)) { throw "설치 경로에 없다: $exe" }
+          & $exe --version
+          & "C:\Program Files\enode\runctl.exe" --version
+          & "C:\Program Files\enode\enodectl.exe" --version
+
+  verify-macos:
+    needs: [build, macos-pkg]
+    if: github.event_name == 'push' || inputs.macos
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-macos
+          path: w
+      - name: pkg 를 깐다
+        run: |
+          pkg=$(ls w/*.pkg | head -1)
+          echo "설치본: $pkg"
+          sudo installer -pkg "$pkg" -target /
+      - name: 깔린 것을 돌린다
+        run: |
+          /usr/local/bin/enode --version
+          /usr/local/bin/runctl --version
+          /usr/local/bin/enodectl --version
+          # ★ 유니버설인지 확인한다 ★ — 한쪽만 들었으면 다른 맥에서 killed: 9 다.
+          lipo -archs /usr/local/bin/enode
