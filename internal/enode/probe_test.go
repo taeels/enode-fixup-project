@@ -12,13 +12,24 @@ import (
 )
 
 // fakeClaude 는 auth status 와 --version 에 원하는 대로 답하는 가짜다.
-func fakeClaude(t *testing.T, authJSON string, authOK bool) string {
+func fakeClaude(t *testing.T, authJSON string, authOK bool, exitNonZero ...bool) string {
+	var nz bool
+	if len(exitNonZero) > 0 {
+		nz = exitNonZero[0]
+	}
+	_ = nz
 	t.Helper()
 	dir := t.TempDir()
 	p := filepath.Join(dir, "claude")
+	// authOK=false 는 ★ 하위명령이 없는 옛 CLI ★ 다.
+	// ★ 종료코드가 0 이 아니면서 JSON 을 찍는 경우 ★ 는 exitNonZero 로 잰다 —
+	// 실측에서 그것을 놓쳤다.
 	authCase := "printf '%s\\n' " + shQuote(authJSON) + "; exit 0"
 	if !authOK {
-		authCase = "exit 127" // 하위명령이 없는 옛 CLI
+		authCase = "exit 127"
+	}
+	if nz {
+		authCase = "printf '%s\\n' " + shQuote(authJSON) + "; exit 1"
 	}
 	script := "#!/bin/sh\n" +
 		"case \"$1 $2\" in\n" +
@@ -61,7 +72,18 @@ func Test로그인_안_된_하네스는_광고에서_빠진다(t *testing.T) {
 		t.Fatalf("★ 로그인 안 됐는데 통과했다 ★: %v", err)
 	}
 
-	// ③ ★ 모르면 「쓸 수 있다」로 본다 ★ — 옛 CLI 는 이 하위명령이 없고,
+	// ③ ★ 종료코드가 0 이 아니어도 나온 것을 읽는다 ★
+	//
+	// ★ 실측에서 놓쳤다 ★ (2026-08-24) — colima VM 을 갱신했는데 harness 가
+	// 그대로 실렸다. 그 VM 의 claude 는 {"loggedIn":false} 를 분명히 찍고
+	// 있었고, ★ 우리가 Output() 으로 종료코드를 보느라 안 읽은 것 ★ 이다.
+	bin = fakeClaude(t, `{"loggedIn":false}`, true, true)
+	_, err = (claudeHarness{}).Probe(ctx, bin)
+	if !errors.Is(err, errNotUsable) {
+		t.Fatalf("★ 종료코드가 0 이 아니라고 판정을 포기했다 ★: %v", err)
+	}
+
+	// ④ ★ 모르면 「쓸 수 있다」로 본다 ★ — 옛 CLI 는 이 하위명령이 없고,
 	// 형식이 바뀔 수도 있다. ★ 노드가 통째로 사라지면 안 된다 ★.
 	for _, tc := range []struct {
 		name, out string

@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -127,15 +128,26 @@ var errNotUsable = errors.New("harness is installed but not usable")
 // 못 쓰는 노드는 실행 시점에 _cannot 으로 드러나지만, 사라진 노드는
 // 「왜 매칭이 안 되지」로 남는다.)
 func claudeUsable(ctx context.Context, path string) error {
-	out, err := exec.CommandContext(ctx, path, "auth", "status", "--json").Output()
-	if err != nil {
-		return nil // 하위명령이 없거나 못 돌았다 — 모르는 것이지 아닌 것이 아니다
-	}
+	// ★ 종료코드를 안 본다. 나온 것을 본다 ★
+	//
+	// 처음에는 Output() 을 썼고, 그것이 ★ 종료코드가 0 이 아니면 실패로 ★ 읽는다.
+	// 그런데 ★ 로그아웃 상태의 claude 는 auth status 가 0 이 아닐 수 있다 ★ —
+	// 그러면 "모르는 것" 으로 떨어져 ★ 이 결정이 아무 일도 안 한다 ★.
+	//
+	//	★ 실측 ★ (2026-08-24) colima VM 을 갱신했는데 harness 가 그대로 실렸다.
+	//	그 VM 에서 `claude auth status --json` 은 {"loggedIn":false} 를
+	//	★ 분명히 찍고 있었다 ★ — 우리가 그것을 안 읽은 것이다.
+	//
+	// ⇒ ★ stdout 에 판정할 것이 있으면 종료코드와 무관하게 읽는다 ★.
+	cmd := exec.CommandContext(ctx, path, "auth", "status", "--json")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	_ = cmd.Run() // 종료코드는 안 본다
 	var st struct {
 		LoggedIn *bool `json:"loggedIn"`
 	}
-	if json.Unmarshal(out, &st) != nil || st.LoggedIn == nil {
-		return nil // 형식을 모른다 — 위와 같다
+	if json.Unmarshal(bytes.TrimSpace(buf.Bytes()), &st) != nil || st.LoggedIn == nil {
+		return nil // 형식을 모른다 — 모르는 것이지 아닌 것이 아니다
 	}
 	if !*st.LoggedIn {
 		return fmt.Errorf("%w: claude is not logged in", errNotUsable)
