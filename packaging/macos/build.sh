@@ -73,7 +73,7 @@ cp packaging/macos/install.sh        "$PKG/install.sh"
 cp packaging/macos/enodectl          "$PKG/enodectl"
 # ★ 자기 갱신 스크립트도 넣는다 ★ (ADR-056) — 다음 갱신부터는 묶음 안의 것을 쓴다.
 # ★ 첫 갱신에는 못 쓴다 ★ — 맥에 있는 것은 이 파일이 없던 묶음이다.
-cp packaging/macos/self-update.sh    "$PKG/self-update.sh"
+cp packaging/self-update.sh         "$PKG/self-update.sh"
 cp packaging/macos/README.md         "$PKG/README.md"
 cp packaging/macos/examples/*.yaml   "$PKG/examples/"
 chmod +x "$PKG/install.sh" "$PKG/enodectl" "$PKG/self-update.sh"

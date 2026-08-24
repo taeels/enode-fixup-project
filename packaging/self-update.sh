@@ -27,15 +27,22 @@ die() { printf '★ 실패 ★ %s\n' "$*" >&2; exit 1; }
 
 [ -f "$CFG" ] || die "설정이 없다: $CFG"
 
+# ★ 이 기계가 무엇인지 스스로 알아낸다 ★
+#
+# 처음에는 맥 전용이었다. ★ 탄력 노드는 리눅스에 뜬다 ★ —
+# colima VM · 클라우드 장비 · 컨테이너. 같은 스크립트가 거기서도 돌아야 한다.
+# 묶음이 네 플랫폼을 다 담으므로(build.sh TARGETS) 고를 것만 고르면 된다.
 case "$(uname -s)" in
-  Darwin) ;;
-  *) die "이 스크립트는 맥에서만 돈다 ($(uname -s))" ;;
+  Darwin) OS=darwin ;;
+  Linux)  OS=linux ;;
+  *) die "모르는 운영체제: $(uname -s)" ;;
 esac
 case "$(uname -m)" in
-  arm64) PLAT=darwin-arm64 ;;
-  x86_64) PLAT=darwin-amd64 ;;
+  arm64|aarch64) ARCH=arm64 ;;
+  x86_64|amd64)  ARCH=amd64 ;;
   *) die "모르는 아키텍처: $(uname -m)" ;;
 esac
+PLAT="$OS-$ARCH"
 
 # ── ① 받는다 ────────────────────────────────────────────────────────────
 # ★ 설치 경로 밖에서 푼다 ★ — 검증을 통과하기 전에는 아무것도 안 건드린다.
@@ -57,9 +64,10 @@ VER=$("$NEW_ENODE" --version 2>&1) || die "새 실행파일이 안 돈다: $VER"
 say "   새 것 : $VER"
 say "   지금  : $("$BINDIR/enode" --version 2>&1 || echo '(--version 이 없는 옛 것)')"
 
+# ★ 받아온 것이 이 기계용인가 ★ — --version 이 "linux/amd64" 처럼 찍는다.
 case "$VER" in
-  *"$PLAT"*|*"darwin/${PLAT#darwin-}"*) ;;
-  *) die "다른 기계용이다: $VER" ;;
+  *"$OS/$ARCH"*|*"$PLAT"*) ;;
+  *) die "다른 기계용이다: $VER (이 기계는 $OS/$ARCH)" ;;
 esac
 if [ -n "$WANT" ]; then
   case "$VER" in
