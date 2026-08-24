@@ -176,6 +176,24 @@ func TestRenderQuestion_답하는_방법을_말로_적는다(t *testing.T) {
 	}
 }
 
+// ★ 두 번째 실측이 잡은 결함이다 ★ (2026-08-24, EP-2) — 중복 표지를 run_id 로
+// 삼았더니 ★ 질문 코멘트가 결과 코멘트로 오인됐다 ★. 둘 다 꼬리표에 run_id 를
+// 달기 때문이다. 그래서 복구 경로가 「이미 넘겼다」로 판단하고 조용히 지나갔다.
+func TestResultMarker_질문_코멘트와_안_겹친다(t *testing.T) {
+	const runID = "itsaplan-EP-2-1"
+	ask := &AskView{RunID: runID, Seq: 2, Step: "gate", Prompt: "진행할까요"}
+	question := RenderQuestion(ask, runID)
+
+	// 질문에도 run_id 는 들어 있다 — 사람이 어느 Run 인지 알아야 하므로 맞다.
+	if !strings.Contains(question, runID) {
+		t.Fatal("질문에 run_id 가 없다")
+	}
+	// ★ 그런데 결과 표지는 없어야 한다 ★.
+	if strings.Contains(question, ResultMarker(runID)) {
+		t.Fatalf("질문 코멘트가 결과 표지를 달고 있다:\n%s", question)
+	}
+}
+
 func TestOneLine_봉인을_붓지_않는다(t *testing.T) {
 	// agent_run.output 은 지울 수 있고 스키마도 없다 (ADR-040 §1).
 	run := &RunView{RunID: "itsaplan-EP-2-1", State: "SUCCEEDED"}

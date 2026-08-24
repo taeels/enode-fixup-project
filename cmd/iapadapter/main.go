@@ -449,7 +449,7 @@ func (a *Adapter) reportUnreported(ctx context.Context, rr *RunnerRun, issueKey 
 	if run == nil || !run.Terminal() {
 		return false
 	}
-	said, err := a.iap.AlreadySaid(ctx, *rr.IssueID, runID)
+	said, err := a.iap.AlreadySaid(ctx, *rr.IssueID, ResultMarker(runID))
 	if err != nil {
 		log.Warn("피드를 못 읽어 중복 여부를 모른다; 안 넘긴다", "err", err)
 		return false

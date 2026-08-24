@@ -37,7 +37,10 @@ func StartOrchestrator(ctx context.Context, cfg *Config, issueKey string, log *s
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	confPath := filepath.Join(dir, "config.yaml")
+	// ★ 파일 이름이 곧 이름표가 된다 ★ — 노드 라벨이 설정 파일 이름에서
+	// 유도되므로 config.yaml 로 두면 함대에 taeels@호스트:config 로 뜬다.
+	// 이슈 이름을 넣으면 결과 코멘트의 노드 칸이 사람에게 뜻이 있다.
+	confPath := filepath.Join(dir, "orch-"+issueKey+".yaml")
 	readyPath := filepath.Join(dir, "ready")
 	_ = os.Remove(readyPath)
 

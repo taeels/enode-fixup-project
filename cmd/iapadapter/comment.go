@@ -146,29 +146,77 @@ func RenderResult(ctx context.Context, m *Mediator, run *RunView, summary string
 
 	// ★ 봉인의 정본은 우리 쪽에 남는다 ★ (ADR-005 성질 4) — 여기에 붓지 않고
 	// 어디서 꺼내는지만 적는다.
-	fmt.Fprintf(&b, "<sub>봉인된 Record 는 `GET /v1/runs/%s/record` 에 있습니다. "+
-		"이 코멘트는 그 사본이 아니라 요약입니다.</sub>", run.RunID)
+	fmt.Fprintf(&b, "<sub>%s · 봉인된 Record 는 `GET /v1/runs/%s/record` 에 있습니다. "+
+		"이 코멘트는 그 사본이 아니라 요약입니다.</sub>", ResultMarker(run.RunID), run.RunID)
 	return b.String()
 }
 
-// summaryOf 는 report 단계가 낸 summary 산출물을 읽는다.
+// ResultMarker 는 ★ 결과를 이미 넘겼다 ★ 는 표지다.
+//
+// ★ run_id 만으로는 안 된다 ★ — 질문 코멘트의 꼬리표에도 같은 run_id 가 들어
+// 있어서, 그것으로 세면 ★ 질문을 쓴 것을 결과를 쓴 것으로 오인한다 ★.
+// 첫 실측(EP-2)에서 밟았다: 복구 경로가 「이미 넘겼다」로 판단해 조용히 지나갔다.
+func ResultMarker(runID string) string { return "enode:result:" + runID }
+
+// summaryOf 는 report 단계가 낸 summary 산출물을 읽어 사람이 읽게 만든다.
 // 없으면 빈 문자열이고, 그러면 코멘트는 표만 싣는다.
+//
+// ★ 산출물의 모양은 계획이 정한다 ★ — 어댑터가 필드 이름을 알면 계획의
+// 스키마를 아는 것이 되고, 계획이 바뀔 때마다 어댑터를 고쳐야 한다.
+// 그래서 이름이 아니라 ★ 값의 성질 ★ 로 가른다: 여러 줄인 긴 문자열은
+// 사람에게 쓴 글이므로 펼치고, 나머지는 접어서 JSON 으로 둔다.
 func summaryOf(ctx context.Context, m *Mediator, runID string) string {
 	raw, err := m.Blob(ctx, runID, "summary")
 	if err != nil || len(raw) == 0 {
 		return ""
 	}
-	s := strings.TrimSpace(string(raw))
-	const max = 6000
-	if len(s) > max {
-		s = s[:max] + "\n\n…(잘렸습니다. 전문은 봉인된 Record 에 있습니다)"
+	trimmed := strings.TrimSpace(string(raw))
+
+	var obj map[string]json.RawMessage
+	if json.Unmarshal([]byte(trimmed), &obj) != nil {
+		// JSON 객체가 아니면 글이거나 배열이다. 글이면 그대로 싣는다.
+		return clip(trimmed, 8000)
 	}
-	// JSON 이면 코드블록으로, 아니면 그대로.
-	var probe any
-	if json.Unmarshal([]byte(s), &probe) == nil && (strings.HasPrefix(s, "{") || strings.HasPrefix(s, "[")) {
-		return "```json\n" + s + "\n```"
+
+	var prose, rest []string
+	restObj := map[string]any{}
+	names := make([]string, 0, len(obj))
+	for k := range obj {
+		names = append(names, k)
 	}
-	return s
+	sort.Strings(names)
+	for _, k := range names {
+		var s string
+		if json.Unmarshal(obj[k], &s) == nil && strings.Contains(s, "\n") && len(s) > 200 {
+			prose = append(prose, clip(strings.TrimSpace(s), 12000))
+			continue
+		}
+		var v any
+		_ = json.Unmarshal(obj[k], &v)
+		restObj[k] = v
+	}
+	if len(prose) > 0 {
+		rest = append(rest, strings.Join(prose, "\n\n"))
+	}
+	if len(restObj) > 0 {
+		b, err := json.MarshalIndent(restObj, "", "  ")
+		if err == nil {
+			label := "산출물 원본"
+			if len(prose) == 0 {
+				label = "report 가 낸 것"
+			}
+			rest = append(rest, "<details>\n<summary><b>"+label+"</b></summary>\n\n```json\n"+
+				clip(string(b), 8000)+"\n```\n\n</details>")
+		}
+	}
+	return strings.Join(rest, "\n\n")
+}
+
+func clip(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "\n\n…(잘렸습니다. 전문은 봉인된 Record 에 있습니다)"
 }
 
 // oneLine 은 result 의 output 에 넣을 ★ 한 줄 ★ 이다.
