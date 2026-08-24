@@ -25,6 +25,26 @@ LOG="$STATEDIR/$NAME.log"
 say() { printf '%s\n' "$*"; }
 die() { printf '★ 실패 ★ %s\n' "$*" >&2; exit 1; }
 
+# node_pid 는 ★ 그 설정으로 도는 노드의 pid ★ 다. 없으면 빈 문자열이다.
+#
+# ★ pgrep 을 안 쓴다 ★ — BSD(macOS) 의 pgrep 은 ★ 자기 조상을 기본으로 제외한다 ★.
+# 그런데 이 스크립트는 노드가 run 단계로 돌리므로 ★ 언제나 그 노드의 자식 ★ 이다.
+# ⇒ 맥에서는 ★ 자기를 띄운 노드를 영원히 못 찾는다 ★.
+#
+#	★ 실측 ★ (probe-pgrep-1) ps 에는 7360(local)과 7573(qemu)이 둘 다 보이는데
+#	같은 프로세스에서 부른 pgrep -f 'enode --config' 는 ★ 7573 만 ★ 돌려줬다.
+#	7360 은 이 명령을 돌리는 셸의 부모였다.
+#
+# 리눅스 procps 는 조상 제외가 -A 로 ★ 선택 사항 ★ 이라 거기서는 우연히 맞았다.
+# ⇒ ★ 우연히 맞는 것을 고쳐 쓰지 않는다 ★. ps 는 두 곳에서 같게 동작한다.
+#
+# ★ awk 자신은 안 걸린다 ★ — command 의 첫 토큰($2)이 실행파일 경로와 같아야
+# 하는데 awk 행의 첫 토큰은 awk 다. grep 의 [e]node 관용구가 필요 없다.
+node_pid() {
+  ps -eo pid=,command= | awk -v bin="$1" -v cfg="$2" '
+    $2 == bin && index($0, "--config " cfg) { print $1; exit }'
+}
+
 [ -f "$CFG" ] || die "설정이 없다: $CFG"
 
 # ★ 이 기계가 무엇인지 스스로 알아낸다 ★
@@ -76,7 +96,7 @@ if [ -n "$WANT" ]; then
   esac
 fi
 
-RUNNING=$(pgrep -f "enode --config $CFG" | head -1 || true)
+RUNNING=$(node_pid "$BINDIR/enode" "$CFG")
 [ -n "$RUNNING" ] || say "   ★ 지금 도는 노드가 없다 ★ — 교체만 하고 띄운다"
 
 # ── ③ 바꾼다 ────────────────────────────────────────────────────────────
@@ -113,6 +133,13 @@ cat > "$STATEDIR/$NAME-restart.sh" <<'INNER'
 set -u
 NAME="$1"; CFG="$2"; BINDIR="$3"; STATEDIR="$4"; DELAY="$5"
 LOG="$STATEDIR/$NAME.log"
+# ★ 여기서도 pgrep 을 안 쓴다 ★ — 이 스크립트는 sleep 뒤에 고아가 되어
+# 노드가 조상에서 빠지므로 오늘은 pgrep 으로도 맞는다. ★ 그러나 그것은
+# 타이밍에 기댄 것 ★ 이고, 같은 함정을 두 곳에 두지 않는다.
+node_pid() {
+  ps -eo pid=,command= | awk -v bin="$1" -v cfg="$2" '
+    $2 == bin && index($0, "--config " cfg) { print $1; exit }'
+}
 sleep "$DELAY"
 start() {
   cd "$HOME" || exit 1
@@ -121,7 +148,7 @@ start() {
 }
 {
   echo "===== $(date '+%Y-%m-%d %H:%M:%S') 자기 갱신 재시작 ====="
-  OLD=$(pgrep -f "enode --config $CFG" | head -1)
+  OLD=$(node_pid "$BINDIR/enode" "$CFG")
   if [ -n "$OLD" ]; then
     echo "옛 프로세스 $OLD 를 멈춘다"
     kill "$OLD" 2>/dev/null
