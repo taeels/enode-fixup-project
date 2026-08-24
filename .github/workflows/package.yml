@@ -10,6 +10,11 @@
 #
 #   ① packaging-experiment 브랜치에 밀 때
 #   ② 손으로 돌릴 때 (workflow_dispatch) — 맥을 켤지 끌지 고른다
+#   ③ ★ release.yml 이 부를 때 ★ (workflow_call)
+#
+# ③ 이 있는 이유 — 릴리즈가 자기 빌드를 따로 지으면 ★ 경로가 두 벌이 된다 ★.
+# 그러면 실험에서 초록불이던 것이 릴리즈에서 다르게 굽히고, 그 차이는 사람이
+# 설치본을 받아본 뒤에야 보인다. 릴리즈는 ★ 여기서 구운 것을 그대로 ★ 낸다.
 name: package
 
 on:
@@ -23,6 +28,14 @@ on:
         default: true
       version:
         description: '판 번호 (비우면 0.0.0 — 실험본이라는 뜻)'
+        type: string
+        default: ''
+  workflow_call:
+    inputs:
+      macos:
+        type: boolean
+        default: true
+      version:
         type: string
         default: ''
 
@@ -81,7 +94,8 @@ jobs:
   # ── ② 맥 .pkg — 포장만 맥에서 ────────────────────────────────────────
   macos-pkg:
     needs: build
-    if: github.event_name == 'push' || inputs.macos
+    # 손으로 돌릴 때만 끌 수 있다. 브랜치 푸시와 릴리즈는 항상 맥까지 본다.
+    if: github.event_name != 'workflow_dispatch' || inputs.macos
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -159,7 +173,8 @@ jobs:
 
   verify-macos:
     needs: [build, macos-pkg]
-    if: github.event_name == 'push' || inputs.macos
+    # 손으로 돌릴 때만 끌 수 있다. 브랜치 푸시와 릴리즈는 항상 맥까지 본다.
+    if: github.event_name != 'workflow_dispatch' || inputs.macos
     runs-on: macos-latest
     steps:
       - uses: actions/download-artifact@v4
