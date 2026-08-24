@@ -13,6 +13,9 @@ type Held struct {
 	mu     sync.RWMutex
 	byRun  map[string]Lease
 	lastOK time.Time
+
+	// everHeld 는 ★ 한 번이라도 일을 집었는가 ★ 다 (--once). EverHeld 를 보라.
+	everHeld bool
 }
 
 func NewHeld() *Held { return &Held{byRun: map[string]Lease{}} }
@@ -35,6 +38,25 @@ func (h *Held) Add(l Lease) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.byRun[l.RunID] = l
+	h.everHeld = true
+}
+
+// EverHeld 는 ★ 이 노드가 한 번이라도 일을 집었는가 ★ 다 (--once).
+//
+// ★ 왜 Set 이 아니라 Add 에서 세는가 ★ — Set 은 광고 응답이고 주기가 길다
+// (기본 60초). ★ 그보다 짧은 Run 은 광고가 임대를 한 번도 못 본다 ★:
+//
+//	광고 t=0    leases: []          ← 아직 일이 없다
+//	claim → 단계 실행 → Run 종료 (37초)
+//	광고 t=60   leases: []          ← ★ 이미 끝나서 임대가 없다 ★
+//	                                  ⇒ 「한 번이라도 있었나」를 못 잰다
+//
+// ★ 실측에서 밟았다 ★ (2026-08-24) — --once 로 띄운 탄력 노드가 Run 을
+// 마쳤는데 종료하지 않았다. claim 은 임대를 ★ 확실히 ★ 지나므로 여기서 센다.
+func (h *Held) EverHeld() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.everHeld
 }
 
 // Valid 는 이 Run 의 단계를 지금 시작해도 되는지다.

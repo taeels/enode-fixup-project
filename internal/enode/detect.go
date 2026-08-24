@@ -91,6 +91,20 @@ func Detect(l Local, log *slog.Logger) []contract.Capability {
 		}
 	}
 
+	// ★ 사람이 붙인 이름표 ★ — 탄력 노드가 자기 몫을 구별하는 자리.
+	//
+	// ★ 탐지한 것을 못 덮는다 ★ — 이미 있는 키는 건너뛴다. 사람이 적은 것이
+	// 기계가 본 것을 이기면 둘이 어긋났을 때 ★ 조용히 틀린다 ★.
+	// (같은 이유로 detect 는 repo 에서도 유도를 우선한다.)
+	for k, v := range l.Labels {
+		if _, taken := attrs[k]; taken {
+			log.Warn("label ignored; detection already set this attribute",
+				"key", k, "detected", attrs[k], "label", v)
+			continue
+		}
+		attrs[k] = v
+	}
+
 	// ★ os · host_arch 만으로는 능력이 아니다 ★ — 어느 기계에나 있다.
 	// 하나도 할 줄 아는 것이 없으면 광고하지 않는다(오늘 그대로).
 	if !hasCapability(attrs) {

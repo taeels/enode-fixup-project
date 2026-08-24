@@ -42,6 +42,15 @@ func main() {
 	token := flag.String("token", "", "auth token (overrides config)")
 	every := flag.Duration("every", 60*time.Second, "interval for advertise, heartbeat and lease renewal")
 	debug := flag.Bool("debug", false, "")
+	// ★ 탄력 노드를 위한 둘 ★ (docs/elastic-nodes.md)
+	//
+	// 지금까지 enode 는 ★ 상주 ★ 를 전제했다 — 사람이 띄우고 계속 돈다.
+	// 이슈마다 · 요청마다 노드가 서는 형태에서는 ★ 뜨는 것과 끝나는 것 ★ 을
+	// 띄운 쪽이 알아야 한다.
+	once := flag.Bool("once", false,
+		"exit after the run this node worked on reaches a terminal state")
+	readyFile := flag.String("ready-file", "",
+		"write this file once the first advertisement succeeds")
 	flag.Parse()
 
 	lvl := slog.LevelInfo
@@ -119,6 +128,47 @@ func main() {
 	adv := &enode.Advertiser{
 		Client: client, Ident: ident, Local: local, Every: *every, Log: log,
 		OnLeases: held.Set, // ★ 응답이 임대의 갱신이자 취소 통보다 ★ 통째로 교체한다
+	}
+
+	// ★ 떴다는 신호 ★ — 첫 광고가 성공한 뒤 한 번 (docs/elastic-nodes.md §4.4).
+	//
+	// ★ 프로세스가 뜬 것과 함대에 등록된 것은 다르다 ★. 그 사이에 Run 을 내면
+	// 매칭이 422 로 거절한다. 띄운 쪽이 ★ 이 파일을 기다리면 ★ 폴링도 ·
+	// 「몇 초」라는 짐작도 필요 없다. k8s 면 readiness probe 가 이것을 본다.
+	if *readyFile != "" {
+		adv.OnReady = func() {
+			if err := os.WriteFile(*readyFile, []byte(ident.NodeID+"\n"), 0o644); err != nil {
+				// ★ 막지 않는다 ★ — 노드는 이미 함대에 있다. 못 알린 것뿐이다.
+				log.Warn("cannot write ready file", "path", *readyFile, "err", err)
+				return
+			}
+			log.Info("ready", "file", *readyFile, "node", ident.NodeID)
+		}
+	}
+
+	// ★ 일이 끝나면 종료한다 ★ (--once)
+	//
+	// ★ 경계를 어디에 두는가 ★ — 워커는 ★ 단계 ★ 를 보고, Run 의 종료는
+	// Mediator 가 안다. 그런데 ★ I2 가 그 다리다 ★:
+	// "종료 상태(SUCCEEDED/FAILED)에서는 Mediator 의 점유 장부가 비어 있다".
+	// 그리고 RenewLeases 는 ★ 끝난 Run 의 임대를 안 돌려준다 ★.
+	//
+	//	★ 한 번이라도 임대를 받았고 · 지금 하나도 없다 ★  ⇒ 그 Run 이 끝났다
+	//
+	// ★ 시작 직후와 구별해야 한다 ★ — 그때도 임대가 0 이다. 그래서 sawLease 가 있다.
+	// ★ 단계 사이에는 안 빈다 ★ — 임대는 Run 이 도는 내내 유지된다.
+	if *once {
+		adv.OnLeases = func(ls []enode.Lease) {
+			held.Set(ls)
+			// ★ 일을 집은 적이 있고 지금 임대가 하나도 없다 ★ ⇒ 그 Run 이 끝났다.
+			//
+			// ★ 「집은 적」은 claim 에서 센다 ★ — 광고 주기(기본 60초)보다 짧은
+			// Run 은 ★ 광고가 임대를 한 번도 못 본다 ★. 실측에서 밟았다.
+			if len(ls) == 0 && held.EverHeld() {
+				log.Info("the run finished and no lease remains; exiting (--once)")
+				stop()
+			}
+		}
 	}
 	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log}
 

@@ -29,6 +29,25 @@ type Local struct {
 	// ★ 유도가 성공하면 이 값은 무시된다 ★ — 사람이 적은 것이 기계가 본 것을 못 이긴다.
 	WorkspaceID string `yaml:"workspace_id,omitempty"`
 
+	// Labels 는 ★ 사람이 붙이는 이름표 ★ 다 — 그대로 광고에 실린다.
+	//
+	// ★ 왜 필요한가 ★ — 탄력 노드가 자기 몫의 Run 만 잡으려면 구별할 것이
+	// 있어야 한다. 이슈마다 오케스트레이터가 서면 열 개가 동시에 뜰 수 있고,
+	// ★ 능력만으로는 서로가 똑같아 보인다 ★.
+	//
+	//	labels: { issue: PROJ-42 }
+	//	→ 광고에 issue=PROJ-42 로 실린다
+	//	→ requires: [{as: planner, capability: orchestration, issue: PROJ-42}]
+	//	→ ★ 다른 이슈의 오케스트레이터는 안 걸린다 ★
+	//
+	// ★ ADR-012 가 「속성 어휘는 창발한다」로 이미 열어둔 자리다 ★ —
+	// 매처는 부분집합 비교뿐이라 새 이름을 알 필요가 없다.
+	//
+	// ★ 기계가 잰 것을 못 이긴다 ★ — 탐지한 속성과 이름이 겹치면 탐지가 이긴다.
+	// 사람이 적은 것이 기계가 본 것을 이기면 ★ 둘이 어긋났을 때 조용히 틀린다 ★
+	// (detect.go 가 repo 에 대해 적은 것과 같은 규칙).
+	Labels map[string]string `yaml:"labels,omitempty"`
+
 	// 자동으로 못 알아내는 것만 적는다. 포트에 무엇이 달렸는지는 기계가 모른다.
 	Board *Board `yaml:"board,omitempty"`
 

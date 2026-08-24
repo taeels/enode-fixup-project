@@ -233,3 +233,38 @@ func Test광고에_기계_사실이_실린다(t *testing.T) {
 		t.Fatalf("★ 빌드 대상 arch 가 사라졌다 ★: %+v", a)
 	}
 }
+
+// ★ 이름표가 광고에 실린다 ★ (docs/elastic-nodes.md §3.2)
+//
+// 탄력 노드가 자기 몫의 Run 만 잡으려면 구별할 것이 있어야 한다.
+// ADR-012 가 "속성 어휘는 창발한다" 로 열어둔 자리다.
+func Test이름표가_광고에_실린다(t *testing.T) {
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	caps := Detect(Local{
+		Workspace: t.TempDir(),
+		Arch:      "arm64",
+		Labels:    map[string]string{"issue": "PROJ-42", "pool": "cloud-builders"},
+	}, log)
+	if len(caps) == 0 {
+		t.Fatal("★ 광고가 비었다 ★")
+	}
+	a := caps[0].Attrs
+	if a["issue"] != "PROJ-42" || a["pool"] != "cloud-builders" {
+		t.Fatalf("★ 이름표가 안 실렸다 ★: %+v", a)
+	}
+
+	// ★ 탐지한 것을 못 덮는다 ★ — 사람이 적은 것이 기계가 본 것을 이기면
+	// 둘이 어긋났을 때 조용히 틀린다.
+	caps = Detect(Local{
+		Workspace: t.TempDir(),
+		Arch:      "arm64",
+		Labels:    map[string]string{"os": "그럴듯한거짓말", "arch": "x86"},
+	}, log)
+	a = caps[0].Attrs
+	if a["os"] == "그럴듯한거짓말" {
+		t.Fatal("★ 이름표가 탐지한 os 를 덮었다 ★")
+	}
+	if a["arch"] != "arm64" {
+		t.Fatalf("★ 이름표가 arch 를 덮었다 ★: %s", a["arch"])
+	}
+}

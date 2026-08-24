@@ -98,6 +98,20 @@ type Advertiser struct {
 
 	// OnLeases 는 응답의 임대 목록을 받는다. S4 가 여기에 붙는다.
 	OnLeases func([]Lease)
+
+	// OnReady 는 ★ 첫 광고가 성공한 뒤 한 번 ★ 불린다 (탄력 노드).
+	//
+	// ★ 왜 필요한가 ★ — 노드를 띄운 쪽은 ★ 「떴다」와 「쓸 수 있다」 사이 ★ 를
+	// 건너야 한다. 프로세스가 뜬 것과 함대에 등록된 것은 다르고, 그 사이에
+	// Run 을 내면 ★ 매칭이 422 로 거절한다 ★ (자원이 아직 없으므로).
+	//
+	// ★ 폴링을 안 쓰는 이유 ★ — 띄운 쪽이 「몇 초 기다려라」를 알아야 하고,
+	// 그러면 ★ 조율이 우리 밖으로 샌다 ★. 트래커마다 어댑터가 있으면
+	// 그 규칙이 어댑터 수만큼 복제된다.
+	//
+	// ★ 「지금 건강하다」가 아니라 「떴다」이다 ★ — 나중에 광고가 실패해도
+	// 되돌리지 않는다. 건강은 ★ 광고 만료가 이미 말한다 ★ (ADR-012).
+	OnReady func()
 }
 
 // Run 은 ctx 가 끝날 때까지 광고한다.
@@ -143,6 +157,12 @@ func (a *Advertiser) Run(ctx context.Context) {
 				}
 			}
 			a.Log.Debug("advertise", "node", ad.NodeID, "caps", len(ad.Capabilities), "leases", len(resp.Leases))
+			// ★ 첫 광고가 성공했다 ★ — 이제 매칭이 이 노드를 고를 수 있다.
+			if a.OnReady != nil {
+				f := a.OnReady
+				a.OnReady = nil // ★ 한 번만 ★
+				f()
+			}
 		}
 		t.Reset(a.Every)
 	}
