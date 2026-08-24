@@ -22,6 +22,10 @@ STAGE="$ROOT/dist/stage"
 # deb·rpm·msi 는 전부 판 번호를 요구하므로 실험 레인에도 무언가는 있어야 한다.
 COMMIT=$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
 PKG_VERSION=${PKG_VERSION:-"0.0.0"}
+# ★ v 접두사는 태그의 것이지 판 번호의 것이 아니다 ★ — 파일 이름에 남으면
+# enode-v0.0.1-... 처럼 어색하고, deb·rpm 은 어차피 nfpm 이 떼어내서
+# ★ 같은 릴리즈 안에서 이름이 두 갈래가 된다 ★. 여기서 한 번에 뗀다.
+PKG_VERSION=${PKG_VERSION#v}
 # ★ MSI 는 x.y.z 만 받는다 ★ — 접두사 v 나 뒤에 붙은 -rc1 을 그대로 주면 거절한다.
 MSI_VERSION=$(printf '%s' "$PKG_VERSION" | sed 's/^v//' | grep -oE '^[0-9]+(\.[0-9]+){0,2}' || true)
 MSI_VERSION=${MSI_VERSION:-0.0.0}
