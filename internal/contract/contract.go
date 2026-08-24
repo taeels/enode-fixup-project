@@ -1389,6 +1389,14 @@ func (c Contract) Validate() error {
 		}
 	}
 
+	// ★ 계획이 짓기로 약속한 이름 ★ (ADR-049) — dispatch 도 이것을 본다(ADR-062).
+	promised := map[string]bool{}
+	for _, st := range c.Steps {
+		for _, n := range st.Produces {
+			promised[n] = true
+		}
+	}
+
 	for i, st := range c.Steps {
 		d := st.Dispatch
 		if d == nil {
@@ -1417,6 +1425,16 @@ func (c Contract) Validate() error {
 			seen[t] = true
 			j, ok := index[t]
 			if !ok {
+				// ★ 아직 안 지어졌지만 계약이 약속했다 ★ (ADR-062) —
+				// 계획 위임에서 ★ 승인 경로의 목적지는 계획이 짓는다 ★.
+				// 없으면 계약 저자가 뜻 없는 더미 단계를 지어 자리를 채워야 한다.
+				//
+				// ★ 미루는 것이지 면제가 아니다 ★ — 계획이 붙을 때 늘어난 계약이
+				// Validate 를 다시 받으므로 그때 DAG 와 도달 가능성이 함께 돈다.
+				// 그리고 ★ 약속을 안 지으면 applyExpands 가 거절한다 ★ (ADR-049).
+				if promised[t] {
+					continue
+				}
 				return fmt.Errorf("step %q: dispatch.to refers to unknown step %q", st.ID, t)
 			}
 			// ★ 뒤로 못 간다 = DAG = 종료가 정적으로 보장된다 ★ (ADR-022 §7.2).
@@ -1435,6 +1453,11 @@ func (c Contract) Validate() error {
 		// 그 needs 는 사슬의 끝(build_4)만 가리켜서 어느 분기로도 못 닿았다.
 		// 그런데 계약은 통과했고 Run 은 SUCCEEDED 로 봉인됐다.
 		for _, t := range d.To {
+			// ★ 아직 없는 단계는 그래프에 없다 ★ — 볼 수 없으므로 미룬다(ADR-062).
+			// 계획이 붙으면 그때 실재하고, 그때 이 검사가 다시 돈다.
+			if _, ok := index[t]; !ok {
+				continue
+			}
 			if dead := skipClosure(c, index, st.Dispatch.To, t); dead[t] {
 				return fmt.Errorf("step %q: dispatch.to target %q cannot be reached when it is "+
 					"chosen; its needs hang off a branch this dispatch would skip. "+
@@ -1471,13 +1494,7 @@ func (c Contract) Validate() error {
 
 	// ★ 계획이 짓기로 약속한 이름 ★ 은 아직 없어도 지목할 수 있다 (ADR-049).
 	// 그래야 사람이 ★ 계획보다 먼저 ★ 「무엇이 되면 끝인가」를 못 박는다 —
-	// 목표를 이루는 단계를 계획이 짓기 때문이다.
-	promised := map[string]bool{}
-	for _, st := range c.Steps {
-		for _, n := range st.Produces {
-			promised[n] = true
-		}
-	}
+	// 목표를 이루는 단계를 계획이 짓기 때문이다. (promised 는 위에서 만든다)
 	for _, cond := range c.SuccessWhen {
 		// ★ 함대 조건은 단계에 안 걸린다 ★ (ADR-058) — 그래서 step 을 안 본다.
 		if cond.IsFleet() {
@@ -1671,10 +1688,16 @@ func Warnings(c Contract) []string {
 		if st.Dispatch != nil && len(st.Dispatch.To) >= 2 {
 			continue
 		}
+		// ★ adopt_when 만 적어도 갈 곳이 있다 ★ (ADR-062) — 거절의 뜻이
+		// "다시 지어라" 이고, 갈 곳은 ★ 계획을 지은 그 단계 ★ 다.
+		// 계약이 목적지를 지목하지 않으므로 ★ 앞단이 뒷단의 모양을 안 단정한다 ★.
+		if st.Ask.AdoptWhen != "" {
+			continue
+		}
 		out = append(out, fmt.Sprintf(
-			"step %q adopts %q but declares no dispatch: rejecting the plan would do nothing, "+
-				"because the plan is already in the contract by then. give reject somewhere to go "+
-				"(a replan step, or a step that reports the goal was not reached)",
+			"step %q adopts %q but says nothing about rejection: rejecting the plan would do "+
+				"nothing, because the plan is already in the contract by then. say which answer "+
+				"adopts (adopt_when) so that any other answer goes back and rebuilds the plan",
 			st.ID, st.Ask.Adopts))
 	}
 	return out

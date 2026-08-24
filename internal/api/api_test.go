@@ -3221,3 +3221,122 @@ func TestReject_계획이_물러나고_재계획이_같은_이름을_쓴다(t *t
 		t.Fatalf("★ 다시 지은 단계가 안 집혔다 ★: %d %v", code, c2)
 	}
 }
+
+// ★ 미룬 검사가 계획이 붙을 때 실제로 돈다 ★ (ADR-062)
+//
+// dispatch.to 가 약속한 이름을 가리키면 제출 시점에는 DAG 와 도달 가능성을
+// 볼 수 없다 — 그 단계가 아직 없다. ★ 면제가 아니라 미루는 것 ★ 이므로,
+// 계획이 그것을 ★ 뒤가 아닌 자리 ★ 에 지으면 그때 거절돼야 한다.
+func TestDispatch_약속한_목적지를_앞에_지으면_거절한다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("d1", "a", map[string]string{"role": "x"}), nil)
+	plan := planStep("b")
+	plan["produces"] = []string{"target"}
+	gate := map[string]any{
+		"id": "gate", "needs": []string{"plan"}, "uses": "b",
+		"agent": map[string]any{"ask": "never"}, "out": []string{"route"},
+		"schema": map[string]any{"route": map[string]any{
+			"type": "object", "required": []string{"next"},
+			"properties": map[string]any{
+				"next": map[string]any{"enum": []string{"target", "other"}}}}},
+		"dispatch": map[string]any{"from": "route.next", "to": []string{"target", "other"}},
+	}
+	other := runStep("other", "b")
+	other["needs"] = []string{"gate"}
+	body, _ := json.Marshal(map[string]any{
+		"run_id":       "dsp1",
+		"requires":     []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":        []map[string]any{plan, gate, other},
+		"success_when": []map[string]any{{"step": "target", "produced": []string{"target"}}},
+	})
+	// ★ 제출은 통과한다 ★ — target 은 plan 이 약속했다.
+	if code, v := do(t, srv, "POST", "/v1/runs", string(body), nil); code != 201 {
+		t.Fatalf("★ 약속한 이름인데 제출이 막혔다 ★: %d %v", code, v)
+	}
+	do(t, srv, "POST", "/v1/nodes/d1/claim", "", nil)
+	// ★ 계획이 target 을 짓는다 ★ — 새 단계는 늘 뒤에 붙으므로 DAG 는 만족한다.
+	// 그러나 needs 를 other 에 매달면 ★ 도달할 수 없다 ★: gate 가 target 을
+	// 고르는 순간 other 가 SKIPPED 가 되고 target 이 그 뒤에 매달려 있다.
+	do(t, srv, "PUT", "/v1/runs/dsp1/steps/1/blob/plan",
+		`{"steps":[{"id":"target","uses":"b","run":["true"],"out":["target"],"needs":["other"]}]}`, nil)
+	if code, _ := do(t, srv, "POST", "/v1/runs/dsp1/steps/1/result",
+		`{"node":"d1","produced":["plan"]}`, nil); code != 200 {
+		t.Fatalf("보고 실패: %d", code)
+	}
+	// ★ 여기가 핵심이다 ★ — 미룬 도달 가능성 검사가 그 단계를 거절해야 한다.
+	_, v := do(t, srv, "GET", "/v1/runs/dsp1", "", nil)
+	raw, _ := json.Marshal(v["steps"])
+	if !strings.Contains(string(raw), `"state":"FAILED"`) {
+		t.Fatalf("★ 도달 불가능한 계획이 통과했다 ★: %s — 미룬 검사가 안 돌았다", raw)
+	}
+}
+
+// ★ 거절은 분기가 아니라 되돌림이다 ★ (ADR-062)
+//
+// 계약이 "승인하면 여기로 간다" 를 적으려면 그 자리가 ★ 계획 안 어디인지 ★ 를
+// 알아야 하는데, 그것은 계획을 짓는 쪽만 안다 — 앞단이 뒷단의 모양을 단정하면
+// 승인해도 못 닿는 그래프가 나온다(실측 promised-1).
+//
+// ⇒ 계약은 목적지를 안 적는다. 승인이면 계획대로 이어서 돌고, 거절이면
+//
+//	★ 계획을 지은 단계로 돌아가 다시 짓는다 ★.
+func TestReject_계획_단계로_되돌아간다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("rw1", "a", map[string]string{"role": "x"}), nil)
+	plan := planStep("b")
+	plan["produces"] = []string{"work"}
+	gate := map[string]any{
+		"id": "approve", "needs": []string{"plan"},
+		// ★ dispatch 가 없다 ★ — 계약은 갈 곳을 지목하지 않는다.
+		"ask": map[string]any{"prompt": "?", "adopts": "plan", "adopt_when": "ok"},
+		"out": []string{"decision"},
+		"schema": map[string]any{"decision": map[string]any{
+			"type": "object", "required": []string{"verdict"},
+			"properties": map[string]any{
+				"verdict": map[string]any{"enum": []string{"ok", "again"}}}}},
+	}
+	body, _ := json.Marshal(map[string]any{
+		"run_id":       "rw1",
+		"requires":     []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":        []map[string]any{plan, gate},
+		"success_when": []map[string]any{{"step": "work", "exit_code": 0}},
+	})
+	if code, v := do(t, srv, "POST", "/v1/runs", string(body), nil); code != 201 {
+		t.Fatalf("제출 실패: %d %v", code, v)
+	}
+	buildPlan := func(blob, id string) {
+		t.Helper()
+		do(t, srv, "POST", "/v1/nodes/rw1/claim", "", nil)
+		do(t, srv, "PUT", "/v1/runs/rw1/steps/1/blob/"+blob,
+			`{"steps":[{"id":"`+id+`","uses":"b","run":["true"],"out":["`+id+`"]}]}`, nil)
+		do(t, srv, "POST", "/v1/runs/rw1/steps/1/result", `{"node":"rw1","produced":["`+blob+`"]}`, nil)
+	}
+	// 1 회차 — 지었다가 거절당한다
+	buildPlan("plan", "work")
+	if code, _ := do(t, srv, "POST", "/v1/runs/rw1/steps/2/answer",
+		`{"verdict":"again"}`, nil); code != 200 {
+		t.Fatalf("거절 실패: %d", code)
+	}
+	// ★ 계획 단계가 다시 집혀야 한다 ★
+	code, c := do(t, srv, "POST", "/v1/nodes/rw1/claim", "", nil)
+	if code != 200 || c["name"] != "plan" {
+		t.Fatalf("★ 계획 단계로 안 돌아갔다 ★: %d %v", code, c)
+	}
+	// 2 회차 — ★ 같은 이름으로 다시 짓는다 ★
+	do(t, srv, "PUT", "/v1/runs/rw1/steps/1/blob/plan",
+		`{"steps":[{"id":"work","uses":"b","run":["true"],"out":["work"]}]}`, nil)
+	if code, v := do(t, srv, "POST", "/v1/runs/rw1/steps/1/result",
+		`{"node":"rw1","produced":["plan"]}`, nil); code != 200 {
+		t.Fatalf("2 회차 보고 실패: %d %v", code, v)
+	}
+	// 이번엔 승인한다
+	do(t, srv, "POST", "/v1/nodes/rw1/claim", "", nil) // approve
+	if code, _ := do(t, srv, "POST", "/v1/runs/rw1/steps/2/answer",
+		`{"verdict":"ok"}`, nil); code != 200 {
+		t.Fatalf("승인 실패: %d", code)
+	}
+	code, c2 := do(t, srv, "POST", "/v1/nodes/rw1/claim", "", nil)
+	if code != 200 || c2["name"] != "work" {
+		t.Fatalf("★ 승인 뒤 계획이 안 돈다 ★: %d %v", code, c2)
+	}
+}

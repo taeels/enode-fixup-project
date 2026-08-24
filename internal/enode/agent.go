@@ -181,8 +181,8 @@ const unmetLane = `
 func buildPrompt(req, outDir string, outNames []string, schema map[string]json.RawMessage,
 	feedback map[string]string, attempt int, expands bool,
 	roles []string, roleAttrs map[string]map[string]string,
-	owed []OwedStep, standing []StandingStep, missingIn []string,
-	goal, envKey string) string {
+	owed []OwedStep, standing []StandingStep, rejected []Rejection,
+	missingIn []string, goal, envKey string) string {
 	var b strings.Builder
 	b.WriteString(outContract)
 	// ★ 계약을 짓는 단계에는 계약 문법을 심는다 ★ (ADR-045)
@@ -287,6 +287,20 @@ func buildPrompt(req, outDir string, outNames []string, schema map[string]json.R
 				"아래 봉투에 실려 있다.\n" +
 				"★ 네가 짓는 단계는 이 뒤에 붙는다 ★. 실패한 단계가 있으면 " +
 				"그것을 ★ 고치는 단계 ★ 를 새로 지어라.\n\n")
+		}
+		// ★ 왜 되돌아왔는가 ★ (ADR-062) — 거절은 분기가 아니라 되돌림이라
+		// ★ 다시 도는 것은 이 단계 자신 ★ 이고 in 은 처음 그대로다.
+		// 이것이 없으면 ★ 같은 계획을 다시 짓는다 ★ (실측 rewind-1 이 그랬다).
+		if len(rejected) > 0 {
+			b.WriteString("### ★ 네가 지은 계획이 거절됐다 ★\n\n")
+			for i, r := range rejected {
+				b.WriteString("    " + strconv.Itoa(i+1) + "회차 답:\n")
+				for _, line := range strings.Split(strings.TrimSpace(string(r.Answer)), "\n") {
+					b.WriteString("      " + line + "\n")
+				}
+			}
+			b.WriteString("\n★ 같은 계획을 다시 내지 마라 ★ — 위 답에 적힌 이유를 " +
+				"읽고 그 지적을 반영해서 지어라. 지적하지 않은 부분은 그대로 두는 것이 좋다.\n\n")
 		}
 	}
 	for _, n := range outNames {

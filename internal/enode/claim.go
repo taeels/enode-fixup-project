@@ -54,8 +54,13 @@ type Step struct {
 	// owed 의 반대쪽이다. 계획이 ★ 자기가 어디에 붙는지 ★ 알아야
 	// 이름을 겹쳐 쓰지 않고, 이미 끝난 일을 또 짓지 않는다.
 	Standing []StandingStep `json:"standing,omitempty"`
+
 	// Goal 은 ★ 이 Run 이 처음 받은 목표 ★ 다 (ADR-049) — 재계획이 향할 곳.
 	Goal string `json:"goal,omitempty"`
+	// Rejected 는 ★ 왜 되돌아왔는가 ★ 다 (ADR-062) — 사람이 계획을 물린 답들.
+	// 거절이 되돌림이므로 ★ 다시 도는 것은 이 단계 자신 ★ 이고, 그 in 은
+	// 처음 그대로다. ★ 이유가 안 오면 같은 계획을 다시 짓는다 ★ (실측 rewind-1).
+	Rejected []Rejection `json:"rejected,omitempty"`
 	// Expands 는 ★ 계약을 짓는 단계인가 ★ 다 (ADR-045) — 어댑터가 프롬프트에
 	// 계약 문법을 심을지 정한다. ★ 노드는 그것으로 판정하지 않는다 ★.
 	Expands bool `json:"expands,omitempty"`
@@ -665,7 +670,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		"out", step.Out, "schema", len(step.Schema))
 	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
 		step.Attempt, step.Expands, step.Roles, step.RoleAttrs, step.Owed,
-		step.Standing, missingIn, step.Goal, step.EnvelopeKey)
+		step.Standing, step.Rejected, missingIn, step.Goal, step.EnvelopeKey)
 	writePromptFile(out, prompt)
 
 	// ★ R1 — 부모 환경을 통째로 물려주지 않는다 ★
@@ -858,4 +863,11 @@ func harvest(dir string) []string {
 		}
 	}
 	return names
+}
+
+// Rejection 은 ★ 거절 한 번 ★ 이다 (ADR-062). Answer 가 답 전문이고,
+// 이유는 그 안에 있다 — ★ 무엇이 이유인지는 읽는 쪽이 정한다 ★.
+type Rejection struct {
+	At     string          `json:"at,omitempty"`
+	Answer json.RawMessage `json:"answer"`
 }

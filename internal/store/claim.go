@@ -12,6 +12,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/taeels/enode/internal/contract"
+	"io"
+	"strings"
 )
 
 // LeaseRow 는 enode 에게 내려보내는 허가 아티팩트다 (ADR-010).
@@ -125,6 +127,16 @@ type Claimed struct {
 	// _cannot 을 냈다. 목표는 v1 의 expands 단계에만 있었고 다음 판으로
 	// 전달되는 경로가 없었다. ★ 아는 쪽이 적어준다 ★ (ADR-045 와 같은 자리).
 	Goal string `json:"goal,omitempty"`
+	// Rejected 는 ★ 왜 되돌아왔는가 ★ 다 (ADR-062).
+	//
+	// 거절은 ★ 분기가 아니라 되돌림 ★ 이다 — 계획을 지은 단계가 다시 돈다.
+	// 그런데 그 단계의 in 은 ★ 처음 그대로 ★ 라서, 아무것도 안 하면
+	// ★ 같은 계획을 다시 짓는다 ★. 실측에서 밟았다(rewind-1): 2 회차가
+	// 지적을 그대로 무시하고 첫 계획과 같은 것을 냈다.
+	//
+	// ★ 앞단이 in.from 을 적을 필요가 없다 ★ — 되돌린 주체가 시스템이므로
+	// 이유도 시스템이 안다. goal · owed · standing 과 같은 자리다(ADR-045).
+	Rejected []Rejection `json:"rejected,omitempty"`
 	// Expands 는 ★ 이 단계가 계약을 짓는 단계인가 ★ 다 (ADR-045).
 	//
 	// ★ 노드가 알아야 하는 이유 ★ — 어댑터가 프롬프트에 ★ 계약 문법 ★ 을 심는다.
@@ -152,6 +164,20 @@ type Claimed struct {
 	// enode 가 $IN 에 파일 하나로 깔고, 본문이 필요하면 in.from 이 가져온다.
 	Ledger []LedgerEntry `json:"ledger,omitempty"`
 	Lease  LeaseRow      `json:"lease"`
+}
+
+// Rejection 은 ★ 거절 한 번 ★ 이다 (ADR-062).
+//
+// ★ 답 본문을 그대로 나른다 ★ — ADR-032 가 「답은 산출물이다」로 정한 대로
+// verdict 옆에 note 같은 필드가 함께 있고, 그 글이 곧 이유다. 시스템이
+// 요약하지 않는다 — 무엇이 이유인지는 ★ 읽는 쪽이 정한다 ★.
+type Rejection struct {
+	// By 는 답한 사람이다.
+	By string `json:"by"`
+	// At 은 답한 시각이다.
+	At time.Time `json:"at,omitempty"`
+	// Answer 는 ★ 답 전문 ★ 이다 (JSON).
+	Answer json.RawMessage `json:"answer"`
 }
 
 // OwedStep 은 ★ 아직 안 지어진 약속 ★ 하나다 (ADR-049).
@@ -304,6 +330,7 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID, instance string) (*Claime
 	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
 	fillFromContract(&c, contractJSON)
 	s.stampStanding(ctx, &c)
+	s.stampRejections(ctx, &c)
 	s.stampRoleAttrs(ctx, &c)
 	s.stampLedger(ctx, &c, contractJSON)
 	return &c, nil
@@ -518,6 +545,7 @@ func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claime
 	s.stampStanding(ctx, &c)
 	// ★ 재전달도 같은 프롬프트를 만들어야 한다 ★ (ADR-030) — 하나라도 빠지면
 	// 같은 단계가 다른 프롬프트를 받는다.
+	s.stampRejections(ctx, &c)
 	s.stampRoleAttrs(ctx, &c)
 	s.stampLedger(ctx, &c, contractJSON)
 	s.log().Info("redelivering to the same instance", "node", nodeID, "step", c.StepID)
@@ -846,4 +874,65 @@ func (s *Store) StepAttempt(ctx context.Context, runID string, seq int) (int, er
 	err := s.pool.QueryRow(ctx,
 		`SELECT attempt FROM steps WHERE run_id=$1 AND seq=$2`, runID, seq).Scan(&n)
 	return n, err
+}
+
+// stampRejections 는 ★ 왜 되돌아왔는가 ★ 를 싣는다 (ADR-062).
+//
+// ★ 계획을 짓는 단계에만 ★ — 되돌림은 그 단계로 오고, 다른 단계는 남의 거절을
+// 알 필요가 없다. stampStanding 과 같은 규칙이다.
+//
+// ★ 트랜잭션 밖이다 ★ — 실패해도 단계를 막지 않는다. 이유가 없으면 계획이
+// 처음처럼 짓는데, 그것이 오늘 동작이므로 ★ 없으면 오늘 그대로 ★ 다.
+//
+// ★ 판의 열에서 읽는다 ★ — retirePlan 이 붙인 판(by: answer:…)이 evidence 로
+// ★ 사람의 답 blob ★ 을 가리킨다. 그 판이 곧 "여기서 물러났다" 는 기록이고,
+// 답 본문이 곧 이유다. ★ 별도 장부를 안 만든다 ★.
+func (s *Store) stampRejections(ctx context.Context, c *Claimed) {
+	if !c.Expands || s.Records == nil {
+		return
+	}
+	var raw []byte
+	if err := s.pool.QueryRow(ctx,
+		`SELECT contract_versions FROM runs WHERE run_id=$1`, c.RunID).Scan(&raw); err != nil {
+		return
+	}
+	var vers []ContractVersion
+	if len(raw) == 0 || json.Unmarshal(raw, &vers) != nil {
+		return
+	}
+	var out []Rejection
+	for i, v := range vers {
+		// 물린 판은 ★ 답으로 붙었고 ★ ★ 계획 blob 을 cause 로 든다 ★ (retirePlan).
+		if !strings.HasPrefix(v.By, "answer:") || len(v.Cause) == 0 || v.Evidence == "" {
+			continue
+		}
+		// ★ 이 단계가 지은 계획이 물린 것만 ★ — 계약에 expands 가 여럿일 수 있다.
+		if i == 0 || vers[i-1].By != byStep(c.Name) {
+			continue
+		}
+		body, err := s.readRecordBlob(c.RunID, v.Evidence)
+		if err != nil {
+			continue
+		}
+		out = append(out, Rejection{At: v.At, Answer: body})
+	}
+	c.Rejected = out
+}
+
+// readRecordBlob 은 Record 안의 경로("blobs/02.0-approval")를 읽는다.
+func (s *Store) readRecordBlob(runID, path string) ([]byte, error) {
+	name := path
+	if i := strings.LastIndexByte(name, '/'); i >= 0 {
+		name = name[i+1:]
+	}
+	// "02.0-approval" → "approval"
+	if i := strings.IndexByte(name, '-'); i >= 0 {
+		name = name[i+1:]
+	}
+	rc, _, err := s.Records.OpenBlob(runID, name)
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close() //nolint:errcheck
+	return io.ReadAll(rc)
 }

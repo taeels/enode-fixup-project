@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -75,9 +76,18 @@ func (s *Store) applyExpands(ctx context.Context, tx pgx.Tx, runID string, seq i
 			return err
 		}
 	}
-	for _, v := range prior {
-		if v.By == byStep(st.ID) {
+	// ★ 한 번만 늘린다 — 다만 물러났으면 다시 늘린다 ★ (ADR-062)
+	//
+	// 뒤에서부터 본다: 이 단계가 붙인 판보다 ★ 나중에 ★ 그것을 물린 판이 있으면
+	// 계약은 이미 되돌아가 있고, 지금 보고는 ★ 다시 지은 계획 ★ 이다.
+	// 거절이 되돌림인 이상(ADR-062) 이 자리가 열려 있어야 재계획이 붙는다.
+	for i := len(prior) - 1; i >= 0; i-- {
+		if prior[i].By == byStep(st.ID) {
 			return nil
+		}
+		// 물린 판은 그 계획 blob 을 cause 로 든다(retirePlan).
+		if strings.HasPrefix(prior[i].By, "answer:") && len(prior[i].Cause) > 0 {
+			break
 		}
 	}
 	// ★ 깊이 상한 — 종료 보장이 여기 걸린다 ★ (ADR-031).

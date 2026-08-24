@@ -347,12 +347,30 @@ func (s *Store) AnswerStep(ctx context.Context, runID string, seq int,
 			if err := s.adoptProposal(ctx, tx, runID, seq, attempt, st, c); err != nil {
 				return false, err
 			}
-		} else if st.Dispatch != nil {
-			// ★ 갈 곳이 있을 때만 물린다 ★ (ADR-061 §2.5) — dispatch 가 없으면
+		} else if st.Dispatch != nil || st.Ask.AdoptWhen != "" {
+			// ★ 갈 곳이 있을 때만 물린다 ★ (ADR-061 §2.5) — 아무것도 안 적었으면
 			// 거절은 ★ 채택을 안 하는 것 ★ 뿐이고 계획은 그대로 돈다(ADR-033).
 			// 그 동작을 여기서 바꾸면 ★ 계약이 안 적은 결말을 Mediator 가 정한다 ★.
+			//
+			// ★ adopt_when 만 적어도 갈 곳이 있다 ★ (ADR-062) — 그때 거절의 뜻은
+			// "다시 지어라" 이고, 갈 곳은 ★ 계획을 지은 그 단계 ★ 다. 계약이
+			// 목적지를 지목하지 않으므로 ★ 앞단이 뒷단의 모양을 단정하지 않는다 ★.
 			if err := s.retirePlan(ctx, tx, runID, seq, attempt, st); err != nil {
 				return false, err
+			}
+			// ★ 거절은 분기가 아니라 되돌림이다 ★ (ADR-062) — 계획을 지은
+			// 단계로 돌아가 다시 짓는다. ADR-026 이 "반복은 뒤로 가는 간선" 으로
+			// 푼 것과 같은 모양이고, 되돌리는 기계도 그것을 그대로 쓴다.
+			if st.Dispatch == nil {
+				back, err := s.rewindToPlanner(ctx, tx, runID, seq, st, c)
+				if err != nil {
+					return false, err
+				}
+				if back {
+					// ★ 되돌렸으면 효과를 적용하지 않는다 ★ — 아래 rollBack ·
+					// afterStep 이 도는 자리와 같은 규칙이다.
+					return true, tx.Commit(ctx)
+				}
 			}
 		}
 	}
@@ -591,4 +609,52 @@ func (s *Store) retirePlan(ctx context.Context, tx pgx.Tx, runID string,
 	s.log().Info("plan rejected; the contract went back to what it was",
 		"run", runID, "by", byAnswer(ask.ID), "retired", len(retired))
 	return nil
+}
+
+// rewindToPlanner 는 ★ 거절을 되돌림으로 만든다 ★ (ADR-062).
+//
+// ★ 왜 분기가 아닌가 ★ — 계약이 "승인하면 여기로 간다" 를 적으려면 그 자리가
+// ★ 계획 안 어디인지 ★ 를 알아야 한다. 그런데 그것은 ★ 계획을 짓는 쪽만 안다 ★:
+//
+//	실측 (promised-1): 계약이 dispatch.to 에 목표 단계 report 를 적었는데,
+//	계획이 그 앞에 준비 단계를 두자 ★ 승인해도 못 닿는 그래프 ★ 가 됐다.
+//	★ 앞단이 뒷단의 모양을 단정한 것 ★ 이 모순의 원천이다.
+//
+// ⇒ 계약은 목적지를 안 적는다. 승인이면 ★ 계획대로 이어서 ★ 돌고, 거절이면
+//
+//	★ 계획을 지은 단계로 돌아가 다시 짓는다 ★. ADR-026 이 "반복은 뒤로 가는
+//	간선" 으로 푼 것과 같은 모양이다.
+//
+// ★ 회차가 상한을 준다 ★ — 되돌릴 때마다 attempt 가 오르고, max_versions 가
+// 계약의 열에 상한을 준다(ADR-031). 무한히 되돌지 않는다.
+func (s *Store) rewindToPlanner(ctx context.Context, tx pgx.Tx, runID string,
+	seq int, ask contract.Step, c contract.Contract) (bool, error) {
+	from := 0
+	for i, st := range c.Steps {
+		if st.ID == ask.Ask.Adopts {
+			from = i + 1
+			break
+		}
+	}
+	if from == 0 {
+		return false, nil // 검증이 막았어야 한다
+	}
+	// ★ 구간을 통째로 되돌린다 ★ — 계획 단계부터 이 ask 까지. loopBack 과 같은
+	// 규칙이고, ★ 획득 단계는 안 되돌린다 ★ (임대가 살아 있다).
+	var attempt int
+	if err := tx.QueryRow(ctx,
+		`SELECT attempt FROM steps WHERE run_id=$1 AND seq=$2`, runID, from).
+		Scan(&attempt); err != nil {
+		return false, err
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE steps SET state='PENDING', attempt=$4, result=NULL,
+		       started_at=NULL, ended_at=NULL, ledger_at=NULL
+		 WHERE run_id=$1 AND seq BETWEEN $2 AND $3 AND kind <> 'acquire'`,
+		runID, from, seq, attempt+1); err != nil {
+		return false, err
+	}
+	s.log().Info("plan rejected; going back to the step that builds it",
+		"run", runID, "back_to", ask.Ask.Adopts, "attempt", attempt+2)
+	return true, nil
 }

@@ -47,7 +47,7 @@ func Test계약의_필드가_프롬프트까지_간다(t *testing.T) {
 	// ★ 그리고 프롬프트에 실렸는가 ★
 	p := buildPrompt(step.In.Prompt, "/o", step.Out, step.Schema,
 		map[string]string{"survey": "SURVEY_BODY"}, step.Attempt, step.Expands,
-		step.Roles, step.RoleAttrs, step.Owed, step.Standing, nil, step.Goal, step.EnvelopeKey)
+		step.Roles, step.RoleAttrs, step.Owed, step.Standing, nil, nil, step.Goal, step.EnvelopeKey)
 	for _, want := range []string{"PROMPT_MARKER", "SURVEY_BODY", "install_report"} {
 		if !strings.Contains(p, want) {
 			t.Fatalf("★ %q 가 프롬프트에 없다 ★", want)
@@ -66,7 +66,7 @@ func Test계약의_필드가_프롬프트까지_간다(t *testing.T) {
 // 모양이 없어서 계획이 이름에서 유추했고 agent.task 를 지어냈다.
 func Test계획단계는_단계의_모양을_받는다(t *testing.T) {
 	got := buildPrompt("계획을 짜라", "/o", []string{"plan"}, nil, nil, 0, true,
-		nil, nil, nil, nil, nil, "목표", "")
+		nil, nil, nil, nil, nil, nil, "목표", "")
 	for _, want := range []string{
 		"The shape of a step",
 		"in.prompt",                 // ★ 과제가 가는 자리 ★
@@ -81,7 +81,7 @@ func Test계획단계는_단계의_모양을_받는다(t *testing.T) {
 	}
 	// ★ 평범한 단계에는 안 싣는다 ★ — 그 단계는 계획을 안 짓는다.
 	got = buildPrompt("일해라", "/o", []string{"x"}, nil, nil, 0, false,
-		nil, nil, nil, nil, nil, "", "")
+		nil, nil, nil, nil, nil, nil, "", "")
 	if strings.Contains(got, "The shape of a step") {
 		t.Fatal("★ 평범한 단계에 계획 문법이 실렸다 ★")
 	}

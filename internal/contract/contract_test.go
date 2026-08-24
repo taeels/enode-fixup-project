@@ -828,3 +828,64 @@ func TestThirdRun1_도달할_수_없는_출구를_거절한다(t *testing.T) {
 		t.Fatalf("★ loop 을 안 가리킨다 ★: %v", err)
 	}
 }
+
+// ★ dispatch.to 가 약속한 이름을 가리킬 수 있다 ★ (ADR-062)
+//
+// 계획 위임에서 ★ 승인 경로의 목적지는 계획이 짓는다 ★. 그런데 dispatch.to 는
+// 제출 시점에 실존하는 단계만 가리킬 수 있었고, 그래서 ADR-061 이 요구한
+// "거절에 갈 곳을 준다" 를 쓰려면 ★ 뜻 없는 더미 단계 ★ 를 지어야 했다.
+//
+// ADR-049 가 success_when 에 대해 연 것과 같은 자리다.
+func TestDispatch_약속한_이름을_가리킬_수_있다(t *testing.T) {
+	body := []byte(`{
+	  "run_id":"p1",
+	  "requires":[{"as":"b","capability":"agent.reason","role":"x"}],
+	  "steps":[
+	    {"id":"plan","uses":"b","agent":{"ask":"never"},"out":["plan"],
+	     "expands":true,"produces":["report"],
+	     "schema":{"plan":{"type":"object","required":["steps"]}}},
+	    {"id":"approve","needs":["plan"],
+	     "ask":{"prompt":"?","adopts":"plan","adopt_when":"report"},
+	     "out":["decision"],
+	     "schema":{"decision":{"type":"object","required":["verdict"],
+	       "properties":{"verdict":{"enum":["report","replan"]}}}},
+	     "dispatch":{"from":"decision.verdict","to":["report","replan"]}},
+	    {"id":"replan","uses":"b","needs":["approve"],"agent":{"ask":"never"},
+	     "out":["plan2"],"expands":true,"produces":["report"],
+	     "schema":{"plan2":{"type":"object","required":["steps"]}}}
+	  ],
+	  "success_when":[{"step":"report","produced":["summary"]}]}`)
+	var c Contract
+	if err := json.Unmarshal(body, &c); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("★ 약속한 이름을 가리켰는데 거절됐다 ★: %v", err)
+	}
+}
+
+// ★ 약속하지 않은 이름은 여전히 거절한다 ★ — 완화가 새어나가지 않는다.
+func TestDispatch_약속_없는_이름은_거절한다(t *testing.T) {
+	body := []byte(`{
+	  "run_id":"p2",
+	  "requires":[{"as":"b","capability":"agent.reason","role":"x"}],
+	  "steps":[
+	    {"id":"first","uses":"b","run":["true"],"out":["found"],
+	     "schema":{"found":{"type":"object","required":["next"],
+	       "properties":{"next":{"enum":["there","here"]}}}},
+	     "dispatch":{"from":"found.next","to":["there","here"]}},
+	    {"id":"here","uses":"b","run":["true"],"out":["here"]}
+	  ],
+	  "success_when":[{"step":"here","exit_code":0}]}`)
+	var c Contract
+	if err := json.Unmarshal(body, &c); err != nil {
+		t.Fatal(err)
+	}
+	err := c.Validate()
+	if err == nil {
+		t.Fatal("★ 아무도 약속 안 한 이름이 통과했다 ★")
+	}
+	if !strings.Contains(err.Error(), "unknown step") {
+		t.Fatalf("다른 이유로 거절됐다: %v", err)
+	}
+}
