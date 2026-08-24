@@ -103,7 +103,7 @@ RUNNING=$(node_pid "$BINDIR/enode" "$CFG")
 # ★ 옛 것을 지우지 않는다 ★ — .prev 로 남긴다. 되돌릴 것이 없으면 되돌릴 수 없다.
 say "== 바꾼다 =="
 mkdir -p "$BINDIR" "$STATEDIR"
-for c in enode runctl; do
+for c in enode runctl enodectl; do
   [ -f "$SRC/$c-$PLAT" ] || continue
   [ -f "$BINDIR/$c" ] && cp -p "$BINDIR/$c" "$BINDIR/$c.prev"
   # ★ mv 는 실행 중이어도 된다 ★ — 도는 프로세스는 옛 inode 를 계속 쓴다.
@@ -112,14 +112,6 @@ for c in enode runctl; do
   mv "$BINDIR/$c.new" "$BINDIR/$c"
   say "   $c ← $c-$PLAT"
 done
-# enodectl 은 실행파일이 아니라 스크립트다. 있으면 함께 갱신한다.
-CTL=$(find "$WORK" -maxdepth 2 -name enodectl -type f | head -1 || true)
-if [ -n "$CTL" ]; then
-  [ -f "$BINDIR/enodectl" ] && cp -p "$BINDIR/enodectl" "$BINDIR/enodectl.prev"
-  cp "$CTL" "$BINDIR/enodectl.new" && chmod +x "$BINDIR/enodectl.new"
-  mv "$BINDIR/enodectl.new" "$BINDIR/enodectl"
-  say "   enodectl"
-fi
 
 # ── ④ 다시 띄운다 ── ★ 이 단계가 끝난 뒤에 ★ ───────────────────────────
 # ★ 지금 죽이면 이 명령 자신이 죽는다 ★ — 그러면 단계가 실패로 보고되고,

@@ -20,9 +20,14 @@ ROOT=$(pwd)
 # 에이전트가 툴체인부터 세우게 되고, 그건 이 시나리오가 재는 것이 아니다.
 TARGETS=${TARGETS:-"darwin/arm64 darwin/amd64 linux/arm64 linux/amd64"}
 
-# ★ 두 실행파일을 함께 넣는다 ★ — 맥은 노드이면서 동시에 사람이 앉는 자리다.
-# runctl 이 없으면 맥에서 `runctl capabilities` 로 자기가 광고됐는지 볼 수 없다.
-CMDS=${CMDS:-"enode runctl"}
+# ★ 세 실행파일을 함께 넣는다 ★ — 맥은 노드이면서 동시에 사람이 앉는 자리다.
+# runctl 이 없으면 맥에서 `runctl capabilities` 로 자기가 광고됐는지 볼 수 없고,
+# enodectl 이 없으면 노드를 띄우고 멈출 수 없다.
+#
+# ★ enodectl 이 셸이 아니라 Go 인 이유 ★ — 셸판은 node_id 를 ★ 다시 계산 ★ 했다.
+# sha256 파이프와 python3 realpath 로 Derive() 를 흉내 냈고, 그래서 python3 가
+# 없는 기계에서 못 돌았다. 지금은 enode 가 쓰는 그 함수를 그대로 부른다.
+CMDS=${CMDS:-"enode runctl enodectl"}
 
 COMMIT=$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
 # ★ 묶음에 들어가는 것이 커밋과 다른지 본다 ★ — dist/ 나 문서가 지저분한 것은
@@ -70,13 +75,12 @@ for f in "$PKG"/bin/*-darwin-arm64; do
 done
 
 cp packaging/macos/install.sh        "$PKG/install.sh"
-cp packaging/macos/enodectl          "$PKG/enodectl"
 # ★ 자기 갱신 스크립트도 넣는다 ★ (ADR-056) — 다음 갱신부터는 묶음 안의 것을 쓴다.
 # ★ 첫 갱신에는 못 쓴다 ★ — 맥에 있는 것은 이 파일이 없던 묶음이다.
 cp packaging/self-update.sh         "$PKG/self-update.sh"
 cp packaging/macos/README.md         "$PKG/README.md"
 cp packaging/macos/examples/*.yaml   "$PKG/examples/"
-chmod +x "$PKG/install.sh" "$PKG/enodectl" "$PKG/self-update.sh"
+chmod +x "$PKG/install.sh" "$PKG/self-update.sh"
 
 cat > "$PKG/MANIFEST" <<MANIFEST
 enode macOS 배포 묶음

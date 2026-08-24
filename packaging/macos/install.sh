@@ -107,14 +107,12 @@ say
 say "== 3. 설치 =="
 mkdir -p "$BINDIR" "$CONFDIR" "$STATEDIR"
 
-for c in enode runctl; do
+for c in enode runctl enodectl; do
   src="$HERE/bin/$c-darwin-$GOARCH"
   [ -f "$src" ] || die "묶음에 $c-darwin-$GOARCH 가 없다"
   install -m 0755 "$src" "$BINDIR/$c"
   ok "$BINDIR/$c"
 done
-install -m 0755 "$HERE/enodectl" "$BINDIR/enodectl"
-ok "$BINDIR/enodectl"
 
 # ★ 예시는 하위 디렉터리에 둔다 ★ — $CONFDIR 에 바로 풀면 안 고른 노드까지
 # enodectl list 에 뜬다. 특히 colima.yaml 은 ★ 맥이 아니라 VM 안에 놓일 파일 ★ 이라
@@ -146,7 +144,7 @@ if printf '%s' "$PROBE" | grep -q '설정을 읽을 수 없다'; then
 else
   warn "enode 가 낸 것: ${PROBE:-<아무것도 안 냈다>}"
   die "실행이 안 된다. 아무것도 안 냈으면 서명 문제다 (killed: 9):
-      codesign -s - $BINDIR/enode $BINDIR/runctl"
+      codesign -s - $BINDIR/enode $BINDIR/runctl $BINDIR/enodectl"
 fi
 
 case ":$PATH:" in
