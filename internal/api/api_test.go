@@ -1210,6 +1210,106 @@ func TestDispatch_두_분기가_나눠_가진_목적지가_되살아난다(t *te
 	}
 }
 
+// ★ 오케스트레이터가 실제로 지은 루프가 끝까지 돈다 ★ (ADR-060 §5)
+//
+// third-run-2 의 계획 구조 그대로다 — 1 차가 13 단계·dispatch 3 개로 폈던 것을
+// 문법에 loop 을 넣은 뒤 계획이 ★ 3 단계·dispatch 0 개 ★ 로 지었다.
+//
+//	diagnose_fix ──▶ build ──▶ final_verify
+//	     ▲                          │ loop{back_to, max:3, until: produced}
+//	     └──────────────────────────┘
+//
+// 재는 것 셋: ★ 루프가 구간을 되돌리는가 ★ · ★ 목표 단계가 실제로 도는가 ★ ·
+// ★ verdict 가 그 산출물을 대조하는가 ★. 1 차에서는 셋 다 아니었다 —
+// final_verify 가 SKIPPED 인 채 Run 이 SUCCEEDED 로 봉인됐다.
+func TestLoop_계획이_지은_재시도가_목표까지_간다(t *testing.T) {
+	srv, _ := newServerFast(t)
+	do(t, srv, "POST", "/v1/nodes", advert("L1", "a", map[string]string{"role": "x"}), nil)
+
+	fix := map[string]any{
+		"id": "diagnose_fix", "uses": "b",
+		"agent": map[string]any{"ask": "never"},
+		// ★ 구간 끝의 산출물을 구간 시작에서 받는다 ★ — 루프 되먹임의 형태다.
+		// 1 회차에는 없고, 그것은 실패가 아니라 값이다 (ADR-058).
+		"in":  map[string]any{"from": []string{"qemu_log"}, "prompt": "고쳐라"},
+		"out": []string{"fix_report"},
+	}
+	build := runStep("build", "b")
+	build["needs"] = []string{"diagnose_fix"}
+	verify := map[string]any{
+		"id": "final_verify", "uses": "b", "needs": []string{"build"},
+		"run": []string{"true"}, "out": []string{"verify_result", "qemu_log"},
+		"loop": map[string]any{"back_to": "diagnose_fix", "max": 3,
+			"until": map[string]any{"produced": []string{"verify_result"}}},
+	}
+	body, _ := json.Marshal(map[string]any{
+		"run_id":   "lp2",
+		"requires": []map[string]any{req("b", map[string]any{"role": "x"})},
+		"steps":    []map[string]any{fix, build, verify},
+		"success_when": []map[string]any{
+			{"step": "final_verify", "produced": []string{"verify_result"}}},
+	})
+	if code, _ := do(t, srv, "POST", "/v1/runs", string(body), nil); code != 201 {
+		t.Fatalf("제출 실패: %d", code)
+	}
+
+	pass := func(name string, produced ...string) {
+		t.Helper()
+		code, c := do(t, srv, "POST", "/v1/nodes/L1/claim", "", nil)
+		if code != 200 {
+			t.Fatalf("%s 를 못 집었다: %d", name, code)
+		}
+		if c["name"] != name {
+			t.Fatalf("★ %s 가 나와야 하는데 %v 가 나왔다 ★", name, c["name"])
+		}
+		seq := fmt.Sprintf("%v", c["seq"])
+		for _, p := range produced {
+			do(t, srv, "PUT", "/v1/runs/lp2/steps/"+seq+"/blob/"+p, `{"ok":true}`, nil)
+		}
+		b, _ := json.Marshal(map[string]any{
+			"node": "L1", "exit_code": 0, "produced": produced})
+		if code, _ := do(t, srv, "POST", "/v1/runs/lp2/steps/"+seq+"/result",
+			string(b), nil); code != 200 {
+			t.Fatalf("%s 보고 실패: %d", name, code)
+		}
+	}
+
+	// ── 1 회차: 아직 못 고쳤다 ⇒ final_verify 가 ★ verify_result 를 안 낸다 ★
+	pass("diagnose_fix", "fix_report")
+	pass("build", "build")
+	pass("final_verify", "qemu_log")
+
+	// ★ 루프가 구간을 되돌렸는가 ★
+	code, c := do(t, srv, "POST", "/v1/nodes/L1/claim", "", nil)
+	if code != 200 || c["name"] != "diagnose_fix" {
+		t.Fatalf("★ 루프가 안 돌았다 ★: %d %v — until 이 불만족인데 "+
+			"back_to 로 안 돌아갔다", code, c)
+	}
+
+	// ── 2 회차: 고쳤다 ⇒ 목표 산출물을 낸다
+	seq := fmt.Sprintf("%v", c["seq"])
+	do(t, srv, "PUT", "/v1/runs/lp2/steps/"+seq+"/blob/fix_report", `{"ok":true}`, nil)
+	b2, _ := json.Marshal(map[string]any{
+		"node": "L1", "exit_code": 0, "produced": []string{"fix_report"}})
+	do(t, srv, "POST", "/v1/runs/lp2/steps/"+seq+"/result", string(b2), nil)
+	pass("build", "build")
+	pass("final_verify", "verify_result", "qemu_log")
+
+	// ★ 목표 단계가 실제로 돌았고, verdict 가 그것을 대조했는가 ★
+	_, v := do(t, srv, "GET", "/v1/runs/lp2", "", nil)
+	if v["state"] != "SUCCEEDED" {
+		t.Fatalf("★ 목표를 이뤘는데 %v ★", v["state"])
+	}
+	raw, _ := json.Marshal(v["verdict"])
+	if strings.Contains(string(raw), `"skipped"`) {
+		t.Fatalf("★ 목표 단계가 건너뛴 것으로 판정됐다 ★: %s — "+
+			"third-run-1 이 이렇게 SUCCEEDED 로 봉인됐다", raw)
+	}
+	if !strings.Contains(string(raw), "verify_result") {
+		t.Fatalf("★ verdict 가 목표 산출물을 안 봤다 ★: %s", raw)
+	}
+}
+
 // ═══ 계획 위임 — ★ 오케스트레이터가 나머지 단계를 짓는다 ★ (ADR-022 §6.3) ═══
 //
 // 에이전트가 계약을 ★ 파일로 쓰고 ★ enode 가 제출한다 — 토큰은 enode 에만 남아

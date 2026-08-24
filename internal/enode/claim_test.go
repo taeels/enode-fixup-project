@@ -2,6 +2,7 @@ package enode
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -82,5 +83,39 @@ func TestReport_임대가_끝나면_물러선다(t *testing.T) {
 	w.report(context.Background(), &Step{RunID: "r1", Seq: 1, StepID: "r1#01"}, Result{})
 	if got := calls.Load(); got != 1 {
 		t.Fatalf("임대 없이 %d 번 던졌다", got)
+	}
+}
+
+// ★ 없는 입력은 값이다. 크래시가 아니다 ★ (ADR-058 · ADR-023 §6.2.1)
+//
+// in.from 은 ★ dispatch 로 안 간 가지 ★ 나 ★ 루프의 1 회차 ★ 처럼 아직
+// 아무도 안 낸 산출물을 가리킬 수 있다. 404 를 전송 실패와 뭉뚱그리면
+// ★ 그 단계가 죽는다 ★ — vm-scratch-7 에서 재계획이 그렇게 죽었고,
+// third-run-2 에서 루프의 첫 회차가 같은 자리에서 죽었다.
+//
+// ★ 그래도 조용히 넘어가지는 않는다 ★ — 못 받은 이름은 프롬프트에 적혀
+// 에이전트가 부재를 관찰한다 (execute 가 missingIn 으로 나른다).
+func TestGetBlob_없으면_ErrNoBlob_이고_전송_실패와_다르다(t *testing.T) {
+	var code atomic.Int32
+	code.Store(404)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(int(code.Load()))
+	}))
+	defer srv.Close()
+	c := &Client{Base: srv.URL, HTTP: srv.Client()}
+
+	// ★ 404 는 「없다」다 ★ — 부르는 쪽이 값으로 다룰 수 있어야 한다.
+	err := c.GetBlob(context.Background(), "r1", "qemu_log", io.Discard)
+	if !errors.Is(err, ErrNoBlob) {
+		t.Fatalf("★ 404 가 ErrNoBlob 이 아니다 ★: %v — "+
+			"이러면 루프의 1 회차가 되먹임이 없다는 이유로 죽는다", err)
+	}
+
+	// ★ 500 은 「못 가져왔다」다 ★ — 이것까지 값으로 삼으면
+	// 미디에이터 일시 장애가 「산출물 없음」으로 위장한다.
+	code.Store(500)
+	err = c.GetBlob(context.Background(), "r1", "qemu_log", io.Discard)
+	if err == nil || errors.Is(err, ErrNoBlob) {
+		t.Fatalf("★ 전송 실패가 부재로 위장했다 ★: %v", err)
 	}
 }
