@@ -26,6 +26,14 @@ type Orchestrator struct {
 	cmd       *exec.Cmd
 	log       *slog.Logger
 	keep      bool
+	// done 은 자식이 끝났을 때 닫힌다.
+	//
+	// ★ 거두는 자리가 하나여야 한다 ★ — Wait 를 부르는 곳이 흩어지면 어떤
+	// 경로에서는 아무도 안 부르고, 그러면 자식이 ★ 좀비로 남는다 ★.
+	// 첫 실측에서 밟았다 (2026-08-24): 되묻기로 손을 뗀 판마다 좀비가 하나씩
+	// 쌓였다 — 그 경로는 죽이면 안 되므로 Stop 을 안 불렀고, Wait 가 Stop 에만
+	// 있었다. 그래서 시작 직후에 거두는 고루틴을 하나 띄우고 그것만 Wait 한다.
+	done chan struct{}
 }
 
 // StartOrchestrator 는 설정을 짓고 --once 로 띄운다.
@@ -88,7 +96,14 @@ func StartOrchestrator(ctx context.Context, cfg *Config, issueKey string, log *s
 		cmd:       cmd,
 		log:       log,
 		keep:      cfg.Orchestrator.Keep,
+		done:      make(chan struct{}),
 	}
+	// ★ 거두는 자리는 여기 하나다 ★ — 어느 경로로 끝나든 자식이 좀비로 안 남는다.
+	go func() {
+		_ = cmd.Wait()
+		lf.Close()
+		close(o.done)
+	}()
 	log.Info("오케스트레이터를 띄웠다", "issue", issueKey, "dir", dir, "pid", cmd.Process.Pid)
 
 	// ready 파일에는 node_id 가 들어간다.
@@ -131,15 +146,33 @@ func (o *Orchestrator) WaitAdvertised(ctx context.Context, m *Mediator, wait tim
 	return fmt.Errorf("함대의 광고에 issue=%s 가 %s 안에 안 나타났다", o.IssueKey, wait)
 }
 
-// Stop 은 오케스트레이터를 정리한다.
+// Stop 은 오케스트레이터를 끝내고 정리한다.
 //
 // ★ --once 라 보통은 스스로 죽는다 ★ — 이 함수는 그러지 못한 경우의 뒷정리다.
+// 이미 끝났으면 죽이지 않고 거두기만 한다.
 func (o *Orchestrator) Stop() {
 	if o.cmd != nil && o.cmd.Process != nil {
-		if o.cmd.ProcessState == nil {
+		select {
+		case <-o.done: // 스스로 끝났다
+		default:
 			_ = o.cmd.Process.Kill()
 		}
-		_ = o.cmd.Wait()
+	}
+	o.awaitAndClean()
+}
+
+// Detach 는 ★ 죽이지 않고 거두기만 한다 ★ — 되묻기로 손을 뗄 때 쓴다.
+//
+// 그 순간 오케스트레이터는 ★ 살아 있어야 한다 ★. 사람이 답하면 계약이
+// 그 자리에서 이어지기 때문이다(ADR-047 이 그동안 임대를 안 죽인다).
+// 그래도 언젠가는 끝나므로 거둘 사람이 필요하다.
+func (o *Orchestrator) Detach() {
+	go o.awaitAndClean()
+}
+
+func (o *Orchestrator) awaitAndClean() {
+	if o.done != nil {
+		<-o.done
 	}
 	if o.keep {
 		o.log.Info("워크스페이스를 남긴다", "dir", o.Dir)
@@ -149,19 +182,6 @@ func (o *Orchestrator) Stop() {
 	// 남지만, WorkspaceRoot 가 /tmp 면 재부팅이 지운다.
 	if err := os.RemoveAll(o.Dir); err != nil {
 		o.log.Warn("워크스페이스를 못 지웠다", "dir", o.Dir, "err", err)
-	}
-}
-
-// Wait 는 오케스트레이터가 스스로 끝날 때까지 기다린다 (상한 있음).
-func (o *Orchestrator) Wait(d time.Duration) {
-	if o.cmd == nil || o.cmd.Process == nil {
-		return
-	}
-	done := make(chan struct{})
-	go func() { _ = o.cmd.Wait(); close(done) }()
-	select {
-	case <-done:
-	case <-time.After(d):
 	}
 }
 

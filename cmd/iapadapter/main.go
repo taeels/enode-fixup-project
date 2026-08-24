@@ -223,11 +223,14 @@ func (a *Adapter) handleNewWork(ctx context.Context, rr *RunnerRun) {
 		return
 	}
 	// ★ 되묻기로 손을 뗄 때는 안 죽인다 ★ — 답이 오면 그 자리에서 이어야 한다.
+	// ★ 그래도 거두기는 한다 ★ — 안 그러면 그 판마다 좀비가 하나씩 쌓인다.
 	keepAlive := false
 	defer func() {
-		if !keepAlive {
-			orch.Stop()
+		if keepAlive {
+			orch.Detach()
+			return
 		}
+		orch.Stop()
 	}()
 
 	if err := orch.WaitAdvertised(ctx, a.med, a.cfg.ReadyWait()); err != nil {

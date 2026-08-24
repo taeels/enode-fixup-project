@@ -2,8 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"io"
+	"log/slog"
+	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseAnswer_승인과_거절을_가른다(t *testing.T) {
@@ -243,6 +247,43 @@ func TestRunView_판정_검사의_want_got_은_다형이다(t *testing.T) {
 	}
 	if got := describe(nil); got != "" {
 		t.Fatalf("빈 want = %q", got)
+	}
+}
+
+// ★ 세 번째 실측이 잡은 결함이다 ★ (2026-08-24) — 되묻기로 손을 떼는 경로는
+// 오케스트레이터를 죽이면 안 되므로 Stop 을 안 불렀는데, Wait 가 Stop 에만
+// 있었다. 그래서 ★ 그 판마다 좀비가 하나씩 쌓였다 ★ (EP-3·EP-4·EP-5 에서 셋).
+// 거두는 자리를 시작 직후 고루틴 하나로 옮기고, Detach 도 그것을 기다린다.
+func TestOrchestrator_어느_경로로_끝나든_자식을_거둔다(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		end  func(o *Orchestrator)
+	}{
+		{"Stop 은 거둔다", func(o *Orchestrator) { o.Stop() }},
+		{"Detach 도 거둔다", func(o *Orchestrator) { o.Detach() }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			cmd := exec.Command("/bin/sh", "-c", "exit 0")
+			if err := cmd.Start(); err != nil {
+				t.Skipf("자식을 못 띄운다: %v", err)
+			}
+			o := &Orchestrator{
+				IssueKey: "EP-9", Dir: dir, cmd: cmd,
+				log:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+				done: make(chan struct{}),
+			}
+			go func() { _ = cmd.Wait(); close(o.done) }()
+
+			tc.end(o)
+
+			// done 이 닫혔다 = Wait 가 불렸다 = 좀비가 안 남는다.
+			select {
+			case <-o.done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("자식을 안 거뒀다 — 좀비가 남는다")
+			}
+		})
 	}
 }
 
