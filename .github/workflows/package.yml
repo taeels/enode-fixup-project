@@ -62,6 +62,11 @@ jobs:
         run: |
           v="${{ inputs.version }}"
           [ -z "$v" ] && v="0.0.0"
+          # ★ v 는 여기서 뗀다 ★ — 태그 이름의 것이지 판 번호의 것이 아니다.
+          # 리눅스 잡은 build-installers.sh 가 알아서 떼지만 ★ 맥 잡은 그
+          # 스크립트를 안 거친다 ★. 한 곳에서 떼야 자산 이름이 안 갈린다
+          # (실측 v0.0.1-rc3: .pkg 하나에만 v 가 남았다).
+          v="${v#v}"
           echo "version=$v" >> "$GITHUB_OUTPUT"
           echo "판 번호 = $v"
 
