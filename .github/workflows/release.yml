@@ -109,8 +109,20 @@ jobs:
           case "${{ github.ref_name }}" in
             *-*) pre="--prerelease" ;;
           esac
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --notes-file NOTES.md \
-            $pre \
-            rel/*
+          # 같은 태그로 이 잡이 두 번 도는 일이 있다 — 태그를 다시 붙이거나
+          # 이력을 재작성하면 그렇다. create 는 그때 "already exists" 로 죽는다.
+          # 반쯤 깨진 설치본이 올라가는 것보다 릴리즈가 안 서는 편이 낫다는 원칙은
+          # 여기 안 걸린다. 이미 검증을 통과한 같은 산출물을 다시 올리는 것이다.
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            gh release edit "${{ github.ref_name }}" \
+              --title "${{ github.ref_name }}" \
+              --notes-file NOTES.md \
+              ${pre:+--prerelease}
+            gh release upload "${{ github.ref_name }}" rel/* --clobber
+          else
+            gh release create "${{ github.ref_name }}" \
+              --title "${{ github.ref_name }}" \
+              --notes-file NOTES.md \
+              $pre \
+              rel/*
+          fi
