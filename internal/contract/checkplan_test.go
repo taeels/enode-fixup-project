@@ -11,14 +11,14 @@ import (
 //
 // 넷 다 계획이 다 지어진 뒤에야 거절돼서 판이 통째로 버려졌다.
 // 훅이 이것을 하네스가 끝나기 전에 짚으면 같은 세션에서 고친다.
-func TestCheckPlan_실측에서_밟은_것들(t *testing.T) {
+func TestCheckPlan_WhatTheRealRunsSteppedOn(t *testing.T) {
 	roles := []string{"planner", "mac"}
 	cases := []struct {
 		name, plan, want string
 	}{
 		{
 			// 10차 — replan_1 이 uses:"claude" 를 지어냈다
-			name: "없는 역할을 쓴다",
+			name: "uses a role that does not exist",
 			plan: `{"steps":[{"id":"r","uses":"claude","expands":true,"agent":{},
 			         "in":{"prompt":"p"},"out":["plan2"],
 			         "schema":{"plan2":{"type":"object"}}}]}`,
@@ -26,7 +26,7 @@ func TestCheckPlan_실측에서_밟은_것들(t *testing.T) {
 		},
 		{
 			// 11차 — schema 를 산출물 이름으로 안 키잉했다
-			name: "schema 를 산출물 이름으로 키잉하지 않는다",
+			name: "does not key schema by artifact name",
 			plan: `{"steps":[{"id":"r","uses":"planner","expands":true,"agent":{},
 			         "in":{"prompt":"p"},"out":["plan2"],
 			         "schema":{"type":"object","required":["steps"]}}]}`,
@@ -34,14 +34,14 @@ func TestCheckPlan_실측에서_밟은_것들(t *testing.T) {
 		},
 		{
 			// 6차 — ask 단계에 uses 를 적었다
-			name: "ask 에 uses 를 적는다",
+			name: "writes uses on an ask",
 			plan: `{"steps":[{"id":"q","uses":"mac","ask":{"prompt":"?"},"out":["a"],
 			         "schema":{"a":{"type":"object","properties":{"v":{"type":"string"}}}}}]}`,
 			want: "must not set uses",
 		},
 		{
 			// 8차 — agent 단계에 exit_code 를 걸었다
-			name: "에이전트 단계에 exit_code 를 건다",
+			name: "puts exit_code on an agent step",
 			plan: `{"steps":[{"id":"t","uses":"mac","agent":{},"in":{"prompt":"p"},"out":["x"]}],
 			        "success_when":[{"step":"t","exit_code":0}]}`,
 			want: "exit_code",
@@ -51,17 +51,17 @@ func TestCheckPlan_실측에서_밟은_것들(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			err := CheckPlan([]byte(c.plan), roles)
 			if err == nil {
-				t.Fatal("잡혔어야 한다")
+				t.Fatal("it should have been caught")
 			}
 			if !strings.Contains(err.Error(), c.want) {
-				t.Fatalf("다른 이유로 잡혔다: %v (기대: %q)", err, c.want)
+				t.Fatalf("caught for a different reason: %v (want: %q)", err, c.want)
 			}
 		})
 	}
 }
 
 // 정당한 계획을 막으면 안 된다 — 안전망이 정규 경로를 무너뜨리는 것이 가장 나쁘다.
-func TestCheckPlan_정당한_계획은_통과한다(t *testing.T) {
+func TestCheckPlan_ALegitimatePlanPasses(t *testing.T) {
 	roles := []string{"planner", "mac"}
 	// 계획 밖(부모)의 승인 단계를 needs 로 잡는다 — 실제 계획의 모양이다.
 	plan := `{"steps":[
@@ -76,25 +76,25 @@ func TestCheckPlan_정당한_계획은_통과한다(t *testing.T) {
 	                  {"step":"replan_1","produced":["plan2"]},
 	                  {"step":"approve_replan_1","produced":["approval2"]}]}`
 	if err := CheckPlan([]byte(plan), roles); err != nil {
-		t.Fatalf("정당한 계획을 막았다: %v", err)
+		t.Fatalf("blocked a legitimate plan: %v", err)
 	}
 }
 
 // 빈 계획은 값이다 (ADR-043) — 훅도 그것을 알아야 한다.
-func TestCheckPlan_빈_계획은_통과한다(t *testing.T) {
+func TestCheckPlan_AnEmptyPlanPasses(t *testing.T) {
 	if err := CheckPlan([]byte(`{"steps":[],"success_when":[]}`), []string{"a"}); err != nil {
-		t.Fatalf("빈 계획을 막았다: %v", err)
+		t.Fatalf("blocked an empty plan: %v", err)
 	}
 	if err := CheckPlan([]byte(`{"steps":[],"success_when":[{"step":"x"}]}`), []string{"a"}); err == nil {
-		t.Fatal("단계가 없는데 판정이 있는 것은 자기모순이다")
+		t.Fatal("no steps yet a verdict is self-contradictory")
 	}
 }
 
 // 역할을 모르면 막지 않는다 — 모르는 것으로 막는 것이 가장 나쁜 안전망이다.
-func TestCheckPlan_역할을_모르면_통과시킨다(t *testing.T) {
-	plan := `{"steps":[{"id":"a","uses":"뭐든","run":["true"],"out":["l"]}]}`
+func TestCheckPlan_UnknownRolesArePassedThrough(t *testing.T) {
+	plan := `{"steps":[{"id":"a","uses":"whatever","run":["true"],"out":["l"]}]}`
 	if err := CheckPlan([]byte(plan), nil); err != nil {
-		t.Fatalf("역할을 모르는데 막았다: %v", err)
+		t.Fatalf("blocked even though the role is unknown: %v", err)
 	}
 }
 
@@ -111,7 +111,7 @@ func TestValidate_produces(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := c.Validate(); err != nil {
-		t.Fatalf("약속한 이름을 미리 못 가리켰다: %v", err)
+		t.Fatalf("could not point at a promised name ahead of time: %v", err)
 	}
 
 	// ② 약속이 없으면 여전히 거절한다 — ErrCondUnknownID 가 살아 있어야 한다.
@@ -121,7 +121,7 @@ func TestValidate_produces(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := c.Validate(); err == nil {
-		t.Fatal("약속 없이 없는 단계를 가리켰는데 통과했다")
+		t.Fatal("pointing at a nonexistent step with no promise passed")
 	}
 
 	// ③ produces 는 expands 단계에만 — 계획을 안 짓는 단계는 약속할 것이 없다.
@@ -134,7 +134,7 @@ func TestValidate_produces(t *testing.T) {
 	}
 	if err := c.Validate(); err == nil ||
 		!strings.Contains(err.Error(), "only allowed on an expands step") {
-		t.Fatalf("명령 단계의 produces 를 안 막았다: %v", err)
+		t.Fatalf("produces on a command step was not blocked: %v", err)
 	}
 
 	// ④ 약속이 이행된 뒤의 계약도 유효해야 한다
@@ -154,7 +154,7 @@ func TestValidate_produces(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := c.Validate(); err != nil {
-		t.Fatalf("이행된 약속을 거절했다 — 계획이 지은 단계가 있는 것이 정상이다: %v", err)
+		t.Fatalf("rejected a kept promise — a plan building the step is normal: %v", err)
 	}
 
 	// ⑤ 자기 자신은 약속할 수 없다 — 계획이 지은 단계는 언제나 뒤에 붙는다.
@@ -167,7 +167,7 @@ func TestValidate_produces(t *testing.T) {
 	}
 	if err := c.Validate(); err == nil ||
 		!strings.Contains(err.Error(), "at or before this step") {
-		t.Fatalf("자기 자신을 약속했는데 통과했다: %v", err)
+		t.Fatalf("promising itself passed: %v", err)
 	}
 }
 
@@ -177,14 +177,14 @@ func TestValidate_produces(t *testing.T) {
 // agent 와 in 이 map 이라 무엇이든 받았고, 어댑터는 아는 키만 읽어 통째로
 // 사라졌다 . 400 도 422 도 훅도 안 났다 — 계획은 자기가 틀렸다는 것을
 // 알 방법이 없었다.
-func TestValidate_모르는_필드(t *testing.T) {
+func TestValidate_UnknownFields(t *testing.T) {
 	base := `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 	  "steps":[{"id":"a","uses":"n","agent":{%s},"in":{%s},"out":["o"],
 	            "schema":{"o":{"type":"object"}}}],
 	  "success_when":[{"step":"a","produced":["o"]}]}`
 
 	for _, tc := range []struct{ name, agent, in, want string }{
-		{"agent.task", `"task":"할 일"`, `"prompt":"x"`, "unknown field \"task\" in agent"},
+		{"agent.task", `"task":"todo"`, `"prompt":"x"`, "unknown field \"task\" in agent"},
 		{"in.survey", `"max_turns":5`, `"survey":"survey"`, "unknown field \"survey\" in in"},
 	} {
 		var c Contract
@@ -194,11 +194,11 @@ func TestValidate_모르는_필드(t *testing.T) {
 		}
 		err := c.Validate()
 		if err == nil || !strings.Contains(err.Error(), tc.want) {
-			t.Fatalf("%s 를 안 막았다: %v", tc.name, err)
+			t.Fatalf("%s was not blocked: %v", tc.name, err)
 		}
 		// 어디에 적어야 하는지 알려준다 — 짚기만 하면 또 틀린다.
 		if tc.name == "agent.task" && !strings.Contains(err.Error(), "in.prompt") {
-			t.Fatalf("어디에 적어야 하는지 안 알려준다: %v", err)
+			t.Fatalf("it does not say where it belongs: %v", err)
 		}
 	}
 
@@ -210,7 +210,7 @@ func TestValidate_모르는_필드(t *testing.T) {
 	}
 	// from 이 없는 이름을 가리키므로 그 오류는 날 수 있다 — 필드 이름 오류만 없으면 된다.
 	if err := ok.Validate(); err != nil && strings.Contains(err.Error(), "unknown field") {
-		t.Fatalf("아는 키를 막았다: %v", err)
+		t.Fatalf("blocked a key it knows: %v", err)
 	}
 
 	// diff 는 자리다 — run-contract §5 가 정의했고 시연 계약이 쓴다.
@@ -220,6 +220,6 @@ func TestValidate_모르는_필드(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := d.Validate(); err != nil && strings.Contains(err.Error(), "unknown field") {
-		t.Fatalf("문서가 정의한 자리를 오타로 봤다: %v", err)
+		t.Fatalf("treated a documented field as a typo: %v", err)
 	}
 }

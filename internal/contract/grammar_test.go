@@ -19,15 +19,15 @@ import (
 
 // bad 는 문법이 금지한다고 적은 것을 실제로 어긴 계약이다.
 type bad struct {
-	name     string // 문법의 어느 문장인가
-	mustSay  string // Grammar 에 이 문구가 있어야 한다
+	name     string // which sentence of the grammar
+	mustSay  string // Grammar must contain this phrase
 	contract string
-	wantErr  string // 거절 사유에 이 문구가 있어야 한다
+	wantErr  string // the rejection reason must contain this phrase
 }
 
 const okStep = `{"id":"a","uses":"n","run":["true"],"out":["log"]}`
 
-func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.T) {
+func TestGrammar_WhatItForbidsIsActuallyRejected(t *testing.T) {
 	cases := []bad{
 		{
 			// 사람의 답에는 프로세스가 없다 — 조건이 통과하면 Verify 가
@@ -151,15 +151,15 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "exit_code",
 		},
 		{
-			name:    "success_when 은 실존하는 단계만 가리킬 수 있다",
+			name:    "success_when may only point at steps that exist",
 			mustSay: "success_when may only refer to steps that exist",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[` + okStep + `],
-			  "success_when":[{"step":"없는단계","exit_code":0}]}`,
+			  "success_when":[{"step":"nostep","exit_code":0}]}`,
 			wantErr: "unknown step",
 		},
 		{
-			name:    "재계획은 out 이 정확히 하나여야 한다",
+			name:    "a replan must have exactly one out",
 			mustSay: "out (exactly one)",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[{"id":"p","uses":"n","expands":true,"agent":{},"in":{"prompt":"x"},
@@ -168,7 +168,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "exactly one output",
 		},
 		{
-			name:    "재계획의 산출물에는 스키마가 필수다",
+			name:    "a replan artifact requires a schema",
 			mustSay: "schema (required)",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
 			  "steps":[{"id":"p","uses":"n","expands":true,"agent":{},"in":{"prompt":"x"},
@@ -182,19 +182,19 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 		t.Run(c.name, func(t *testing.T) {
 			// ① 문법이 그 말을 실제로 하고 있는가
 			if !strings.Contains(Grammar, c.mustSay) {
-				t.Fatalf("문법에 %q 가 없다 — Grammar 가 낡았거나 이 시험이 낡았다", c.mustSay)
+				t.Fatalf("the grammar lacks %q — either Grammar or this test is stale", c.mustSay)
 			}
 			// ② 그 말대로 실제로 거절되는가
 			var ct Contract
 			if err := json.Unmarshal([]byte(c.contract), &ct); err != nil {
-				t.Fatalf("시험 계약이 JSON 이 아니다: %v", err)
+				t.Fatalf("the test contract is not JSON: %v", err)
 			}
 			err := ct.Validate()
 			if err == nil {
-				t.Fatalf("문법은 거절한다고 적었는데 통과했다")
+				t.Fatalf("the grammar says it rejects this, yet it passed")
 			}
 			if !strings.Contains(err.Error(), c.wantErr) {
-				t.Fatalf("다른 이유로 거절됐다: %v (기대: %q)", err, c.wantErr)
+				t.Fatalf("rejected for a different reason: %v (want: %q)", err, c.wantErr)
 			}
 		})
 	}
@@ -202,13 +202,13 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 
 // 스키마 어휘 목록이 갈라지지 않는지 — 문법이 나열한 이름과
 // schema 패키지가 허용/거절하는 이름이 같아야 한다.
-func Test문법_스키마어휘가_실제와_같다(t *testing.T) {
+func TestGrammar_SchemaVocabularyMatchesReality(t *testing.T) {
 	for _, name := range []string{
 		"type", "required", "properties", "enum", "items",
 		"additionalProperties", "title", "description",
 	} {
 		if !strings.Contains(Grammar, name) {
-			t.Errorf("허용 어휘 %q 가 문법에 없다", name)
+			t.Errorf("allowed keyword %q is missing from the grammar", name)
 		}
 	}
 	for _, name := range []string{
@@ -216,17 +216,17 @@ func Test문법_스키마어휘가_실제와_같다(t *testing.T) {
 		"pattern", "format", "minItems", "maxItems",
 	} {
 		if !strings.Contains(Grammar, name) {
-			t.Errorf("거절 어휘 %q 가 문법에 없다 — 계획이 그것을 쓰고 422 를 받는다", name)
+			t.Errorf("rejected keyword %q is missing from the grammar — a plan would use it and get a 422", name)
 		}
 	}
 }
 
 // 빈 계획이 값이라는 것을 문법이 말해야 한다 (ADR-043)
 // 이 문장이 없으면 계획은 고칠 것이 없을 때도 억지로 단계를 지어낸다 — 실측에서 밟았다.
-func Test문법_빈계획을_말한다(t *testing.T) {
+func TestGrammar_MentionsTheEmptyPlan(t *testing.T) {
 	for _, want := range []string{`"steps": []`, "a judgment, not an error"} {
 		if !strings.Contains(Grammar, want) {
-			t.Errorf("문법에 %q 가 없다", want)
+			t.Errorf("the grammar lacks %q", want)
 		}
 	}
 }
