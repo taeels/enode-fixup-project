@@ -154,12 +154,20 @@ func TestSetup_OrchestrationDoesNotAdvertiseArch(t *testing.T) {
 		Name: "orch", Path: filepath.Join(t.TempDir(), "orch.yaml"),
 		Mediator: mediatorSaying(t, 200), Token: "t",
 		Workspace: t.TempDir(), Arch: "amd64", Orchestration: true,
-		Check: true, Out: &out, In: strings.NewReader(""),
+		// 이름표가 하나 있어야 한다 — arch 를 뺀 뒤 남는 것이 os · host_arch ·
+		// ws 뿐이면 그건 능력이 아니라서 광고 자체가 안 나간다. 하네스로
+		// 채우면 이 시험이 claude 가 깔린 기계에서만 돌게 되고, CI 에는
+		// 없다 (실측: 다섯 판째 붉었다).
+		Labels: map[string]string{"issue": "PROJ-42"},
+		Check:  true, Out: &out, In: strings.NewReader(""),
 	})
 	s := out.String()
 	i := strings.Index(s, "advertising")
 	if i < 0 {
 		t.Fatalf("it never said what it would advertise:\n%s", s)
+	}
+	if !advertised(s[i:])["issue=PROJ-42"] {
+		t.Fatalf("the label did not reach the advertisement, so this test proves nothing:\n%s", s[i:])
 	}
 	if advertised(s[i:])["arch=amd64"] {
 		t.Fatalf("an orchestrator advertised a build arch:\n%s", s[i:])
