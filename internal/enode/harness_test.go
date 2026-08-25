@@ -15,35 +15,35 @@ func TestParseClaude(t *testing.T) {
 		completed bool
 	}{
 		{
-			"정상", `{"type":"result","subtype":"success","is_error":false,
+			"normal", `{"type":"result","subtype":"success","is_error":false,
 			         "num_turns":14,"total_cost_usd":0.83,"result":"…"}`,
 			0, ReasonOK, true,
 		},
 		{
 			// 상한 소진은 완주다 — 필요한 걸 다 냈으면 produced 가 판정한다.
 			// 다만 Record 에 남는다 (예산 신호).
-			"턴 소진", `{"type":"result","subtype":"error_max_turns","is_error":true,"num_turns":20}`,
+			"turns exhausted", `{"type":"result","subtype":"error_max_turns","is_error":true,"num_turns":20}`,
 			1, ReasonMaxTurns, true,
 		},
 		{
-			"토큰 소진", `{"type":"result","subtype":"error_max_tokens","is_error":true}`,
+			"tokens exhausted", `{"type":"result","subtype":"error_max_tokens","is_error":true}`,
 			1, ReasonMaxTokens, true,
 		},
 		{
 			// 크래시는 완주가 아니다 — 반쯤 쓴 파일을 남길 수 있어 산출물을 믿을 수 없다
-			"봉투가 없다", "Traceback…\nsegfault\n", 139, ReasonError, false,
+			"no envelope", "Traceback…\nsegfault\n", 139, ReasonError, false,
 		},
 		{
-			"봉투가 깨졌다", "{not json", 0, ReasonError, false,
+			"broken envelope", "{not json", 0, ReasonError, false,
 		},
 		{
-			"하네스 오류", `{"type":"result","subtype":"error_during_execution","is_error":true}`,
+			"harness error", `{"type":"result","subtype":"error_during_execution","is_error":true}`,
 			1, ReasonError, false,
 		},
 		{
 			// 종료코드 0 을 믿지 않는다 — 로그가 섞여도 봉투를 집는다
-			"로그가 섞여 있다",
-			"준비 중…\n도구 호출\n" + `{"type":"result","subtype":"success","num_turns":3}`,
+			"logs are mixed in",
+			"warming up…\ntool call\n" + `{"type":"result","subtype":"success","num_turns":3}`,
 			0, ReasonOK, true,
 		},
 	}
@@ -51,10 +51,10 @@ func TestParseClaude(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			h := ParseClaude([]byte(c.stdout), c.exit)
 			if h.Reason != c.want {
-				t.Fatalf("reason=%s 기대 %s (%s)", h.Reason, c.want, h.Message)
+				t.Fatalf("reason=%s, want %s (%s)", h.Reason, c.want, h.Message)
 			}
 			if h.Reason.Completed() != c.completed {
-				t.Fatalf("completed=%v 기대 %v", h.Reason.Completed(), c.completed)
+				t.Fatalf("completed=%v, want %v", h.Reason.Completed(), c.completed)
 			}
 		})
 	}
@@ -64,17 +64,17 @@ func TestParseClaude(t *testing.T) {
 func TestHarnessRecordsBudget(t *testing.T) {
 	h := ParseClaude([]byte(`{"subtype":"success","num_turns":14,"total_cost_usd":0.83}`), 0)
 	if h.Turns != 14 || h.CostUSD != 0.83 {
-		t.Fatalf("예산 신호가 안 남았다: %+v", h)
+		t.Fatalf("the budget signal was not kept: %+v", h)
 	}
 }
 
 // 봉투의 session_id 를 읽어놓고 버리지 않는다 — R4 가 여기 걸린다.
-func TestParseClaude_세션을_넘긴다(t *testing.T) {
+func TestParseClaude_PassesTheSessionThrough(t *testing.T) {
 	env := `{"type":"result","subtype":"success","is_error":false,` +
 		`"num_turns":3,"total_cost_usd":0.01,"session_id":"abc-123","result":"ok"}`
 	h := ParseClaude([]byte(env), 0)
 	if h.Session != "abc-123" {
-		t.Fatalf("session 을 안 넘겼다: %q", h.Session)
+		t.Fatalf("the session was not passed through: %q", h.Session)
 	}
 	if h.Reason != ReasonOK {
 		t.Fatalf("reason=%v", h.Reason)
@@ -82,7 +82,7 @@ func TestParseClaude_세션을_넘긴다(t *testing.T) {
 }
 
 // 봉투에 session_id 가 없어도 나머지는 그대로 산다.
-func TestParseClaude_세션이_없어도_된다(t *testing.T) {
+func TestParseClaude_NoSessionIsFine(t *testing.T) {
 	h := ParseClaude([]byte(`{"type":"result","subtype":"success","num_turns":1}`), 0)
 	if h.Session != "" || h.Reason != ReasonOK || h.Turns != 1 {
 		t.Fatalf("%+v", h)

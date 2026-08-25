@@ -16,7 +16,7 @@ func TestPackagedExamplesParse(t *testing.T) {
 	dir := filepath.Join("..", "..", "packaging", "macos", "examples")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		t.Skipf("배포 예시가 없다: %v", err)
+		t.Skipf("no packaging examples: %v", err)
 	}
 
 	var seen int
@@ -29,24 +29,24 @@ func TestPackagedExamplesParse(t *testing.T) {
 		t.Run(e.Name(), func(t *testing.T) {
 			l, err := LoadLocal(path)
 			if err != nil {
-				t.Fatalf("파싱 실패: %v", err)
+				t.Fatalf("parse failed: %v", err)
 			}
 			// 예시는 반드시 채워야 할 자리를 비워두면 안 된다 —
 			// 비어 있으면 사람이 무엇을 채워야 하는지 모른다.
 			if l.Mediator == "" {
-				t.Error("mediator 가 비어 있다")
+				t.Error("mediator is empty")
 			}
 			if l.Token == "" {
-				t.Error("token 이 비어 있다 (자리표시자라도 있어야 한다)")
+				t.Error("token is empty (even a placeholder must be there)")
 			}
 			// MinFreeGB 는 LoadLocal 이 0 이면 10 으로 채운다 — 그 기본이 살아 있는지.
 			if l.MinFreeGB <= 0 {
-				t.Errorf("min_free_gb 가 %d 다", l.MinFreeGB)
+				t.Errorf("min_free_gb is %d", l.MinFreeGB)
 			}
 		})
 	}
 	if seen == 0 {
-		t.Fatal("예시가 하나도 없다")
+		t.Fatal("there is not a single example")
 	}
 }
 
@@ -61,11 +61,11 @@ func TestPackagedExamplesDeclareArchWhenToolchainIsUndetectable(t *testing.T) {
 		path := filepath.Join("..", "..", "packaging", "macos", "examples", name)
 		l, err := LoadLocal(path)
 		if err != nil {
-			t.Skipf("%s 가 없다: %v", name, err)
+			t.Skipf("%s is missing: %v", name, err)
 		}
 		if l.Arch == "" {
-			t.Errorf("%s: arch 가 비었다. 자동 탐지가 Zephyr 툴체인을 모르므로 "+
-				"설정이 적어야 한다 (Local.Arch 가 그 자리다)", name)
+			t.Errorf("%s: arch is empty. autodetection does not know the Zephyr toolchain, "+
+				"so the config must write it (Local.Arch is the place)", name)
 		}
 	}
 }

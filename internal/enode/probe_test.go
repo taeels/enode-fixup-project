@@ -52,24 +52,24 @@ func shQuote(v string) string {
 // 실측 (2026-08-24) colima VM 의 노드가 harness=claude 를 광고했는데
 // agent 단계가 1턴 1초에 죽었다: "Not logged in · Please run /login".
 // --version 은 로그인 없이도 답한다 — 그것만 보면 못 가른다.
-func Test로그인_안_된_하네스는_광고에서_빠진다(t *testing.T) {
+func TestALoggedOutHarnessDropsOutOfTheAdvert(t *testing.T) {
 	ctx := context.Background()
 
 	// ① 로그인돼 있다 → 쓸 수 있다
 	bin := fakeClaude(t, `{"loggedIn":true,"authMethod":"claude.ai"}`, true)
 	ver, err := (claudeHarness{}).Probe(ctx, bin)
 	if err != nil {
-		t.Fatalf("로그인돼 있는데 거절했다: %v", err)
+		t.Fatalf("rejected while logged in: %v", err)
 	}
 	if ver == "" {
-		t.Fatal("버전이 비었다")
+		t.Fatal("the version is empty")
 	}
 
 	// ② 로그인 안 됐다 → 못 쓴다
 	bin = fakeClaude(t, `{"loggedIn":false}`, true)
 	_, err = (claudeHarness{}).Probe(ctx, bin)
 	if !errors.Is(err, errNotUsable) {
-		t.Fatalf("로그인 안 됐는데 통과했다: %v", err)
+		t.Fatalf("passed while logged out: %v", err)
 	}
 
 	// ③ 종료코드가 0 이 아니어도 나온 것을 읽는다
@@ -80,7 +80,7 @@ func Test로그인_안_된_하네스는_광고에서_빠진다(t *testing.T) {
 	bin = fakeClaude(t, `{"loggedIn":false}`, true, true)
 	_, err = (claudeHarness{}).Probe(ctx, bin)
 	if !errors.Is(err, errNotUsable) {
-		t.Fatalf("종료코드가 0 이 아니라고 판정을 포기했다: %v", err)
+		t.Fatalf("gave up judging because the exit code was not 0: %v", err)
 	}
 
 	// ④ 모르면 「쓸 수 있다」로 본다 — 옛 CLI 는 이 하위명령이 없고,
@@ -89,14 +89,14 @@ func Test로그인_안_된_하네스는_광고에서_빠진다(t *testing.T) {
 		name, out string
 		ok        bool
 	}{
-		{"하위명령이 없다", "", false},
-		{"JSON 이 아니다", "그런 명령 없음", true},
-		{"loggedIn 이 없다", `{"authMethod":"claude.ai"}`, true},
+		{"no such subcommand", "", false},
+		{"not JSON", "no such command", true},
+		{"loggedIn is absent", `{"authMethod":"claude.ai"}`, true},
 	} {
 		bin = fakeClaude(t, tc.out, tc.ok)
 		_, err := (claudeHarness{}).Probe(ctx, bin)
 		if errors.Is(err, errNotUsable) {
-			t.Fatalf("%s — 모르는 것을 못 쓴다고 판정했다", tc.name)
+			t.Fatalf("%s — judged the unknown as unusable", tc.name)
 		}
 	}
 }
@@ -105,17 +105,17 @@ func Test로그인_안_된_하네스는_광고에서_빠진다(t *testing.T) {
 //
 // ADR-012: "못 하는 것을 빼고 보내는 것이 「지금은 못 한다」를 표현하는 방법".
 // 그런데 조용히 빠지면 사람이 원인을 못 찾는다 — 없는 것과 못 쓰는 것은 다르다.
-func Test못_쓰는_하네스는_광고에_안_실린다(t *testing.T) {
+func TestAnUnusableHarnessDoesNotRideTheAdvert(t *testing.T) {
 	bin := fakeClaude(t, `{"loggedIn":false}`, true)
 	caps := Detect(Local{HarnessBin: bin, Arch: "arm64", Workspace: t.TempDir()},
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	for _, c := range caps {
 		if _, has := c.Attrs["harness"]; has {
-			t.Fatalf("못 쓰는 하네스가 광고에 실렸다: %+v", c.Attrs)
+			t.Fatalf("an unusable harness rode the advert: %+v", c.Attrs)
 		}
 	}
 	// 다른 능력은 남는다 — 하네스를 못 쓴다고 빌드까지 못 하는 것은 아니다.
 	if len(caps) == 0 {
-		t.Fatal("arch 가 있는데 광고가 통째로 비었다")
+		t.Fatal("arch exists yet the whole advert is empty")
 	}
 }
