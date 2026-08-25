@@ -79,7 +79,7 @@ func TestDeriveLabel(t *testing.T) {
 	}
 	for path, want := range cases {
 		if got := deriveLabel("taeels@gmail.com", "thinkpad", path); got != want {
-			t.Errorf("%s → %q, 기대 %q", path, got, want)
+			t.Errorf("%s → %q, want %q", path, got, want)
 		}
 	}
 }

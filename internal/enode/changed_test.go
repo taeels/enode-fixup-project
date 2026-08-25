@@ -15,7 +15,7 @@ import (
 // git status 는 .gitignore 를 지켜서 빌드 산출물을 정확히 가린다.
 // 빌드 단계는 산출물이 전부 무시 목록에 있으므로, git 만 보면
 // 아무 일도 안 한 것처럼 보인다.
-func TestChanged_무시되는_빌드산출물을_잡는다(t *testing.T) {
+func TestChanged_CatchesIgnoredBuildArtifacts(t *testing.T) {
 	dir := gitInit(t) // .gitignore 에 build/ 와 *.o 가 있다
 	// stampNow 는 1초를 빼둔다 (mtime 해상도가 초 단위인 파일시스템 대비).
 	// 그래서 방금 만든 파일이 걸린다 — 시험에서는 쉬었다 찍는다.
@@ -26,68 +26,68 @@ func TestChanged_무시되는_빌드산출물을_잡는다(t *testing.T) {
 	write(t, dir, "build/zImage", strings.Repeat("k", 4096))
 	write(t, dir, "drivers/spi.o", "obj")
 	write(t, dir, "drivers/spi.ko", "module")
-	write(t, dir, "추적됨.c", "int x;")
+	write(t, dir, "tracked.c", "int x;")
 
 	found, total, err := changedSince(s, 100)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if total != 4 {
-		t.Fatalf("4개여야 한다 (무시되는 것 포함): %d — %v", total, found)
+		t.Fatalf("want 4 (including the ignored ones): %d — %v", total, found)
 	}
 	names := map[string]bool{}
 	for _, c := range found {
 		names[filepath.ToSlash(c.Path)] = true
 	}
-	for _, need := range []string{"build/zImage", "drivers/spi.o", "drivers/spi.ko", "추적됨.c"} {
+	for _, need := range []string{"build/zImage", "drivers/spi.o", "drivers/spi.ko", "tracked.c"} {
 		if !names[need] {
-			t.Fatalf("%s 를 못 잡았다 — git 이 못 보는 것을 보는 게 목적이다: %v", need, names)
+			t.Fatalf("missed %s — the point is to see what git cannot: %v", need, names)
 		}
 	}
 	// 확인: git 은 정말 못 본다 (이 시험의 전제)
 	out, _ := gitOut(t.Context(), dir, nil, "status", "--porcelain", "-uall")
 	if strings.Contains(string(out), "zImage") {
-		t.Fatal("전제가 틀렸다 — git 이 zImage 를 본다면 이 코드가 필요없다")
+		t.Fatal("the premise is wrong — if git sees zImage this code is unnecessary")
 	}
 }
 
 // 기준보다 오래된 것은 안 잡는다 — 데워둔 빌드 캐시가 매번 딸려오면
 // 목록이 쓸모없어진다 (ADR-007 이 준비물로 잡은 그 캐시다).
-func TestChanged_데워둔_캐시는_안_잡는다(t *testing.T) {
+func TestChanged_LeavesTheWarmedCacheAlone(t *testing.T) {
 	dir := gitInit(t)
-	write(t, dir, "build/캐시.o", "오래된것") // sanitize 가 남기는 것
+	write(t, dir, "build/cache.o", "stale") // what sanitize leaves behind
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir) // sanitize 직후에 찍는다
 	time.Sleep(1100 * time.Millisecond)
-	write(t, dir, "build/새것.o", "이번에만든것")
+	write(t, dir, "build/fresh.o", "made-this-time")
 
 	found, total, _ := changedSince(s, 100)
 	if total != 1 {
-		t.Fatalf("이번 단계가 만든 1개만 잡혀야 한다: %d — %v", total, found)
+		t.Fatalf("only the 1 made by this step must be caught: %d — %v", total, found)
 	}
-	if !strings.Contains(found[0].Path, "새것") {
-		t.Fatalf("엉뚱한 걸 잡았다: %v", found)
+	if !strings.Contains(found[0].Path, "fresh") {
+		t.Fatalf("caught the wrong thing: %v", found)
 	}
 }
 
 // .git 안은 안 본다 — 인덱스·로그가 계속 바뀌어 목록을 덮는다.
-func TestChanged_git내부는_안_본다(t *testing.T) {
+func TestChanged_DoesNotLookInsideGit(t *testing.T) {
 	dir := gitInit(t)
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir)
 	time.Sleep(1100 * time.Millisecond)
-	write(t, dir, "진짜.c", "x")
-	git(t, dir, "add", "진짜.c") // .git/index 가 바뀐다
+	write(t, dir, "real.c", "x")
+	git(t, dir, "add", "real.c") // .git/index changes
 
 	found, total, _ := changedSince(s, 100)
-	if total != 1 || !strings.Contains(found[0].Path, "진짜.c") {
-		t.Fatalf(".git 내부가 섞였다: %d — %v", total, found)
+	if total != 1 || !strings.Contains(found[0].Path, "real.c") {
+		t.Fatalf("the inside of .git got mixed in: %d — %v", total, found)
 	}
 }
 
 // 수만 개를 그대로 넘기지 않는다 — 커널 빌드가 그렇다.
 // 자르되 자른 사실을 숨기지 않는다.
-func TestChanged_많으면_요약한다(t *testing.T) {
+func TestChanged_SummarizesWhenThereAreMany(t *testing.T) {
 	dir := t.TempDir()
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir)
@@ -99,22 +99,22 @@ func TestChanged_많으면_요약한다(t *testing.T) {
 
 	found, total, _ := changedSince(s, 10)
 	if total != 51 || len(found) != 10 {
-		t.Fatalf("total=%d found=%d — 세되 자르는 게 맞다", total, len(found))
+		t.Fatalf("total=%d found=%d — count them all but truncate the list", total, len(found))
 	}
 	sum := summarize(found, total, 5)
 	if !strings.Contains(sum, "files created or modified by this step: 51") || !strings.Contains(sum, "(showing 10)") {
-		t.Fatalf("자른 사실을 안 밝혔다:\n%s", sum)
+		t.Fatalf("the truncation was not disclosed:\n%s", sum)
 	}
 	if !strings.Contains(sum, "vmlinux") {
-		t.Fatalf("큰 것이 먼저 나와야 한다 — 최종 산출물일 가능성이 높다:\n%s", sum)
+		t.Fatalf("the big ones must come first — they are likely the final artifacts:\n%s", sum)
 	}
 	if !strings.Contains(sum, ".o ") {
-		t.Fatalf("종류별 집계가 없다:\n%s", sum)
+		t.Fatalf("no per-kind tally:\n%s", sum)
 	}
 }
 
 // 훅이 기준 시각을 받아 빌드 산출물을 짚어준다.
-func TestHook_빌드산출물을_알려준다(t *testing.T) {
+func TestHook_ReportsBuildArtifacts(t *testing.T) {
 	dir := gitInit(t)
 	out, inst := t.TempDir(), t.TempDir()
 	time.Sleep(1100 * time.Millisecond)
@@ -126,18 +126,18 @@ func TestHook_빌드산출물을_알려준다(t *testing.T) {
 	if err := writeStamp(sp, s); err != nil {
 		t.Fatal(err)
 	}
-	o := hookRun(t, HookArgs{Out: out, Workspace: dir, Expect: []string{"커널"}, Stamp: sp},
+	o := hookRun(t, HookArgs{Out: out, Workspace: dir, Expect: []string{"kernel"}, Stamp: sp},
 		StopInput{})
 	if o.Decision != "block" {
-		t.Fatalf("안 막았다: %+v", o)
+		t.Fatalf("it did not block: %+v", o)
 	}
 	if !strings.Contains(o.Reason, "zImage") {
-		t.Fatalf("훅이 빌드 산출물을 못 봤다 — git 만 보면 이렇게 된다:\n%s", o.Reason)
+		t.Fatalf("the hook did not see the build artifacts — this is what looking only at git gives:\n%s", o.Reason)
 	}
 }
 
 // 기준 시각이 없으면 조용히 그 부분만 빠진다 — 훅이 죽지 않는다.
-func TestHook_기준시각이_없어도_돈다(t *testing.T) {
+func TestHook_RunsWithoutAStamp(t *testing.T) {
 	out := t.TempDir()
 	o := hookRun(t, HookArgs{Out: out, Expect: []string{"x"}}, StopInput{})
 	if o.Decision != "block" || !strings.Contains(o.Reason, "x") {
@@ -150,7 +150,7 @@ func TestHook_기준시각이_없어도_돈다(t *testing.T) {
 // 빌드·플래시가 전부 명령 단계이고 ADR-019 로 같은 노드의 cap 아래 들어왔다.
 // 되물을 상대가 스크립트라 훅을 못 쓴다. 그러면 기록이
 // "무엇을 만들었고 무엇을 안 냈나" 를 스스로 말해야 한다.
-func TestNote_만든것과_안낸것을_같이_적는다(t *testing.T) {
+func TestNote_RecordsWhatWasMadeAndWhatWasNotProduced(t *testing.T) {
 	dir := gitInit(t)
 	out := t.TempDir()
 	time.Sleep(1100 * time.Millisecond)
@@ -170,18 +170,18 @@ func TestNote_만든것과_안낸것을_같이_적는다(t *testing.T) {
 	}
 	got := string(b)
 	if !strings.Contains(got, "artifact") || !strings.Contains(got, "build_log") {
-		t.Fatalf("안 낸 것을 안 짚었다:\n%s", got)
+		t.Fatalf("what was not produced is not pointed out:\n%s", got)
 	}
 	if !strings.Contains(got, "vmlinux") {
-		t.Fatalf("만든 것을 안 적었다 — diff 만 보면 아무것도 안 한 것처럼 보인다:\n%s", got)
+		t.Fatalf("what was made is not recorded — the diff alone looks like nothing happened:\n%s", got)
 	}
 	if strings.Contains(got, "실패") {
-		t.Fatalf("기록이 판정했다 — 판정은 success_when 이 한다 (ADR-004·I3):\n%s", got)
+		t.Fatalf("the record passed judgment — success_when does the judging (ADR-004·I3):\n%s", got)
 	}
 }
 
 // 다 냈으면 「안 낸 것」 절이 없다.
-func TestNote_다_냈으면_안_짚는다(t *testing.T) {
+func TestNote_SaysNothingWhenAllWasProduced(t *testing.T) {
 	dir, out := gitInit(t), t.TempDir()
 	if err := os.WriteFile(filepath.Join(out, "artifact"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -194,7 +194,7 @@ func TestNote_다_냈으면_안_짚는다(t *testing.T) {
 	writeChangedNote(out, []string{"artifact"}, s, nil, testLog())
 	b, _ := os.ReadFile(filepath.Join(out, changedName))
 	if strings.Contains(string(b), "missing") {
-		t.Fatalf("다 냈는데 짚었다:\n%s", b)
+		t.Fatalf("pointed something out although everything was produced:\n%s", b)
 	}
 }
 
@@ -203,7 +203,7 @@ func TestNote_다_냈으면_안_짚는다(t *testing.T) {
 // diff 도 changed 도 비어 있는 것이 정상이다. 시리얼 출력이 산출물이고
 // 그건 단계가 직접 $OUT 에 옮겨야 한다. 기록이 그 사실을 말해줘야
 // 사람이 "왜 아무것도 안 걷혔지" 를 안 헤맨다.
-func TestNote_흔적이_없는_단계도_설명한다(t *testing.T) {
+func TestNote_ExplainsAStepThatLeftNoTrace(t *testing.T) {
 	dir, out := t.TempDir(), t.TempDir()
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir)
@@ -215,10 +215,10 @@ func TestNote_흔적이_없는_단계도_설명한다(t *testing.T) {
 	}
 	got := string(b)
 	if !strings.Contains(got, "kunit_result") {
-		t.Fatalf("안 낸 것을 안 짚었다:\n%s", got)
+		t.Fatalf("what was not produced is not pointed out:\n%s", got)
 	}
 	if !strings.Contains(got, "no files changed") {
-		t.Fatalf("흔적이 없다는 사실을 안 적었다 — 보드 단계가 이렇다:\n%s", got)
+		t.Fatalf("the absence of any trace is not recorded — board steps look like this:\n%s", got)
 	}
 }
 
@@ -251,15 +251,15 @@ func TestCheckChanged(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got := CheckChanged(stamp, []string{"sub/fresh.c", "old.c", "없는것.c", "adir"})
+	got := CheckChanged(stamp, []string{"sub/fresh.c", "old.c", "nosuch.c", "adir"})
 	if len(got) != 1 || got[0] != "sub/fresh.c" {
-		t.Fatalf("바뀐 것만 나와야 한다: %v", got)
+		t.Fatalf("only what changed may come back: %v", got)
 	}
 	// 기준이 없으면 아무것도 안 본다 — 워크스페이스 없는 단계.
 	if got := CheckChanged(Stamp{}, []string{"sub/fresh.c"}); got != nil {
-		t.Fatalf("기준이 없는데 %v", got)
+		t.Fatalf("no baseline, yet %v", got)
 	}
 	if got := CheckChanged(stamp, nil); got != nil {
-		t.Fatalf("요구가 없는데 %v", got)
+		t.Fatalf("nothing was required, yet %v", got)
 	}
 }
