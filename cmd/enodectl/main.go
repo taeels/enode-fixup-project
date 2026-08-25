@@ -45,6 +45,8 @@ func main() {
 	switch cmd {
 	case "list":
 		err = cmdList()
+	case "setup":
+		err = cmdSetup(args)
 	case "id":
 		err = cmdID(args)
 	case "start":
@@ -63,7 +65,7 @@ func main() {
 	case "--version", "-version", "version":
 		fmt.Println(build.Version("enodectl"))
 	default:
-		err = fmt.Errorf("unknown command: %s  (list · id · start · stop · logs · status · version)", cmd)
+		err = fmt.Errorf("unknown command: %s  (setup · list · id · start · stop · logs · status · version)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "✗ %v\n", err)
@@ -74,6 +76,7 @@ func main() {
 func usage() {
 	fmt.Print(`enodectl — manage the enode instances on one machine.
 
+  enodectl setup <name>        create a node config and check it against the mediator
   enodectl list                a config is a node. what exists and what runs
   enodectl id <name>           compute node_id ahead of time
   enodectl start <name> [args…]

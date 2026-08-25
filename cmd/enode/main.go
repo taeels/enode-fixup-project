@@ -31,6 +31,11 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
 		os.Exit(runHookCmd(os.Args[2:]))
 	}
+	// setup 은 플래그 파싱보다 앞이다 — 설정이 없어서 부르는 명령이므로
+	// 설정을 찾다가 죽는 경로를 지나가면 안 된다.
+	if len(os.Args) > 1 && os.Args[1] == "setup" {
+		os.Exit(runSetupCmd(os.Args[2:]))
+	}
 	// --version 은 플래그 파싱보다 앞이다 (ADR-056) — 설정 파일이 없어도
 	// 답해야 한다. 자기 갱신이 받아온 것이 무엇인지를 이것으로 판정한다.
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
