@@ -49,7 +49,7 @@ func main() {
 
 	cfg, err := LoadConfig(*confPath)
 	if err != nil {
-		log.Error("설정을 못 읽는다", "path", *confPath, "err", err)
+		log.Error("cannot read config", "path", *confPath, "err", err)
 		os.Exit(1)
 	}
 
@@ -63,10 +63,10 @@ func main() {
 		log: log,
 	}
 	if err := a.loadColumns(ctx); err != nil {
-		log.Warn("칸 목록을 못 읽었다; 상태 전이를 건너뛴다", "err", err)
+		log.Warn("cannot read the column list; skipping state transitions", "err", err)
 	}
 
-	log.Info("어댑터를 시작한다",
+	log.Info("adapter starting",
 		"itsaplan", cfg.ItsAPlan.BaseURL,
 		"mediator", cfg.Mediator.URL,
 		"project", cfg.ItsAPlan.ProjectKey,
@@ -74,7 +74,7 @@ func main() {
 
 	a.Run(ctx, *once)
 	a.wg.Wait()
-	log.Info("어댑터가 멈췄다")
+	log.Info("adapter stopped")
 }
 
 type Adapter struct {
@@ -88,7 +88,7 @@ type Adapter struct {
 
 func (a *Adapter) loadColumns(ctx context.Context) error {
 	if a.cfg.ItsAPlan.ProjectKey == "" {
-		return fmt.Errorf("itsaplan.project_key 가 비어 있다")
+		return fmt.Errorf("itsaplan.project_key is empty")
 	}
 	cols, err := a.iap.Columns(ctx, a.cfg.ItsAPlan.ProjectKey)
 	if err != nil {
@@ -115,7 +115,7 @@ func (a *Adapter) Run(ctx context.Context, once bool) {
 
 		rr, err := a.iap.Claim(ctx)
 		if err != nil {
-			a.log.Warn("claim 이 실패했다", "err", err)
+			a.log.Warn("claim failed", "err", err)
 			if !sleep(ctx, a.cfg.Poll()) {
 				return
 			}
@@ -123,7 +123,7 @@ func (a *Adapter) Run(ctx context.Context, once bool) {
 		}
 		if rr == nil {
 			if once {
-				a.log.Info("큐가 비었다 (--once)")
+				a.log.Info("queue is empty (--once)")
 				return
 			}
 			if !sleep(ctx, a.cfg.Poll()) {
@@ -132,7 +132,7 @@ func (a *Adapter) Run(ctx context.Context, once bool) {
 			continue
 		}
 
-		a.log.Info("일감을 당겼다",
+		a.log.Info("pulled a job",
 			"agent_run", rr.ID, "trigger", rr.Trigger,
 			"issue", rr.IssueIdentifier, "attempts", rr.Attempts)
 
@@ -152,13 +152,13 @@ func (a *Adapter) Run(ctx context.Context, once bool) {
 func (a *Adapter) handle(ctx context.Context, rr *RunnerRun) {
 	defer func() {
 		if r := recover(); r != nil {
-			a.log.Error("일감 처리 중 죽었다", "agent_run", rr.ID, "panic", r)
+			a.log.Error("panicked while handling a job", "agent_run", rr.ID, "panic", r)
 			_ = a.iap.Result(ctx, rr.ID, "failed", "", fmt.Sprintf("어댑터 내부 오류: %v", r))
 		}
 	}()
 
 	if rr.IssueID == nil || rr.IssueIdentifier == "" {
-		a.log.Warn("이슈가 없는 일감은 다루지 않는다", "agent_run", rr.ID)
+		a.log.Warn("ignoring a job with no issue", "agent_run", rr.ID)
 		_ = a.iap.Result(ctx, rr.ID, "failed", "",
 			"이 어댑터는 이슈에 붙은 일감만 다룬다 (issueId 가 비어 있다)")
 		return
@@ -185,7 +185,7 @@ func (a *Adapter) heartbeat(ctx context.Context, runID int) {
 			return
 		case <-t.C:
 			if err := a.iap.Heartbeat(ctx, runID); err != nil {
-				a.log.Debug("하트비트가 실패했다", "agent_run", runID, "err", err)
+				a.log.Debug("heartbeat failed", "agent_run", runID, "err", err)
 			}
 		}
 	}
@@ -204,21 +204,21 @@ func (a *Adapter) handleNewWork(ctx context.Context, rr *RunnerRun) {
 	// 그것이고, 유도 가능하면 표 자체가 필요 없다.
 	runID, err := a.nextRunID(ctx, issueKey)
 	if err != nil {
-		log.Error("run_id 를 못 정했다", "err", err)
+		log.Error("could not decide run_id", "err", err)
 		_ = a.iap.Result(ctx, rr.ID, "failed", "", "run_id 를 못 정했다: "+err.Error())
 		return
 	}
 
 	issue, err := a.iap.Issue(ctx, *rr.IssueID)
 	if err != nil {
-		log.Warn("이슈를 못 읽었다; 프롬프트만 쓴다", "err", err)
+		log.Warn("cannot read the issue; using the prompt only", "err", err)
 	}
 
 	a.move(ctx, *rr.IssueID, a.cfg.Transition.OnStart, log)
 
 	orch, err := StartOrchestrator(ctx, a.cfg, issueKey, log)
 	if err != nil {
-		log.Error("오케스트레이터를 못 띄웠다", "err", err)
+		log.Error("could not start the orchestrator", "err", err)
 		a.failOut(ctx, rr, "오케스트레이터를 못 띄웠다: "+err.Error())
 		return
 	}
@@ -234,23 +234,23 @@ func (a *Adapter) handleNewWork(ctx context.Context, rr *RunnerRun) {
 	}()
 
 	if err := orch.WaitAdvertised(ctx, a.med, a.cfg.ReadyWait()); err != nil {
-		log.Error("광고를 못 봤다", "err", err)
+		log.Error("did not see the advertisement", "err", err)
 		a.failOut(ctx, rr, "오케스트레이터가 함대에 안 나타났다: "+err.Error())
 		return
 	}
 
 	body, err := BuildContract(a.cfg, runID, issueKey, issue, rr)
 	if err != nil {
-		log.Error("계약을 못 지었다", "err", err)
+		log.Error("could not build the contract", "err", err)
 		a.failOut(ctx, rr, "계약을 못 지었다: "+err.Error())
 		return
 	}
 	if err := a.med.SubmitRun(ctx, body); err != nil {
-		log.Error("Run 제출이 실패했다", "run", runID, "err", err)
+		log.Error("run submission failed", "run", runID, "err", err)
 		a.failOut(ctx, rr, "Run 제출이 실패했다: "+err.Error())
 		return
 	}
-	log.Info("Run 을 냈다", "run", runID)
+	log.Info("run submitted", "run", runID)
 
 	keepAlive = a.follow(ctx, rr, runID, issueKey, log)
 }
@@ -269,7 +269,7 @@ func (a *Adapter) follow(ctx context.Context, rr *RunnerRun, runID, issueKey str
 
 		run, err := a.med.GetRun(ctx, runID)
 		if err != nil {
-			log.Debug("Run 조회가 실패했다", "err", err)
+			log.Debug("run lookup failed", "err", err)
 			continue
 		}
 
@@ -296,11 +296,11 @@ func (a *Adapter) follow(ctx context.Context, rr *RunnerRun, runID, issueKey str
 func (a *Adapter) handOff(ctx context.Context, rr *RunnerRun, run *RunView, ask *AskView, log *slog.Logger) {
 	commentID, err := a.iap.Comment(ctx, *rr.IssueID, RenderQuestion(ask, run.RunID), 0)
 	if err != nil {
-		log.Error("질문 코멘트를 못 썼다", "err", err)
+		log.Error("could not post the question comment", "err", err)
 		_ = a.iap.Result(ctx, rr.ID, "failed", "", "질문을 이슈로 못 옮겼다: "+err.Error())
 		return
 	}
-	log.Info("질문을 코멘트로 옮겼다", "comment", commentID, "step", ask.Step, "seq", ask.Seq)
+	log.Info("question relayed as a comment", "comment", commentID, "step", ask.Step, "seq", ask.Seq)
 
 	// 밖에 남긴 것도 산출물이다 (ADR-040 §3.3).
 	//
@@ -318,14 +318,14 @@ func (a *Adapter) handOff(ctx context.Context, rr *RunnerRun, run *RunView, ask 
 	if err := a.med.PutBlob(ctx, run.RunID, ask.Seq, "_outbound", ob); err != nil {
 		// 막지 않는다 — 질문은 이미 나갔다. 다만 답을 맞출 재료가 약해지므로
 		// 크게 적는다.
-		log.Error("_outbound 를 못 남겼다; 답 매칭이 약해진다", "err", err)
+		log.Error("could not record _outbound; answer matching gets weaker", "err", err)
 	}
 
 	a.move(ctx, *rr.IssueID, a.cfg.Transition.OnAsk, log)
 
 	out := fmt.Sprintf("사람의 답을 기다린다 — 코멘트 #%d · run %s", commentID, run.RunID)
 	if err := a.iap.Result(ctx, rr.ID, "success", out, ""); err != nil {
-		log.Warn("result 보고가 실패했다", "err", err)
+		log.Warn("result report failed", "err", err)
 	}
 }
 
@@ -334,7 +334,7 @@ func (a *Adapter) finish(ctx context.Context, rr *RunnerRun, run *RunView, log *
 	// ② 사람이 읽는 것
 	summary := summaryOf(ctx, a.med, run.RunID)
 	if _, err := a.iap.Comment(ctx, *rr.IssueID, RenderResult(ctx, a.med, run, summary), 0); err != nil {
-		log.Error("결과 코멘트를 못 썼다", "err", err)
+		log.Error("could not post the result comment", "err", err)
 	}
 
 	// ③ 보드가 읽는 것
@@ -353,9 +353,9 @@ func (a *Adapter) finish(ctx context.Context, rr *RunnerRun, run *RunView, log *
 		errMsg = "Run 이 " + run.State + " 로 끝났다"
 	}
 	if err := a.iap.Result(ctx, rr.ID, status, oneLine(run, run.RunID), errMsg); err != nil {
-		log.Warn("result 보고가 실패했다", "err", err)
+		log.Warn("result report failed", "err", err)
 	}
-	log.Info("일감을 닫았다", "run", run.RunID, "state", run.State)
+	log.Info("job closed", "run", run.RunID, "state", run.State)
 }
 
 func (a *Adapter) failOut(ctx context.Context, rr *RunnerRun, msg string) {
@@ -376,14 +376,14 @@ func (a *Adapter) move(ctx context.Context, issueID int, columnName string, log 
 	}
 	id, ok := a.columns[columnName]
 	if !ok {
-		log.Warn("모르는 칸 이름이다; 안 옮긴다", "column", columnName)
+		log.Warn("unknown column name; not moving", "column", columnName)
 		return
 	}
 	if err := a.iap.MoveIssue(ctx, issueID, id); err != nil {
-		log.Warn("칸을 못 옮겼다 (부분 성공)", "column", columnName, "err", err)
+		log.Warn("could not move the column (partial success)", "column", columnName, "err", err)
 		return
 	}
-	log.Info("칸을 옮겼다", "column", columnName)
+	log.Info("column moved", "column", columnName)
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -413,7 +413,7 @@ func (a *Adapter) handleAnswer(ctx context.Context, rr *RunnerRun) {
 		if a.reportUnreported(ctx, rr, issueKey, log) {
 			return
 		}
-		log.Info("이 이슈에 열린 질문도 안 넘긴 결과도 없다", "err", err)
+		log.Info("no open question and no unreported result on this issue", "err", err)
 		_ = a.iap.Result(ctx, rr.ID, "success",
 			"열린 질문이 없어 답으로 처리하지 않았다", "")
 		return
@@ -421,7 +421,7 @@ func (a *Adapter) handleAnswer(ctx context.Context, rr *RunnerRun) {
 
 	verdict, note := parseAnswer(rr.Prompt)
 	if verdict == "" {
-		log.Info("답에서 판정을 못 읽었다", "prompt", head(rr.Prompt, 200))
+		log.Info("could not read a verdict from the answer", "prompt", head(rr.Prompt, 200))
 		_, _ = a.iap.Comment(ctx, *rr.IssueID,
 			"답을 읽지 못했습니다. `ok` 또는 `again` 으로 시작하는 답글을 달아 주세요.", 0)
 		_ = a.iap.Result(ctx, rr.ID, "success", "답에서 판정을 못 읽었다", "")
@@ -430,13 +430,13 @@ func (a *Adapter) handleAnswer(ctx context.Context, rr *RunnerRun) {
 
 	body, _ := json.Marshal(map[string]any{"verdict": verdict, "note": note})
 	if err := a.med.Answer(ctx, runID, ask.Seq, body); err != nil {
-		log.Error("답을 못 넣었다", "run", runID, "seq", ask.Seq, "err", err)
+		log.Error("could not submit the answer", "run", runID, "seq", ask.Seq, "err", err)
 		_, _ = a.iap.Comment(ctx, *rr.IssueID,
 			"답을 계약에 넣지 못했습니다:\n\n```\n"+err.Error()+"\n```", 0)
 		_ = a.iap.Result(ctx, rr.ID, "failed", "", err.Error())
 		return
 	}
-	log.Info("답을 넣었다", "run", runID, "seq", ask.Seq, "verdict", verdict)
+	log.Info("answer submitted", "run", runID, "seq", ask.Seq, "verdict", verdict)
 
 	a.move(ctx, *rr.IssueID, a.cfg.Transition.OnStart, log)
 	_ = a.follow(ctx, rr, runID, issueKey, log)
@@ -454,13 +454,13 @@ func (a *Adapter) reportUnreported(ctx context.Context, rr *RunnerRun, issueKey 
 	}
 	said, err := a.iap.AlreadySaid(ctx, *rr.IssueID, ResultMarker(runID))
 	if err != nil {
-		log.Warn("피드를 못 읽어 중복 여부를 모른다; 안 넘긴다", "err", err)
+		log.Warn("cannot read the feed, so duplication is unknown; not reporting", "err", err)
 		return false
 	}
 	if said {
 		return false
 	}
-	log.Info("끝났는데 안 넘긴 Run 을 찾았다; 지금 넘긴다", "run", runID, "state", run.State)
+	log.Info("found a finished but unreported run; reporting now", "run", runID, "state", run.State)
 	a.finish(ctx, rr, run, log)
 	return true
 }
@@ -567,11 +567,11 @@ func (a *Adapter) nextRunID(ctx context.Context, issueKey string) (string, error
 			return "", err
 		}
 		if !run.Terminal() {
-			return "", fmt.Errorf("%s 가 아직 안 끝났다 (%s) — 이슈 하나에 열린 Run 은 하나다",
+			return "", fmt.Errorf("%s has not finished yet (%s) — one issue holds at most one open run",
 				id, run.State)
 		}
 	}
-	return "", fmt.Errorf("%s 의 세대가 50 을 넘었다", issueKey)
+	return "", fmt.Errorf("%s exceeded 50 generations", issueKey)
 }
 
 func sleep(ctx context.Context, d time.Duration) bool {

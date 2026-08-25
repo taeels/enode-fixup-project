@@ -84,13 +84,13 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	if c.ItsAPlan.BaseURL == "" || c.ItsAPlan.APIKey == "" {
-		return nil, fmt.Errorf("itsaplan.base_url 과 itsaplan.api_key 는 필수다")
+		return nil, fmt.Errorf("itsaplan.base_url and itsaplan.api_key are required")
 	}
 	if c.Mediator.URL == "" || c.Mediator.Token == "" {
-		return nil, fmt.Errorf("mediator.url 과 mediator.token 은 필수다")
+		return nil, fmt.Errorf("mediator.url and mediator.token are required")
 	}
 	if c.Orchestrator.Bin == "" {
-		return nil, fmt.Errorf("orchestrator.bin 은 필수다")
+		return nil, fmt.Errorf("orchestrator.bin is required")
 	}
 	if c.Orchestrator.WorkspaceRoot == "" {
 		c.Orchestrator.WorkspaceRoot = "/tmp/enode-orch"

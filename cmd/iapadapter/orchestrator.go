@@ -104,14 +104,14 @@ func StartOrchestrator(ctx context.Context, cfg *Config, issueKey string, log *s
 		lf.Close()
 		close(o.done)
 	}()
-	log.Info("오케스트레이터를 띄웠다", "issue", issueKey, "dir", dir, "pid", cmd.Process.Pid)
+	log.Info("orchestrator started", "issue", issueKey, "dir", dir, "pid", cmd.Process.Pid)
 
 	// ready 파일에는 node_id 가 들어간다.
 	deadline := time.Now().Add(cfg.ReadyWait())
 	for time.Now().Before(deadline) {
 		if raw, err := os.ReadFile(readyPath); err == nil && len(raw) > 0 {
 			o.NodeID = trimLine(string(raw))
-			log.Info("오케스트레이터가 광고를 마쳤다", "issue", issueKey, "node", o.NodeID)
+			log.Info("orchestrator finished advertising", "issue", issueKey, "node", o.NodeID)
 			return o, nil
 		}
 		select {
@@ -122,7 +122,7 @@ func StartOrchestrator(ctx context.Context, cfg *Config, issueKey string, log *s
 		}
 	}
 	o.Stop()
-	return nil, fmt.Errorf("오케스트레이터가 %s 안에 광고하지 않았다 (로그: %s)",
+	return nil, fmt.Errorf("orchestrator did not advertise within %s (log: %s)",
 		cfg.ReadyWait(), logPath)
 }
 
@@ -143,7 +143,7 @@ func (o *Orchestrator) WaitAdvertised(ctx context.Context, m *Mediator, wait tim
 		case <-time.After(time.Second):
 		}
 	}
-	return fmt.Errorf("함대의 광고에 issue=%s 가 %s 안에 안 나타났다", o.IssueKey, wait)
+	return fmt.Errorf("issue=%s did not appear in the fleet advertisement within %s", o.IssueKey, wait)
 }
 
 // Stop 은 오케스트레이터를 끝내고 정리한다.
@@ -175,13 +175,13 @@ func (o *Orchestrator) awaitAndClean() {
 		<-o.done
 	}
 	if o.keep {
-		o.log.Info("워크스페이스를 남긴다", "dir", o.Dir)
+		o.log.Info("keeping the workspace", "dir", o.Dir)
 		return
 	}
 	// 지우는 것은 띄운 쪽이다 (adapter-example §4.2). 어댑터가 먼저 죽으면
 	// 남지만, WorkspaceRoot 가 /tmp 면 재부팅이 지운다.
 	if err := os.RemoveAll(o.Dir); err != nil {
-		o.log.Warn("워크스페이스를 못 지웠다", "dir", o.Dir, "err", err)
+		o.log.Warn("could not remove the workspace", "dir", o.Dir, "err", err)
 	}
 }
 

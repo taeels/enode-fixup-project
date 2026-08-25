@@ -79,7 +79,7 @@ func (c *IAP) do(ctx context.Context, method, path string, body any, out any) (i
 	}
 	if out != nil && len(bytes.TrimSpace(raw)) > 0 {
 		if err := json.Unmarshal(raw, out); err != nil {
-			return resp.StatusCode, fmt.Errorf("%s %s: 응답을 못 읽는다: %w", method, path, err)
+			return resp.StatusCode, fmt.Errorf("%s %s: cannot read response: %w", method, path, err)
 		}
 	}
 	return resp.StatusCode, nil

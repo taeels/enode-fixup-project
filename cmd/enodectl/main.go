@@ -63,7 +63,7 @@ func main() {
 	case "--version", "-version", "version":
 		fmt.Println(build.Version("enodectl"))
 	default:
-		err = fmt.Errorf("모르는 명령: %s  (list · id · start · stop · logs · status · version)", cmd)
+		err = fmt.Errorf("unknown command: %s  (list · id · start · stop · logs · status · version)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "✗ %v\n", err)
@@ -72,16 +72,16 @@ func main() {
 }
 
 func usage() {
-	fmt.Print(`enodectl — 한 기계의 enode 인스턴스들을 다룬다.
+	fmt.Print(`enodectl — manage the enode instances on one machine.
 
-  enodectl list                설정 = 노드. 무엇이 있고 무엇이 도는가
-  enodectl id <이름>           node_id 를 미리 계산한다
-  enodectl start <이름> [인자…]
-  enodectl stop  <이름>
-  enodectl logs  <이름> [-f]
+  enodectl list                a config is a node. what exists and what runs
+  enodectl id <name>           compute node_id ahead of time
+  enodectl start <name> [args…]
+  enodectl stop  <name>
+  enodectl logs  <name> [-f]
   enodectl status
 
-환경변수: ENODE_CONFDIR · ENODE_STATEDIR · ENODE_BIN
+env: ENODE_CONFDIR · ENODE_STATEDIR · ENODE_BIN
 `)
 }
 
@@ -173,17 +173,17 @@ func alive(pid int) bool {
 // ── 명령 ─────────────────────────────────────────────────────────────────
 
 func cmdList() error {
-	fmt.Printf("설정 디렉터리: %s\n\n", confDir())
+	fmt.Printf("config dir: %s\n\n", confDir())
 	ns := names()
 	if len(ns) == 0 {
-		fmt.Printf("  (설정이 없다. %s 에 <이름>.yaml 을 만든다)\n", confDir())
+		fmt.Printf("  (no configs. create <name>.yaml under %s)\n", confDir())
 		return nil
 	}
 	for _, n := range ns {
 		id, label := identityOf(n)
-		state := "멈춤"
+		state := "stopped"
 		if pid := pidOf(n); pid > 0 {
-			state = fmt.Sprintf("돈다 pid=%d", pid)
+			state = fmt.Sprintf("running pid=%d", pid)
 			// 잠자기 방지가 붙어 있는지 함께 보인다 —
 			// 안 붙어 있으면 시연 중에 끊긴다.
 			if runtime.GOOS == "darwin" && caffeinated(pid) {
@@ -218,16 +218,16 @@ func cmdStart(args []string) error {
 	conf := confOf(n)
 	bin := enodeBin()
 	if st, err := os.Stat(bin); err != nil || st.IsDir() {
-		return fmt.Errorf("enode 실행파일이 없다: %s", bin)
+		return fmt.Errorf("enode binary not found: %s", bin)
 	}
 	if pid := pidOf(n); pid > 0 {
-		return fmt.Errorf("이미 돌고 있다 (pid=%d). enode 의 flock 이 두 번째를 거절한다", pid)
+		return fmt.Errorf("already running (pid=%d); enode's flock rejects the second one", pid)
 	}
 	// PATH 에 claude 가 있는지 본다 — 맥에서 가장 잘 밟는 자리다.
 	// launchd 로 띄우면 PATH 가 최소 집합이라 claude 를 못 찾고, 그러면
 	// harness 가 광고에서 조용히 빠져 계약이 422 를 받는다. 원인이 안 보인다.
 	if _, err := exec.LookPath("claude"); err != nil {
-		fmt.Fprintln(os.Stderr, "▲ PATH 에 claude 가 없다. 이 노드는 harness 를 광고하지 못한다.")
+		fmt.Fprintln(os.Stderr, "▲ claude is not on PATH; this node will not advertise a harness.")
 	}
 	if err := os.MkdirAll(stateDir(), 0o755); err != nil {
 		return err
@@ -237,7 +237,7 @@ func cmdStart(args []string) error {
 		return err
 	}
 	defer log.Close() //nolint:errcheck
-	fmt.Fprintf(log, "\n===== %s 기동 =====\n", time.Now().Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(log, "\n===== %s start =====\n", time.Now().Format("2006-01-02 15:04:05"))
 
 	c := exec.Command(bin, append([]string{"--config", conf}, rest...)...)
 	c.Stdout, c.Stderr = log, log
@@ -251,13 +251,13 @@ func cmdStart(args []string) error {
 	time.Sleep(time.Second)
 	pid := pidOf(n)
 	if pid == 0 {
-		fmt.Fprintln(os.Stderr, "✗ 못 떴다. 로그 끝:")
+		fmt.Fprintln(os.Stderr, "✗ did not come up. tail of the log:")
 		tailTo(os.Stderr, logOf(n), 20)
-		return errors.New("기동 실패")
+		return errors.New("start failed")
 	}
 	ident, _ := enode.Derive(conf)
-	fmt.Printf("떴다        %s  node=%s  pid=%d\n", n, ident.NodeID, pid)
-	fmt.Printf("  로그: %s\n", logOf(n))
+	fmt.Printf("up          %s  node=%s  pid=%d\n", n, ident.NodeID, pid)
+	fmt.Printf("  log: %s\n", logOf(n))
 	keepAwake(pid)
 	return nil
 }
@@ -269,7 +269,7 @@ func cmdStop(args []string) error {
 	}
 	pid := pidOf(n)
 	if pid == 0 {
-		fmt.Printf("이미 멈춰 있다: %s\n", n)
+		fmt.Printf("already stopped: %s\n", n)
 		return nil
 	}
 	// SIGTERM 이면 signal.NotifyContext 가 받아 스스로 정리하고 끝난다.
@@ -279,12 +279,12 @@ func cmdStop(args []string) error {
 	}
 	for i := 0; i < 20; i++ {
 		if pidOf(n) == 0 {
-			fmt.Printf("멈췄다: %s\n", n)
+			fmt.Printf("stopped: %s\n", n)
 			return nil
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	fmt.Fprintf(os.Stderr, "▲ 10초 안에 안 끝났다. 강제로 죽인다 (pid=%d)\n", pid)
+	fmt.Fprintf(os.Stderr, "▲ did not exit within 10s; killing (pid=%d)\n", pid)
 	return signalKill(pid)
 }
 
@@ -295,7 +295,7 @@ func cmdLogs(args []string) error {
 	}
 	log := logOf(n)
 	if _, err := os.Stat(log); err != nil {
-		return fmt.Errorf("로그가 없다: %s", log)
+		return fmt.Errorf("no log: %s", log)
 	}
 	if len(args) > 1 && args[1] == "-f" {
 		c := exec.Command("tail", "-f", log)
@@ -315,7 +315,7 @@ func cmdStatus() error {
 		if pidOf(n) == 0 {
 			continue
 		}
-		fmt.Printf("── %s ── 최근 로그\n", n)
+		fmt.Printf("── %s ── recent log\n", n)
 		tailIndent(os.Stdout, logOf(n), 5, "   ")
 		fmt.Println()
 	}
@@ -326,11 +326,11 @@ func cmdStatus() error {
 
 func oneName(args []string) (string, error) {
 	if len(args) == 0 || args[0] == "" {
-		return "", errors.New("이름이 필요하다")
+		return "", errors.New("a name is required")
 	}
 	n := args[0]
 	if _, err := os.Stat(confOf(n)); err != nil {
-		return "", fmt.Errorf("설정이 없다: %s", confOf(n))
+		return "", fmt.Errorf("no config: %s", confOf(n))
 	}
 	return n, nil
 }
@@ -340,7 +340,7 @@ func oneName(args []string) (string, error) {
 func identityOf(n string) (id, label string) {
 	ident, err := enode.Derive(confOf(n))
 	if err != nil {
-		return "(신원 없음)", "(" + err.Error() + ")"
+		return "(no identity)", "(" + err.Error() + ")"
 	}
 	return ident.NodeID, ident.Label
 }
@@ -360,17 +360,17 @@ func keepAwake(pid int) {
 		return
 	}
 	if _, err := exec.LookPath("caffeinate"); err != nil {
-		fmt.Fprintln(os.Stderr, "  ▲ caffeinate 가 없다 — 시스템 잠자기가 함대를 끊을 수 있다")
+		fmt.Fprintln(os.Stderr, "  ▲ caffeinate is missing — system sleep can cut the fleet")
 		return
 	}
 	c := exec.Command("caffeinate", "-i", "-s", "-w", strconv.Itoa(pid))
 	c.SysProcAttr = detachAttr()
 	if err := c.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "  ▲ caffeinate 를 못 띄웠다: %v\n", err)
+		fmt.Fprintf(os.Stderr, "  ▲ could not start caffeinate: %v\n", err)
 		return
 	}
 	_ = c.Process.Release()
-	fmt.Printf("  ☕ 잠자기 방지 (enode pid=%d 가 사는 동안)\n", pid)
+	fmt.Printf("  ☕ sleep held off (while enode pid=%d lives)\n", pid)
 }
 
 // caffeinated 는 그 pid 를 지키는 caffeinate 가 붙어 있는지다.
