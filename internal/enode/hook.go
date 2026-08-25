@@ -228,14 +228,14 @@ func planProblem(a HookArgs) string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("계약 문법을 어겼다. 이대로는 계획 전체가 거절된다:\n\n        ")
+	b.WriteString("The contract grammar was violated. As it stands the whole plan is rejected:\n\n        ")
 	b.WriteString(err.Error())
 	b.WriteString("\n\n")
 	b.WriteString(filepath.Join(a.Out, a.Plan))
-	b.WriteString(" 를 고쳐서 다시 써라. ")
-	b.WriteString("위에 실린 「계약 문법」 절이 규칙 전부다.\n")
+	b.WriteString(" — fix it and write it again. ")
+	b.WriteString("The \"Contract grammar\" section above is the whole set of rules.\n")
 	if len(a.Roles) > 0 {
-		b.WriteString("uses 에 쓸 수 있는 역할: ")
+		b.WriteString("roles you may put in uses: ")
 		b.WriteString(strings.Join(a.Roles, " · "))
 		b.WriteString("\n")
 	}
@@ -265,22 +265,22 @@ func missingOutputs(outDir string, expect []string) []string {
 // 모델이 거절하거나, 더 나쁘게는 계약을 어긴다.
 func stopReason(a HookArgs, missing []string) string {
 	var b strings.Builder
-	b.WriteString("계약이 요구한 산출물 중 아직 없는 것: ")
+	b.WriteString("artifacts the contract requires that are still missing: ")
 	b.WriteString(strings.Join(missing, ", "))
 	b.WriteString("\n$OUT = ")
 	b.WriteString(a.Out)
-	b.WriteString(" 에 그 이름 그대로 파일로 쓰면 된다.\n")
+	b.WriteString(" — write them there as files under exactly those names.\n")
 
 	// git 이 못 보는 것까지 보여준다 — 빌드 산출물은 .gitignore 안에 있다.
 	if a.Stamp != "" && a.Workspace != "" {
 		if s, err := readStamp(a.Stamp, a.Workspace); err == nil {
 			if found, total, err := changedSince(s, 2000); err == nil && total > 0 {
-				b.WriteString("\n참고 — ")
+				b.WriteString("\nfor reference — ")
 				b.WriteString(summarize(found, total, 25))
 			}
 		}
 	}
-	b.WriteString("\n낼 것이 없다면 그 이유를 담아서라도 파일을 만들어라.")
+	b.WriteString("\nIf you have nothing to produce, create the file anyway and put the reason in it.")
 	return b.String()
 }
 

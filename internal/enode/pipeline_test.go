@@ -54,8 +54,8 @@ func TestContractFieldsReachThePrompt(t *testing.T) {
 		}
 	}
 	// 요청 절이 비면 안 된다 — 그것이 실측에서 밟은 모양이다.
-	i := strings.Index(p, "### 요청")
-	if i < 0 || strings.TrimSpace(p[i+len("### 요청"):]) == "" {
+	i := strings.Index(p, "### request")
+	if i < 0 || strings.TrimSpace(p[i+len("### request"):]) == "" {
 		t.Fatal("the request section is empty")
 	}
 }
@@ -65,8 +65,8 @@ func TestContractFieldsReachThePrompt(t *testing.T) {
 // 문법은 무엇을 지켜야 하는지, 모양은 필드가 어떻게 생겼는지다.
 // 모양이 없어서 계획이 이름에서 유추했고 agent.task 를 지어냈다.
 func TestAPlanStepReceivesTheStepShape(t *testing.T) {
-	got := buildPrompt("계획을 짜라", "/o", []string{"plan"}, nil, nil, 0, true,
-		nil, nil, nil, nil, nil, nil, "목표", "")
+	got := buildPrompt("build a plan", "/o", []string{"plan"}, nil, nil, 0, true,
+		nil, nil, nil, nil, nil, nil, "the goal", "")
 	for _, want := range []string{
 		"The shape of a step",
 		"in.prompt",                 // 과제가 가는 자리
@@ -80,7 +80,7 @@ func TestAPlanStepReceivesTheStepShape(t *testing.T) {
 		}
 	}
 	// 평범한 단계에는 안 싣는다 — 그 단계는 계획을 안 짓는다.
-	got = buildPrompt("일해라", "/o", []string{"x"}, nil, nil, 0, false,
+	got = buildPrompt("do the work", "/o", []string{"x"}, nil, nil, 0, false,
 		nil, nil, nil, nil, nil, nil, "", "")
 	if strings.Contains(got, "The shape of a step") {
 		t.Fatal("plan grammar rode along on an ordinary step")

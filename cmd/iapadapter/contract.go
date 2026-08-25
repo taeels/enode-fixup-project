@@ -161,44 +161,44 @@ func planSchema() map[string]any {
 // 그리고 그것은 목표 문자열 하나다. 구조는 전부 템플릿이 준다.
 func planPrompt(cfg *Config, issueKey string, issue *Issue, rr *RunnerRun) string {
 	var b strings.Builder
-	b.WriteString("너는 오케스트레이션 노드다. 직접 실행하지 않고 나머지 단계를 짓는다.\n\n")
+	b.WriteString("You are the orchestration node. You do not execute; you build the remaining steps.\n\n")
 
-	b.WriteString("# 목표\n\n")
+	b.WriteString("# Goal\n\n")
 	if issue != nil {
-		fmt.Fprintf(&b, "이슈 %s — %s\n\n", issueKey, issue.Title)
+		fmt.Fprintf(&b, "issue %s — %s\n\n", issueKey, issue.Title)
 		if strings.TrimSpace(issue.Description) != "" {
 			b.WriteString(strings.TrimSpace(issue.Description))
 			b.WriteString("\n\n")
 		}
 	}
 	if strings.TrimSpace(rr.Prompt) != "" {
-		b.WriteString("이슈 트래커가 전한 말:\n\n")
+		b.WriteString("What the issue tracker passed along:\n\n")
 		b.WriteString(strings.TrimSpace(rr.Prompt))
 		b.WriteString("\n\n")
 	}
 
-	b.WriteString("# 역할\n\n")
-	fmt.Fprintf(&b, "%s — 실행 노드다. run 단계로 셸을 돌릴 수 있고 agent 단계로 추론도 한다.\n",
+	b.WriteString("# Roles\n\n")
+	fmt.Fprintf(&b, "%s — an execution node. It can run a shell in a run step and reason in an agent step.\n",
 		cfg.Executor.As)
 	for k, v := range cfg.Executor.Attrs {
 		fmt.Fprintf(&b, "  · %s = %s\n", k, v)
 	}
 	b.WriteString("\n")
 
-	b.WriteString(`# 계약이 이미 정해 둔 것
+	b.WriteString(`# What the contract has already fixed
 
-- 마지막에 이름이 정확히 "report" 인 단계가 있어야 하고, 그 단계는 $OUT/summary 를 내야 한다.
-  판정은 그 사실만 본다 — report 앞에 몇 단계가 있든 상관없다.
-- 계획을 낸 뒤 사람이 승인 여부를 답한다. 거절당하면 이 단계로 되돌아와 다시 짓게 되며,
-  그때 거절 이유가 전달된다.
+- The last step must be named exactly "report", and it must produce $OUT/summary.
+  The verdict looks only at that fact — how many steps come before report does not matter.
+- After you submit the plan a person answers whether they approve it. On a rejection
+  you come back to this step and build again, and the reason is passed to you.
 
-# 계획을 짤 때 지킬 것
+# Rules for building the plan
 
-- 단계는 최소로 짜라. 두세 개면 충분하다.
-- 각 run 단계는 결과를 $OUT/ 아래로 내야 수확된다.
-- 단계마다 셸이 새로 뜬다 — 환경변수는 매번 다시 적어라.
-- 워크스페이스 밖은 절대 건드리지 마라. 읽기는 자유롭고 쓰기는 $OUT 안이다.
-- 파괴적인 명령(rm -rf · 설정 파일 덮어쓰기 · 프로세스 종료)은 쓰지 마라.
+- Keep the steps to a minimum. Two or three are enough.
+- Each run step must put its result under $OUT/ to be harvested.
+- Every step gets a fresh shell — write the environment variables again each time.
+- Never touch anything outside the workspace. Reading is free; writing goes inside $OUT.
+- Do not use destructive commands (rm -rf, overwriting config files, killing processes).
 `)
 	return b.String()
 }

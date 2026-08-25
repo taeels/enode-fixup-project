@@ -14,12 +14,12 @@ import (
 // 어댑터는 경로를 아는데 모델은 모른다. 아는 쪽이 적어준다.
 func TestPromptCarriesLiteralPath(t *testing.T) {
 	out := "/tmp/enode-out-123"
-	p := buildPrompt("회귀를 짚어라", out, []string{"hypothesis"}, nil, nil, 0, false, nil, nil, nil, nil, nil, nil, "", "")
+	p := buildPrompt("point at the regression", out, []string{"hypothesis"}, nil, nil, 0, false, nil, nil, nil, nil, nil, nil, "", "")
 	if !strings.Contains(p, out+"/hypothesis") {
-		t.Fatalf("실제 경로가 안 들어갔다:\n%s", p)
+		t.Fatalf("the real path did not go in:\n%s", p)
 	}
 	if strings.Contains(p, "$OUT/") {
-		t.Fatalf("확장 안 되는 $OUT 이 남았다:\n%s", p)
+		t.Fatalf("an unexpanded $OUT survived:\n%s", p)
 	}
 }
 
@@ -28,12 +28,12 @@ func TestPromptCarriesSchemaAndHonestNone(t *testing.T) {
 	sch := map[string]json.RawMessage{
 		"hypothesis": json.RawMessage(`{"type":"object","required":["status"]}`),
 	}
-	p := buildPrompt("요청", "/o", []string{"hypothesis"}, sch, nil, 0, false, nil, nil, nil, nil, nil, nil, "", "")
+	p := buildPrompt("the request", "/o", []string{"hypothesis"}, sch, nil, 0, false, nil, nil, nil, nil, nil, nil, "", "")
 	if !strings.Contains(p, `"required":["status"]`) {
-		t.Fatal("스키마가 프롬프트에 안 실렸다")
+		t.Fatal("the schema did not ride the prompt")
 	}
-	if !strings.Contains(p, "부재는 크래시와 구분되지 않는다") {
-		t.Fatal("결론이 없을 때 값으로 말하라는 지시가 없다")
+	if !strings.Contains(p, "Absence cannot be told apart from a crash") {
+		t.Fatal("nothing tells it to say so as a value when it has no conclusion")
 	}
 }
 
@@ -44,37 +44,37 @@ func TestPromptPutsFeedbackJustBeforeRequest(t *testing.T) {
 	fb := strings.Index(p, "error: undefined reference")
 	req := strings.Index(p, "REQUEST_MARKER")
 	if fb < 0 || req < 0 || fb > req {
-		t.Fatalf("되먹임이 요청 앞에 없다: fb=%d req=%d", fb, req)
+		t.Fatalf("the feedback does not sit before the request: fb=%d req=%d", fb, req)
 	}
-	if !strings.Contains(p, "앞 시도가 실패했다") {
-		t.Fatal("재시도라는 것이 안 보인다")
+	if !strings.Contains(p, "the previous attempt failed") {
+		t.Fatal("nothing says this is a retry")
 	}
 	// 1회차에는 되먹임이 없다
-	if strings.Contains(buildPrompt("R", "/o", []string{"x"}, nil, nil, 0, false, nil, nil, nil, nil, nil, nil, "", ""), "앞 시도가 실패했다") {
-		t.Fatal("첫 시도인데 재시도 문구가 붙었다")
+	if strings.Contains(buildPrompt("R", "/o", []string{"x"}, nil, nil, 0, false, nil, nil, nil, nil, nil, nil, "", ""), "the previous attempt failed") {
+		t.Fatal("a first attempt carries retry wording")
 	}
 }
 
 // 실패 차선은 스키마가 있든 없든 항상 붙는다 (ADR-038)
-func TestBuildPrompt_실패차선(t *testing.T) {
+func TestBuildPrompt_TheFailureLane(t *testing.T) {
 	// 스키마 없는 단계
-	p := buildPrompt("빌드해라", "/o", []string{"log"}, nil, nil, 0, false, nil, nil, nil, nil, nil, nil, "", "")
+	p := buildPrompt("build it", "/o", []string{"log"}, nil, nil, 0, false, nil, nil, nil, nil, nil, nil, "", "")
 	if !strings.Contains(p, "/o/_cannot") {
-		t.Fatalf("스키마 없는 단계에 차선이 없다:\n%s", p)
+		t.Fatalf("a step without a schema has no lane:\n%s", p)
 	}
-	if !strings.Contains(p, "성공을 주장하지 말고") {
-		t.Fatalf("거짓 성공을 막는 문구가 없다")
+	if !strings.Contains(p, "do not claim success") {
+		t.Fatalf("nothing wards off a false success")
 	}
 	// 대체물이 아니라는 것도 말해야 한다 — 안 그러면 _cannot 만 내고 끝낸다
-	if !strings.Contains(p, "대체물이 아니다") {
-		t.Fatalf("「단계는 그대로 실패한다」가 없다")
+	if !strings.Contains(p, "does not stand in for the required artifact") {
+		t.Fatalf("\"the step still fails\" is missing")
 	}
 
 	// 스키마 있는 단계에도 붙는다 (ADR-020 문구와 함께)
 	sch := map[string]json.RawMessage{"r": json.RawMessage(`{"type":"object"}`)}
-	p = buildPrompt("리뷰해라", "/o", []string{"r"}, sch, nil, 0, false, nil, nil, nil, nil, nil, nil, "", "")
-	if !strings.Contains(p, "/o/_cannot") || !strings.Contains(p, "부재는 크래시와 구분되지 않는다") {
-		t.Fatalf("둘이 함께 있어야 한다:\n%s", p)
+	p = buildPrompt("review it", "/o", []string{"r"}, sch, nil, 0, false, nil, nil, nil, nil, nil, nil, "", "")
+	if !strings.Contains(p, "/o/_cannot") || !strings.Contains(p, "Absence cannot be told apart from a crash") {
+		t.Fatalf("both must be present:\n%s", p)
 	}
 }
 
@@ -82,34 +82,34 @@ func TestBuildPrompt_실패차선(t *testing.T) {
 func TestReadCannot(t *testing.T) {
 	out := t.TempDir()
 	if _, ok := readCannot(out); ok {
-		t.Fatal("없는데 있다고 했다")
+		t.Fatal("said it exists when it does not")
 	}
 	if err := os.WriteFile(filepath.Join(out, cannotName),
-		[]byte("  툴체인이 없다  \n"), 0o644); err != nil {
+		[]byte("  no toolchain  \n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	why, ok := readCannot(out)
-	if !ok || why != "툴체인이 없다" {
-		t.Fatalf("이유를 못 읽었다: %q %v", why, ok)
+	if !ok || why != "no toolchain" {
+		t.Fatalf("could not read the reason: %q %v", why, ok)
 	}
 	// 빈 파일도 자백이다
 	if err := os.WriteFile(filepath.Join(out, cannotName), []byte("\n\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if why, ok := readCannot(out); !ok || why == "" {
-		t.Fatalf("빈 자백이 무시됐다: %q %v", why, ok)
+		t.Fatalf("an empty confession was ignored: %q %v", why, ok)
 	}
 }
 
 // cannot 은 완주다 — 크래시가 아니라 정직한 보고이므로 산출물을 믿을 수 있다.
-func TestReasonCannot_완주로_친다(t *testing.T) {
+func TestReasonCannot_CountsAsCompleted(t *testing.T) {
 	if !ReasonCannot.Completed() {
-		t.Fatal("cannot 이 완주가 아니면 산출물을 통째로 버린다 — 정직한 보고인데")
+		t.Fatal("if cannot is not completion the artifacts are thrown away — and it is an honest report")
 	}
 	// 크래시 계열은 그대로 완주가 아니다.
 	for _, r := range []Reason{ReasonError, ReasonTimeout} {
 		if r.Completed() {
-			t.Fatalf("%q 가 완주가 됐다", r)
+			t.Fatalf("%q became completion", r)
 		}
 	}
 }
@@ -120,26 +120,26 @@ func TestReasonCannot_완주로_친다(t *testing.T) {
 // 앞 단계 로그를 하나도 못 봤다 — expands 로 붙은 단계는 attempt 0 이다.
 // 실측에서 밟았다: 재계획 에이전트가 "요청 섹션이 비어 있고 입력 디렉터리도
 // 비어 있어 무엇을 고칠지 모르겠다" 며 _cannot 을 남겼다.
-func Test되먹임은_첫_시도에도_실린다(t *testing.T) {
-	fb := map[string]string{"build_log": "error: 뭔가 터졌다"}
+func TestFeedbackRidesEvenOnTheFirstAttempt(t *testing.T) {
+	fb := map[string]string{"build_log": "error: something blew up"}
 
 	// attempt 0 — 계획이 지은 재계획 단계의 자리
-	got := buildPrompt("다시 짜라", "/o", []string{"plan2"}, nil, fb, 0, true, []string{"a"}, nil, nil, nil, nil, nil, "", "")
-	if !strings.Contains(got, "error: 뭔가 터졌다") {
-		t.Fatal("첫 시도인데 되먹임이 안 실렸다 — 재계획이 로그를 못 본다")
+	got := buildPrompt("build it again", "/o", []string{"plan2"}, nil, fb, 0, true, []string{"a"}, nil, nil, nil, nil, nil, "", "")
+	if !strings.Contains(got, "error: something blew up") {
+		t.Fatal("no feedback on the first attempt — a replan cannot see the logs")
 	}
 	// 실패했다고 단정하지 않는다 — 성공한 로그를 보고 판단하는 자리이기도 하다.
-	if strings.Contains(got, "앞 시도가 실패했다") {
-		t.Fatal("attempt 0 인데 「앞 시도가 실패했다」라고 적었다")
+	if strings.Contains(got, "the previous attempt failed") {
+		t.Fatal("attempt 0, yet it says the previous attempt failed")
 	}
-	if !strings.Contains(got, "앞 단계들이 남긴 것") {
-		t.Fatalf("제목이 없다: %s", got)
+	if !strings.Contains(got, "what the earlier steps left behind") {
+		t.Fatalf("the heading is missing: %s", got)
 	}
 
 	// attempt > 0 — 재시도. 앞 시도의 나가 남긴 것이다
-	got = buildPrompt("고쳐라", "/o", []string{"x"}, nil, fb, 2, false, nil, nil, nil, nil, nil, nil, "", "")
-	if !strings.Contains(got, "앞 시도가 실패했다 (2회차)") {
-		t.Fatalf("재시도 제목이 없다: %s", got)
+	got = buildPrompt("fix it", "/o", []string{"x"}, nil, fb, 2, false, nil, nil, nil, nil, nil, nil, "", "")
+	if !strings.Contains(got, "the previous attempt failed (attempt 2)") {
+		t.Fatalf("the retry heading is missing: %s", got)
 	}
 }
 
@@ -147,18 +147,18 @@ func Test되먹임은_첫_시도에도_실린다(t *testing.T) {
 //
 // 거절은 되돌림이므로 다시 도는 것은 계획을 지은 단계 자신이고, 그 in 은
 // 처음 그대로다. 이유를 안 실으면 같은 계획을 다시 짓는다 (실측 rewind-1).
-func Test거절_이유가_프롬프트에_실린다(t *testing.T) {
+func TestTheRejectionReasonRidesThePrompt(t *testing.T) {
 	rej := []Rejection{{Answer: json.RawMessage(
-		`{"verdict":"again","note":"워크스페이스 루트에 직접 쓴다"}`)}}
-	p := buildPrompt("목표", "/out", []string{"plan"}, nil, nil, 0, true,
+		`{"verdict":"again","note":"it writes straight into the workspace root"}`)}}
+	p := buildPrompt("the goal", "/out", []string{"plan"}, nil, nil, 0, true,
 		nil, nil, nil, nil, rej, nil, "", "")
-	for _, want := range []string{"거절됐다", "워크스페이스 루트에 직접 쓴다", "같은 계획을 다시 내지 마라"} {
+	for _, want := range []string{"was rejected", "it writes straight into the workspace root", "Do not submit the same plan again"} {
 		if !strings.Contains(p, want) {
-			t.Fatalf("프롬프트에 %q 가 없다", want)
+			t.Fatalf("%q is missing from the prompt", want)
 		}
 	}
-	if q := buildPrompt("목표", "/out", []string{"plan"}, nil, nil, 0, true,
-		nil, nil, nil, nil, nil, nil, "", ""); strings.Contains(q, "거절됐다") {
-		t.Fatal("거절이 없는데 그 절이 나왔다")
+	if q := buildPrompt("the goal", "/out", []string{"plan"}, nil, nil, 0, true,
+		nil, nil, nil, nil, nil, nil, "", ""); strings.Contains(q, "was rejected") {
+		t.Fatal("the section appeared although there was no rejection")
 	}
 }

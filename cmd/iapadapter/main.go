@@ -36,9 +36,9 @@ import (
 )
 
 func main() {
-	confPath := flag.String("config", "adapter.yaml", "어댑터 설정 파일")
-	once := flag.Bool("once", false, "일감 하나를 처리하고 끝낸다 (시험용)")
-	verbose := flag.Bool("v", false, "자세히 적는다")
+	confPath := flag.String("config", "adapter.yaml", "adapter config file")
+	once := flag.Bool("once", false, "handle one job and exit (for testing)")
+	verbose := flag.Bool("v", false, "verbose")
 	flag.Parse()
 
 	lvl := slog.LevelInfo

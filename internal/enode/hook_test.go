@@ -21,21 +21,21 @@ func hookRun(t *testing.T, a HookArgs, in StopInput) StopOutput {
 	var o StopOutput
 	if out.Len() > 0 {
 		if err := json.Unmarshal(out.Bytes(), &o); err != nil {
-			t.Fatalf("훅 출력이 JSON 이 아니다: %q", out.String())
+			t.Fatalf("the hook output is not JSON: %q", out.String())
 		}
 	}
 	return o
 }
 
 // 같은 이유로는 두 번 안 막는다 — 안 그러면 영원히 돈다 (ADR-051).
-func TestHook_같은_이유로는_한_번만_막는다(t *testing.T) {
+func TestHook_BlocksOnceForTheSameReason(t *testing.T) {
 	out := t.TempDir()
-	a := HookArgs{Out: out, Expect: []string{"없는것"}}
+	a := HookArgs{Out: out, Expect: []string{"nosuch"}}
 	if o := hookRun(t, a, StopInput{}); o.Decision != "block" {
-		t.Fatalf("첫 번째에 안 막았다: %+v", o)
+		t.Fatalf("did not block the first time: %+v", o)
 	}
 	if o := hookRun(t, a, StopInput{StopHookActive: true}); o.Decision != "" {
-		t.Fatalf("같은 이유로 또 막았다 — 무한 루프다: %+v", o)
+		t.Fatalf("blocked again for the same reason — that is an infinite loop: %+v", o)
 	}
 }
 
@@ -46,14 +46,14 @@ func TestHook_같은_이유로는_한_번만_막는다(t *testing.T) {
 //
 //	실측        vm-scratch-3 의 replan_1 이 11턴을 돌고 문법이 틀린 계획을
 //	          냈는데 훅이 한 번도 안 짚었다. 서버가 그것을 거절해 단계가 죽었다.
-func TestHook_산출물을_짚은_뒤에도_문법을_짚는다(t *testing.T) {
+func TestHook_StillChecksGrammarAfterPointingAtArtifacts(t *testing.T) {
 	out := t.TempDir()
 	a := HookArgs{Out: out, Expect: []string{"plan2"}, Plan: "plan2", Roles: []string{"n"}}
 
 	// ① 아직 아무것도 안 냈다 — 산출물 누락으로 막는다.
 	o := hookRun(t, a, StopInput{})
 	if o.Decision != "block" || !strings.Contains(o.Reason, "plan2") {
-		t.Fatalf("산출물 누락을 안 짚었다: %+v", o)
+		t.Fatalf("the missing artifact was not pointed out: %+v", o)
 	}
 
 	// ② 모델이 파일을 냈다. 그런데 문법이 틀렸다 —
@@ -65,15 +65,15 @@ func TestHook_산출물을_짚은_뒤에도_문법을_짚는다(t *testing.T) {
 	}
 	o = hookRun(t, a, StopInput{StopHookActive: true})
 	if o.Decision != "block" {
-		t.Fatalf("산출물을 짚었다는 이유로 문법을 안 봤다: %+v", o)
+		t.Fatalf("skipped the grammar because it had pointed at artifacts: %+v", o)
 	}
-	if !strings.Contains(o.Reason, "계약 문법") {
-		t.Fatalf("문법 문제라고 말하지 않았다: %+v", o)
+	if !strings.Contains(o.Reason, "contract grammar") {
+		t.Fatalf("it did not say this is a grammar problem: %+v", o)
 	}
 
 	// ③ 같은 문법 문제로는 한 번만 짚는다.
 	if o = hookRun(t, a, StopInput{StopHookActive: true}); o.Decision != "" {
-		t.Fatalf("같은 문법 문제로 또 막았다: %+v", o)
+		t.Fatalf("blocked again for the same grammar problem: %+v", o)
 	}
 
 	// ④ 다른 문법 문제면 다시 짚는다 (ADR-051 §4)
@@ -87,19 +87,19 @@ func TestHook_산출물을_짚은_뒤에도_문법을_짚는다(t *testing.T) {
 		t.Fatal(err)
 	}
 	if o = hookRun(t, a, StopInput{StopHookActive: true}); o.Decision != "block" {
-		t.Fatalf("다른 문법 문제인데 안 짚었다: %+v", o)
+		t.Fatalf("a different grammar problem was not pointed out: %+v", o)
 	}
 }
 
 // 되묻기에는 총 상한이 있다 — 이유를 「무엇이 틀렸나」로 세면
 // 종류가 무한히 늘 수 있고, 그러면 영원히 막을 수 있다 (ADR-051).
-func TestHook_되묻기_총량이_넘으면_통과시킨다(t *testing.T) {
+func TestHook_PassesThroughOnceTheAskBudgetIsSpent(t *testing.T) {
 	out := t.TempDir()
 	a := HookArgs{Out: out, Expect: []string{"plan2"}, Plan: "plan2", Roles: []string{"n"}}
 	blocked := 0
 	for i := 0; i < hookBlockBudget+3; i++ {
 		// 매번 다른 문법 위반 — 이름이 다르면 오류 문장도 다르다.
-		bad := `{"steps":[{"id":"s` + strconv.Itoa(i) + `","uses":"없는역할",` +
+		bad := `{"steps":[{"id":"s` + strconv.Itoa(i) + `","uses":"norole",` +
 			`"run":["true"],"out":["x"]}],"success_when":[]}`
 		if err := os.WriteFile(filepath.Join(out, "plan2"), []byte(bad), 0o644); err != nil {
 			t.Fatal(err)
@@ -109,69 +109,69 @@ func TestHook_되묻기_총량이_넘으면_통과시킨다(t *testing.T) {
 		}
 	}
 	if blocked > hookBlockBudget {
-		t.Fatalf("상한을 넘겨 %d 번 막았다 — 무한 루프의 자리다", blocked)
+		t.Fatalf("blocked %d times past the cap — that is where an infinite loop lives", blocked)
 	}
 	if blocked == 0 {
-		t.Fatal("한 번도 안 막았다 — 상한이 되묻기 자체를 죽였다")
+		t.Fatal("never blocked — the cap killed the asking itself")
 	}
 }
 
 // 기억 파일은 산출물이 아니다 — .enode- 접두사가 수확에서 걸러진다.
-func TestHook_기억파일이_산출물로_안_오른다(t *testing.T) {
+func TestHook_TheMemoryFileDoesNotBecomeAnArtifact(t *testing.T) {
 	out := t.TempDir()
-	hookRun(t, HookArgs{Out: out, Expect: []string{"없는것"}}, StopInput{})
+	hookRun(t, HookArgs{Out: out, Expect: []string{"nosuch"}}, StopInput{})
 	for _, n := range harvest(out) {
 		if !strings.HasPrefix(n, ".enode-") {
-			t.Fatalf("$OUT 에 산출물로 오를 파일이 생겼다: %s", n)
+			t.Fatalf("a file that would be harvested appeared in $OUT: %s", n)
 		}
 	}
 }
 
 // 요구된 것이 다 있으면 통과.
-func TestHook_다_냈으면_통과(t *testing.T) {
+func TestHook_PassesWhenEverythingWasProduced(t *testing.T) {
 	out := t.TempDir()
-	if err := os.WriteFile(filepath.Join(out, "가설"), []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(out, "hypothesis"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if o := hookRun(t, HookArgs{Out: out, Expect: []string{"가설"}}, StopInput{}); o.Decision != "" {
-		t.Fatalf("다 냈는데 막았다: %+v", o)
+	if o := hookRun(t, HookArgs{Out: out, Expect: []string{"hypothesis"}}, StopInput{}); o.Decision != "" {
+		t.Fatalf("blocked although everything was produced: %+v", o)
 	}
 }
 
 // 계약이 요구한 이름 중 없는 것을 짚는다 — 막연한 물음이 아니다.
-func TestHook_빠진_이름을_짚는다(t *testing.T) {
+func TestHook_PointsAtTheMissingName(t *testing.T) {
 	out := t.TempDir()
-	if err := os.WriteFile(filepath.Join(out, "가설"), []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(out, "hypothesis"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	o := hookRun(t, HookArgs{Out: out, Expect: []string{"가설", "테스트소스"}}, StopInput{})
+	o := hookRun(t, HookArgs{Out: out, Expect: []string{"hypothesis", "test_source"}}, StopInput{})
 	if o.Decision != "block" {
-		t.Fatalf("빠졌는데 안 막았다: %+v", o)
+		t.Fatalf("something is missing yet it did not block: %+v", o)
 	}
-	if !strings.Contains(o.Reason, "테스트소스") {
-		t.Fatalf("빠진 이름을 안 짚었다: %q", o.Reason)
+	if !strings.Contains(o.Reason, "test_source") {
+		t.Fatalf("the missing name was not pointed out: %q", o.Reason)
 	}
-	if strings.Contains(o.Reason, "실패") {
-		t.Fatalf("훅이 판정했다 — 판정은 success_when 이 한다 (ADR-004·I3): %q", o.Reason)
+	if strings.Contains(o.Reason, "fail") {
+		t.Fatalf("the hook passed judgment — success_when does the judging (ADR-004·I3): %q", o.Reason)
 	}
 }
 
 // 요구가 없으면 아무 말도 안 한다 — 훅이 참견할 근거가 없다.
-func TestHook_요구가_없으면_조용하다(t *testing.T) {
+func TestHook_StaysQuietWhenNothingIsRequired(t *testing.T) {
 	if o := hookRun(t, HookArgs{Out: t.TempDir()}, StopInput{}); o.Decision != "" {
-		t.Fatalf("요구가 없는데 막았다: %+v", o)
+		t.Fatalf("blocked although nothing was required: %+v", o)
 	}
 }
 
 // 입력이 깨져도 통과시킨다 — 훅이 하네스를 막아 세우면 안 된다.
-func TestHook_깨진_입력은_통과(t *testing.T) {
+func TestHook_BrokenInputPassesThrough(t *testing.T) {
 	var out bytes.Buffer
 	if err := RunStopHook(HookArgs{Expect: []string{"x"}},
-		strings.NewReader("이건 JSON 이 아니다"), &out); err != nil {
+		strings.NewReader("this is not JSON"), &out); err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
-		t.Fatalf("깨진 입력에 막았다: %s", out.String())
+		t.Fatalf("blocked on broken input: %s", out.String())
 	}
 }
 
@@ -179,52 +179,52 @@ func TestHook_깨진_입력은_통과(t *testing.T) {
 //
 // git status 로 하지 않는다 — .gitignore 를 지켜서 빌드 산출물을 가린다.
 // 기준 시각(stamp) 이 있어야 zImage 도 .ko 도 보인다. changed_test.go 참조.
-func TestHook_바뀐_것을_알려준다(t *testing.T) {
+func TestHook_ReportsWhatChanged(t *testing.T) {
 	dir, inst := gitInit(t), t.TempDir()
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir)
 	time.Sleep(1100 * time.Millisecond)
-	write(t, dir, "고쳤다.c", "int q;\n")
+	write(t, dir, "fixed.c", "int q;\n")
 
 	sp := filepath.Join(inst, "stamp")
 	if err := writeStamp(sp, s); err != nil {
 		t.Fatal(err)
 	}
-	o := hookRun(t, HookArgs{Out: t.TempDir(), Workspace: dir, Expect: []string{"결과"}, Stamp: sp},
+	o := hookRun(t, HookArgs{Out: t.TempDir(), Workspace: dir, Expect: []string{"result"}, Stamp: sp},
 		StopInput{})
-	if !strings.Contains(o.Reason, "고쳤다.c") {
-		t.Fatalf("바뀐 것을 안 알려줬다: %q", o.Reason)
+	if !strings.Contains(o.Reason, "fixed.c") {
+		t.Fatalf("what changed was not reported: %q", o.Reason)
 	}
 }
 
 // 설정 파일이 $OUT 밖에 놓인다 — 안에 두면 ④수확이 산출물로 걷어 올린다.
-func TestHook_설정이_OUT밖에_놓인다(t *testing.T) {
+func TestHook_TheSettingsFileSitsOutsideOUT(t *testing.T) {
 	inst, out := t.TempDir(), t.TempDir()
 	flags, err := WriteHookSettings(inst, "/usr/bin/enode", HookArgs{Out: out, Expect: []string{"a"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(harvest(out)) != 0 {
-		t.Fatalf("계장 파일이 $OUT 에 들어갔다: %v", harvest(out))
+		t.Fatalf("the instrumentation file landed in $OUT: %v", harvest(out))
 	}
 	// 개인 설정을 차단한다 (R6) — 안 하면 노드마다 결과가 달라진다.
 	j := strings.Join(flags, " ")
 	if !strings.Contains(j, "--setting-sources") {
-		t.Fatalf("개인 설정을 안 막았다: %v", flags)
+		t.Fatalf("personal settings were not blocked: %v", flags)
 	}
 	b, err := os.ReadFile(filepath.Join(inst, "enode-settings.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(b), `"Stop"`) || !strings.Contains(string(b), "hook stop") {
-		t.Fatalf("Stop 훅이 안 심겼다:\n%s", b)
+		t.Fatalf("the Stop hook was not planted:\n%s", b)
 	}
 }
 
 // 공백이 든 경로가 훅 명령에서 안 깨진다 — 셸이 한 줄로 받기 때문이다.
-func TestHook_공백_경로가_안_깨진다(t *testing.T) {
+func TestHook_APathWithSpacesSurvives(t *testing.T) {
 	inst := t.TempDir()
-	out := filepath.Join(t.TempDir(), "빈 칸 있는 폴더")
+	out := filepath.Join(t.TempDir(), "folder with spaces")
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -242,7 +242,7 @@ func TestHook_공백_경로가_안_깨진다(t *testing.T) {
 	}
 	cmd := cfg.Hooks["Stop"][0].Hooks[0].Command
 	if !strings.Contains(cmd, "'"+out+"'") {
-		t.Fatalf("공백 경로가 인용되지 않았다: %s", cmd)
+		t.Fatalf("the path with spaces was not quoted: %s", cmd)
 	}
 }
 
@@ -251,11 +251,11 @@ func TestHook_공백_경로가_안_깨진다(t *testing.T) {
 // 이것이 없으면 어긴 계획은 계약 적용 시점 에야 거절되고, 그때는
 // 하네스가 이미 끝나 고칠 기회가 없다 — 판 하나가 통째로 버려진다.
 // 실측에서 두 번 밟았다 (10차 없는 역할 · 11차 schema 키잉).
-func Test훅_어긴_계획을_짚는다(t *testing.T) {
+func TestHook_PointsAtAPlanThatBreaksTheRules(t *testing.T) {
 	dir := t.TempDir()
 	// 산출물은 냈다 — missingOutputs 는 통과한다. 모양만 틀렸다.
 	if err := os.WriteFile(filepath.Join(dir, "plan"),
-		[]byte(`{"steps":[{"id":"r","uses":"없는역할","run":["true"],"out":["l"]}]}`),
+		[]byte(`{"steps":[{"id":"r","uses":"norole","run":["true"],"out":["l"]}]}`),
 		0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -267,23 +267,23 @@ func Test훅_어긴_계획을_짚는다(t *testing.T) {
 	}
 	var so StopOutput
 	if err := json.Unmarshal(out.Bytes(), &so); err != nil {
-		t.Fatalf("막지 않았다: %q", out.String())
+		t.Fatalf("did not block: %q", out.String())
 	}
 	if so.Decision != "block" {
-		t.Fatalf("막지 않았다: %+v", so)
+		t.Fatalf("did not block: %+v", so)
 	}
 	// 오류 문장을 그대로 전한다 — 번역하면 ADR-045 의 실수를 되풀이한다.
 	if !strings.Contains(so.Reason, "undeclared role") {
-		t.Fatalf("Validate 의 말이 안 실렸다: %s", so.Reason)
+		t.Fatalf("what Validate said did not ride along: %s", so.Reason)
 	}
 	// 어휘도 함께 준다 — 무엇을 써야 하는지 모르면 또 추측한다.
 	if !strings.Contains(so.Reason, "planner") {
-		t.Fatalf("역할 목록이 안 실렸다: %s", so.Reason)
+		t.Fatalf("the role list did not ride along: %s", so.Reason)
 	}
 }
 
 // 정당한 계획은 안 막는다 — 안전망이 정규 경로를 무너뜨리는 것이 가장 나쁘다.
-func Test훅_정당한_계획은_통과시킨다(t *testing.T) {
+func TestHook_ALegitimatePlanPasses(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "plan"),
 		[]byte(`{"steps":[{"id":"w","uses":"mac","needs":["approve_plan"],`+
@@ -296,20 +296,20 @@ func Test훅_정당한_계획은_통과시킨다(t *testing.T) {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
-		t.Fatalf("정당한 계획을 막았다: %s", out.String())
+		t.Fatalf("blocked a legitimate plan: %s", out.String())
 	}
 }
 
 // 계획 단계가 아니면 안 본다 — Plan 이 비면 그냥 지나간다.
-func Test훅_계획단계가_아니면_안_본다(t *testing.T) {
+func TestHook_LooksOnlyAtAPlanStep(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "x"), []byte(`이건 계획이 아니다`), 0o644)
+	os.WriteFile(filepath.Join(dir, "x"), []byte(`this is not a plan`), 0o644)
 	a := HookArgs{Out: dir, Expect: []string{"x"}} // Plan 이 비어 있다
 	var out bytes.Buffer
 	if err := RunStopHook(a, strings.NewReader(`{"stop_hook_active":false}`), &out); err != nil {
 		t.Fatal(err)
 	}
 	if out.Len() != 0 {
-		t.Fatalf("계획도 아닌데 막았다: %s", out.String())
+		t.Fatalf("blocked something that is not a plan: %s", out.String())
 	}
 }
