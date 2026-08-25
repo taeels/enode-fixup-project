@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"gopkg.in/yaml.v3"
 )
@@ -75,7 +76,7 @@ func Default() Config {
 	return Config{
 		Listen:    ":8080",
 		Database:  Database{URL: "postgres:///enode"},
-		Artifacts: Artifacts{Root: "/var/lib/enode-mediator/artifacts", MaxBlobBytes: 10 << 20},
+		Artifacts: Artifacts{Root: defaultArtifactsRoot(), MaxBlobBytes: 10 << 20},
 		Claim:     Claim{LongPollSeconds: 7200}, // 2h (ADR-015 §5)
 		// v1 제출본 + 계획 + 재계획 둘 — 돌려보고 정할 값이다 (INVARIANTS §4).
 		Contract: Contract{MaxVersions: 4},
@@ -85,15 +86,13 @@ func Default() Config {
 
 // Load 는 ADR-015 §4 의 우선순위를 따른다.
 //
-//	--config <경로>  >  $ENODE_MEDIATOR_CONFIG
-//	                 >  ~/.config/enode-mediator/config.yaml
-//	                 >  /etc/enode-mediator/config.yaml
+//	--config <경로>  >  $ENODE_MEDIATOR_CONFIG  >  Paths() 의 순서
 //
 // 사용자 경로가 시스템 경로를 이긴다 — 그래야 시연에서 Mediator 가
 // 발표자 노트북에 평범한 사용자로 sudo 없이 뜬다 (ADR-007 D3).
 func Load(flagPath string) (Config, error) {
 	c := Default()
-	path, err := resolve(flagPath)
+	path, _, err := Resolve(flagPath)
 	if err != nil {
 		return c, err
 	}
@@ -119,24 +118,54 @@ func Load(flagPath string) (Config, error) {
 	return c, nil
 }
 
-func resolve(flagPath string) (string, error) {
-	if flagPath != "" {
-		return flagPath, nil // 명시했으면 없을 때 조용히 넘어가지 않는다
-	}
-	if v := os.Getenv("ENODE_MEDIATOR_CONFIG"); v != "" {
-		return v, nil
-	}
+// Paths 는 설정 파일을 찾아볼 자리를 순서대로 돌려준다.
+//
+// 경로를 여기 한 곳에만 적는다 — 예시 파일과 패키지와 코드가 서로 다른
+// 경로를 말하던 것이 실측에서 사람을 엉뚱한 곳으로 보냈다. 찾는 쪽과
+// 알려주는 쪽이 같은 목록을 봐야 그 어긋남이 안 생긴다.
+//
+// 사용자 자리가 시스템 자리보다 앞이다 (ADR-007 D3).
+func Paths() []string {
+	var ps []string
 	if home, err := os.UserHomeDir(); err == nil {
-		p := filepath.Join(home, ".config", "enode-mediator", "config.yaml")
-		if _, err := os.Stat(p); err == nil {
-			return p, nil
+		if runtime.GOOS == "windows" {
+			ps = append(ps, filepath.Join(home, "AppData", "Roaming", "enode-mediator", "config.yaml"))
+		} else {
+			ps = append(ps, filepath.Join(home, ".config", "enode-mediator", "config.yaml"))
 		}
 	}
-	p := "/etc/enode-mediator/config.yaml"
-	if _, err := os.Stat(p); err == nil {
-		return p, nil
+	if runtime.GOOS == "windows" {
+		// %ProgramData% 가 유닉스의 /etc 자리다. 없을 때를 대비해 박아 둔다.
+		pd := os.Getenv("ProgramData")
+		if pd == "" {
+			pd = `C:\ProgramData`
+		}
+		ps = append(ps, filepath.Join(pd, "enode-mediator", "config.yaml"))
+	} else {
+		ps = append(ps, "/etc/enode-mediator/config.yaml")
 	}
-	return "", nil // 설정 파일이 없으면 기본값 + 환경변수로 돈다
+	return ps
+}
+
+// Resolve 는 쓸 설정 파일과, 못 찾았을 때 찾아본 자리들을 돌려준다.
+//
+// 찾아본 자리를 함께 내는 이유 — 예전에는 못 찾아도 조용히 기본값으로 갔고,
+// 그다음 줄에서 "토큰이 없다" 로 죽었다. 진짜 원인은 "설정을 못 찾았다" 인데
+// 메시지가 그 말을 안 해서 사람이 토큰만 들여다봤다.
+func Resolve(flagPath string) (path string, tried []string, err error) {
+	if flagPath != "" {
+		return flagPath, nil, nil // 명시했으면 없을 때 조용히 넘어가지 않는다
+	}
+	if v := os.Getenv("ENODE_MEDIATOR_CONFIG"); v != "" {
+		return v, nil, nil
+	}
+	tried = Paths()
+	for _, p := range tried {
+		if _, err := os.Stat(p); err == nil {
+			return p, nil, nil
+		}
+	}
+	return "", tried, nil // 설정 파일이 없으면 기본값 + 환경변수로 돈다
 }
 
 // ADR-015 §4 — 파일에 DB 비밀번호가 들어가므로 0600 을 요구한다.
@@ -151,4 +180,19 @@ func warnIfWorldReadable(path string) error {
 			path, fi.Mode().Perm())
 	}
 	return nil
+}
+
+// defaultArtifactsRoot 는 Record 가 쌓일 자리의 기본값이다.
+//
+// 윈도우에는 /var/lib 가 없다. 크로스 빌드는 CI 가 지키는데(ADR-015 가 Go 를
+// 고른 핵심 이유) 기본값이 유닉스만 알면, 깔리기는 하고 뜨지는 않는다.
+func defaultArtifactsRoot() string {
+	if runtime.GOOS == "windows" {
+		pd := os.Getenv("ProgramData")
+		if pd == "" {
+			pd = `C:\ProgramData`
+		}
+		return filepath.Join(pd, "enode-mediator", "artifacts")
+	}
+	return "/var/lib/enode-mediator/artifacts"
 }

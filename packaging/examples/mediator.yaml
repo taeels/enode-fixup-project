@@ -1,6 +1,14 @@
-# Mediator 설정 예시. 이 파일 그대로 쓰지 마라 — 토큰을 바꿔야 한다.
+# Mediator 설정 예시. 손으로 쓸 필요는 없다 — `mediator setup` 이
+# Postgres 를 세우고 이 파일을 채워 준다. 이것은 그 결과의 모양이다.
 #
-#   mediator --config /etc/enode/mediator.yaml
+#   sudo mediator setup            묻고 · 만들고 · 써 준다
+#   sudo mediator setup --check    안 바꾸고 지금 상태만 본다
+#
+# 설정 파일을 찾는 순서 (internal/config 의 Paths() 가 정본이다)
+#
+#   --config <경로>  >  $ENODE_MEDIATOR_CONFIG
+#                    >  ~/.config/enode-mediator/config.yaml
+#                    >  /etc/enode-mediator/config.yaml
 #
 # Mediator 는 하나다 (ADR-002) — 노드는 여럿이지만 시퀀서는 한 자리다.
 # 그래서 이 설정은 기계 하나에만 놓인다.
@@ -10,7 +18,7 @@ listen: ":8080"
 
 # 노드와 같은 값을 적어야 한다 — 어긋나면 노드가 조용히 401 을 받는다.
 # 뽑는 법: head -c 24 /dev/urandom | base64 | tr -d '/+='
-token: "여기에-토큰을-넣는다"
+token: ""     # 비워 두면 mediator 가 만들어 여기 써넣고 알려준다
 
 database:
   # ADR-015 §3 이 고른 저장소다. I5(전부 아니면 전무)를 트랜잭션으로 얻는다.

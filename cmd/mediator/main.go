@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,10 +24,16 @@ import (
 
 func main() {
 	cfgPath := flag.String("config", "", "path to the config file")
-	// --version 은 플래그 파싱보다 앞이다 (ADR-056)
-	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
-		fmt.Println(build.Version("mediator"))
-		return
+	// --version 과 setup 은 플래그 파싱보다 앞이다 (ADR-056).
+	// setup 은 설정도 DB 도 없는 상태에서 불리므로 Load 를 지나면 안 된다.
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--version", "-version", "version":
+			fmt.Println(build.Version("mediator"))
+			return
+		case "setup":
+			os.Exit(runSetup(os.Args[2:]))
+		}
 	}
 	flag.Parse()
 
@@ -36,6 +43,32 @@ func main() {
 	if err != nil {
 		log.Error("cannot read config", "err", err)
 		os.Exit(1)
+	}
+	// 설정을 못 찾은 것과 토큰만 빠진 것을 가른다.
+	//
+	// 예전에는 둘이 같은 메시지로 나왔다. 못 찾아도 조용히 기본값으로 갔고
+	// 그다음 줄에서 "토큰이 없다" 로 죽으니, 사람이 토큰만 들여다봤다.
+	// 진짜 원인은 그 위에 있었다.
+	cfgFile, tried, _ := config.Resolve(*cfgPath)
+	if cfgFile == "" && os.Getenv("ENODE_MEDIATOR_TOKEN") == "" {
+		log.Error("no config file found", "tried", strings.Join(tried, ", "))
+		fmt.Fprintf(os.Stderr, "\nRun `mediator setup` to create one.\n")
+		os.Exit(1)
+	}
+	if cfg.Token == "" {
+		// 파일은 있는데 값만 비었으면 만들어 넣는다. 조용한 대체가 아니다 —
+		// 만들고, 파일에 남기고, 만들었다고 말한다 (ADR-015 §1 은 인증을
+		// 건너뛰는 것을 막는 것이지 부트스트랩을 막는 것이 아니다).
+		if cfgFile != "" {
+			tok, terr := config.EnsureToken(cfgFile)
+			if terr == nil && tok != "" {
+				cfg.Token = tok
+				log.Info("generated a token and wrote it to the config", "config", cfgFile)
+				fmt.Fprintf(os.Stderr, "\ntoken  %s\n"+
+					"       Every node needs this exact value; a node with a\n"+
+					"       different token is rejected with 401.\n\n", tok)
+			}
+		}
 	}
 	if cfg.Token == "" {
 		// ADR-015 의 원칙 — 조용한 대체를 하지 않는다. 없으면 그 자리에서 죽는다.
