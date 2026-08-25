@@ -14,24 +14,24 @@ func mk(t *testing.T, dir, rel, body string) string {
 }
 
 // 평범한 경우 — 계약이 경로를 적으면 $OUT 으로 옮긴다.
-func TestCollect_적은_경로를_옮긴다(t *testing.T) {
+func TestCollect_MovesTheDeclaredPaths(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
-	mk(t, ws, "drivers/spi/spi-bcm2835.ko", "모듈")
-	mk(t, ws, "build.log", "빌드로그")
+	mk(t, ws, "drivers/spi/spi-bcm2835.ko", "module")
+	mk(t, ws, "build.log", "buildlog")
 
 	got, notes := collectDeclared(ws, out, map[string]string{
 		"artifact":  "drivers/spi/spi-bcm2835.ko",
 		"build_log": "build.log",
 	})
 	if len(notes) != 0 {
-		t.Fatalf("이유가 붙었다: %+v", notes)
+		t.Fatalf("a note was attached: %+v", notes)
 	}
 	if strings.Join(got, ",") != "artifact,build_log" {
-		t.Fatalf("걷은 것: %v", got)
+		t.Fatalf("harvested: %v", got)
 	}
 	b, err := os.ReadFile(filepath.Join(out, "artifact"))
-	if err != nil || string(b) != "모듈" {
-		t.Fatalf("내용이 안 맞다: %q %v", b, err)
+	if err != nil || string(b) != "module" {
+		t.Fatalf("content does not match: %q %v", b, err)
 	}
 }
 
@@ -40,50 +40,50 @@ func TestCollect_적은_경로를_옮긴다(t *testing.T) {
 // (ADR-042 이전 표현: acceptEdits + --add-dir) 모델이 쓸 수 있는 곳과 collect 가
 // 아무 데나 가리키면 계약이 그 경계를 우회한다. 계약은 노드 주인이 아닌
 // 사람이 낸다.
-func TestCollect_바깥을_못_가리킨다(t *testing.T) {
+func TestCollect_CannotPointOutside(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
-	secret := filepath.Join(t.TempDir(), "비밀.txt")
-	if err := os.WriteFile(secret, []byte("비밀-청록"), 0o644); err != nil {
+	secret := filepath.Join(t.TempDir(), "secret.txt")
+	if err := os.WriteFile(secret, []byte("secret-teal"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
 	for _, pat := range []string{
-		secret,             // 절대경로
-		"../비밀.txt",        // .. 탈출
-		"../../etc/passwd", // 더 깊은 탈출
-		"a/../../비밀.txt",   // 중간에 섞인 탈출
+		secret,               // 절대경로
+		"../secret.txt",      // .. escape
+		"../../etc/passwd",   // 더 깊은 탈출
+		"a/../../secret.txt", // escape mixed into the middle
 	} {
 		got, notes := collectDeclared(ws, out, map[string]string{"x": pat})
 		if len(got) != 0 {
-			t.Fatalf("%q 를 걷었다", pat)
+			t.Fatalf("harvested %q", pat)
 		}
 		if len(notes) != 1 {
-			t.Fatalf("%q — 이유를 안 남겼다: %+v", pat, notes)
+			t.Fatalf("%q — no note was left: %+v", pat, notes)
 		}
 	}
 	if n := len(harvest(out)); n != 0 {
-		t.Fatalf("$OUT 에 뭔가 들어갔다: %v", harvest(out))
+		t.Fatalf("something got into $OUT: %v", harvest(out))
 	}
 }
 
 // 심링크를 안 따라간다 — 글롭은 워크스페이스 안이어도 가리키는 곳은 밖일 수 있다.
-func TestCollect_심링크를_안_따라간다(t *testing.T) {
+func TestCollect_DoesNotFollowASymlink(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
-	secret := filepath.Join(t.TempDir(), "비밀.txt")
-	if err := os.WriteFile(secret, []byte("비밀-청록"), 0o644); err != nil {
+	secret := filepath.Join(t.TempDir(), "secret.txt")
+	if err := os.WriteFile(secret, []byte("secret-teal"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(secret, filepath.Join(ws, "미끼")); err != nil {
-		t.Skip("심링크를 못 만든다")
+	if err := os.Symlink(secret, filepath.Join(ws, "bait")); err != nil {
+		t.Skip("cannot create a symlink")
 	}
 
-	got, notes := collectDeclared(ws, out, map[string]string{"x": "미끼"})
+	got, notes := collectDeclared(ws, out, map[string]string{"x": "bait"})
 	if len(got) != 0 {
 		b, _ := os.ReadFile(filepath.Join(out, "x"))
-		t.Fatalf("심링크를 따라가 밖을 걷었다: %q", b)
+		t.Fatalf("followed a symlink and harvested outside: %q", b)
 	}
 	if len(notes) != 1 || !strings.Contains(notes[0].Why, "no file matches") {
-		t.Fatalf("이유: %+v", notes)
+		t.Fatalf("notes: %+v", notes)
 	}
 }
 
@@ -91,69 +91,69 @@ func TestCollect_심링크를_안_따라간다(t *testing.T) {
 //
 // 최종 항목만 Lstat 으로 보면 통과해 버린다 — 심링크는 부모 쪽에 있기 때문이다.
 // git 이 심링크를 담을 수 있으므로 리뷰 대상 코드가 스스로 통로를 놓을 수 있다.
-func TestCollect_심링크_부모를_안_따라간다(t *testing.T) {
+func TestCollect_DoesNotFollowASymlinkedParent(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
 	outside := t.TempDir()
-	if err := os.WriteFile(filepath.Join(outside, "shadow"), []byte("비밀-청록"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(outside, "shadow"), []byte("secret-teal"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(outside, filepath.Join(ws, "x")); err != nil {
-		t.Skip("심링크를 못 만든다")
+		t.Skip("cannot create a symlink")
 	}
 
 	got, notes := collectDeclared(ws, out, map[string]string{"leak": "x/shadow"})
 	if len(got) != 0 {
 		b, _ := os.ReadFile(filepath.Join(out, "leak"))
-		t.Fatalf("심링크 부모를 통과해 밖을 걷었다: %q", b)
+		t.Fatalf("passed through a symlinked parent and harvested outside: %q", b)
 	}
 	if len(notes) != 1 || !strings.Contains(notes[0].Why, "no file matches") {
-		t.Fatalf("이유: %+v", notes)
+		t.Fatalf("notes: %+v", notes)
 	}
 }
 
 // 워크스페이스 자신이 심링크 아래 있어도 걷는다 — 음성 대조.
 // 양쪽을 다 풀지 않으면 실경로 비교가 정상 산출물까지 떨어뜨린다.
-func TestCollect_워크스페이스가_심링크여도_걷는다(t *testing.T) {
+func TestCollect_HarvestsEvenIfTheWorkspaceIsASymlink(t *testing.T) {
 	actual, out := t.TempDir(), t.TempDir()
-	mk(t, actual, "a.ko", "모듈")
+	mk(t, actual, "a.ko", "module")
 	link := filepath.Join(t.TempDir(), "ws")
 	if err := os.Symlink(actual, link); err != nil {
-		t.Skip("심링크를 못 만든다")
+		t.Skip("cannot create a symlink")
 	}
 
 	got, notes := collectDeclared(link, out, map[string]string{"m": "a.ko"})
 	if len(got) != 1 || len(notes) != 0 {
-		t.Fatalf("정상 산출물을 떨어뜨렸다: got=%v notes=%+v", got, notes)
+		t.Fatalf("dropped a valid artifact: got=%v notes=%+v", got, notes)
 	}
 	b, err := os.ReadFile(filepath.Join(out, "m"))
-	if err != nil || string(b) != "모듈" {
-		t.Fatalf("내용이 안 맞다: %q %v", b, err)
+	if err != nil || string(b) != "module" {
+		t.Fatalf("content does not match: %q %v", b, err)
 	}
 }
 
 // 여럿이 맞으면 안 걷고 목록을 남긴다 — 하나의 blob 이름에 여럿을 넣으면
 // 소비자가 예측을 못 한다 (어떨 땐 .ko, 어떨 땐 묶음).
-func TestCollect_여럿이면_안_걷고_알린다(t *testing.T) {
+func TestCollect_SeveralMatchesHarvestNothingAndSayWhy(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
 	mk(t, ws, "m/a.ko", "1")
 	mk(t, ws, "m/b.ko", "2")
 
 	got, notes := collectDeclared(ws, out, map[string]string{"modules": "m/*.ko"})
 	if len(got) != 0 {
-		t.Fatalf("걷으면 안 된다: %v", got)
+		t.Fatalf("must not harvest: %v", got)
 	}
 	if len(notes) != 1 || !strings.Contains(notes[0].Why, "matches 2 files") {
-		t.Fatalf("이유가 부실하다: %+v", notes)
+		t.Fatalf("the note is too thin: %+v", notes)
 	}
 	if !strings.Contains(notes[0].Why, "a.ko") || !strings.Contains(notes[0].Why, "b.ko") {
-		t.Fatalf("무엇이 맞았는지 안 알려줬다: %s", notes[0].Why)
+		t.Fatalf("it does not say what matched: %s", notes[0].Why)
 	}
 }
 
 // 하나만 맞는 글롭은 걷는다.
-func TestCollect_글롭이_하나면_걷는다(t *testing.T) {
+func TestCollect_ASingleGlobMatchIsHarvested(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
-	mk(t, ws, "arch/arm/boot/zImage", "커널")
+	mk(t, ws, "arch/arm/boot/zImage", "kernel")
 	got, notes := collectDeclared(ws, out, map[string]string{"kernel": "arch/*/boot/zImage"})
 	if len(got) != 1 || len(notes) != 0 {
 		t.Fatalf("got=%v notes=%+v", got, notes)
@@ -161,33 +161,33 @@ func TestCollect_글롭이_하나면_걷는다(t *testing.T) {
 }
 
 // 스크립트가 직접 낸 것이 우선 — collect 는 보조다.
-func TestCollect_이미_있으면_안_덮는다(t *testing.T) {
+func TestCollect_DoesNotOverwriteWhatExists(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
-	mk(t, ws, "a.bin", "워크스페이스것")
-	if err := os.WriteFile(filepath.Join(out, "artifact"), []byte("스크립트것"), 0o644); err != nil {
+	mk(t, ws, "a.bin", "from-workspace")
+	if err := os.WriteFile(filepath.Join(out, "artifact"), []byte("from-script"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	collectDeclared(ws, out, map[string]string{"artifact": "a.bin"})
 	b, _ := os.ReadFile(filepath.Join(out, "artifact"))
-	if string(b) != "스크립트것" {
-		t.Fatalf("덮어썼다: %q", b)
+	if string(b) != "from-script" {
+		t.Fatalf("overwritten: %q", b)
 	}
 }
 
 // 없으면 왜 없는지를 남긴다 — 새 실패 경로는 안 만든다.
-func TestCollect_없으면_이유를_남긴다(t *testing.T) {
+func TestCollect_LeavesANoteWhenNothingMatches(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
-	got, notes := collectDeclared(ws, out, map[string]string{"artifact": "없는/경로.ko"})
+	got, notes := collectDeclared(ws, out, map[string]string{"artifact": "missing/path.ko"})
 	if len(got) != 0 || len(notes) != 1 {
 		t.Fatalf("got=%v notes=%+v", got, notes)
 	}
-	if !strings.Contains(notes[0].Why, "없는/경로.ko") {
-		t.Fatalf("어느 경로를 못 찾았는지 안 적었다: %s", notes[0].Why)
+	if !strings.Contains(notes[0].Why, "missing/path.ko") {
+		t.Fatalf("it does not say which path was missing: %s", notes[0].Why)
 	}
 }
 
 // 디렉터리는 안 걷는다.
-func TestCollect_디렉터리는_안_걷는다(t *testing.T) {
+func TestCollect_DoesNotHarvestDirectories(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
 	if err := os.MkdirAll(filepath.Join(ws, "build"), 0o755); err != nil {
 		t.Fatal(err)
@@ -199,10 +199,10 @@ func TestCollect_디렉터리는_안_걷는다(t *testing.T) {
 }
 
 // 못 걷은 이유가 기록에 실린다 — 없으면 사람이 계약과 트리를 대조해야 한다.
-func TestCollect_이유가_기록에_실린다(t *testing.T) {
+func TestCollect_TheNoteReachesTheRecord(t *testing.T) {
 	out := t.TempDir()
 	writeChangedNote(out, []string{"artifact"}, Stamp{},
-		[]collectNote{{"artifact", `"arch/arm/boot/zImage" 에 맞는 파일이 없다`}}, testLog())
+		[]collectNote{{"artifact", `no file matches "arch/arm/boot/zImage"`}}, testLog())
 
 	b, err := os.ReadFile(filepath.Join(out, changedName))
 	if err != nil {
@@ -210,7 +210,7 @@ func TestCollect_이유가_기록에_실린다(t *testing.T) {
 	}
 	got := string(b)
 	if !strings.Contains(got, "collect could not gather") || !strings.Contains(got, "zImage") {
-		t.Fatalf("이유가 안 실렸다:\n%s", got)
+		t.Fatalf("the note did not ride along:\n%s", got)
 	}
 }
 
@@ -218,34 +218,34 @@ func TestCollect_이유가_기록에_실린다(t *testing.T) {
 //
 // $IN 은 읽기만 필요한데 쓰기가 열려 있으므로, 훅이 못 보는 쓰기가
 // 생긴다. 시연에 대입하면 ④의 리뷰 대상 diff · ⑥의 되먹인 빌드 로그다.
-func Test입력_잠금_고칠_수_없다(t *testing.T) {
+func TestInputLock_CannotBeEdited(t *testing.T) {
 	if os.Geteuid() == 0 {
-		t.Skip("root 는 권한을 무시한다")
+		t.Skip("root ignores permissions")
 	}
 	in := t.TempDir()
-	if err := os.WriteFile(filepath.Join(in, "diff"), []byte("원본"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(in, "diff"), []byte("original"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if why := sealInput(in); why != "" {
-		t.Fatalf("잠그지 못했다: %s", why)
+		t.Fatalf("could not lock: %s", why)
 	}
 	t.Cleanup(func() { _ = os.Chmod(in, 0o700) })
 
 	// ① 내용을 못 바꾼다
-	if err := os.WriteFile(filepath.Join(in, "diff"), []byte("위조"), 0o644); err == nil {
-		t.Fatal("입력을 고쳐 썼다")
+	if err := os.WriteFile(filepath.Join(in, "diff"), []byte("forged"), 0o644); err == nil {
+		t.Fatal("the input was rewritten")
 	}
 	// ② 새 파일을 못 만든다
-	if err := os.WriteFile(filepath.Join(in, "새것"), []byte("x"), 0o644); err == nil {
-		t.Fatal("$IN 에 새 파일을 만들었다")
+	if err := os.WriteFile(filepath.Join(in, "newfile"), []byte("x"), 0o644); err == nil {
+		t.Fatal("a new file was created in $IN")
 	}
 	// ③ 지우고 다시 만들기도 막힌다 — 파일만 잠그면 이 길이 열린다
 	if err := os.Remove(filepath.Join(in, "diff")); err == nil {
-		t.Fatal("입력을 지웠다")
+		t.Fatal("the input was deleted")
 	}
 	// ④ 읽기는 된다 — 잠금이 단계를 깨면 안 된다
 	b, err := os.ReadFile(filepath.Join(in, "diff"))
-	if err != nil || string(b) != "원본" {
-		t.Fatalf("읽기가 깨졌다: %q %v", b, err)
+	if err != nil || string(b) != "original" {
+		t.Fatalf("reading broke: %q %v", b, err)
 	}
 }

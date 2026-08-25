@@ -25,7 +25,7 @@ func TestCanonicalRepoID(t *testing.T) {
 	}
 	for _, in := range same {
 		if got := CanonicalRepoID(in); got != want {
-			t.Errorf("%s → %q, 기대 %q", in, got, want)
+			t.Errorf("%s → %q, want %q", in, got, want)
 		}
 	}
 
@@ -37,11 +37,11 @@ func TestCanonicalRepoID(t *testing.T) {
 	}
 	for in, want := range diff {
 		if got := CanonicalRepoID(in); got != want {
-			t.Errorf("%s → %q, 기대 %q", in, got, want)
+			t.Errorf("%s → %q, want %q", in, got, want)
 		}
 	}
 	if CanonicalRepoID("") != "" {
-		t.Error("빈 입력은 빈 출력이어야 한다")
+		t.Error("empty input must give empty output")
 	}
 }
 
@@ -52,22 +52,22 @@ func TestIdentity(t *testing.T) {
 	a := deriveFrom(email, host, "/etc/enode/ws-a.yaml")
 	b := deriveFrom(email, host, "/etc/enode/ws-b.yaml")
 	if a.NodeID == b.NodeID {
-		t.Fatal("설정이 다른데 신원이 같다 — 두 enode 가 같은 자원을 광고하게 된다")
+		t.Fatal("different configs share an identity — two enodes would advertise the same resource")
 	}
 	// 재시작에 안정적이어야 한다 (무작위 UUID 를 기각한 이유)
 	if again := deriveFrom(email, host, "/etc/enode/ws-a.yaml"); again.NodeID != a.NodeID {
-		t.Fatal("같은 입력인데 신원이 바뀐다 — 재시작마다 유령 노드가 쌓인다")
+		t.Fatal("the same input changes identity — every restart piles up a ghost node")
 	}
 	// 기계가 다르면 달라야 한다
 	if c := deriveFrom(email, "mbp", "/etc/enode/ws-a.yaml"); c.NodeID == a.NodeID {
-		t.Fatal("기계가 다른데 신원이 같다")
+		t.Fatal("different machines share an identity")
 	}
 	// 사람이 다르면 달라야 한다 (공용 빌드 서버)
 	if d := deriveFrom("other@corp.com", host, "/etc/enode/ws-a.yaml"); d.NodeID == a.NodeID {
-		t.Fatal("사람이 다른데 신원이 같다")
+		t.Fatal("different people share an identity")
 	}
 	if len(a.NodeID) != 12 {
-		t.Fatalf("node_id 길이 %d", len(a.NodeID))
+		t.Fatalf("node_id length %d", len(a.NodeID))
 	}
 }
 
@@ -93,10 +93,10 @@ func TestLockRejectsSecond(t *testing.T) {
 	}
 	first, err := Acquire(cfg)
 	if err != nil {
-		t.Fatalf("첫 잠금이 실패했다: %v", err)
+		t.Fatalf("the first lock failed: %v", err)
 	}
 	if _, err := Acquire(cfg); err == nil {
-		t.Fatal("같은 설정으로 두 번 띄워졌다 — 같은 자원을 둘 다 광고하게 된다")
+		t.Fatal("started twice from one config — both would advertise the same resource")
 	}
 	if err := first.Release(); err != nil {
 		t.Fatal(err)
@@ -104,7 +104,7 @@ func TestLockRejectsSecond(t *testing.T) {
 	// 풀면 다시 잡을 수 있어야 한다 — 재시작이 막히면 안 된다
 	again, err := Acquire(cfg)
 	if err != nil {
-		t.Fatalf("재시작이 막혔다: %v", err)
+		t.Fatalf("restart was blocked: %v", err)
 	}
 	again.Release()
 }
@@ -118,7 +118,7 @@ func TestDetectDropsBuildWhenDiskLow(t *testing.T) {
 	l := Local{Workspace: ws, Arch: "armv7", MinFreeGB: 1}
 	caps := Detect(l, log)
 	if len(caps) == 0 || caps[0].Attrs["arch"] != "armv7" {
-		t.Fatalf("여유가 있으면 빌드 능력이 있어야 한다: %+v", caps)
+		t.Fatalf("with free space there must be a build capability: %+v", caps)
 	}
 
 	// 임계값을 현실적으로 불가능하게 올린다 → 빠져야 한다
@@ -126,7 +126,7 @@ func TestDetectDropsBuildWhenDiskLow(t *testing.T) {
 	caps = Detect(l, log)
 	for _, c := range caps {
 		if _, ok := c.Attrs["arch"]; ok {
-			t.Fatal("디스크가 모자란데 빌드 능력을 광고했다")
+			t.Fatal("advertised a build capability with too little disk")
 		}
 	}
 }
@@ -142,22 +142,22 @@ func TestDetectDropsBuildWhenDiskLow(t *testing.T) {
 //
 //	"명령 단계에는 파일시스템 경계가 없다"(INVARIANTS)이므로 거기서 명령 단계가
 //	돌면 DB·아티팩트·토큰에 무경계 argv 가 닿는다.
-func TestDetect_오케스트레이션은_배제되게_광고한다(t *testing.T) {
+func TestDetect_OrchestrationAdvertisesExclusively(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ws := t.TempDir()
 
 	l := Local{Workspace: ws, Arch: "armv7", Orchestration: true}
 	caps := Detect(l, log)
 	if len(caps) == 0 {
-		t.Skip("하네스도 저장소도 없어 광고할 것이 없다")
+		t.Skip("no harness and no repo, so there is nothing to advertise")
 	}
 	for _, c := range caps {
 		if c.Capability != contract.CapabilityOrchestration {
-			t.Fatalf("%q 를 광고했다 — 평범한 Run 이 잡아간다: %+v",
+			t.Fatalf("advertised %q — an ordinary run would grab it: %+v",
 				c.Capability, caps)
 		}
 		if _, ok := c.Attrs["arch"]; ok {
-			t.Fatalf("arch 를 광고했다 — 명령 단계가 Mediator 머신에서 돈다: %+v", caps)
+			t.Fatalf("advertised arch — command steps would run on the mediator machine: %+v", caps)
 		}
 	}
 
@@ -166,7 +166,7 @@ func TestDetect_오케스트레이션은_배제되게_광고한다(t *testing.T)
 	caps = Detect(l, log)
 	if len(caps) == 0 || caps[0].Capability != contract.CapabilityAgentReason ||
 		caps[0].Attrs["arch"] != "armv7" {
-		t.Fatalf("플래그를 껐는데 평범한 노드가 아니다: %+v", caps)
+		t.Fatalf("the flag is off yet this is not an ordinary node: %+v", caps)
 	}
 }
 
@@ -183,7 +183,7 @@ func TestDetectEmpty(t *testing.T) {
 				switch k {
 				case "harness", "os", "host_arch":
 				default:
-					t.Fatalf("빈 설정인데 %s 를 광고했다: %+v", k, caps)
+					t.Fatalf("empty config yet %s was advertised: %+v", k, caps)
 				}
 			}
 		}
@@ -194,16 +194,16 @@ func TestDetectEmpty(t *testing.T) {
 //
 // os · host_arch 를 무조건 싣게 되면서 "아무것도 못 하는 노드" 가 능력을
 // 가진 것처럼 보일 수 있다. 광고가 곧 능력이다 (ADR-012) — 그 뜻을 지킨다.
-func Test기계사실만_있으면_광고하지_않는다(t *testing.T) {
+func TestMachineFactsAloneDoNotAdvertise(t *testing.T) {
 	if hasCapability(map[string]string{"os": "linux", "host_arch": "amd64",
 		"ws": "/w"}) {
-		t.Fatal("기계 사실만 있는데 능력이 있다고 했다")
+		t.Fatal("machine facts alone were reported as a capability")
 	}
 	if !hasCapability(map[string]string{"os": "linux", "harness": "claude"}) {
-		t.Fatal("하네스가 있는데 능력이 없다고 했다")
+		t.Fatal("a harness exists yet no capability was reported")
 	}
 	if !hasCapability(map[string]string{"os": "linux", "arch": "arm64"}) {
-		t.Fatal("빌드 능력이 있는데 없다고 했다")
+		t.Fatal("a build capability exists yet none was reported")
 	}
 }
 
@@ -211,26 +211,26 @@ func Test기계사실만_있으면_광고하지_않는다(t *testing.T) {
 //
 // 실측(vm-scratch-1..5): 계획이 매 판 uname · sw_vers 를 돌려 이것을 알아냈고,
 // 그 답을 보려면 판이 하나 더 필요했다.
-func Test광고에_기계_사실이_실린다(t *testing.T) {
+func TestTheAdvertCarriesMachineFacts(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ws := t.TempDir()
 	caps := Detect(Local{Workspace: ws, Arch: "arm64", MinFreeGB: 0}, log)
 	if len(caps) == 0 {
-		t.Fatal("arch 가 있는데 광고가 비었다")
+		t.Fatal("arch exists yet the advert is empty")
 	}
 	a := caps[0].Attrs
 	if a["os"] != runtime.GOOS {
-		t.Fatalf("os 가 %q 다 — %q 여야 한다", a["os"], runtime.GOOS)
+		t.Fatalf("os is %q, want %q", a["os"], runtime.GOOS)
 	}
 	if a["host_arch"] != runtime.GOARCH {
-		t.Fatalf("host_arch 가 %q 다", a["host_arch"])
+		t.Fatalf("host_arch is %q", a["host_arch"])
 	}
 	if a["ws"] != ws {
-		t.Fatalf("ws 가 %q 다 — %q 여야 한다", a["ws"], ws)
+		t.Fatalf("ws is %q, want %q", a["ws"], ws)
 	}
 	// arch 는 빌드 대상이고 host_arch 는 이 기계다 — 섞이면 안 된다.
 	if a["arch"] != "arm64" {
-		t.Fatalf("빌드 대상 arch 가 사라졌다: %+v", a)
+		t.Fatalf("the build target arch disappeared: %+v", a)
 	}
 }
 
@@ -238,7 +238,7 @@ func Test광고에_기계_사실이_실린다(t *testing.T) {
 //
 // 탄력 노드가 자기 몫의 Run 만 잡으려면 구별할 것이 있어야 한다.
 // ADR-012 가 "속성 어휘는 창발한다" 로 열어둔 자리다.
-func Test이름표가_광고에_실린다(t *testing.T) {
+func TestLabelsRideTheAdvert(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	caps := Detect(Local{
 		Workspace: t.TempDir(),
@@ -246,11 +246,11 @@ func Test이름표가_광고에_실린다(t *testing.T) {
 		Labels:    map[string]string{"issue": "PROJ-42", "pool": "cloud-builders"},
 	}, log)
 	if len(caps) == 0 {
-		t.Fatal("광고가 비었다")
+		t.Fatal("the advert is empty")
 	}
 	a := caps[0].Attrs
 	if a["issue"] != "PROJ-42" || a["pool"] != "cloud-builders" {
-		t.Fatalf("이름표가 안 실렸다: %+v", a)
+		t.Fatalf("the labels did not ride along: %+v", a)
 	}
 
 	// 탐지한 것을 못 덮는다 — 사람이 적은 것이 기계가 본 것을 이기면
@@ -258,13 +258,13 @@ func Test이름표가_광고에_실린다(t *testing.T) {
 	caps = Detect(Local{
 		Workspace: t.TempDir(),
 		Arch:      "arm64",
-		Labels:    map[string]string{"os": "그럴듯한거짓말", "arch": "x86"},
+		Labels:    map[string]string{"os": "plausible-lie", "arch": "x86"},
 	}, log)
 	a = caps[0].Attrs
-	if a["os"] == "그럴듯한거짓말" {
-		t.Fatal("이름표가 탐지한 os 를 덮었다")
+	if a["os"] == "plausible-lie" {
+		t.Fatal("a label overrode the detected os")
 	}
 	if a["arch"] != "arm64" {
-		t.Fatalf("이름표가 arch 를 덮었다: %s", a["arch"])
+		t.Fatalf("a label overrode arch: %s", a["arch"])
 	}
 }
