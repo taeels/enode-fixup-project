@@ -33,6 +33,17 @@ jobs:
           check-latest: false
 
       - run: go version
+
+      # 표기 규약(CLAUDE.md · enode-design 표기 규약 제2판)의 집행 자리다.
+      # 재고를 0 으로 만든 뒤이므로 「하나라도 있으면 실패」가 성립한다.
+      - name: 장식 문자가 없는지
+        run: |
+          if grep -rlP '\x{2605}' --exclude-dir=.git --exclude-dir=dist . ; then
+            echo
+            echo '위 파일에 장식 강조가 들어왔다 (CLAUDE.md 1.2).'
+            exit 1
+          fi
+
       - name: 포맷
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - name: vet
