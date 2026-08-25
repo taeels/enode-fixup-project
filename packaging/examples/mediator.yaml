@@ -1,0 +1,25 @@
+# Mediator 설정 예시. ★ 이 파일 그대로 쓰지 마라 ★ — 토큰을 바꿔야 한다.
+#
+#   mediator --config /etc/enode/mediator.yaml
+#
+# ★ Mediator 는 하나다 ★ (ADR-002) — 노드는 여럿이지만 시퀀서는 한 자리다.
+# 그래서 이 설정은 기계 하나에만 놓인다.
+
+# ★ 전 인터페이스여야 한다 ★ — 127.0.0.1 로 좁히면 다른 기계의 노드가 못 닿는다.
+listen: ":8080"
+
+# ★ 노드와 같은 값을 적어야 한다 ★ — 어긋나면 노드가 조용히 401 을 받는다.
+# 뽑는 법: head -c 24 /dev/urandom | base64 | tr -d '/+='
+token: "여기에-토큰을-넣는다"
+
+database:
+  # ADR-015 §3 이 고른 저장소다. I5(전부 아니면 전무)를 트랜잭션으로 얻는다.
+  url: "postgres://enode:enode@127.0.0.1:5432/enode?sslmode=disable"
+
+artifacts:
+  # 봉인된 Record 가 쌓이는 곳 (ADR-005). ★ 지우면 증거가 사라진다 ★.
+  root: "/var/lib/enode/artifacts"
+
+# 계약의 판이 몇 번까지 늘 수 있는가 (ADR-031). 기본 4 는 「초기 + 재계획 2회」다.
+# contract:
+#   max_versions: 10

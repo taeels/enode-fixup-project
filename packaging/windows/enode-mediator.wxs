@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Mediator 의 윈도우 설치본. ★ enode.wxs 와 별개다 ★ — UpgradeCode 도 설치
+  폴더도 다르다. 같은 UpgradeCode 를 쓰면 한쪽을 깔 때 다른 쪽이 「업그레이드」로
+  ★ 지워진다 ★.
+
+  역할이 다르고 대수가 다르므로 패키지도 가른다 — nfpm-mediator.yaml.in 의
+  머리말이 이유를 적는다.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="enode-mediator" Language="1033" Version="$(var.Version)"
+           Manufacturer="taeels" UpgradeCode="9c4d2e11-7a63-4b58-9f02-3e81d6c5a742">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine"
+             Description="enode-mediator — 함대의 시퀀서" />
+    <MajorUpgrade DowngradeErrorMessage="이미 더 새 버전이 설치돼 있습니다." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="enode-mediator">
+          <Component Id="C_mediator" Guid="9c4d2e11-1111-4b58-9f02-000000000001" Win64="yes">
+            <File Id="F_mediator" Source="$(var.BinDir)/mediator.exe" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="Main" Title="enode-mediator" Level="1">
+      <ComponentRef Id="C_mediator" />
+    </Feature>
+  </Product>
+</Wix>
