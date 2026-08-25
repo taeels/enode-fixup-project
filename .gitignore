@@ -9,3 +9,6 @@
 
 # 배포 묶음 (packaging/macos/build.sh 의 산출물)
 /dist/
+
+# 로컬 실행이 남기는 로그
+*.log
