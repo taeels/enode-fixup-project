@@ -38,6 +38,14 @@ type MediatorConfig struct {
 	// Principal 은 X-Enode-Principal 로 실린다. 되묻기의 답을 쓸 때
 	// 누가 답했는지가 봉인에 남는다 (ADR-033).
 	Principal string `yaml:"principal"`
+	// SubmitWaitSeconds 는 「지금은 전부 점유됨」(409) 을 만났을 때 다시 내며
+	// 기다리는 상한이다.
+	//
+	// 동시성의 상한은 어댑터가 아니라 함대다 (I1 — 노드 하나는 동시에 하나의
+	// Run 에만). 그래서 실행 노드가 다른 이슈를 물고 있는 것은 고장이 아니라
+	// 정상이고, 그때마다 이슈를 실패로 닫으면 안 된다.
+	// 422 는 이 기다림에 안 걸린다 — 다시 내도 같기 때문이다.
+	SubmitWaitSeconds int `yaml:"submit_wait_seconds"`
 }
 
 type OrchestratorConfig struct {
@@ -104,6 +112,9 @@ func LoadConfig(path string) (*Config, error) {
 	if c.Orchestrator.ReadySeconds <= 0 {
 		c.Orchestrator.ReadySeconds = 90
 	}
+	if c.Mediator.SubmitWaitSeconds <= 0 {
+		c.Mediator.SubmitWaitSeconds = 600
+	}
 	if c.Executor.As == "" {
 		c.Executor.As = "worker"
 	}
@@ -116,4 +127,7 @@ func (c *Config) Heartbeat() time.Duration {
 }
 func (c *Config) ReadyWait() time.Duration {
 	return time.Duration(c.Orchestrator.ReadySeconds) * time.Second
+}
+func (c *Config) SubmitWait() time.Duration {
+	return time.Duration(c.Mediator.SubmitWaitSeconds) * time.Second
 }

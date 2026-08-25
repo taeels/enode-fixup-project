@@ -15,6 +15,33 @@ import (
 // ErrNoRun 은 그 run_id 가 아직 없다는 뜻이다 (404). 세대를 탐침할 때 쓴다.
 var ErrNoRun = errors.New("no such run")
 
+// HTTPError 는 Mediator 가 준 4xx·5xx 다.
+//
+// 상태 코드를 살려 두는 이유가 하나다 — 409 와 422 를 호출자가 갈라야 한다.
+// 매처가 「후보는 있는데 전부 점유됨」(409, 일시) 과 「함대에 없다」(422, 영구)
+// 를 가르는 목적이 재시도해도 되는지를 알려주는 것인데 (ADR-014 결정 3),
+// error 하나로 뭉개면 그 정보가 여기서 사라진다. 실제로 사라져 있었다 —
+// 실행 노드가 잠시 바쁜 것뿐인데 이슈가 실패 칸으로 갔다.
+type HTTPError struct {
+	Status int
+	Method string
+	Path   string
+	Body   string
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("%s %s: %d %s", e.Method, e.Path, e.Status, e.Body)
+}
+
+// IsBusy 는 「지금은 전부 점유됨」인가다 (409).
+//
+// 일시적이므로 다시 내면 된다. 422 는 여기 안 걸린다 — 함대에 그런 노드가
+// 아예 없다는 뜻이라 다시 내도 같다.
+func IsBusy(err error) bool {
+	var he *HTTPError
+	return errors.As(err, &he) && he.Status == http.StatusConflict
+}
+
 // Mediator 는 우리 쪽 클라이언트다.
 //
 // Mediator 는 It's a Plan 을 모른다 (ADR-002 의 범위를 안 넓힌다).
@@ -61,8 +88,8 @@ func (m *Mediator) do(ctx context.Context, method, path string, body []byte, out
 		return ErrNoRun
 	}
 	if resp.StatusCode >= 400 {
-		return fmt.Errorf("%s %s: %d %s", method, path, resp.StatusCode,
-			strings.TrimSpace(string(raw)))
+		return &HTTPError{Status: resp.StatusCode, Method: method, Path: path,
+			Body: strings.TrimSpace(string(raw))}
 	}
 	if out != nil && len(bytes.TrimSpace(raw)) > 0 {
 		return json.Unmarshal(raw, out)
@@ -132,7 +159,10 @@ func (m *Mediator) GetRun(ctx context.Context, runID string) (*RunView, error) {
 	return &out, nil
 }
 
-// SubmitRun 은 계약을 낸다. 자원이 없으면 422 다 — 전부 아니면 전무 (I5).
+// SubmitRun 은 계약을 낸다. 점유는 전부 아니면 전무다 (I5).
+//
+// 거절이 둘로 갈린다 — 함대에 그런 노드가 없으면 422(영구) 이고, 있는데
+// 지금 전부 잡혀 있으면 409(일시) 다. 호출자가 IsBusy 로 가른다.
 func (m *Mediator) SubmitRun(ctx context.Context, contract []byte) error {
 	return m.do(ctx, "POST", "/v1/runs", contract, nil)
 }

@@ -245,7 +245,7 @@ func (a *Adapter) handleNewWork(ctx context.Context, rr *RunnerRun) {
 		a.failOut(ctx, rr, "계약을 못 지었다: "+err.Error())
 		return
 	}
-	if err := a.med.SubmitRun(ctx, body); err != nil {
+	if err := a.submit(ctx, runID, body, log); err != nil {
 		log.Error("run submission failed", "run", runID, "err", err)
 		a.failOut(ctx, rr, "Run 제출이 실패했다: "+err.Error())
 		return
@@ -253,6 +253,38 @@ func (a *Adapter) handleNewWork(ctx context.Context, rr *RunnerRun) {
 	log.Info("run submitted", "run", runID)
 
 	keepAlive = a.follow(ctx, rr, runID, issueKey, log)
+}
+
+// submit 은 계약을 낸다. 「지금은 전부 점유됨」(409) 이면 다시 낸다.
+//
+// 동시성의 상한은 어댑터가 아니라 함대다 (I1 — 노드 하나는 동시에 하나의
+// Run 에만 묶인다). 실행 노드가 다른 이슈를 물고 있는 것은 고장이 아니라
+// 정상이므로 그때마다 이슈를 실패로 닫으면 안 된다.
+//
+// 기다림이 여기 있는 것은 Mediator 가 큐를 안 들기 때문이다 — QUEUED 를
+// 기각한 자리의 뒷면이고 (대기열을 만들면 공정성 정책이 따라온다),
+// 그래서 재시도는 호출자 몫이다 (ADR-014 결정 3). run_id 가 이슈에서
+// 유도되어 재제출이 멱등이므로 (같은 값이면 200 + 기존 Run) 중복 Run 도
+// 안 생긴다.
+//
+// 409 만 기다린다. 422 는 함대에 그런 노드가 아예 없다는 뜻이라 다시 내도
+// 같고, 그 밖의 거절도 기다려서 달라지지 않는다.
+func (a *Adapter) submit(ctx context.Context, runID string, body []byte, log *slog.Logger) error {
+	deadline := time.Now().Add(a.cfg.SubmitWait())
+	for {
+		err := a.med.SubmitRun(ctx, body)
+		if err == nil || !IsBusy(err) {
+			return err
+		}
+		if !time.Now().Before(deadline) {
+			return fmt.Errorf("the fleet stayed busy for %s: %w", a.cfg.SubmitWait(), err)
+		}
+		log.Info("the fleet is busy; submitting again",
+			"run", runID, "retry_in", a.cfg.Poll(), "err", err)
+		if !sleep(ctx, a.cfg.Poll()) {
+			return ctx.Err()
+		}
+	}
 }
 
 // follow 는 Run 을 끝까지 따라간다.

@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os/exec"
 	"strings"
 	"testing"
@@ -298,5 +301,122 @@ func TestRunView_Terminal(t *testing.T) {
 		if (&RunView{State: s}).Terminal() {
 			t.Fatalf("%s is reported as terminal", s)
 		}
+	}
+}
+
+// 네 번째 실측이 잡은 결함이다 (2026-08-25) — 매처는 409(일시) 와 422(영구)
+// 를 정확히 가르는데 어댑터가 그 구분을 버리고 있었다. 상태 코드를 지우고
+// error 하나만 올린 탓에, 실행 노드가 다른 이슈를 물고 있을 뿐인 409 가
+// 이슈를 실패 칸으로 보냈다. 동시성의 상한은 함대이므로 (I1) 그 상황은
+// 고장이 아니라 정상이다.
+func TestSubmit_WaitsOutABusyFleetButNotAMissingOne(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		tries  int // 몇 번 불려야 하는가
+		wantOK bool
+	}{
+		{
+			name:   "409 is temporary - it submits again",
+			status: 409, body: "worker: need 1, currently 0",
+			tries: 3, wantOK: true,
+		},
+		{
+			name:   "422 is permanent - it gives up at once",
+			status: 422, body: "worker: need 1, fleet has 0",
+			tries: 1, wantOK: false,
+		},
+		{
+			name:   "400 is not waited on either",
+			status: 400, body: "duplicate steps[].id",
+			tries: 1, wantOK: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				// 마지막 시도에서만 통과시킨다 — 409 판만 여기 닿는다.
+				if tc.wantOK && calls >= tc.tries {
+					w.WriteHeader(201)
+					_, _ = w.Write([]byte(`{"run_id":"itsaplan-EP-9-1","state":"RESOLVING"}`))
+					return
+				}
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer srv.Close()
+
+			a := &Adapter{
+				cfg: &Config{
+					ItsAPlan: ItsAPlanConfig{PollSeconds: 0}, // 재시도 간격 0 — 시험이 안 쉰다
+					Mediator: MediatorConfig{SubmitWaitSeconds: 60},
+				},
+				med: NewMediator(srv.URL, "t", ""),
+				log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+			}
+			err := a.submit(context.Background(), "itsaplan-EP-9-1", []byte(`{}`),
+				slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+			if tc.wantOK && err != nil {
+				t.Fatalf("it gave up on a busy fleet: %v", err)
+			}
+			if !tc.wantOK && err == nil {
+				t.Fatal("a permanent rejection was swallowed")
+			}
+			if calls != tc.tries {
+				t.Fatalf("submitted %d times, want %d", calls, tc.tries)
+			}
+		})
+	}
+}
+
+// 기다림에는 상한이 있다 — 함대가 끝내 안 비면 이슈를 실패로 닫아야 한다.
+// 안 그러면 어댑터가 그 이슈 하나에 영원히 매달린다.
+func TestSubmit_GivesUpWhenTheFleetNeverFreesUp(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(409)
+		_, _ = w.Write([]byte("worker: need 1, currently 0"))
+	}))
+	defer srv.Close()
+
+	a := &Adapter{
+		cfg: &Config{
+			ItsAPlan: ItsAPlanConfig{PollSeconds: 0},
+			Mediator: MediatorConfig{SubmitWaitSeconds: 0}, // 상한이 0 이면 한 번만 낸다
+		},
+		med: NewMediator(srv.URL, "t", ""),
+		log: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	err := a.submit(context.Background(), "itsaplan-EP-9-1", []byte(`{}`),
+		slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err == nil {
+		t.Fatal("it waited past its own deadline")
+	}
+	if calls != 1 {
+		t.Fatalf("submitted %d times, want 1", calls)
+	}
+	// 이유가 남아야 한다 — 이슈 코멘트에 그대로 실린다.
+	if !strings.Contains(err.Error(), "409") {
+		t.Fatalf("the reason lost the status code: %v", err)
+	}
+}
+
+// IsBusy 는 409 에만 참이다. 다른 코드가 일시적인 것으로 새면
+// 어댑터가 영구 실패를 영원히 재시도한다.
+func TestIsBusy_OnlyForConflict(t *testing.T) {
+	for _, s := range []int{400, 401, 410, 422, 500, 503} {
+		if IsBusy(&HTTPError{Status: s}) {
+			t.Fatalf("%d is treated as temporary", s)
+		}
+	}
+	if !IsBusy(&HTTPError{Status: 409}) {
+		t.Fatal("409 is not treated as temporary")
+	}
+	if IsBusy(nil) || IsBusy(ErrNoRun) {
+		t.Fatal("a non-HTTP error is treated as temporary")
 	}
 }
