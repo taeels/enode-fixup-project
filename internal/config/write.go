@@ -119,7 +119,10 @@ func SetArtifactsRoot(path, root string) error {
 // 그러면 다음 기동이 파싱 오류로 죽는다.
 func writeSecret(path, text string) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	// 0755 다 — nfpm 이 만드는 /etc/enode-mediator 와 같은 값이다.
+	// 파일이 0600 이므로 디렉터리를 좁힐 이유가 없고, 좁히면 전용 사용자로
+	// 도는 mediator 가 그 디렉터리를 지나가지 못한다.
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 	tmp, err := os.CreateTemp(dir, ".config-*.yaml")
@@ -157,4 +160,16 @@ database:
 artifacts:
   root: %q
 `, defaultArtifactsRoot())
+}
+
+// Create 는 새 설정 파일을 뼈대로 만든다. 상위 디렉터리가 없으면 만든다.
+//
+// 이 함수가 따로 있는 이유 — Set* 들은 전부 파일을 먼저 읽는다. 그래서
+// 없는 파일에는 못 쓴다. 처음 만드는 자리를 그것들로 대신하려 했다가
+// "no such file or directory" 로 죽었다(rc8 실측).
+func Create(path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return nil // 이미 있다. 덮지 않는다
+	}
+	return writeSecret(path, Sample())
 }

@@ -177,16 +177,12 @@ and are never stored.
 
 	// ④ 설정 파일.
 	if !haveCfg {
-		if err := os.WriteFile(path, []byte(config.Sample()), 0o600); err != nil {
-			// 디렉터리가 없을 수 있다 — writeSecret 이 만들어 준다.
-			if err := config.SetArtifactsRoot(path, config.Default().Artifacts.Root); err != nil {
-				fmt.Fprintf(os.Stderr, "cannot write %s: %v\n", path, err)
-				return 1
+		if err := config.Create(path); err != nil {
+			fmt.Fprintf(os.Stderr, "cannot write %s: %v\n", path, err)
+			if os.IsPermission(err) {
+				fmt.Fprintf(os.Stderr, "try again with sudo, or pass --config with a path you can write.\n")
 			}
-			if err := os.WriteFile(path, []byte(config.Sample()), 0o600); err != nil {
-				fmt.Fprintf(os.Stderr, "cannot write %s: %v\n", path, err)
-				return 1
-			}
+			return 1
 		}
 		fmt.Println("wrote " + path)
 	}
