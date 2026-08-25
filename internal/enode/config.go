@@ -91,3 +91,13 @@ func LoadLocal(path string) (Local, error) {
 	}
 	return l, nil
 }
+
+// SampleLocal 은 노드 설정의 최소 형태다. 설정을 못 찾았을 때 화면에 낸다 —
+// 「없다」만 말하고 무엇을 만들어야 하는지는 안 말하면 사람이 또 찾아야 한다.
+func SampleLocal() string {
+	return `    mediator: http://<mediator-host>:8080
+    token: "<the same token the mediator has>"
+    workspace: <path to a checkout; omit it to advertise reasoning only>
+
+`
+}

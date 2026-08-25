@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -37,7 +38,10 @@ func main() {
 		return
 	}
 
-	cfgPath := flag.String("config", "/etc/enode/local.yaml", "path to the config file (also determines node identity)")
+	// 기본값을 비운다 — 자리는 enode.ConfigPaths() 가 안다. 유닉스만 아는
+	// 경로를 여기 박아 두면 윈도우에서 "/etc/enode/local.yaml 이 없다" 로
+	// 죽는다. rc8·rc9 가 Mediator 에서 밟은 것과 같은 자리다.
+	cfgPath := flag.String("config", "", "path to the config file (also determines node identity)")
 	mediator := flag.String("mediator", "", "mediator address (overrides config)")
 	token := flag.String("token", "", "auth token (overrides config)")
 	every := flag.Duration("every", 60*time.Second, "interval for advertise, heartbeat and lease renewal")
@@ -59,9 +63,20 @@ func main() {
 	}
 	log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl}))
 
-	local, err := enode.LoadLocal(*cfgPath)
+	// 설정을 못 찾은 것과 못 읽는 것을 가른다. 못 찾았으면 어디를 봤는지
+	// 말한다 — 안 말하면 사람이 엉뚱한 경로를 들여다본다.
+	confPath, tried := enode.ResolveConfig(*cfgPath)
+	if confPath == "" {
+		log.Error("no config file found", "tried", strings.Join(tried, ", "))
+		fmt.Fprintf(os.Stderr, "\nCreate one and point --config at it. The minimum is:\n\n%s\n"+
+			"The token must match the mediator's; a node with a different token is\nrejected with 401. "+
+			"The absolute path of this file is part of the node id,\nso moving it makes a different node.\n",
+			enode.SampleLocal())
+		os.Exit(1)
+	}
+	local, err := enode.LoadLocal(confPath)
 	if err != nil {
-		log.Error("cannot read config", "err", err)
+		log.Error("cannot read config", "path", confPath, "err", err)
 		os.Exit(1)
 	}
 	if *mediator != "" {
@@ -79,7 +94,7 @@ func main() {
 	}
 
 	// 신원. 이메일이 없으면 그 자리에서 죽는다 — 조용한 대체를 안 한다.
-	ident, err := enode.Derive(*cfgPath)
+	ident, err := enode.Derive(confPath)
 	if err != nil {
 		log.Error("cannot derive node identity", "err", err)
 		os.Exit(1)

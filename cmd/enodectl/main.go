@@ -96,10 +96,11 @@ func envOr(key, def string) string {
 	return def
 }
 
-func confDir() string { return envOr("ENODE_CONFDIR", filepath.Join(home(), ".config", "enode")) }
-func stateDir() string {
-	return envOr("ENODE_STATEDIR", filepath.Join(home(), ".local", "state", "enode"))
-}
+// 자리는 internal/enode 가 안다 — enode 와 enodectl 이 서로 다른 자리를
+// 보면 enodectl start 로 띄운 노드를 enode 가 혼자서는 못 찾는다.
+// 그리고 그 둘이 갈리면 윈도우에서만 갈린다(유닉스 경로가 박혀 있었다).
+func confDir() string        { return enode.ConfDir() }
+func stateDir() string       { return enode.StateDir() }
 func confOf(n string) string { return filepath.Join(confDir(), n+".yaml") }
 func logOf(n string) string  { return filepath.Join(stateDir(), n+".log") }
 
