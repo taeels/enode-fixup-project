@@ -8,12 +8,12 @@ import (
 	"strings"
 )
 
-// ★ 코멘트는 어댑터가 만든다 ★ (ADR-040 §2.2).
+// 코멘트는 어댑터가 만든다 (ADR-040 §2.2).
 //
 // 계약이 문구를 적으면 계약이 이슈 트래커를 알게 된다. 그래서 계약은 아무것도
 // 안 적고, 어댑터가 Run · verdict · 원장을 읽어 스스로 조립한다.
 //
-// ★ 그리고 이 자리가 함대 병렬을 표현할 유일한 자리다 ★ — 러너의 존재감은
+// 그리고 이 자리가 함대 병렬을 표현할 유일한 자리다 — 러너의 존재감은
 // last_seen_at 한 칸이라 UI 로는 초록불 하나이고, 어느 단계가 어느 노드에서
 // 돌았는지는 여기 표로만 보인다.
 
@@ -38,8 +38,8 @@ func RenderQuestion(ask *AskView, runID string) string {
 		b.WriteString("\n```\n\n")
 	}
 
-	// ★ It's a Plan 에 폼이 없다 ★ (ADR-040 §4) — 스키마 강제는 우리 쪽에
-	// 남으므로, 답의 형태를 ★ 말로 ★ 적는다.
+	// It's a Plan 에 폼이 없다 (ADR-040 §4) — 스키마 강제는 우리 쪽에
+	// 남으므로, 답의 형태를 말로 적는다.
 	b.WriteString("**답하는 방법** — 이 코멘트에 답글을 달아 주세요.\n\n")
 	b.WriteString("- 승인이면 `ok` 로 시작하는 답글\n")
 	b.WriteString("- 다시 지어야 하면 `again` 으로 시작하고, 그 뒤에 이유를 적어 주세요.\n")
@@ -68,7 +68,7 @@ func RenderResult(ctx context.Context, m *Mediator, run *RunView, summary string
 		b.WriteString("\n\n")
 	}
 
-	// ★ 단계 표 — 노드별·병렬을 보여주는 자리 ★
+	// 단계 표 — 노드별·병렬을 보여주는 자리
 	if len(run.Steps) > 0 {
 		label := map[string]string{}
 		for _, a := range run.Assigned {
@@ -96,7 +96,7 @@ func RenderResult(ctx context.Context, m *Mediator, run *RunView, summary string
 		b.WriteString("\n")
 	}
 
-	// ★ verdict — 무엇을 왜 통과·실패했나 ★
+	// verdict — 무엇을 왜 통과·실패했나
 	if len(run.Verdict.Checks) > 0 {
 		b.WriteString("**판정**\n\n")
 		for _, c := range run.Verdict.Checks {
@@ -120,7 +120,7 @@ func RenderResult(ctx context.Context, m *Mediator, run *RunView, summary string
 		b.WriteString("\n")
 	}
 
-	// ★ 원장 — 무엇이 남았나 ★
+	// 원장 — 무엇이 남았나
 	if entries, err := m.Ledger(ctx, run.RunID); err == nil && len(entries) > 0 {
 		sort.SliceStable(entries, func(i, j int) bool {
 			if entries[i].Seq != entries[j].Seq {
@@ -144,26 +144,26 @@ func RenderResult(ctx context.Context, m *Mediator, run *RunView, summary string
 		b.WriteString("\n</details>\n\n")
 	}
 
-	// ★ 봉인의 정본은 우리 쪽에 남는다 ★ (ADR-005 성질 4) — 여기에 붓지 않고
+	// 봉인의 정본은 우리 쪽에 남는다 (ADR-005 성질 4) — 여기에 붓지 않고
 	// 어디서 꺼내는지만 적는다.
 	fmt.Fprintf(&b, "<sub>%s · 봉인된 Record 는 `GET /v1/runs/%s/record` 에 있습니다. "+
 		"이 코멘트는 그 사본이 아니라 요약입니다.</sub>", ResultMarker(run.RunID), run.RunID)
 	return b.String()
 }
 
-// ResultMarker 는 ★ 결과를 이미 넘겼다 ★ 는 표지다.
+// ResultMarker 는 결과를 이미 넘겼다는 표지다.
 //
-// ★ run_id 만으로는 안 된다 ★ — 질문 코멘트의 꼬리표에도 같은 run_id 가 들어
-// 있어서, 그것으로 세면 ★ 질문을 쓴 것을 결과를 쓴 것으로 오인한다 ★.
+// run_id 만으로는 안 된다 — 질문 코멘트의 꼬리표에도 같은 run_id 가 들어
+// 있어서, 그것으로 세면 질문을 쓴 것을 결과를 쓴 것으로 오인한다.
 // 첫 실측(EP-2)에서 밟았다: 복구 경로가 「이미 넘겼다」로 판단해 조용히 지나갔다.
 func ResultMarker(runID string) string { return "enode:result:" + runID }
 
 // summaryOf 는 report 단계가 낸 summary 산출물을 읽어 사람이 읽게 만든다.
 // 없으면 빈 문자열이고, 그러면 코멘트는 표만 싣는다.
 //
-// ★ 산출물의 모양은 계획이 정한다 ★ — 어댑터가 필드 이름을 알면 계획의
+// 산출물의 모양은 계획이 정한다 — 어댑터가 필드 이름을 알면 계획의
 // 스키마를 아는 것이 되고, 계획이 바뀔 때마다 어댑터를 고쳐야 한다.
-// 그래서 이름이 아니라 ★ 값의 성질 ★ 로 가른다: 여러 줄인 긴 문자열은
+// 그래서 이름이 아니라 값의 성질로 가른다: 여러 줄인 긴 문자열은
 // 사람에게 쓴 글이므로 펼치고, 나머지는 접어서 JSON 으로 둔다.
 func summaryOf(ctx context.Context, m *Mediator, runID string) string {
 	raw, err := m.Blob(ctx, runID, "summary")
@@ -219,8 +219,8 @@ func clip(s string, max int) string {
 	return s[:max] + "\n\n…(잘렸습니다. 전문은 봉인된 Record 에 있습니다)"
 }
 
-// oneLine 은 result 의 output 에 넣을 ★ 한 줄 ★ 이다.
-// ★ 봉인을 여기 붓지 않는다 ★ — agent_run.output 은 지울 수 있고 스키마도 없다.
+// oneLine 은 result 의 output 에 넣을 한 줄이다.
+// 봉인을 여기 붓지 않는다 — agent_run.output 은 지울 수 있고 스키마도 없다.
 func oneLine(run *RunView, runID string) string {
 	ok, total := 0, len(run.Verdict.Checks)
 	for _, c := range run.Verdict.Checks {
@@ -233,7 +233,7 @@ func oneLine(run *RunView, runID string) string {
 
 // describe 는 다형인 want·got 을 사람이 읽는 한 조각으로 만든다.
 //
-// ★ 형을 단정하지 않는다 ★ — produced 는 배열이고 exit_code 는 숫자이며,
+// 형을 단정하지 않는다 — produced 는 배열이고 exit_code 는 숫자이며,
 // 함대 조건(ADR-058)은 또 다른 모양일 수 있다. 어휘가 창발하므로(ADR-012)
 // 여기서 열거하면 새 조건이 생길 때마다 어댑터가 조용히 못 읽는다.
 func describe(v any) string {

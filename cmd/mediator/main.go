@@ -1,6 +1,6 @@
 // Command mediator 는 매칭 · 권한 · 바인딩 · Run Record 를 맡는다 (ADR-002).
 //
-// ★ 실행은 하지 않는다 ★ — 실행은 enode 의 몫이다.
+// 실행은 하지 않는다 — 실행은 enode 의 몫이다.
 package main
 
 import (
@@ -23,7 +23,7 @@ import (
 
 func main() {
 	cfgPath := flag.String("config", "", "path to the config file")
-	// ★ --version 은 플래그 파싱보다 앞이다 ★ (ADR-056)
+	// --version 은 플래그 파싱보다 앞이다 (ADR-056)
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
 		fmt.Println(build.Version("mediator"))
 		return
@@ -52,17 +52,17 @@ func main() {
 		os.Exit(1)
 	}
 	defer st.Close()
-	// Run Record 는 ★ DB 가 아니라 파일시스템 ★ 에 산다 (ADR-015 §3) —
+	// Run Record 는 DB 가 아니라 파일시스템에 산다 (ADR-015 §3) —
 	// I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 한다.
 	if err := os.MkdirAll(cfg.Artifacts.Root, 0o755); err != nil {
 		log.Error("cannot create artifacts directory", "root", cfg.Artifacts.Root, "err", err)
 		os.Exit(1)
 	}
 	st.Records = record.New(cfg.Artifacts.Root)
-	// ★ 되돌림은 밖에서 안 보이는 판단이다 ★ — 로그가 없으면 왜 같은 단계가
+	// 되돌림은 밖에서 안 보이는 판단이다 — 로그가 없으면 왜 같은 단계가
 	// 두 번 도는지 운영자가 알 길이 없다.
 	st.Log = log
-	// ★ 계약이 얼마나 자랄 수 있는가 ★ — 계약 밖에서 정한다 (ADR-031).
+	// 계약이 얼마나 자랄 수 있는가 — 계약 밖에서 정한다 (ADR-031).
 	st.MaxContractVersions = cfg.Contract.MaxVersions
 	st.MaxLeasesPerRun = cfg.Lease.MaxPerRun
 	st.NotifyURL = cfg.Notify.AsksURL
@@ -71,7 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// ★ 시간이 감시자다 ★ (ADR-008) — 시작할 때 한 번 먼저 돈다(재시작 스캔).
+	// 시간이 감시자다 (ADR-008) — 시작할 때 한 번 먼저 돈다(재시작 스캔).
 	// Mediator 가 죽어 있는 동안 갱신이 멈추고, 재시작하면 not_after 가 지나
 	// 여기서 회수된다. 이것이 O6 의 구현이다.
 	go st.RunReaper(ctx, time.Duration(cfg.Lease.RenewSeconds)*time.Second, log)
@@ -80,7 +80,7 @@ func main() {
 		Addr:              cfg.Listen,
 		Handler:           api.New(st, cfg, log).Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
-		// ★ WriteTimeout 을 걸지 않는다 ★ — claim 이 최대 2시간 매달리는
+		// WriteTimeout 을 걸지 않는다 — claim 이 최대 2시간 매달리는
 		// 롱폴이기 때문이다 (ADR-015 §5). 걸면 정상 대기가 끊긴다.
 	}
 	go func() {

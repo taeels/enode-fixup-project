@@ -1,31 +1,31 @@
 package contract
 
-// Grammar 는 ★ 계획을 짓는 쪽이 알아야 할 계약 문법 ★ 이다 (ADR-045).
+// Grammar 는 계획을 짓는 쪽이 알아야 할 계약 문법이다 (ADR-045).
 //
-// ★ 왜 여기 있나 ★
+// 왜 여기 있나
 //
 // 이 규칙들은 전부 Validate() 가 이미 강제한다. 그런데 계획을 짓는 것은
-// ★ 기계 ★ 이고(ADR-022 계획 위임), 그 기계에게 규칙을 알려주는 경로가 없었다.
+// 기계 이고(ADR-022 계획 위임), 그 기계에게 규칙을 알려주는 경로가 없었다.
 // 그래서 사람이 매 판 Validate() 의 일부를 자연어로 번역해 프롬프트에 실었고,
-// 번역은 ★ 축약되고 · 퇴행하고 · 모순됐다 ★:
+// 번역은 축약되고 · 퇴행하고 · 모순됐다:
 //
 //	실측  3차  예시에서 "$OUT/" 을 빼고 적었다 → 계획이 그대로 빼고 지었다
 //	실측  4차  DOCKER_HOST 를 언급 안 했다     → 맞게 지어졌던 부분이 퇴행했다
 //	실측  6차  ask 단계에 uses 를 요구했다      → Validate 가 금지한다. 422 로 계획 전체가 버려졌다
 //	실측  8차  agent 단계에 exit_code 를 요구했다 → 승인 시점에 터졌고 회복 경로가 없었다
 //
-// ★ ADR-012 가 이미 푼 문제와 같다 ★ — capability 어휘가 광고로만 존재해서
+// ADR-012 가 이미 푼 문제와 같다 — capability 어휘가 광고로만 존재해서
 // "읽는 경로가 없으면 계약을 쓰는 쪽이 문자열을 추측한다" 였고, 답이
-// `runctl capabilities` 였다. 여기서는 ★ 계약 문법을 읽는 경로 ★ 가 없었다.
+// `runctl capabilities` 였다. 여기서는 계약 문법을 읽는 경로가 없었다.
 //
-// ★ 아는 쪽이 적어준다 ★ — agent.go 의 outContract 가 배출 규약을 모든 에이전트
+// 아는 쪽이 적어준다 — agent.go 의 outContract 가 배출 규약을 모든 에이전트
 // 단계에 심는 것과 같은 자리다. 주석이 이미 답을 적어뒀다:
 // "어댑터는 경로를 아는데 모델은 모른다. 아는 쪽이 적어준다."
 //
-// ★ stale 을 테스트로 막는다 ★ — grammar_test.go 가 이 문장 하나하나에 대해
+// stale 을 테스트로 막는다 — grammar_test.go 가 이 문장 하나하나에 대해
 // "그 규칙을 어긴 계약이 실제로 거절되는가" 를 잰다. Validate 가 늘었는데
-// 여기가 안 늘면 ★ 그 테스트가 깨진다 ★. go.mod 의 toolchain 을 CI 가
-// go-version-file 로 읽는 것과 같은 장치다 — ★ 두 곳에 안 적는다 ★.
+// 여기가 안 늘면 그 테스트가 깨진다. go.mod 의 toolchain 을 CI 가
+// go-version-file 로 읽는 것과 같은 장치다 — 두 곳에 안 적는다.
 const Grammar = `## Contract grammar (the steps you write must follow these rules)
 
 A plan that breaks a rule is rejected as a whole: schema validation returns 422,
@@ -151,18 +151,18 @@ success_when may only refer to steps that exist.
                      "os": "linux", "host_arch": "arm64" },
       "min_count": 1 }
 
-This asks whether a node matching that description is ★ actually registered and
-advertising ★ when the run ends. It names no step, and it cannot be combined
+This asks whether a node matching that description is actually registered and
+advertising when the run ends. It names no step, and it cannot be combined
 with step conditions in the same entry — write those as separate entries.
 
-★ Use it when the goal is that something now exists in the fleet ★, and a file
+Use it when the goal is that something now exists in the fleet, and a file
 written by an agent would only be a stand-in for it. A report saying "nothing
 is installed" is still a file that exists; an advertisement is not something an
 agent can write.
 
 The attributes are matched the same way requires matches them: a subset match
-on what nodes advertise. Note that some attributes are ★ measured by the machine ★
-(os, host_arch, arch, ws) while others are ★ typed in by a person ★ (board, tag).
+on what nodes advertise. Note that some attributes are measured by the machine
+(os, host_arch, arch, ws) while others are typed in by a person (board, tag).
 Asking about the second kind is closer to taking someone's word for it.
 
 ### Seeing what earlier steps produced
@@ -172,11 +172,11 @@ far, as a file in $IN. Any other step can ask for the same list:
 
     "see": { "ledger": "list" }
 
-The list carries names, sizes and which step produced them — ★ not the bodies ★.
+The list carries names, sizes and which step produced them — not the bodies.
 To read a body, name it in in.from (a file in $IN) or in feedback (pasted into
 the prompt).
 
-★ Do not invent output names ★. Use the ones on that list.
+Do not invent output names. Use the ones on that list.
 
 ### Outputs go to $OUT under the exact declared name
 

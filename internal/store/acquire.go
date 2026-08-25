@@ -13,7 +13,7 @@ import (
 	"github.com/taeels/enode/internal/match"
 )
 
-// 획득 결과의 어휘. ★ 계약이 dispatch.to 에 적는 이름이 이것이다 ★ (ADR-022 §7.5).
+// 획득 결과의 어휘. 계약이 dispatch.to 에 적는 이름이 이것이다 (ADR-022 §7.5).
 const (
 	Acquired    = "acquired"
 	Unavailable = "unavailable"
@@ -21,18 +21,18 @@ const (
 
 // runAcquires 는 지금 수행할 수 있는 획득 단계들을 처리한다 (ADR-022 §7.5 · ADR-024).
 //
-// ★ 이 단계는 노드에 안 간다 ★ — 잡기 전이므로 uses 가 없고 claim 이 집지 않는다.
+// 이 단계는 노드에 안 간다 — 잡기 전이므로 uses 가 없고 claim 이 집지 않는다.
 // Mediator 가 수행하고, 그래서 「Mediator 가 다음 단계를 만든다」(ADR-014 결정 1)의
-// 연장이다. ★ 배분 정책은 여전히 0 개다 ★ — 매처가 고르고 기본키가 강제한다.
+// 연장이다. 배분 정책은 여전히 0 개다 — 매처가 고르고 기본키가 강제한다.
 //
-// ★ I5 를 안 깬다 ★ — ADR-024 가 「요구 자원」을 한 획득 요청의 범위로 정했다.
-// 오늘은 요청 하나에 자원 하나이므로 ★ 전부-아니면-전무가 자명하다 ★.
-// 실패해도 ★ 이미 쥔 것은 안 놓는다 ★ — 부분 점유가 아니라 정상 점유다.
+// I5 를 안 깬다 — ADR-024 가 「요구 자원」을 한 획득 요청의 범위로 정했다.
+// 오늘은 요청 하나에 자원 하나이므로 전부-아니면-전무가 자명하다.
+// 실패해도 이미 쥔 것은 안 놓는다 — 부분 점유가 아니라 정상 점유다.
 //
-// ★ 실패는 중단이 아니라 값이다 ★ — 결과를 산출물로 내고 dispatch 가 읽는다.
+// 실패는 중단이 아니라 값이다 — 결과를 산출물로 내고 dispatch 가 읽는다.
 func (s *Store) runAcquires(ctx context.Context, tx pgx.Tx, runID string) error {
 	// 한 획득이 끝나면 그 뒤의 획득이 실행 가능해질 수 있으므로 더 없을 때까지 돈다.
-	// 매 회차가 PENDING 을 하나씩 줄이므로 ★ 단계 수 안에 멈춘다 ★.
+	// 매 회차가 PENDING 을 하나씩 줄이므로 단계 수 안에 멈춘다.
 	for {
 		seq, err := s.nextAcquire(ctx, tx, runID)
 		if err != nil {
@@ -47,7 +47,7 @@ func (s *Store) runAcquires(ctx context.Context, tx pgx.Tx, runID string) error 
 	}
 }
 
-// nextAcquire 는 ★ needs 가 전부 끝난 ★ 획득 단계 하나를 고른다. 게이트의 술어와
+// nextAcquire 는 needs 가 전부 끝난 획득 단계 하나를 고른다. 게이트의 술어와
 // 같은 것을 본다 — 순서를 정하는 규칙이 두 벌이 되면 안 된다.
 func (s *Store) nextAcquire(ctx context.Context, tx pgx.Tx, runID string) (int, error) {
 	var seq int
@@ -89,8 +89,8 @@ func (s *Store) doAcquire(ctx context.Context, tx pgx.Tx, runID string, seq int)
 	if node == "" {
 		state, taken, skipped = Unavailable, st.Acquire.Unavailable, st.Acquire.Acquired
 	}
-	// ★ 결과를 산출물로 남긴다 ★ — 봉인에 "그때 자원이 있었나" 가 남는다(성질 4).
-	// ★ 판정 재료가 아니라 기록이다 ★ — 분기는 이미 위에서 정해졌고, 계약이
+	// 결과를 산출물로 남긴다 — 봉인에 "그때 자원이 있었나" 가 남는다(성질 4).
+	// 판정 재료가 아니라 기록이다 — 분기는 이미 위에서 정해졌고, 계약이
 	// out 에 이 이름을 적으면 success_when 으로도 쓸 수 있다.
 	body, err := json.Marshal(map[string]string{"state": state, "node": node})
 	if err != nil {
@@ -115,7 +115,7 @@ func (s *Store) doAcquire(ctx context.Context, tx pgx.Tx, runID string, seq int)
 		mustJSON(StepResult{Produced: []string{st.ID}})); err != nil {
 		return err
 	}
-	// ★ 안 간 쪽을 닫는다 ★ — 분기와 같은 규칙이고, 같은 전파를 쓴다.
+	// 안 간 쪽을 닫는다 — 분기와 같은 규칙이고, 같은 전파를 쓴다.
 	// PENDING 인 것만 바꾼다: 이미 돈 것을 되돌리지 않는다.
 	if _, err := tx.Exec(ctx, `
 		UPDATE steps SET state=$3, ended_at=now()
@@ -127,12 +127,12 @@ func (s *Store) doAcquire(ctx context.Context, tx pgx.Tx, runID string, seq int)
 	return propagateSkips(ctx, tx, runID)
 }
 
-// tryGrab 은 자원 하나를 잡아본다. ★ 못 잡는 것은 오류가 아니다 ★ —
+// tryGrab 은 자원 하나를 잡아본다. 못 잡는 것은 오류가 아니다 —
 // 빈 노드 이름으로 돌아오고 그것이 "unavailable" 이 된다.
 //
-// ★ 충돌은 저장 계층이 막는다 ★ — leases(node_id) 기본키가 I1 이고(ADR-019),
+// 충돌은 저장 계층이 막는다 — leases(node_id) 기본키가 I1 이고(ADR-019),
 // 애플리케이션 로직이 아니라 그 제약이 경쟁을 판정한다. 그래서 세이브포인트로
-// 감싸 ★ 충돌이 바깥 트랜잭션을 죽이지 않게 ★ 한다.
+// 감싸 충돌이 바깥 트랜잭션을 죽이지 않게한다.
 func (s *Store) tryGrab(ctx context.Context, tx pgx.Tx, runID string,
 	want contract.Require) (node, label string, err error) {
 	adverts, err := s.LiveAdverts(ctx)
@@ -143,8 +143,8 @@ func (s *Store) tryGrab(ctx context.Context, tx pgx.Tx, runID string,
 	if err != nil {
 		return "", "", err
 	}
-	// ★ 폭의 상한 ★ (ADR-024 §4.2) — 이 Run 이 이미 상한만큼 쥐고 있으면
-	// 못 잡는 것이다. 함대 사정으로 못 잡는 것과 ★ 같은 출구 ★ 로 나간다:
+	// 폭의 상한 (ADR-024 §4.2) — 이 Run 이 이미 상한만큼 쥐고 있으면
+	// 못 잡는 것이다. 함대 사정으로 못 잡는 것과 같은 출구로 나간다:
 	// "unavailable" 이라는 이름이 되어 분기로 흐른다. 중단이 아니다.
 	if max := s.MaxLeasesPerRun; max > 0 {
 		var held int
@@ -159,7 +159,7 @@ func (s *Store) tryGrab(ctx context.Context, tx pgx.Tx, runID string,
 	}
 	assign, rej := match.Match([]contract.Require{want}, adverts, busy)
 	if rej != nil || len(assign) == 0 || len(assign[0].Nodes) == 0 {
-		return "", "", nil // ★ 후보가 없거나 전부 점유됨 ★ — 값으로 돌려준다
+		return "", "", nil // 후보가 없거나 전부 점유됨 — 값으로 돌려준다
 	}
 	node = assign[0].Nodes[0]
 	for _, a := range adverts {
@@ -172,9 +172,9 @@ func (s *Store) tryGrab(ctx context.Context, tx pgx.Tx, runID string,
 	if err != nil {
 		return "", "", err
 	}
-	// ★ 만료는 같은 Run 의 임대에서 물려받는다 ★ — 하나만 먼저 끝나면 그 노드를
+	// 만료는 같은 Run 의 임대에서 물려받는다 — 하나만 먼저 끝나면 그 노드를
 	// 잃고, 그러면 이 Run 의 자원이 시간에 따라 갈라진다. 설정값을 여기서 다시
-	// 읽으면 ★ 임대 수명이 두 곳에서 정해진다 ★ — 하트비트가 곧 각자 갱신하므로
+	// 읽으면 임대 수명이 두 곳에서 정해진다 — 하트비트가 곧 각자 갱신하므로
 	// 초기값은 형제와 같기만 하면 된다 (ADR-008 · ADR-016).
 	_, err = sp.Exec(ctx, `
 		INSERT INTO leases (node_id, run_id, not_after, nonce)
@@ -183,14 +183,14 @@ func (s *Store) tryGrab(ctx context.Context, tx pgx.Tx, runID string,
 	if err != nil {
 		_ = sp.Rollback(ctx)
 		if isUniqueViolation(err) {
-			return "", "", nil // ★ 그 사이에 남이 채갔다 ★ — 이것도 값이다
+			return "", "", nil // 그 사이에 남이 채갔다 — 이것도 값이다
 		}
 		return "", "", err
 	}
 	return node, label, sp.Commit(ctx)
 }
 
-// busyIn 은 ★ 이 트랜잭션이 보는 ★ 점유 장부다. 바깥의 BusyNodes 와 같은 것을
+// busyIn 은 이 트랜잭션이 보는 점유 장부다. 바깥의 BusyNodes 와 같은 것을
 // 읽지만 트랜잭션 안에서 봐야 방금 놓은 것(release)이 반영된다.
 func (s *Store) busyIn(ctx context.Context, tx pgx.Tx) (map[string]bool, error) {
 	rows, err := tx.Query(ctx, `SELECT node_id FROM leases`)
@@ -210,7 +210,7 @@ func (s *Store) busyIn(ctx context.Context, tx pgx.Tx) (map[string]bool, error) 
 }
 
 // bindRole 은 잡은 노드를 그 역할에 묶는다 — assigned 에 붙이고,
-// ★ 그 역할을 쓰는 단계들의 node_id 를 채운다 ★.
+// 그 역할을 쓰는 단계들의 node_id 를 채운다.
 //
 // 안 채우면 claim 의 `WHERE s.node_id = $1` 이 그 단계를 영영 못 찾는다:
 // CreateRun 때는 이 역할이 없었으므로 빈 채로 들어와 있다.
@@ -230,7 +230,7 @@ func (s *Store) bindRole(ctx context.Context, tx pgx.Tx, runID, as, node, label 
 	if _, err := tx.Exec(ctx, `UPDATE runs SET assigned=$2 WHERE run_id=$1`, runID, next); err != nil {
 		return err
 	}
-	// ★ 빈 문자열도 「아직 없다」 다 ★ — CreateRun 이 그 역할을 몰랐을 때
+	// 빈 문자열도 「아직 없다」 다 — CreateRun 이 그 역할을 몰랐을 때
 	// nodeOf 가 빈 값을 넣었다. NULL 만 보면 이 단계들을 영영 못 채운다.
 	_, err = tx.Exec(ctx,
 		`UPDATE steps SET node_id=$3

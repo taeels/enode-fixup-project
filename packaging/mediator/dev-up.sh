@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# ★ 실측용 ★ Mediator 를 CT103 에 띄운다. 시연·실측 전용이고 운영 배포가 아니다.
+# 실측용 Mediator 를 CT103 에 띄운다. 시연·실측 전용이고 운영 배포가 아니다.
 #
 #   packaging/mediator/dev-up.sh          띄운다 (postgres 포함)
 #   packaging/mediator/dev-up.sh down     내린다
 #
-# ★ 테스트 DB 와 갈라 쓴다 ★ — scripts/testdb.sh 의 enode_test 를 공유하면
+# 테스트 DB 와 갈라 쓴다 — scripts/testdb.sh 의 enode_test 를 공유하면
 # 여기서 띄운 enode 가 계속 광고해서 "함대에 없다(422)" 를 기대한 단위 테스트가
-# ★ 조용히 201 을 받는다 ★ (README 가 실제로 밟았다고 적어둔 사고다).
+# 조용히 201 을 받는다 (README 가 실제로 밟았다고 적어둔 사고다).
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -46,7 +46,7 @@ docker exec "$NAME" psql -U enode -d postgres -tAc \
 echo "   ok  127.0.0.1:${PORT}/${DB}"
 
 echo "== 토큰 =="
-# ★ 토큰은 한 번 뽑아 파일에 남긴다 ★ — 맥 설정에 같은 값을 적어야 하는데
+# 토큰은 한 번 뽑아 파일에 남긴다 — 맥 설정에 같은 값을 적어야 하는데
 # 매번 새로 뽑으면 맥이 조용히 401 을 받는다.
 if [ ! -f "$STATE/token" ]; then
   head -c 24 /dev/urandom | base64 | tr -d '/+=' > "$STATE/token"
@@ -57,7 +57,7 @@ echo "   $STATE/token"
 
 echo "== 설정 =="
 cat > "$CONF" <<YAML
-# ★ listen 이 전 인터페이스여야 한다 ★ — 127.0.0.1 로 좁히면 맥에서 못 닿는다.
+# listen 이 전 인터페이스여야 한다 — 127.0.0.1 로 좁히면 맥에서 못 닿는다.
 listen: ":8080"
 token: "$TOKEN"
 database:
@@ -77,7 +77,7 @@ else
   echo $! > "$PIDF"
   sleep 2
   kill -0 "$(cat "$PIDF")" 2>/dev/null || { echo "✗ 못 떴다:"; tail -20 "$LOG"; exit 1; }
-  echo "   ★ 떴다 ★ pid=$(cat "$PIDF")"
+  echo "   떴다 pid=$(cat "$PIDF")"
 fi
 
 IP=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | grep -v '^172\.' | head -1)

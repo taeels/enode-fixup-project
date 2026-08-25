@@ -15,7 +15,7 @@ func mustSchema(t *testing.T, s string) any {
 	return v
 }
 
-// ★ ADR-020 의 경계선 ★
+// ADR-020 의 경계선
 // 기준: 에이전트가 정직하게 답했을 때 통과하지 못할 수 있으면 그건 판정이다.
 func TestBoundary(t *testing.T) {
 	ok := []string{
@@ -43,7 +43,7 @@ func TestBoundary(t *testing.T) {
 	for s, kw := range bad {
 		err := CheckBoundary(mustSchema(t, s))
 		if err == nil {
-			t.Fatalf("★ 판정 키워드가 통과했다 ★ %s — ADR-004 가 스키마를 통해 새어나간다", kw)
+			t.Fatalf("판정 키워드가 통과했다 %s — ADR-004 가 스키마를 통해 새어나간다", kw)
 		}
 		if !strings.Contains(err.Error(), kw) {
 			t.Errorf("어느 키워드가 문제인지가 안 나온다: %v", err)
@@ -56,7 +56,7 @@ func TestValidate(t *testing.T) {
 	  "status":{"enum":["found","none"]},
 	  "hypothesis":{"type":"string"},"reason":{"type":"string"}}}`)
 
-	// ★ 에이전트가 정직하게 "못 하겠다" 를 말할 수 있다 ★ (ADR-020)
+	// 에이전트가 정직하게 "못 하겠다" 를 말할 수 있다 (ADR-020)
 	// 부재로 표현하면 크래시와 구분이 안 된다.
 	for _, doc := range []string{
 		`{"status":"found","hypothesis":"락 순서가 …"}`,
@@ -76,7 +76,7 @@ func TestValidate(t *testing.T) {
 	for doc, want := range bad {
 		v := Validate(sch, []byte(doc))
 		if len(v) == 0 {
-			t.Fatalf("★ 어긴 문서가 통과했다 ★: %s", doc)
+			t.Fatalf("어긴 문서가 통과했다: %s", doc)
 		}
 		joined := ""
 		for _, x := range v {
@@ -88,7 +88,7 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-// 위반 내역은 ★ feedback 으로 되먹여진다 ★ — 무엇이 왜 틀렸는지가 있어야 한다.
+// 위반 내역은 feedback 으로 되먹여진다 — 무엇이 왜 틀렸는지가 있어야 한다.
 func TestViolationIsActionable(t *testing.T) {
 	sch := mustSchema(t, `{"type":"object","required":["status"]}`)
 	v := Validate(sch, []byte(`{}`))

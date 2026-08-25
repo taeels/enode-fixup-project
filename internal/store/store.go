@@ -1,6 +1,6 @@
 // Package store 는 Mediator 의 상태를 PostgreSQL 에 둔다 (ADR-015 §3).
 //
-// ★ 매칭 로직은 여기 없다 ★ — ADR-014 결정 3 이 매처를 순수 함수로 못 박았다.
+// 매칭 로직은 여기 없다 — ADR-014 결정 3 이 매처를 순수 함수로 못 박았다.
 // 이 패키지는 광고와 점유를 읽어주고, 결정된 배정을 트랜잭션으로 굳힐 뿐이다.
 package store
 
@@ -30,18 +30,18 @@ var schemaSQL string
 type Store struct {
 	pool *pgxpool.Pool
 	// Records 는 봉인된 Run Record 가 사는 곳이다 (ADR-015 §3).
-	// ★ DB 가 아니다 ★ — I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 한다.
+	// DB 가 아니다 — I4(봉인)를 파일시스템은 강제할 수 있고 행은 못 한다.
 	Records *record.Store
 	// NotifyURL 은 되묻기 알림 웹훅이다 (ADR-032 §4). 비면 알림 없음.
-	// ★ 푸시는 보조다 ★ — 인박스(GET /v1/asks)가 정본이고, 유실돼도 재시도 없다.
+	// 푸시는 보조다 — 인박스(GET /v1/asks)가 정본이고, 유실돼도 재시도 없다.
 	NotifyURL string
 	// MaxLeasesPerRun 은 한 Run 이 동시에 쥘 수 있는 노드 수다 (ADR-024 §4.2).
-	// ★ 폭의 상한 ★ — 0 이면 무제한(오늘 그대로).
+	// 폭의 상한 — 0 이면 무제한(오늘 그대로).
 	MaxLeasesPerRun int
 	// MaxContractVersions 는 계약의 열이 가질 수 있는 판의 개수다 (ADR-031).
-	// ★ 계약이 못 건드리는 자리 ★ — 종료 보장을 시스템이 쥔다. 0 이면 2.
+	// 계약이 못 건드리는 자리 — 종료 보장을 시스템이 쥔다. 0 이면 2.
 	MaxContractVersions int
-	// Log 는 ★ 되돌림처럼 밖에서 안 보이는 판단 ★ 을 남기는 자리다.
+	// Log 는 되돌림처럼 밖에서 안 보이는 판단을 남기는 자리다.
 	// 없으면 조용히 지나간다 — 로그가 없다고 동작이 달라지면 안 된다.
 	Log *slog.Logger
 }
@@ -76,7 +76,7 @@ func (s *Store) Migrate(ctx context.Context) error {
 
 // ── 노드 광고 ────────────────────────────────────────────────────────────
 
-// UpsertAdvert 는 광고를 ★ 통째로 교체한다 ★.
+// UpsertAdvert 는 광고를 통째로 교체한다.
 // 델타를 받지 않는 것이 ADR-012 이고, 그래서 capability 를 빼고 보내는 것이
 // 곧 "지금은 못 한다" 가 된다 (ADR-017 결정 3). 병합하면 그 뜻이 사라진다.
 func (s *Store) UpsertAdvert(ctx context.Context, a contract.Advert, principal string, ttl time.Duration) error {
@@ -96,7 +96,7 @@ func (s *Store) UpsertAdvert(ctx context.Context, a contract.Advert, principal s
 	return err
 }
 
-// LiveAdverts 는 ★ 만료되지 않은 ★ 광고를 돌려준다.
+// LiveAdverts 는 만료되지 않은 광고를 돌려준다.
 // 살아 있음의 신탁이 아니다 — 죽었지만 아직 만료 안 된 노드가 들어 있다.
 func (s *Store) LiveAdverts(ctx context.Context) ([]contract.Advert, error) {
 	rows, err := s.pool.Query(ctx,
@@ -156,18 +156,18 @@ const (
 var ErrNotFound = errors.New("not found")
 
 // GetRun 은 없으면 ErrNotFound 다.
-// liveContract 는 ★ 지금 유효한 계약 ★ 을 주는 SQL 조각이다.
+// liveContract 는 지금 유효한 계약을 주는 SQL 조각이다.
 //
-// 계약은 실행 중에 자란다(expands · 재계획). ★ runs.contract 는 제출 전문 그대로 ★
+// 계약은 실행 중에 자란다(expands · 재계획). runs.contract 는 제출 전문 그대로
 // 남고(성질 4), 붙은 판은 runs.contract_versions 에 쌓인다.
-// ⇒ ★ 실행하는 쪽은 마지막 판을 봐야 한다 ★ — 제출본만 보면 계획이 지은 단계를
-// 집을 때 "명령 단계인데 run 이 비었다" 가 된다. ★ 실측이 그렇게 밟았다 ★.
+// ⇒ 실행하는 쪽은 마지막 판을 봐야 한다 — 제출본만 보면 계획이 지은 단계를
+// 집을 때 "명령 단계인데 run 이 비었다" 가 된다. 실측이 그렇게 밟았다.
 //
-// ★ 봉인만 제출 전문을 본다 ★ (seal.go) — v1 이 제출본이어야 하기 때문이다.
+// 봉인만 제출 전문을 본다 (seal.go) — v1 이 제출본이어야 하기 때문이다.
 // 판이 평평하게 임베드돼 있어(ContractVersion) 그대로 계약으로 읽힌다.
 const liveContract = `coalesce(contract_versions -> -1, contract)`
 
-// nullable 은 빈 문자열을 NULL 로 보낸다 — ★ "" 와 "not found" 를 섞지 않는다 ★.
+// nullable 은 빈 문자열을 NULL 로 보낸다 — "" 와 "not found" 를 섞지 않는다.
 func nullable(v string) any {
 	if v == "" {
 		return nil
@@ -217,13 +217,13 @@ type LeaseGrant struct {
 	Nonce    string
 }
 
-// ErrNodeTaken 은 ★ 기본키 충돌 ★ 이다 — 그 사이 다른 Run 이 노드를 가져갔다.
+// ErrNodeTaken 은 기본키 충돌이다 — 그 사이 다른 Run 이 노드를 가져갔다.
 // 호출자는 409 로 답하고 전체를 롤백한다. 그것이 I5 다.
 var ErrNodeTaken = errors.New("node is already held by another run")
 
-// CreateRun 은 ★ 하나의 트랜잭션 ★ 안에서 Run · 임대 · 단계를 만든다.
+// CreateRun 은 하나의 트랜잭션 안에서 Run · 임대 · 단계를 만든다.
 //
-// I5(전부 아니면 전무)를 애플리케이션 루프가 아니라 ★ 트랜잭션 ★ 으로 얻는다.
+// I5(전부 아니면 전무)를 애플리케이션 루프가 아니라 트랜잭션으로 얻는다.
 // leases 의 기본키가 node_id 이므로(ADR-019 결정 2) 경쟁하는 Run 은 INSERT 에서
 // 충돌하고, 롤백이 이미 잡은 것을 전부 되돌린다 — 손으로 해제할 것이 없다.
 //
@@ -245,7 +245,7 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // 커밋됐으면 무해하다
 
-	// ★ Work 의 키를 여기서 박는다 ★ (ADR-023 §6.5.2) — 계약에 id 가 없으면
+	// Work 의 키를 여기서 박는다 (ADR-023 §6.5.2) — 계약에 id 가 없으면
 	// (system, change_id) 에서 유도한다. Run 을 넘어 사는 유일한 식별자다.
 	if _, err := tx.Exec(ctx,
 		`INSERT INTO runs (run_id, state, principal, contract, assigned, work_id)
@@ -278,7 +278,7 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 		if err != nil {
 			return err
 		}
-		// ★ 기본값을 여기서 채워 넣는다 ★ (ADR-023 §4) — needs 를 안 적은 계약은
+		// 기본값을 여기서 채워 넣는다 (ADR-023 §4) — needs 를 안 적은 계약은
 		// [직전 단계] 가 되어 오늘과 똑같이 돈다. 계약 전문은 안 바꾼다:
 		// 정규화 결과는 파생인 steps 행에만 산다 (ADR-005 성질 4).
 		if _, err := tx.Exec(ctx,
@@ -289,20 +289,20 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 			return err
 		}
 	}
-	// ★ 첫 단계가 획득일 수 있다 ★ — 그러면 아무도 보고하기 전에 수행해야 한다.
+	// 첫 단계가 획득일 수 있다 — 그러면 아무도 보고하기 전에 수행해야 한다.
 	// 노드에 안 가므로 claim 을 기다릴 수 없고, 여기서 안 하면 Run 이 멈춘다.
 	if err := s.runAcquires(ctx, tx, r.RunID); err != nil {
 		return err
 	}
-	// ★ 첫 단계가 되묻기일 수 있다 ★ — 제출 즉시 물을 것은 물어야 한다.
+	// 첫 단계가 되묻기일 수 있다 — 제출 즉시 물을 것은 물어야 한다.
 	raisedAsks, err := s.raiseAsks(ctx, tx, r.RunID)
 	if err != nil {
 		return err
 	}
-	// ★ 실행 중에는 붙이기만 한다 ★ (성질 1: append-only) —
+	// 실행 중에는 붙이기만 한다 (성질 1: append-only) —
 	// 디렉터리를 지금 열어두고 로그가 쌓이게 한다. 봉인은 종료 시 한 번뿐이다.
 	//
-	// ★ 커밋 전에 연다 ★ — 커밋 뒤에 열다 실패하면 Run 은 이미 있는데
+	// 커밋 전에 연다 — 커밋 뒤에 열다 실패하면 Run 은 이미 있는데
 	// 호출자는 에러를 받아 상태가 갈린다.
 	if s.Records != nil {
 		if err := s.Records.Open(r.RunID); err != nil {
@@ -312,13 +312,13 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	// ★ 알림은 커밋 뒤에만 ★ — 트랜잭션 안에서 쏘면 롤백된 질문을 알리게 된다.
+	// 알림은 커밋 뒤에만 — 트랜잭션 안에서 쏘면 롤백된 질문을 알리게 된다.
 	s.PushAsks(raisedAsks)
 	return nil
 }
 
 // CreateRejectedRun 은 매칭이 거절된 Run 을 기록한다.
-// ★ 거절도 남긴다 ★ — ADR-005 가 "실패 원인이 Record 에 있다" 고 했고,
+// 거절도 남긴다 — ADR-005 가 "실패 원인이 Record 에 있다" 고 했고,
 // 왜 안 돌았는지가 어디에도 없으면 껍데기가 다시 제출할지를 못 정한다.
 func (s *Store) CreateRejectedRun(ctx context.Context, r Run) error {
 	contractJSON, err := json.Marshal(r.Contract)
@@ -378,15 +378,15 @@ type CapabilityView struct {
 	Attrs      map[string][]string `json:"attrs"`
 }
 
-// Capabilities 는 ★ 함대의 속성 어휘 ★ 를 돌려준다.
+// Capabilities 는 함대의 속성 어휘를 돌려준다.
 //
-// ★ 존재는 답하고 여유는 답하지 않는다 ★ (ADR-014 결정 3) —
-// nodes 는 ★ 총수 ★ 이지 지금 비어 있는 수가 아니다. 여유를 알려주면
+// 존재는 답하고 여유는 답하지 않는다 (ADR-014 결정 3) —
+// nodes 는 총수이지 지금 비어 있는 수가 아니다. 여유를 알려주면
 // 호출자가 그것을 보고 제출하는데 그 사이 다른 Run 이 가져가, 아무것도
 // 보장하지 않는 확인이 된다. 그리고 first available 아래서는 지명도 못 한다.
 //
-// ADR-019 로 어휘가 agent.reason 하나가 됐으므로 ★ 읽는 것은 「속성 어휘」 ★ 다.
-// attrs 의 값 목록은 노드별 집합이 아니라 ★ 함대 전체의 합집합 ★ 이다 —
+// ADR-019 로 어휘가 agent.reason 하나가 됐으므로 읽는 것은 「속성 어휘」다.
+// attrs 의 값 목록은 노드별 집합이 아니라 함대 전체의 합집합이다 —
 // "보드가 있고 armv7 을 빌드하는 노드가 몇 개인가" 는 여기서 못 센다.
 // 그 답은 POST /v1/runs/dry-run 이 준다 (매처를 두 벌 만들지 않는다).
 func (s *Store) Capabilities(ctx context.Context) ([]CapabilityView, error) {

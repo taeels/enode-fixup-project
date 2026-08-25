@@ -13,17 +13,17 @@ import (
 
 // applyDispatch 는 보고를 마친 단계의 분기를 적용한다 (ADR-022 §7.2).
 //
-// ★ Mediator 는 판정하지 않는다 ★ — 에이전트가 낸 ★ 이름 ★ 을 읽어 그 단계를
+// Mediator 는 판정하지 않는다 — 에이전트가 낸 이름을 읽어 그 단계를
 // 남기고 나머지 갈림길을 SKIPPED 로 만들 뿐이다. 표현식을 평가하지 않으므로
 // ADR-004(기계적 판정만)와 ADR-011(라벨 매칭 계열)이 그대로 산다.
 //
-// ★ 이름을 못 고르면 그 단계가 FAILED 다 ★
+// 이름을 못 고르면 그 단계가 FAILED 다
 //
-//	값이 to 에 없으면 라우터가 라우팅을 못 한다. 그건 ★ 결과가 나쁜 것 ★ 이 아니라
-//	★ 단계가 계약이 요구한 것을 못 낸 것 ★ 이므로 "완주하지 못함" 과 같은 자리다
+//	값이 to 에 없으면 라우터가 라우팅을 못 한다. 그건 결과가 나쁜 것이 아니라
+//	단계가 계약이 요구한 것을 못 낸 것 이므로 "완주하지 못함" 과 같은 자리다
 //	(ADR-004 를 안 건드린다 — 내용의 좋고 나쁨을 안 본다).
 //	보통은 여기 오기 전에 막힌다 — enum 을 벗어난 값은 PUT blob 이 422 로 거절해
-//	저장되지 않는다 (ADR-020). ★ 검사가 두 겹인 것이 의도다 ★.
+//	저장되지 않는다 (ADR-020). 검사가 두 겹인 것이 의도다.
 func (s *Store) applyDispatch(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
 	var raw []byte
 	if err := tx.QueryRow(ctx, `SELECT `+liveContract+` FROM runs WHERE run_id=$1`, runID).
@@ -58,16 +58,16 @@ func (s *Store) applyDispatch(ctx context.Context, tx pgx.Tx, runID string, seq 
 		return fmt.Errorf("step %q: chosen target %q is not in dispatch.to", st.ID, chosen)
 	}
 
-	// ★ 고른 목적지는 되살린다 ★ — 여러 분기가 ★ 같은 목적지를 나눠 가질 수 ★
+	// 고른 목적지는 되살린다 — 여러 분기가 같은 목적지를 나눠 가질 수
 	// 있고(펼친 재시도 루프의 조기종료 출구가 그 형태다), 앞선 분기가 그것을
-	// 안 골랐으면 이미 SKIPPED 다. ★ 공유 목적지는 「누구든 하나가 고르면 산다」★
-	// 이므로, 안 되살리면 ★ 1 회차의 「아직 아니다」가 「영원히 아니다」가 된다 ★.
+	// 안 골랐으면 이미 SKIPPED 다. 공유 목적지는 「누구든 하나가 고르면 산다」
+	// 이므로, 안 되살리면 1 회차의 「아직 아니다」가 「영원히 아니다」가 된다.
 	//
-	// ★ 되살린 뒤에도 propagateSkips 를 그대로 돈다 ★ — needs 가 전부 SKIPPED 라
-	// 도달할 수 없으면 다시 죽는 것이 맞다. 되살리는 것은 ★ 분기의 판단 ★ 이지
+	// 되살린 뒤에도 propagateSkips 를 그대로 돈다 — needs 가 전부 SKIPPED 라
+	// 도달할 수 없으면 다시 죽는 것이 맞다. 되살리는 것은 분기의 판단이지
 	// 도달 가능성이 아니다.
-	// ★ 골랐다는 사실을 남긴다 ★ (ADR-060 §3) — SKIPPED 하나로는 「안 골랐다」와
-	// 「골랐는데 못 닿았다」가 구분되지 않고, 뒤의 것은 ★ 목표 미달 ★ 이다.
+	// 골랐다는 사실을 남긴다 (ADR-060 §3) — SKIPPED 하나로는 「안 골랐다」와
+	// 「골랐는데 못 닿았다」가 구분되지 않고, 뒤의 것은 목표 미달이다.
 	// 되살림과 같은 문장에서 박는다: 되살릴 대상이 없어도(이미 PENDING) 표시는 남는다.
 	if _, err := tx.Exec(ctx, `
 		UPDATE steps
@@ -79,7 +79,7 @@ func (s *Store) applyDispatch(ctx context.Context, tx pgx.Tx, runID string, seq 
 		return err
 	}
 
-	// ★ 안 간 쪽만 SKIPPED 로 ★ — 갈림길 밖의 단계는 건드리지 않는다.
+	// 안 간 쪽만 SKIPPED 로 — 갈림길 밖의 단계는 건드리지 않는다.
 	// PENDING 인 것만 바꾼다: 이미 돈 것을 되돌리지 않는다.
 	others := make([]string, 0, len(st.Dispatch.To))
 	for _, t := range st.Dispatch.To {
@@ -96,27 +96,27 @@ func (s *Store) applyDispatch(ctx context.Context, tx pgx.Tx, runID string, seq 
 	return propagateSkips(ctx, tx, runID)
 }
 
-// propagateSkips 는 ★ SKIPPED 를 간선을 따라 전파한다 ★ (ADR-023 §7.2).
+// propagateSkips 는 SKIPPED 를 간선을 따라 전파한다 (ADR-023 §7.2).
 //
-// ★ 왜 필요한가 ★ — dispatch.to 만 SKIPPED 로 바꾸면 갈림길이 ★ 단계 하나짜리일
-// 때만 ★ 맞다. 안 간 경로가 두 단계 이상이면 그 뒷단계가 PENDING 으로 남아
-// ★ 그대로 실행된다 ★. 전파에는 따라갈 길이 필요하고, 그 길이 needs 다.
-// ⇒ ★ dispatch 는 간선을 고르고 needs 는 간선을 선언한다 ★. 같은 그래프의 두 면이다.
+// 왜 필요한가 — dispatch.to 만 SKIPPED 로 바꾸면 갈림길이 단계 하나짜리일
+// 때만 맞다. 안 간 경로가 두 단계 이상이면 그 뒷단계가 PENDING 으로 남아
+// 그대로 실행된다. 전파에는 따라갈 길이 필요하고, 그 길이 needs 다.
+// ⇒ dispatch 는 간선을 고르고 needs 는 간선을 선언한다. 같은 그래프의 두 면이다.
 //
-// ★ 규칙 ★
+// 규칙
 //
-//	needs 가 ★ 전부 SKIPPED 일 때만 ★ 그 단계도 SKIPPED 다.
-//	하나라도 DONE 이면 그 단계는 돈다 — join 은 ★ 살아 있는 가지가 있으면 성립 ★ 한다.
+//	needs 가 전부 SKIPPED 일 때만 그 단계도 SKIPPED 다.
+//	하나라도 DONE 이면 그 단계는 돈다 — join 은 살아 있는 가지가 있으면 성립한다.
 //
 // needs 가 빈 단계는 대상이 아니다 — 아무것도 안 기다리는 것은 시작점이지
 // "의존이 전부 건너뛰어졌다" 가 아니다.
 //
-// ★ 판정 규칙은 하나도 안 는다 ★ — 건너뛴 단계의 success_when 은 공허하게 참이고
+// 판정 규칙은 하나도 안 는다 — 건너뛴 단계의 success_when 은 공허하게 참이고
 // (INVARIANTS), 대조된 조건이 0 개면 FAILED 라는 하한도 이미 있다.
 func propagateSkips(ctx context.Context, tx pgx.Tx, runID string) error {
-	// 한 번의 UPDATE 는 ★ 한 칸만 ★ 간다. 새로 SKIPPED 가 된 것이 또 다음을
+	// 한 번의 UPDATE 는 한 칸만 간다. 새로 SKIPPED 가 된 것이 또 다음을
 	// 건너뛰게 하므로 더 바뀌지 않을 때까지 돈다. 매 회차가 PENDING 을 최소
-	// 하나씩 줄이므로 ★ 단계 수 안에 반드시 멈춘다 ★.
+	// 하나씩 줄이므로 단계 수 안에 반드시 멈춘다.
 	for {
 		tag, err := tx.Exec(ctx, `
 			UPDATE steps s SET state=$2, ended_at=now()
@@ -137,9 +137,9 @@ func propagateSkips(ctx context.Context, tx pgx.Tx, runID string) error {
 
 // readDispatchValue 는 산출물에서 이름 하나를 꺼낸다.
 //
-// ★ 경로는 점으로 끊는다 ★ — JSON 포인터를 흉내 내지 않는다. 배열 색인도 없다.
+// 경로는 점으로 끊는다 — JSON 포인터를 흉내 내지 않는다. 배열 색인도 없다.
 // 흉내 내기 시작하면 그게 곧 식 언어의 첫 조각이 된다 (argv 에서 셸을 안 흉내 낸
-// 것과 같은 이유). ★ 필요한 것은 값 하나를 가리키는 것뿐이다 ★.
+// 것과 같은 이유). 필요한 것은 값 하나를 가리키는 것뿐이다.
 func (s *Store) readDispatchValue(runID, blob, path string) (string, error) {
 	if s.Records == nil {
 		return "", fmt.Errorf("record store is not configured")

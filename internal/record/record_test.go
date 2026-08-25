@@ -12,7 +12,7 @@ import (
 )
 
 // newStore 는 봉인된 디렉터리를 t.TempDir 이 지울 수 있게 정리를 걸어둔다.
-// ★ 봉인은 삭제까지 막는다 ★ — 그 자체가 I4 가 작동한다는 증거다.
+// 봉인은 삭제까지 막는다 — 그 자체가 I4 가 작동한다는 증거다.
 func newStore(t *testing.T) *Store {
 	t.Helper()
 	root := t.TempDir()
@@ -29,9 +29,9 @@ func steps() []StepFile {
 	}
 }
 
-// ★ I4 — 종료 상태에 이른 Run 의 Record 는 봉인되어 이후 변경되지 않는다 ★
+// I4 — 종료 상태에 이른 Run 의 Record 는 봉인되어 이후 변경되지 않는다
 //
-// 애플리케이션이 "고치지 않기로 한다" 가 아니라 ★ 파일시스템이 막는다 ★.
+// 애플리케이션이 "고치지 않기로 한다" 가 아니라 파일시스템이 막는다.
 // ADR-015 §3 이 Record 를 DB 가 아니라 디렉터리에 둔 논거가 이것이다.
 func TestSealMakesItImmutable(t *testing.T) {
 	s := newStore(t)
@@ -45,11 +45,11 @@ func TestSealMakesItImmutable(t *testing.T) {
 
 	// 덮어쓰기가 막혀야 한다
 	if err := os.WriteFile(filepath.Join(d, "verdict.json"), []byte("tampered"), 0o644); err == nil {
-		t.Fatal("★ I4 위반 ★ 봉인된 파일이 덮어써졌다")
+		t.Fatal("I4 위반 봉인된 파일이 덮어써졌다")
 	}
 	// 새 파일 주입도 막혀야 한다
 	if err := os.WriteFile(filepath.Join(d, "steps", "03-injected.json"), []byte("{}"), 0o644); err == nil {
-		t.Fatal("★ I4 위반 ★ 봉인된 디렉터리에 파일이 주입됐다")
+		t.Fatal("I4 위반 봉인된 디렉터리에 파일이 주입됐다")
 	}
 	// 읽기는 되어야 한다 — 봉인은 잠그는 것이지 숨기는 것이 아니다
 	if _, err := os.ReadFile(filepath.Join(d, "manifest.json")); err != nil {
@@ -74,11 +74,11 @@ func TestSealIsIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(b), "TAMPERED") {
-		t.Fatal("★ 봉인된 것이 다시 쓰였다 ★")
+		t.Fatal("봉인된 것이 다시 쓰였다")
 	}
 }
 
-// ★ 성질 3 — 노드 귀속 ★ Case D 의 "서로 다른 기계였다" 가 여기 걸린다.
+// 성질 3 — 노드 귀속 Case D 의 "서로 다른 기계였다" 가 여기 걸린다.
 func TestStepsCarryNodeAttribution(t *testing.T) {
 	s := newStore(t)
 	if err := s.Seal("r", map[string]any{}, map[string]any{}, steps()); err != nil {
@@ -95,16 +95,16 @@ func TestStepsCarryNodeAttribution(t *testing.T) {
 			t.Fatal(err)
 		}
 		if sf.Node == "" || sf.NodeLabel == "" {
-			t.Fatalf("★ 노드 귀속이 없다 ★: %s", f)
+			t.Fatalf("노드 귀속이 없다: %s", f)
 		}
 		seen[sf.Node] = sf.NodeLabel
 	}
 	if len(seen) != 2 {
-		t.Fatalf("★ O1 ★ 서로 다른 노드가 %d 개 — 2 여야 한다", len(seen))
+		t.Fatalf("O1 서로 다른 노드가 %d 개 — 2 여야 한다", len(seen))
 	}
 }
 
-// ★ 성질 4 — 자기충족 ★ 묶음 하나를 풀면 그 안에 전부 있다.
+// 성질 4 — 자기충족 묶음 하나를 풀면 그 안에 전부 있다.
 func TestTarIsSelfSufficient(t *testing.T) {
 	s := newStore(t)
 	if err := s.Open("r"); err != nil {
@@ -139,7 +139,7 @@ func TestTarIsSelfSufficient(t *testing.T) {
 	}
 	for name, got := range want {
 		if !got {
-			t.Fatalf("★ 자기충족 위반 ★ 묶음에 %s 가 없다", name)
+			t.Fatalf("자기충족 위반 묶음에 %s 가 없다", name)
 		}
 	}
 }
@@ -155,7 +155,7 @@ func TestTarRefusesUnsealed(t *testing.T) {
 	}
 }
 
-// 로그는 상한을 넘으면 잘라 저장하고 ★ 잘렸음을 표시한다 ★ (ADR-015 §5).
+// 로그는 상한을 넘으면 잘라 저장하고 잘렸음을 표시한다 (ADR-015 §5).
 func TestLogTruncationIsMarked(t *testing.T) {
 	s := newStore(t)
 	if err := s.Open("r"); err != nil {
@@ -182,11 +182,11 @@ func TestPathTraversalIsBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "..", "..", "etc", "evil")); err == nil {
-		t.Fatal("★ 경로를 탈출했다 ★")
+		t.Fatal("경로를 탈출했다")
 	}
 }
 
-// ★ 계약에서 parent_build 와 patch_build 가 둘 다 artifact 를 낸다 ★
+// 계약에서 parent_build 와 patch_build 가 둘 다 artifact 를 낸다
 // 이름만으로 키를 잡으면 뒤엣것이 앞엣것을 덮어 차분 반증의 두 아티팩트를
 // 봉인된 기록에서 구분할 수 없게 된다 (성질 4 자기충족이 깨진다).
 func TestBlobKeepsEveryStepButServesLatest(t *testing.T) {
@@ -200,7 +200,7 @@ func TestBlobKeepsEveryStepButServesLatest(t *testing.T) {
 	if _, err := s.WriteBlob("r", 3, 0, "artifact", strings.NewReader("ELF-patch"), 1<<20); err != nil {
 		t.Fatal(err)
 	}
-	// 조회는 ★ 가장 최근 ★ 을 준다 — 소비자는 이름만 안다
+	// 조회는 가장 최근을 준다 — 소비자는 이름만 안다
 	f, _, err := s.OpenBlob("r", "artifact")
 	if err != nil {
 		t.Fatal(err)
@@ -210,15 +210,15 @@ func TestBlobKeepsEveryStepButServesLatest(t *testing.T) {
 	if string(b) != "ELF-patch" {
 		t.Fatalf("최신이 아니다: %q", b)
 	}
-	// 그런데 ★ 둘 다 남아 있어야 한다 ★
+	// 그런데 둘 다 남아 있어야 한다
 	for _, name := range []string{"01.0-artifact", "03.0-artifact"} {
 		if _, err := os.Stat(filepath.Join(s.dir("r"), "blobs", name)); err != nil {
-			t.Fatalf("★ 단계별 산출물이 덮어써졌다 ★: %s 가 없다", name)
+			t.Fatalf("단계별 산출물이 덮어써졌다: %s 가 없다", name)
 		}
 	}
 }
 
-// ★ 잘린 산출물은 산출물이 아니다 ★ (로그와 다른 점이다 — 로그는 잘라 표시한다)
+// 잘린 산출물은 산출물이 아니다 (로그와 다른 점이다 — 로그는 잘라 표시한다)
 func TestBlobRefusesOversize(t *testing.T) {
 	s := newStore(t)
 	if err := s.Open("r"); err != nil {
@@ -228,7 +228,7 @@ func TestBlobRefusesOversize(t *testing.T) {
 		t.Fatalf("err=%v 기대 ErrTooBig", err)
 	}
 	if _, _, err := s.OpenBlob("r", "big"); err != ErrNoBlob {
-		t.Fatal("★ 상한을 넘었는데 저장됐다 ★")
+		t.Fatal("상한을 넘었는데 저장됐다")
 	}
 	// 임시 파일도 안 남아야 한다
 	ents, _ := os.ReadDir(filepath.Join(s.dir("r"), "blobs"))
@@ -237,11 +237,11 @@ func TestBlobRefusesOversize(t *testing.T) {
 	}
 }
 
-// ★ "가장 큰 seq" 가 아니라 "가장 최근" 이다 ★
+// "가장 큰 seq" 가 아니라 "가장 최근" 이다
 //
 // 순번으로 고르면 재시도가 깨진다 — write_test(1) 를 다시 돌려 좋은 것을 냈는데,
 // 앞 회차에 parent_build(2) 가 같은 이름으로 남긴 나쁜 것이 순번이 크다는 이유로
-// 이긴다. ★ 순번 순서는 전진만 할 때의 규칙이고 재시도 루프는 뒤로 돌아간다. ★
+// 이긴다. 순번 순서는 전진만 할 때의 규칙이고 재시도 루프는 뒤로 돌아간다.
 func TestBlobRecencyBeatsSequence(t *testing.T) {
 	s := newStore(t)
 	if err := s.Open("r"); err != nil {
@@ -254,7 +254,7 @@ func TestBlobRecencyBeatsSequence(t *testing.T) {
 	if _, err := s.WriteBlob("r", 2, 0, "test_source", strings.NewReader("BROKEN"), 1<<20); err != nil {
 		t.Fatal(err)
 	}
-	// 2회차: agent(1) 이 고친 것 — ★ 순번은 작지만 회차가 높다 ★
+	// 2회차: agent(1) 이 고친 것 — 순번은 작지만 회차가 높다
 	if _, err := s.WriteBlob("r", 1, 1, "test_source", strings.NewReader("GOOD"), 1<<20); err != nil {
 		t.Fatal(err)
 	}
@@ -265,9 +265,9 @@ func TestBlobRecencyBeatsSequence(t *testing.T) {
 	b, _ := io.ReadAll(f)
 	f.Close()
 	if string(b) != "GOOD" {
-		t.Fatalf("★ 재시도가 가려졌다 ★ 받은 것: %q", b)
+		t.Fatalf("재시도가 가려졌다 받은 것: %q", b)
 	}
-	// ★ 회차별로 전부 남아야 한다 ★ — "왜 두 번 시도했는가" 가 재구성되어야 한다
+	// 회차별로 전부 남아야 한다 — "왜 두 번 시도했는가" 가 재구성되어야 한다
 	for _, n := range []string{"01.0-test_source", "01.1-test_source", "02.0-test_source"} {
 		if _, err := os.Stat(filepath.Join(s.dir("r"), "blobs", n)); err != nil {
 			t.Fatalf("회차 기록이 사라졌다: %s", n)

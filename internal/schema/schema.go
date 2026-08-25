@@ -1,17 +1,17 @@
-// Package schema 는 산출물의 ★ 형식만 ★ 검증한다 (ADR-020).
+// Package schema 는 산출물의 형식만 검증한다 (ADR-020).
 //
-// ★ 왜 JSON Schema 전체를 쓰지 않는가 ★
+// 왜 JSON Schema 전체를 쓰지 않는가
 //
 // ADR-020 이 경계선을 그었다:
 //
-//	기준: 에이전트가 정직하게 답했을 때 통과하지 못할 수 있으면 그건 ★ 판정 ★ 이다
+//	기준: 에이전트가 정직하게 답했을 때 통과하지 못할 수 있으면 그건 판정이다
 //	  ○ enum            정직하면 항상 통과       — 형식
 //	  ✗ minimum         낮게 답하면 실패         — 판정
 //	  ✗ minLength       길이로 품질을 잰다       — 판정
 //
-// 그 경계를 ★ 산문으로 두면 새어나간다 ★. 전체 JSON Schema 를 받으면
+// 그 경계를 산문으로 두면 새어나간다. 전체 JSON Schema 를 받으면
 // 누군가 confidence >= 0.8 을 쓰고, 그 순간 ADR-004(기계적 판정만)가
-// 스키마를 통해 무너진다. 그래서 허용 어휘를 좁히고 ★ 나머지는 400 으로 거절한다 ★.
+// 스키마를 통해 무너진다. 그래서 허용 어휘를 좁히고 나머지는 400 으로 거절한다.
 // I1 을 기본키로, I4 를 chmod 로 강제한 것과 같은 결이다.
 package schema
 
@@ -41,7 +41,7 @@ var rejected = map[string]string{
 	"minProperties": "judges by count", "maxProperties": "judges by count",
 }
 
-// CheckBoundary 는 스키마가 ★ 형식만 제약하는지 ★ 본다.
+// CheckBoundary 는 스키마가 형식만 제약하는지 본다.
 // 계약 검증 시점(400)에 부른다 — 실행하고 나서 알면 늦다.
 func CheckBoundary(s any) error { return boundary(s, "") }
 
@@ -89,8 +89,8 @@ func at(path string) string {
 	return strings.TrimPrefix(path, ".") + " of "
 }
 
-// Violation 은 검증 실패 하나다. ★ feedback 으로 되먹여진다 ★ (ADR-013 의 루프) —
-// 되먹이는 것이 LLM 의 의견이 아니라 ★ 검증기의 출력 ★ 이라는 것이 OpenHands 와의 차이다.
+// Violation 은 검증 실패 하나다. feedback 으로 되먹여진다 (ADR-013 의 루프) —
+// 되먹이는 것이 LLM 의 의견이 아니라 검증기의 출력이라는 것이 OpenHands 와의 차이다.
 type Violation struct {
 	Path string `json:"path"`
 	Want string `json:"want"`

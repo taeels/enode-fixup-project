@@ -29,7 +29,7 @@ func TestParseAnswer_승인과_거절을_가른다(t *testing.T) {
 			note:    "3단계가 워크스페이스 밖에 쓴다.",
 		},
 		{
-			// ★ 스레드가 통째로 실려 온다 ★ (실측 §10.5.2) — 그래서 표지 뒤만 본다.
+			// 스레드가 통째로 실려 온다 (실측 §10.5.2) — 그래서 표지 뒤만 본다.
 			// 표지 앞의 우리 질문에도 "ok" 라는 낱말이 들어 있다.
 			name: "스레드 맥락에 낚이지 않는다",
 			prompt: "Someone answered your comment on issue EP-2\n" +
@@ -63,7 +63,7 @@ func TestParseAnswer_승인과_거절을_가른다(t *testing.T) {
 }
 
 func TestRunIDPrefix_이슈에서_유도된다(t *testing.T) {
-	// ★ 표가 아니라 유도다 ★ — 어댑터가 죽어도 같은 규칙이 같은 이름을 준다.
+	// 표가 아니라 유도다 — 어댑터가 죽어도 같은 규칙이 같은 이름을 준다.
 	if got := runIDPrefix("EP-2"); got != "itsaplan-EP-2-" {
 		t.Fatalf("prefix = %q", got)
 	}
@@ -103,7 +103,7 @@ func TestBuildContract_고정_템플릿이다(t *testing.T) {
 		t.Fatalf("work = %v", work)
 	}
 
-	// ★ 이름표가 붙는다 ★ — 이것이 없으면 남의 이슈의 오케스트레이터가 걸린다.
+	// 이름표가 붙는다 — 이것이 없으면 남의 이슈의 오케스트레이터가 걸린다.
 	reqs := c["requires"].([]any)
 	planner := reqs[0].(map[string]any)
 	if planner["capability"] != "orchestration" || planner["issue"] != "EP-2" {
@@ -114,7 +114,7 @@ func TestBuildContract_고정_템플릿이다(t *testing.T) {
 		t.Fatalf("worker = %v", worker)
 	}
 
-	// ★ 원장이 Work 범위여야 답을 이전 Run 에서 찾을 수 있다 ★ (ADR-040 §3.4).
+	// 원장이 Work 범위여야 답을 이전 Run 에서 찾을 수 있다 (ADR-040 §3.4).
 	if c["ledger"].(map[string]any)["scope"] != "work" {
 		t.Fatalf("ledger = %v", c["ledger"])
 	}
@@ -133,7 +133,7 @@ func TestBuildContract_고정_템플릿이다(t *testing.T) {
 	if ask["adopts"] != "plan" || ask["adopt_when"] != "ok" {
 		t.Fatalf("ask = %v", ask)
 	}
-	// ★ 계약이 목적지를 안 적는다 ★ (ADR-062) — dispatch 가 있으면 앞단이
+	// 계약이 목적지를 안 적는다 (ADR-062) — dispatch 가 있으면 앞단이
 	// 뒷단의 계획 모양을 단정하게 되고, 그것이 promised-1 을 죽였다.
 	if _, has := gate["dispatch"]; has {
 		t.Fatal("계약이 dispatch 를 쓴다 — ADR-062 가 없앤 것이다")
@@ -160,7 +160,7 @@ func TestBuildContract_판정은_그래프의_자리가_아니라_사실을_묻�
 }
 
 func TestRenderQuestion_답하는_방법을_말로_적는다(t *testing.T) {
-	// ★ It's a Plan 에 폼이 없다 ★ — 스키마 강제는 우리 쪽에 남으므로
+	// It's a Plan 에 폼이 없다 — 스키마 강제는 우리 쪽에 남으므로
 	// 코멘트가 답의 형태를 말로 알려줘야 한다.
 	ask := &AskView{
 		RunID:  "itsaplan-EP-2-1",
@@ -180,8 +180,8 @@ func TestRenderQuestion_답하는_방법을_말로_적는다(t *testing.T) {
 	}
 }
 
-// ★ 두 번째 실측이 잡은 결함이다 ★ (2026-08-24, EP-2) — 중복 표지를 run_id 로
-// 삼았더니 ★ 질문 코멘트가 결과 코멘트로 오인됐다 ★. 둘 다 꼬리표에 run_id 를
+// 두 번째 실측이 잡은 결함이다 (2026-08-24, EP-2) — 중복 표지를 run_id 로
+// 삼았더니 질문 코멘트가 결과 코멘트로 오인됐다. 둘 다 꼬리표에 run_id 를
 // 달기 때문이다. 그래서 복구 경로가 「이미 넘겼다」로 판단하고 조용히 지나갔다.
 func TestResultMarker_질문_코멘트와_안_겹친다(t *testing.T) {
 	const runID = "itsaplan-EP-2-1"
@@ -192,7 +192,7 @@ func TestResultMarker_질문_코멘트와_안_겹친다(t *testing.T) {
 	if !strings.Contains(question, runID) {
 		t.Fatal("질문에 run_id 가 없다")
 	}
-	// ★ 그런데 결과 표지는 없어야 한다 ★.
+	// 그런데 결과 표지는 없어야 한다.
 	if strings.Contains(question, ResultMarker(runID)) {
 		t.Fatalf("질문 코멘트가 결과 표지를 달고 있다:\n%s", question)
 	}
@@ -212,9 +212,9 @@ func TestOneLine_봉인을_붓지_않는다(t *testing.T) {
 	}
 }
 
-// ★ 첫 실측이 잡은 결함이다 ★ (2026-08-24, EP-2) — verdict.checks 의 want·got 은
+// 첫 실측이 잡은 결함이다 (2026-08-24, EP-2) — verdict.checks 의 want·got 은
 // produced 검사에서 문자열 배열이고 exit_code 검사에서 숫자다. []string 으로
-// 받았더니 Run 조회가 통째로 실패했고, 어댑터가 ★ 끝난 Run 을 영영 못 넘겼다 ★.
+// 받았더니 Run 조회가 통째로 실패했고, 어댑터가 끝난 Run 을 영영 못 넘겼다.
 // 조용히 멈추는 종류의 고장이라 시험으로 못 박는다.
 func TestRunView_판정_검사의_want_got_은_다형이다(t *testing.T) {
 	raw := `{
@@ -250,9 +250,9 @@ func TestRunView_판정_검사의_want_got_은_다형이다(t *testing.T) {
 	}
 }
 
-// ★ 세 번째 실측이 잡은 결함이다 ★ (2026-08-24) — 되묻기로 손을 떼는 경로는
+// 세 번째 실측이 잡은 결함이다 (2026-08-24) — 되묻기로 손을 떼는 경로는
 // 오케스트레이터를 죽이면 안 되므로 Stop 을 안 불렀는데, Wait 가 Stop 에만
-// 있었다. 그래서 ★ 그 판마다 좀비가 하나씩 쌓였다 ★ (EP-3·EP-4·EP-5 에서 셋).
+// 있었다. 그래서 그 판마다 좀비가 하나씩 쌓였다 (EP-3·EP-4·EP-5 에서 셋).
 // 거두는 자리를 시작 직후 고루틴 하나로 옮기고, Detach 도 그것을 기다린다.
 func TestOrchestrator_어느_경로로_끝나든_자식을_거둔다(t *testing.T) {
 	for _, tc := range []struct {
@@ -293,7 +293,7 @@ func TestRunView_Terminal(t *testing.T) {
 			t.Fatalf("%s 가 종료가 아니라고 한다", s)
 		}
 	}
-	// ★ ASKED 는 종료가 아니다 ★ — 사람이 답하는 동안 Run 은 살아 있다 (ADR-047).
+	// ASKED 는 종료가 아니다 — 사람이 답하는 동안 Run 은 살아 있다 (ADR-047).
 	for _, s := range []string{"PENDING", "RUNNING", "ASKED"} {
 		if (&RunView{State: s}).Terminal() {
 			t.Fatalf("%s 가 종료라고 한다", s)

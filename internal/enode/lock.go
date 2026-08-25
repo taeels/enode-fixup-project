@@ -7,7 +7,7 @@ import (
 
 // Lock 은 설정 파일 옆의 잠금이다.
 //
-// ★ 중복 실행은 로컬에서 막는다 ★ (ADR-015 §2)
+// 중복 실행은 로컬에서 막는다 (ADR-015 §2)
 //
 // Mediator 에게 재시작과 중복은 똑같이 "같은 node_id 의 새 광고" 로 보여서
 // 구분할 정보가 없다. 막으려 들면 재시작한 enode 가 광고 만료까지 못 붙는다 —
@@ -18,7 +18,7 @@ type Lock struct {
 }
 
 // Acquire 는 설정 경로에 대한 배타 잠금을 잡는다.
-// 같은 설정으로 두 번째 프로세스를 띄우면 ★ 그 자리에서 실패한다 ★.
+// 같은 설정으로 두 번째 프로세스를 띄우면 그 자리에서 실패한다.
 func Acquire(configPath string) (*Lock, error) {
 	path := configPath + ".lock"
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)

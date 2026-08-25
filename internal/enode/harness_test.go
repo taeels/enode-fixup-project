@@ -2,9 +2,9 @@ package enode
 
 import "testing"
 
-// ★ ADR-013 결정 3 의 부분 정정을 기계적으로 지킨다 ★
+// ADR-013 결정 3 의 부분 정정을 기계적으로 지킨다
 //
-//	종료코드는 계약이 될 수 없지만 ★ 구조화된 봉투는 될 수 있다 ★.
+//	종료코드는 계약이 될 수 없지만 구조화된 봉투는 될 수 있다.
 //	claude 는 헛소리를 하고도 0 으로 끝나지만 error_max_turns 로는 끝나지 않는다.
 func TestParseClaude(t *testing.T) {
 	cases := []struct {
@@ -20,7 +20,7 @@ func TestParseClaude(t *testing.T) {
 			0, ReasonOK, true,
 		},
 		{
-			// ★ 상한 소진은 완주다 ★ — 필요한 걸 다 냈으면 produced 가 판정한다.
+			// 상한 소진은 완주다 — 필요한 걸 다 냈으면 produced 가 판정한다.
 			// 다만 Record 에 남는다 (예산 신호).
 			"턴 소진", `{"type":"result","subtype":"error_max_turns","is_error":true,"num_turns":20}`,
 			1, ReasonMaxTurns, true,
@@ -30,7 +30,7 @@ func TestParseClaude(t *testing.T) {
 			1, ReasonMaxTokens, true,
 		},
 		{
-			// ★ 크래시는 완주가 아니다 ★ — 반쯤 쓴 파일을 남길 수 있어 산출물을 믿을 수 없다
+			// 크래시는 완주가 아니다 — 반쯤 쓴 파일을 남길 수 있어 산출물을 믿을 수 없다
 			"봉투가 없다", "Traceback…\nsegfault\n", 139, ReasonError, false,
 		},
 		{
@@ -41,7 +41,7 @@ func TestParseClaude(t *testing.T) {
 			1, ReasonError, false,
 		},
 		{
-			// ★ 종료코드 0 을 믿지 않는다 ★ — 로그가 섞여도 봉투를 집는다
+			// 종료코드 0 을 믿지 않는다 — 로그가 섞여도 봉투를 집는다
 			"로그가 섞여 있다",
 			"준비 중…\n도구 호출\n" + `{"type":"result","subtype":"success","num_turns":3}`,
 			0, ReasonOK, true,
@@ -68,7 +68,7 @@ func TestHarnessRecordsBudget(t *testing.T) {
 	}
 }
 
-// 봉투의 session_id 를 ★ 읽어놓고 버리지 않는다 ★ — R4 가 여기 걸린다.
+// 봉투의 session_id 를 읽어놓고 버리지 않는다 — R4 가 여기 걸린다.
 func TestParseClaude_세션을_넘긴다(t *testing.T) {
 	env := `{"type":"result","subtype":"success","is_error":false,` +
 		`"num_turns":3,"total_cost_usd":0.01,"session_id":"abc-123","result":"ok"}`
@@ -81,7 +81,7 @@ func TestParseClaude_세션을_넘긴다(t *testing.T) {
 	}
 }
 
-// 봉투에 session_id 가 없어도 ★ 나머지는 그대로 산다 ★.
+// 봉투에 session_id 가 없어도 나머지는 그대로 산다.
 func TestParseClaude_세션이_없어도_된다(t *testing.T) {
 	h := ParseClaude([]byte(`{"type":"result","subtype":"success","num_turns":1}`), 0)
 	if h.Session != "" || h.Reason != ReasonOK || h.Turns != 1 {

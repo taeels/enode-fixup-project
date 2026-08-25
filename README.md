@@ -22,13 +22,13 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 | **S1** | 계약 타입 + 매처 (순수 함수) | — I/O 0. 넷의 공통 어휘 |
 | **S2** | Mediator: DB 스키마 + `POST /v1/runs` | **`I5` · `I1`(=`O7`)** |
 | **S3** | enode: 신원 + 로컬 잠금 + 광고 루프 | **`O8` · `O9`** |
-| **S4** | ★ 두 연결 ★ 하트비트 + `claim` 롱폴 + 명령 실행 | **`O6` · `I2`** |
+| **S4** | **두 연결** 하트비트 + `claim` 롱폴 + 명령 실행 | **`O6` · `I2`** |
 | **S5** | 계약 조건 대조(⑩) — `success_when` | **`O4`** |
 | **S6** | Record 봉인 + `GET record` (tar) | **`O1`·`O2`·`O3` · `I4`** |
 | **S7** | `runctl` — 제출 · 상태 · Record · 취소 | **`O5`·`O7`** |
 | ══ | **여기까지가 스켈레톤** | |
-| **S8** | blob 별 모양 + ★ 스키마 검증 ★ | **`I4`** |
-| **S9** | agent 어댑터 + ★ ⑥ 의 재시도 루프 ★ |  |
+| **S8** | blob 별 모양 + **스키마 검증** | **`I4`** |
+| **S9** | agent 어댑터 + **⑥ 의 재시도 루프** |  |
 | **S10** | 워크스페이스 준비 · `GET /v1/capabilities` |  |
 
 **S4 가 최대 위험이다.** `ADR-016`(하트비트가 임대를 나른다)은 설계만 있고
@@ -37,24 +37,24 @@ ADR 20건 · 구조적 미결 0 · 표면 13개를 먼저 고정했다. 남은 �
 ## 배치
 
 ```
-   internal/contract   계약 · 광고 타입. ★ 넷의 공통 어휘 ★
-   internal/match      요구 → 노드. ★ 순수 함수 ★ (ADR-014 결정 3)
-   internal/config     ADR-015 §4 의 우선순위. ★ 사용자 경로가 /etc 를 이긴다 ★
-   internal/store      PostgreSQL. ★ 매칭 로직은 여기 없다 ★
-   internal/record     ★ Run Record — DB 가 아니라 파일시스템 ★ 봉인 · blob · tar
-   internal/schema     ★ 형식만 ★ 검증한다. 판정 키워드는 계약을 400 으로 거절.
+   internal/contract   계약 · 광고 타입. 넷의 공통 어휘
+   internal/match      요구 → 노드. 순수 함수 (ADR-014 결정 3)
+   internal/config     ADR-015 §4 의 우선순위. 사용자 경로가 /etc 를 이긴다
+   internal/store      PostgreSQL. 매칭 로직은 여기 없다
+   internal/record     Run Record — DB 가 아니라 파일시스템 봉인 · blob · tar
+   internal/schema     형식만 검증한다. 판정 키워드는 계약을 400 으로 거절.
    internal/enode      … + agent 어댑터(사출·기동·수확) · 하네스 봉투 정규화
-   internal/runctl     제출 · 상태 · Record · 취소. ★ 무상태다 ★
+   internal/runctl     제출 · 상태 · Record · 취소. 무상태다
    internal/api        HTTP 표면. 라우팅은 표준 라이브러리만 (Go 1.22+ ServeMux)
-   internal/enode      신원 · 잠금(unix/windows) · 탐지 · ★ 광고 루프 + claim 루프 ★
-   cmd/mediator  cmd/enode  cmd/runctl        ★ 셋이 다 있다 ★
+   internal/enode      신원 · 잠금(unix/windows) · 탐지 · 광고 루프 + claim 루프
+   cmd/mediator  cmd/enode  cmd/runctl        셋이 다 있다
 ```
 
-### ★ I1 은 애플리케이션 로직이 아니라 기본키가 강제한다 ★
+### **I1 은 애플리케이션 로직이 아니라 기본키가 강제한다**
 
 ```sql
 CREATE TABLE leases (
-    node_id text PRIMARY KEY,   -- ★ 이 한 줄이 I1 이다 ★
+    node_id text PRIMARY KEY,   -- 이 한 줄이 I1 이다
     run_id  text NOT NULL REFERENCES runs(run_id) ON DELETE CASCADE, ...
 ```
 
@@ -70,7 +70,7 @@ CREATE TABLE leases (
 ※ `claim`(S4)의 `SKIP LOCKED` 와는 **다른 기계**다. 저쪽은 대기열에서 하나를 집는
 것이고 이쪽은 여러 자원을 한꺼번에 잡거나 전부 포기하는 것이다.
 
-### ★ 설정 파일이 곧 신원이다 ★
+### **설정 파일이 곧 신원이다**
 
 ```text
    node_id = hash(email ∥ hostname ∥ realpath(config))[:12]
@@ -94,11 +94,11 @@ CREATE TABLE leases (
 중복 실행은 **로컬 잠금**이 막는다 (`flock` / `LockFileEx`). Mediator 에게 재시작과
 중복은 똑같이 "같은 node_id 의 새 광고" 라 구분할 정보가 없기 때문이다.
 
-### ★ 시간이 감시자다 — 실측 ★
+### **시간이 감시자다 — 실측**
 
 ```text
    12:09:50  Run RUNNING · 임대 1건        Mediator kill
-   12:10:05  ★ enode 가 실행 중인 단계를 스스로 중단 ★   not_after 가 지났다
+   12:10:05  enode 가 실행 중인 단계를 스스로 중단         not_after 가 지났다
    12:10:15  Mediator 재시작 → 재시작 스캔이 회수
              run=FAILED  why="임대 만료 — 갱신이 끊겼다"  leases=0
              그리고 새 Run 이 같은 자원을 201 로 받는다
@@ -118,12 +118,12 @@ Mediator 쪽은 회수 스캔이, enode 쪽은 워치독이 각자 멈춘다.
 아니라 워치독 주기(1초)로 유계가 됐다. 권위는 여전히 `not_after` 이므로
 하트비트 한 번 실패로는 안 죽는다 (`ADR-016`).
 
-### ★ 완주와 성공은 다르다 ★
+### **완주와 성공은 다르다**
 
 이 구분이 `ADR-004` 를 지탱한다.
 
 ```text
-   DONE    프로세스가 끝나고 결과를 보고했다. ★ 종료코드가 무엇이든 ★
+   DONE    프로세스가 끝나고 결과를 보고했다. 종료코드가 무엇이든
    FAILED  아예 못 돌았다 — 프로세스를 못 띄웠거나 임대가 끝나 중단됐다
 ```
 
@@ -158,7 +158,7 @@ enode 나 핸들러가 종료코드로 미리 판정하면 **계약이 할 일�
 
 **`verdict` 가 무엇을 왜 로 남는다** — `ADR-005` 의 *실패 원인이 Record 에 있다*.
 
-### ★ I4 는 파일시스템이 강제한다 ★
+### **I4 는 파일시스템이 강제한다**
 
 애플리케이션이 "고치지 않기로 한다" 가 아니라 **쓰기 비트를 내린다**.
 `ADR-015` §3 이 Record 를 DB 가 아니라 디렉터리에 둔 논거가 이것이다 —
@@ -166,9 +166,9 @@ enode 나 핸들러가 종료코드로 미리 판정하면 **계약이 할 일�
 
 ```text
    dr-xr-xr-x  run-gerrit-12345-ps3/
-   -r--r--r--    manifest.json      Run · Work · 요청자 · ★ 계약 전문 ★
+   -r--r--r--    manifest.json      Run · Work · 요청자 · 계약 전문
    dr-xr-xr-x    steps/
-   -r--r--r--      01-baseline_build.json   ★ node id + label ★
+   -r--r--r--      01-baseline_build.json   node id + label
    -r--r--r--      02-parent_observe.json
    dr-xr-xr-x    logs/
    -r--r--r--      01-baseline_build.log    원문 그대로
@@ -183,11 +183,11 @@ enode 나 핸들러가 종료코드로 미리 판정하면 **계약이 할 일�
 #### 한 묶음에서 `O1`·`O3`·`O4` 가 동시에 보인다
 
 ```text
-   steps/   8d73234fac52  taeels@CT103:ws-a   baseline_build   ┐ ★ O1 ★
+   steps/   8d73234fac52  taeels@CT103:ws-a   baseline_build   ┐ O1
             7a02313b8c10  taeels@CT103:ws-b   parent_observe   ┘ 서로 다른 기계
 
-   logs/02  not ok 1 - spi_cdiv_readback          ★ O3 — 테스트는 실패했다 ★
-   verdict  {"state":"SUCCEEDED", …}              ★ O4 — 그런데 Run 은 성공 ★
+   logs/02  not ok 1 - spi_cdiv_readback          O3 — 테스트는 실패했다
+   verdict  {"state":"SUCCEEDED", …}              O4 — 그런데 Run 은 성공
 ```
 
 **계약 전문이 `manifest.json` 에 들어간다** — 성질 4(자기충족)의 핵심이고,
@@ -206,9 +206,9 @@ enode 나 핸들러가 종료코드로 미리 판정하면 **계약이 할 일�
 
 ```text
    0  Run 이 SUCCEEDED (또는 아직 진행 중)
-   1  ★ Run 이 FAILED ★ — 요청은 정상이었다
-   2  ★ 요청이 거절됐다 ★ — 계약을 고치거나(400·422) 나중에 다시(409)
-   3  ★ Mediator 에 못 닿았다 ★
+   1  Run 이 FAILED — 요청은 정상이었다
+   2  요청이 거절됐다 — 계약을 고치거나(400·422) 나중에 다시(409)
+   3  Mediator 에 못 닿았다
 ```
 
 ```console
@@ -226,7 +226,7 @@ $ echo $?
 runctl 은 **해석되는 형태**를 쓴다. 저장소 안에서 실행되므로 *그 저장소에서
 커밋할 신원*과 같아야 자연스럽고, ⑫ 의 코멘트가 그 이름으로 달린다 (`ADR-015` §1).
 
-#### ★ 조용한 무시가 가장 나쁘다 ★
+#### **조용한 무시가 가장 나쁘다**
 
 표준 `flag` 는 첫 위치인자에서 파싱을 멈춘다. 그런데 사람은
 `runctl submit x.json --wait` 라고 쓴다. 그 순서를 안 받으면 플래그가
@@ -236,8 +236,8 @@ runctl 은 **해석되는 형태**를 쓴다. 저장소 안에서 실행되므�
 
 ```text
    runctl cancel <run-id>
-        ▼  Mediator: * → FAILED · 단계 FAILED · ★ 임대 삭제 ★ (I2)
-        ▼  다음 하트비트 응답의 임대 목록에서 ★ 빠진다 ★
+        ▼  Mediator: * → FAILED · 단계 FAILED · 임대 삭제 (I2)
+        ▼  다음 하트비트 응답의 임대 목록에서 빠진다
         ▼  enode 워치독이 실행 중인 단계를 중단한다
 
    실측: 취소 → enode "임대가 끝났다" → leases=0 → 자원 재사용 가능
@@ -246,7 +246,7 @@ runctl 은 **해석되는 형태**를 쓴다. 저장소 안에서 실행되므�
 
 **목록에서 빠지는 것이 곧 통보다** (`ADR-016`) — 별도의 취소 신호가 없다.
 
-### ★ ADR-020 의 경계선을 400 으로 만들었다 ★
+### **ADR-020 의 경계선을 400 으로 만들었다**
 
 ADR-020 이 그은 선은 산문이었다 — *에이전트가 정직하게 답했을 때 통과하지 못할 수
 있으면 그건 판정이다.* **산문으로 두면 새어나간다.** 누군가 `confidence >= 0.8` 을
@@ -264,10 +264,10 @@ ADR-020 이 그은 선은 산문이었다 — *에이전트가 정직하게 답�
 
 `I1` 을 기본키로, `I4` 를 chmod 로 강제한 것과 같은 결이다.
 
-### ★ 어긴 산출물은 산출물이 아니다 ★
+### **어긴 산출물은 산출물이 아니다**
 
 ```text
-   PUT blob ──▶ 스키마 위반 ──▶ 422 · ★ 저장하지 않는다 ★
+   PUT blob ──▶ 스키마 위반 ──▶ 422 · 저장하지 않는다
                                     ▼
                           produced 에 그 이름이 없다
                                     ▼
@@ -282,7 +282,7 @@ LLM 의 의견이 아니라 **검증기의 출력**이라는 것이 OpenHands �
 
 ```text
    PUT  /v1/runs/{run}/steps/{seq}/blob/{name}   생산자는 자기가 몇 번째인지 안다
-   GET  /v1/runs/{run}/blob/{name}               소비자는 이름만 안다 — ★ 최신 ★ 을 준다
+   GET  /v1/runs/{run}/blob/{name}               소비자는 이름만 안다 — 최신을 준다
 ```
 
 경로가 비대칭인 이유가 있다. 계약에서 `parent_build` 와 `patch_build` 가
@@ -290,7 +290,7 @@ LLM 의 의견이 아니라 **검증기의 출력**이라는 것이 OpenHands �
 **차분 반증의 두 아티팩트를 봉인된 기록에서 구분할 수 없게 된다.**
 
 ```text
-   실측:  blobs/01-artifact  ELF-parent-…      ┐ ★ 둘 다 남는다 ★
+   실측:  blobs/01-artifact  ELF-parent-…      ┐ 둘 다 남는다
           blobs/03-artifact  ELF-patch         ┘
           board 노드의 로그: "받은 것: ELF-parent-…" → "받은 것: ELF-patch"
 ```
@@ -301,9 +301,9 @@ LLM 의 의견이 아니라 **검증기의 출력**이라는 것이 OpenHands �
 ### agent 어댑터 — 넷으로 쪼갠 것 중 셋
 
 ```text
-   ① 사출   $IN 에 이전 산출물 · 프롬프트에 ★ 배출 규약 + 스키마 + 되먹임 ★
+   ① 사출   $IN 에 이전 산출물 · 프롬프트에 배출 규약 + 스키마 + 되먹임
    ② 기동   claude -p --output-format json --max-turns N
-   ③ 되묻기 ★ 비어 있다 ★ — ask:never (ADR-013 이 --interactive 를 400 으로 거절했다)
+   ③ 되묻기 비어 있다 — ask:never (ADR-013 이 --interactive 를 400 으로 거절했다)
    ④ 수확   $OUT 파일 → blob 업로드. 올라간 것만 produced.
 ```
 
@@ -316,8 +316,8 @@ LLM 의 의견이 아니라 **검증기의 출력**이라는 것이 OpenHands �
 `ADR-013` 결정 3 의 부분 정정(`ADR-020`)이 코드가 됐다.
 
 ```text
-   harness_error · timeout   ★ 완주가 아니다 ★ — 크래시는 반쯤 쓴 파일을 남긴다
-   max_turns · max_tokens    ★ 완주다 ★ — produced 가 판정. 단 Record 에 남긴다.
+   harness_error · timeout   완주가 아니다 — 크래시는 반쯤 쓴 파일을 남긴다
+   max_turns · max_tokens    완주다 — produced 가 판정. 단 Record 에 남긴다.
    ok                        produced 가 판정
 
    Record:  {"reason":"ok","turns":3,"cost_usd":0.42}   ← 예산 신호
@@ -326,7 +326,7 @@ LLM 의 의견이 아니라 **검증기의 출력**이라는 것이 OpenHands �
 봉투를 **줄 단위로 찾으면 안 된다** — 여러 줄로 예쁘게 찍혀 올 수 있다.
 출력 끝의 마지막 유효 JSON 객체를 집는다.
 
-### ★ ⑥ 의 재시도 루프 — Mediator 가 돈다 ★
+### **⑥ 의 재시도 루프 — Mediator 가 돈다**
 
 ```text
    write_test(agent) ──▶ Mediator ──▶ parent_build(builder)
@@ -343,13 +343,13 @@ LLM 의 의견이 아니라 **검증기의 출력**이라는 것이 OpenHands �
 
 **소진은 `verdict` 가 잡는다** — 루프는 제어 흐름이고 성패는 `within_attempts` 가 정한다.
 
-#### ★ 실측이 의미 버그를 잡았다 ★
+#### **실측이 의미 버그를 잡았다**
 
 blob 최신성을 **가장 큰 순번**으로 정했더니 재시도가 깨졌다.
 
 ```text
    1회차   write_test(1) BROKEN → parent_build(2) 가 같은 이름으로 복사
-   2회차   write_test(1) GOOD   → ★ 순번이 작아서 앞 회차의 BROKEN 이 이긴다 ★
+   2회차   write_test(1) GOOD   → 순번이 작아서 앞 회차의 BROKEN 이 이긴다
 ```
 
 **순번 순서는 전진만 할 때의 규칙이고 재시도 루프는 뒤로 돌아간다.**
@@ -358,16 +358,16 @@ mtime 은 같은 순간에 쓰이면 순서가 안 정해져 쓰지 않는다. �
 검증자의 회차를 **함께** 올리므로 한 회차 안에서는 순번이 순서다.
 
 ```text
-   blobs/  01.0-test_source  01.1-test_source     ★ 회차가 전부 남는다 ★
+   blobs/  01.0-test_source  01.1-test_source     회차가 전부 남는다
            02.0-build_log    02.1-build_log       "왜 두 번 시도했는가" 가 재구성된다
 ```
 
-### 워크스페이스 준비 — ★ 순서가 셋이고 뒤바꾸면 안 된다 ★
+### 워크스페이스 준비 — **순서가 셋이고 뒤바꾸면 안 된다**
 
 ```text
    ① reset --hard   추적 변경을 버린다 — 안 하면 checkout 이 거절된다
    ② checkout       목표 리비전으로 (없으면 fetch)
-   ③ clean -df      ★ 목표 리비전의 .gitignore 로 ★ 청소한다
+   ③ clean -df      목표 리비전의 .gitignore 로 청소한다
 ```
 
 ③ 을 ② 앞에 두면 **이전 리비전의 무시 규칙으로 청소**하게 되고, 그 리비전에
@@ -375,7 +375,7 @@ mtime 은 같은 순간에 쓰이면 순서가 안 정해져 쓰지 않는다. �
 `ADR-017` 이 `-x` 를 뺀 이유가 **순서에도 걸려 있었다.**
 
 ```text
-   실측:  drv.o (무시됨)   → CACHE_SURVIVED   ★ 캐시는 산다 ★
+   실측:  drv.o (무시됨)   → CACHE_SURVIVED   캐시는 산다
           junk.c (추적 안 됨) → JUNK_REMOVED
           drv.c (추적 변경) → 커밋된 내용으로 되돌아감
 ```
@@ -439,11 +439,11 @@ go test ./...
    Postgres  S2 부터 (ADR-015 §3)
 ```
 
-### ★ 버전은 저장소가 강제한다 ★
+### **버전은 저장소가 강제한다**
 
 ```text
-   go 1.26            이보다 낮은 툴체인은 ★ 빌드를 거절한다 ★ (하한 + 언어 버전)
-   toolchain go1.26.6 실제로 쓸 것. GOTOOLCHAIN=auto(기본) 면 ★ 자동으로 받아온다 ★
+   go 1.26            이보다 낮은 툴체인은 빌드를 거절한다 (하한 + 언어 버전)
+   toolchain go1.26.6 실제로 쓸 것. GOTOOLCHAIN=auto(기본) 면 자동으로 받아온다
 ```
 
 **둘을 같은 버전으로 묶어 슬랙을 없앴다.** 넷이 서로 다른 컴파일러로 짜면
@@ -453,7 +453,7 @@ go test ./...
 확인된 동작:
 
 ```text
-   go1.19  → go: errors parsing go.mod: unknown directive: toolchain   ★ 거절 ★
+   go1.19  → go: errors parsing go.mod: unknown directive: toolchain   거절
    go1.26.6 → ok
 ```
 
@@ -465,7 +465,7 @@ go test ./...
 
 ```text
    test    gofmt -l 이 비어 있는가 · go vet · go test
-   cross   ★ ADR-015 가 Go 를 고른 이유를 검증한다 ★
+   cross   ADR-015 가 Go 를 고른 이유를 검증한다
            GOOS=windows · linux/arm(Pi 2) · darwin/arm64 크로스 빌드
            "리눅스 CI 에서 exe 가 나온다" 가 깨지면 윈도우 enode 배포가 무너진다
 ```
@@ -475,9 +475,9 @@ go test ./...
 ## 정해진 것 — 설계 문서의 미정을 닫은 것
 
 ```text
-   명령 단계의 셸    ★ argv 배열 ★ (ADR-019 미정 하나를 닫는다)
+   명령 단계의 셸    argv 배열 (ADR-019 미정 하나를 닫는다)
                      "run": ["make", "-j8", "modules"]
                      윈도우 enode 에 sh 가 없고, 셸 인젝션 표면이 사라진다
-   속성 값의 타입    ★ 문자열만 ★ — 숫자를 허용하면 범위 비교로 미끄러지고
+   속성 값의 타입    문자열만 — 숫자를 허용하면 범위 비교로 미끄러지고
                      그게 우리가 두 번 기각한 표현식 언어의 시작이다 (ADR-011)
 ```

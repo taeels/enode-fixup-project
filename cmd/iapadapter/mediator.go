@@ -17,7 +17,7 @@ var ErrNoRun = errors.New("no such run")
 
 // Mediator 는 우리 쪽 클라이언트다.
 //
-// ★ Mediator 는 It's a Plan 을 모른다 ★ (ADR-002 의 범위를 안 넓힌다).
+// Mediator 는 It's a Plan 을 모른다 (ADR-002 의 범위를 안 넓힌다).
 // 그래서 이 파일에는 이슈도 코멘트도 없고, 오직 계약·Run·되묻기만 있다.
 type Mediator struct {
 	base      string
@@ -72,10 +72,10 @@ func (m *Mediator) do(ctx context.Context, method, path string, body []byte, out
 
 // Check 는 계약 조건 하나의 대조 결과다 (store.Check 와 같은 모양).
 //
-// ★ Want 와 Got 이 다형이다 ★ — produced 검사는 문자열 배열이고 exit_code
-// 검사는 숫자다. []string 으로 받으면 ★ 실물에서 조용히 안 읽힌다 ★:
+// Want 와 Got 이 다형이다 — produced 검사는 문자열 배열이고 exit_code
+// 검사는 숫자다. []string 으로 받으면 실물에서 조용히 안 읽힌다:
 // 어댑터가 Run 조회에 계속 실패해 결과 코멘트를 영영 못 쓴다.
-// ★ 첫 실측이 이것을 잡았다 ★ (2026-08-24, EP-2).
+// 첫 실측이 이것을 잡았다 (2026-08-24, EP-2).
 type Check struct {
 	Step string `json:"step"`
 	What string `json:"what"` // exit_code | produced
@@ -132,7 +132,7 @@ func (m *Mediator) GetRun(ctx context.Context, runID string) (*RunView, error) {
 	return &out, nil
 }
 
-// SubmitRun 은 계약을 낸다. 자원이 없으면 422 다 — ★ 전부 아니면 전무 ★ (I5).
+// SubmitRun 은 계약을 낸다. 자원이 없으면 422 다 — 전부 아니면 전무 (I5).
 func (m *Mediator) SubmitRun(ctx context.Context, contract []byte) error {
 	return m.do(ctx, "POST", "/v1/runs", contract, nil)
 }
@@ -156,7 +156,7 @@ func (m *Mediator) Capabilities(ctx context.Context) ([]Capability, error) {
 
 // HasLabel 은 그 능력에 그 이름표가 광고돼 있는가다.
 //
-// ★ 이것이 ⑤ 의 기다림이다 ★ (adapter-example §1.2) — 오케스트레이터가 아직
+// 이것이 ⑤ 의 기다림이다 (adapter-example §1.2) — 오케스트레이터가 아직
 // 안 떴는데 Run 을 내면 422 다. 그래서 광고에 자기 이름표가 보일 때까지 기다린다.
 func (m *Mediator) HasLabel(ctx context.Context, capability, key, val string) (bool, error) {
 	caps, err := m.Capabilities(ctx)
@@ -192,7 +192,7 @@ type AskView struct {
 	Proposes json.RawMessage `json:"proposes"`
 }
 
-// Asks 는 답을 기다리는 되묻기 전부다. ★ 인박스가 정본이다 ★ — 알림은 보조다.
+// Asks 는 답을 기다리는 되묻기 전부다. 인박스가 정본이다 — 알림은 보조다.
 func (m *Mediator) Asks(ctx context.Context) ([]AskView, error) {
 	var out struct {
 		Asks []AskView `json:"asks"`
@@ -217,8 +217,8 @@ func (m *Mediator) AskFor(ctx context.Context, runID string) (*AskView, error) {
 	return nil, nil
 }
 
-// Answer 는 되묻기에 답한다. ★ 본문이 곧 답이고 그대로 산출물이 된다 ★.
-// 스키마 위반이면 422 이고 ★ 질문은 열린 채 남는다 ★ — 다시 답하면 된다.
+// Answer 는 되묻기에 답한다. 본문이 곧 답이고 그대로 산출물이 된다.
+// 스키마 위반이면 422 이고 질문은 열린 채 남는다 — 다시 답하면 된다.
 func (m *Mediator) Answer(ctx context.Context, runID string, seq int, body []byte) error {
 	return m.do(ctx, "POST", fmt.Sprintf("/v1/runs/%s/steps/%d/answer", runID, seq), body, nil)
 }
@@ -268,9 +268,9 @@ func (m *Mediator) Blob(ctx context.Context, runID, name string) ([]byte, error)
 
 // PutBlob 은 산출물을 하나 쓴다.
 //
-// ★ ADR-040 §6 이 남긴 물음의 답이다 ★ — "_outbound 를 누가 PUT 하나".
-// 노드가 쓰는 것과 ★ 같은 HTTP 경로 ★ 를 어댑터도 쓴다. 내부 함수를 새로
-// 뚫지 않으므로 ★ enode 코어가 한 줄도 안 바뀐다 ★ (ADR-040 §5).
+// ADR-040 §6 이 남긴 물음의 답이다 — "_outbound 를 누가 PUT 하나".
+// 노드가 쓰는 것과 같은 HTTP 경로를 어댑터도 쓴다. 내부 함수를 새로
+// 뚫지 않으므로 enode 코어가 한 줄도 안 바뀐다 (ADR-040 §5).
 func (m *Mediator) PutBlob(ctx context.Context, runID string, seq int, name string, body []byte) error {
 	req, err := http.NewRequestWithContext(ctx, "PUT",
 		fmt.Sprintf("%s/v1/runs/%s/steps/%d/blob/%s", m.base, runID, seq, name),

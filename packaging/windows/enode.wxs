@@ -2,15 +2,15 @@
 <!--
   윈도우 설치본(MSI).
 
-  ★ 리눅스에서 굽는다 ★ — msitools 의 wixl 을 쓴다. 윈도우 러너를 안 쓰는
+  리눅스에서 굽는다 — msitools 의 wixl 을 쓴다. 윈도우 러너를 안 쓰는
   이유는 ADR-015 가 Go 를 고른 이유와 같다: 짓는 곳과 도는 곳을 가르면
-  CI 가 단순해진다. ★ 다만 확인은 윈도우에서 한다 ★ — 굽는 것과 깔리는 것은
+  CI 가 단순해진다. 다만 확인은 윈도우에서 한다 — 굽는 것과 깔리는 것은
   다른 문제이고, msiexec 이 실제로 받아주는지는 윈도우만 답할 수 있다.
 
-  ★ wixl 이 못 하는 것 하나 ★ — <Environment> 를 지원하지 않는다(실측:
-  "unhandled child Component node Environment"). 그래서 ★ PATH 를 안 건드린다 ★.
+  wixl 이 못 하는 것 하나 — <Environment> 를 지원하지 않는다(실측:
+  "unhandled child Component node Environment"). 그래서 PATH 를 안 건드린다.
   설치 경로는 C:\Program Files\enode 이고 사람이 PATH 에 넣거나 전체 경로로 부른다.
-  ★ 되돌리는 조건 ★ — 윈도우 노드를 실제로 세워 보고 PATH 가 없어서 불편하면
+  되돌리는 조건 — 윈도우 노드를 실제로 세워 보고 PATH 가 없어서 불편하면
   그때 WiX 정식 툴체인(windows 러너)으로 옮기거나 설치 후 스크립트를 붙인다.
 
   버전과 파일 경로는 wixl -D 로 들어온다 — packaging/build-installers.sh 를 보라.

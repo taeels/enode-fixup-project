@@ -10,14 +10,14 @@ import (
 	"time"
 )
 
-// ★ 이게 이 파일이 존재하는 이유다 ★
+// 이게 이 파일이 존재하는 이유다
 //
-// git status 는 .gitignore 를 지켜서 빌드 산출물을 ★ 정확히 가린다 ★.
+// git status 는 .gitignore 를 지켜서 빌드 산출물을 정확히 가린다.
 // 빌드 단계는 산출물이 전부 무시 목록에 있으므로, git 만 보면
-// ★ 아무 일도 안 한 것처럼 보인다 ★.
+// 아무 일도 안 한 것처럼 보인다.
 func TestChanged_무시되는_빌드산출물을_잡는다(t *testing.T) {
 	dir := gitInit(t) // .gitignore 에 build/ 와 *.o 가 있다
-	// ★ stampNow 는 1초를 빼둔다 ★ (mtime 해상도가 초 단위인 파일시스템 대비).
+	// stampNow 는 1초를 빼둔다 (mtime 해상도가 초 단위인 파일시스템 대비).
 	// 그래서 방금 만든 파일이 걸린다 — 시험에서는 쉬었다 찍는다.
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir)
@@ -33,7 +33,7 @@ func TestChanged_무시되는_빌드산출물을_잡는다(t *testing.T) {
 		t.Fatal(err)
 	}
 	if total != 4 {
-		t.Fatalf("★ 4개여야 한다 (무시되는 것 포함) ★: %d — %v", total, found)
+		t.Fatalf("4개여야 한다 (무시되는 것 포함): %d — %v", total, found)
 	}
 	names := map[string]bool{}
 	for _, c := range found {
@@ -41,7 +41,7 @@ func TestChanged_무시되는_빌드산출물을_잡는다(t *testing.T) {
 	}
 	for _, need := range []string{"build/zImage", "drivers/spi.o", "drivers/spi.ko", "추적됨.c"} {
 		if !names[need] {
-			t.Fatalf("★ %s 를 못 잡았다 ★ — git 이 못 보는 것을 보는 게 목적이다: %v", need, names)
+			t.Fatalf("%s 를 못 잡았다 — git 이 못 보는 것을 보는 게 목적이다: %v", need, names)
 		}
 	}
 	// 확인: git 은 정말 못 본다 (이 시험의 전제)
@@ -51,19 +51,19 @@ func TestChanged_무시되는_빌드산출물을_잡는다(t *testing.T) {
 	}
 }
 
-// ★ 기준보다 오래된 것은 안 잡는다 ★ — 데워둔 빌드 캐시가 매번 딸려오면
+// 기준보다 오래된 것은 안 잡는다 — 데워둔 빌드 캐시가 매번 딸려오면
 // 목록이 쓸모없어진다 (ADR-007 이 준비물로 잡은 그 캐시다).
 func TestChanged_데워둔_캐시는_안_잡는다(t *testing.T) {
 	dir := gitInit(t)
 	write(t, dir, "build/캐시.o", "오래된것") // sanitize 가 남기는 것
 	time.Sleep(1100 * time.Millisecond)
-	s := stampNow(dir) // ★ sanitize 직후에 찍는다 ★
+	s := stampNow(dir) // sanitize 직후에 찍는다
 	time.Sleep(1100 * time.Millisecond)
 	write(t, dir, "build/새것.o", "이번에만든것")
 
 	found, total, _ := changedSince(s, 100)
 	if total != 1 {
-		t.Fatalf("★ 이번 단계가 만든 1개만 잡혀야 한다 ★: %d — %v", total, found)
+		t.Fatalf("이번 단계가 만든 1개만 잡혀야 한다: %d — %v", total, found)
 	}
 	if !strings.Contains(found[0].Path, "새것") {
 		t.Fatalf("엉뚱한 걸 잡았다: %v", found)
@@ -81,12 +81,12 @@ func TestChanged_git내부는_안_본다(t *testing.T) {
 
 	found, total, _ := changedSince(s, 100)
 	if total != 1 || !strings.Contains(found[0].Path, "진짜.c") {
-		t.Fatalf("★ .git 내부가 섞였다 ★: %d — %v", total, found)
+		t.Fatalf(".git 내부가 섞였다: %d — %v", total, found)
 	}
 }
 
-// ★ 수만 개를 그대로 넘기지 않는다 ★ — 커널 빌드가 그렇다.
-// 자르되 ★ 자른 사실을 숨기지 않는다 ★.
+// 수만 개를 그대로 넘기지 않는다 — 커널 빌드가 그렇다.
+// 자르되 자른 사실을 숨기지 않는다.
 func TestChanged_많으면_요약한다(t *testing.T) {
 	dir := t.TempDir()
 	time.Sleep(1100 * time.Millisecond)
@@ -103,24 +103,24 @@ func TestChanged_많으면_요약한다(t *testing.T) {
 	}
 	sum := summarize(found, total, 5)
 	if !strings.Contains(sum, "files created or modified by this step: 51") || !strings.Contains(sum, "(showing 10)") {
-		t.Fatalf("★ 자른 사실을 안 밝혔다 ★:\n%s", sum)
+		t.Fatalf("자른 사실을 안 밝혔다:\n%s", sum)
 	}
 	if !strings.Contains(sum, "vmlinux") {
-		t.Fatalf("★ 큰 것이 먼저 나와야 한다 ★ — 최종 산출물일 가능성이 높다:\n%s", sum)
+		t.Fatalf("큰 것이 먼저 나와야 한다 — 최종 산출물일 가능성이 높다:\n%s", sum)
 	}
 	if !strings.Contains(sum, ".o ") {
 		t.Fatalf("종류별 집계가 없다:\n%s", sum)
 	}
 }
 
-// 훅이 기준 시각을 받아 ★ 빌드 산출물을 짚어준다 ★.
+// 훅이 기준 시각을 받아 빌드 산출물을 짚어준다.
 func TestHook_빌드산출물을_알려준다(t *testing.T) {
 	dir := gitInit(t)
 	out, inst := t.TempDir(), t.TempDir()
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir)
 	time.Sleep(1100 * time.Millisecond)
-	write(t, dir, "build/zImage", strings.Repeat("k", 5000)) // ★ .gitignore 안 ★
+	write(t, dir, "build/zImage", strings.Repeat("k", 5000)) // .gitignore 안
 
 	sp := filepath.Join(inst, "stamp")
 	if err := writeStamp(sp, s); err != nil {
@@ -132,11 +132,11 @@ func TestHook_빌드산출물을_알려준다(t *testing.T) {
 		t.Fatalf("안 막았다: %+v", o)
 	}
 	if !strings.Contains(o.Reason, "zImage") {
-		t.Fatalf("★ 훅이 빌드 산출물을 못 봤다 ★ — git 만 보면 이렇게 된다:\n%s", o.Reason)
+		t.Fatalf("훅이 빌드 산출물을 못 봤다 — git 만 보면 이렇게 된다:\n%s", o.Reason)
 	}
 }
 
-// 기준 시각이 없으면 ★ 조용히 그 부분만 빠진다 ★ — 훅이 죽지 않는다.
+// 기준 시각이 없으면 조용히 그 부분만 빠진다 — 훅이 죽지 않는다.
 func TestHook_기준시각이_없어도_돈다(t *testing.T) {
 	out := t.TempDir()
 	o := hookRun(t, HookArgs{Out: out, Expect: []string{"x"}}, StopInput{})
@@ -145,7 +145,7 @@ func TestHook_기준시각이_없어도_돈다(t *testing.T) {
 	}
 }
 
-// ★ 명령 단계에는 훅이 없다 — 기록이 대신 말해야 한다 ★
+// 명령 단계에는 훅이 없다 — 기록이 대신 말해야 한다
 //
 // 빌드·플래시가 전부 명령 단계이고 ADR-019 로 같은 노드의 cap 아래 들어왔다.
 // 되물을 상대가 스크립트라 훅을 못 쓴다. 그러면 기록이
@@ -156,7 +156,7 @@ func TestNote_만든것과_안낸것을_같이_적는다(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 	s := stampNow(dir)
 	time.Sleep(1100 * time.Millisecond)
-	// 빌드가 산출물을 만들었다 — ★ 전부 .gitignore 안이다 ★
+	// 빌드가 산출물을 만들었다 — 전부 .gitignore 안이다
 	write(t, dir, "build/vmlinux", strings.Repeat("v", 9000))
 	write(t, dir, "drivers/spi.ko", strings.Repeat("k", 3000))
 	write(t, dir, "drivers/spi.o", "obj")
@@ -170,13 +170,13 @@ func TestNote_만든것과_안낸것을_같이_적는다(t *testing.T) {
 	}
 	got := string(b)
 	if !strings.Contains(got, "artifact") || !strings.Contains(got, "build_log") {
-		t.Fatalf("★ 안 낸 것을 안 짚었다 ★:\n%s", got)
+		t.Fatalf("안 낸 것을 안 짚었다:\n%s", got)
 	}
 	if !strings.Contains(got, "vmlinux") {
-		t.Fatalf("★ 만든 것을 안 적었다 — diff 만 보면 아무것도 안 한 것처럼 보인다 ★:\n%s", got)
+		t.Fatalf("만든 것을 안 적었다 — diff 만 보면 아무것도 안 한 것처럼 보인다:\n%s", got)
 	}
 	if strings.Contains(got, "실패") {
-		t.Fatalf("★ 기록이 판정했다 ★ — 판정은 success_when 이 한다 (ADR-004·I3):\n%s", got)
+		t.Fatalf("기록이 판정했다 — 판정은 success_when 이 한다 (ADR-004·I3):\n%s", got)
 	}
 }
 
@@ -198,9 +198,9 @@ func TestNote_다_냈으면_안_짚는다(t *testing.T) {
 	}
 }
 
-// ★ 보드 단계 — 파일시스템에 흔적이 없다 ★
+// 보드 단계 — 파일시스템에 흔적이 없다
 //
-// diff 도 changed 도 비어 있는 것이 ★ 정상 ★ 이다. 시리얼 출력이 산출물이고
+// diff 도 changed 도 비어 있는 것이 정상이다. 시리얼 출력이 산출물이고
 // 그건 단계가 직접 $OUT 에 옮겨야 한다. 기록이 그 사실을 말해줘야
 // 사람이 "왜 아무것도 안 걷혔지" 를 안 헤맨다.
 func TestNote_흔적이_없는_단계도_설명한다(t *testing.T) {
@@ -218,22 +218,22 @@ func TestNote_흔적이_없는_단계도_설명한다(t *testing.T) {
 		t.Fatalf("안 낸 것을 안 짚었다:\n%s", got)
 	}
 	if !strings.Contains(got, "no files changed") {
-		t.Fatalf("★ 흔적이 없다는 사실을 안 적었다 ★ — 보드 단계가 이렇다:\n%s", got)
+		t.Fatalf("흔적이 없다는 사실을 안 적었다 — 보드 단계가 이렇다:\n%s", got)
 	}
 }
 
 func testLog() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
 
-// ★ 지목된 경로만 stat 한다 ★ (ADR-037) — 전체를 걷지 않는다.
+// 지목된 경로만 stat 한다 (ADR-037) — 전체를 걷지 않는다.
 func TestCheckChanged(t *testing.T) {
 	root := t.TempDir()
 	old := filepath.Join(root, "old.c")
 	if err := os.WriteFile(old, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	// ★ 실물과 같은 방식으로 잡는다 ★ — stampNow 가 1초를 빼는 이유가
+	// 실물과 같은 방식으로 잡는다 — stampNow 가 1초를 빼는 이유가
 	// "파일시스템 mtime 해상도가 초 단위인 경우" 이고, 직접 만들면 그 보정이 빠져
-	// ★ 방금 쓴 파일이 기준보다 과거로 보인다 ★ (이 시험이 실제로 그걸 밟았다).
+	// 방금 쓴 파일이 기준보다 과거로 보인다 (이 시험이 실제로 그걸 밟았다).
 	stamp := stampNow(root)
 	past := stamp.At.Add(-time.Hour)
 	if err := os.Chtimes(old, past, past); err != nil {
@@ -253,9 +253,9 @@ func TestCheckChanged(t *testing.T) {
 
 	got := CheckChanged(stamp, []string{"sub/fresh.c", "old.c", "없는것.c", "adir"})
 	if len(got) != 1 || got[0] != "sub/fresh.c" {
-		t.Fatalf("★ 바뀐 것만 나와야 한다 ★: %v", got)
+		t.Fatalf("바뀐 것만 나와야 한다: %v", got)
 	}
-	// ★ 기준이 없으면 아무것도 안 본다 ★ — 워크스페이스 없는 단계.
+	// 기준이 없으면 아무것도 안 본다 — 워크스페이스 없는 단계.
 	if got := CheckChanged(Stamp{}, []string{"sub/fresh.c"}); got != nil {
 		t.Fatalf("기준이 없는데 %v", got)
 	}

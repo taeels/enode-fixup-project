@@ -120,7 +120,7 @@ func TestValidate(t *testing.T) {
 		{"옛 capability", func(c *Contract) { c.Requires[0].Capability = "build.linux" }, ErrUnknownCap},
 		{"as 중복", func(c *Contract) { c.Requires[1].As = "brain" }, ErrDupAs},
 		{"step id 중복", func(c *Contract) { c.Steps[1].ID = "hypothesis" }, ErrDupStepID},
-		// ★ ADR-004 를 지키는 한 줄 ★ — claude 는 헛소리를 하고도 0 으로 끝난다.
+		// ADR-004 를 지키는 한 줄 — claude 는 헛소리를 하고도 0 으로 끝난다.
 		{"agent 단계에 exit_code", func(c *Contract) {
 			c.SuccessWhen[0].ExitCode = zero()
 		}, ErrExitOnAgent},
@@ -171,23 +171,23 @@ func TestCapabilitySatisfies(t *testing.T) {
 	}
 }
 
-// ★ orchestration 은 평범한 Run 에 안 끌려간다 ★ (ADR-022 §5.2)
+// orchestration 은 평범한 Run 에 안 끌려간다 (ADR-022 §5.2)
 //
-// 어휘를 나눈 목적이 ★ 배제 ★ 다. capability 는 완전일치라 서로를 안 만족시킨다.
+// 어휘를 나눈 목적이 배제다. capability 는 완전일치라 서로를 안 만족시킨다.
 func TestCapability_어휘가_서로를_배제한다(t *testing.T) {
 	orch := Capability{Capability: CapabilityOrchestration,
 		Attrs: map[string]string{"harness": "claude"}}
 	agent := Capability{Capability: CapabilityAgentReason,
 		Attrs: map[string]string{"harness": "claude"}}
 
-	// ★ 핵심 ★ — 평범한 Run 이 오케스트레이터를 못 잡는다
+	// 핵심 — 평범한 Run 이 오케스트레이터를 못 잡는다
 	if orch.Satisfies(Require{Capability: CapabilityAgentReason}) {
-		t.Fatal("★ 평범한 Run 이 오케스트레이터를 잡아간다 ★")
+		t.Fatal("평범한 Run 이 오케스트레이터를 잡아간다")
 	}
 	// 속성까지 같아도 마찬가지다 — 부분집합 매칭이 capability 를 못 넘는다
 	if orch.Satisfies(Require{Capability: CapabilityAgentReason,
 		Attrs: map[string]string{"harness": "claude"}}) {
-		t.Fatal("★ 속성 매칭이 capability 경계를 넘었다 ★")
+		t.Fatal("속성 매칭이 capability 경계를 넘었다")
 	}
 	// 반대도 성립한다
 	if agent.Satisfies(Require{Capability: CapabilityOrchestration}) {
@@ -200,7 +200,7 @@ func TestCapability_어휘가_서로를_배제한다(t *testing.T) {
 	}
 }
 
-// ★ 모르는 capability 는 거절한다 ★ — 열린 어휘가 아니다.
+// 모르는 capability 는 거절한다 — 열린 어휘가 아니다.
 // 오타가 조용히 통과하면 계약 저자가 422 대신 "후보 없음" 을 보게 된다.
 func TestValidate_모르는_capability는_거절한다(t *testing.T) {
 	c := Contract{
@@ -209,7 +209,7 @@ func TestValidate_모르는_capability는_거절한다(t *testing.T) {
 		Steps:    []Step{{ID: "s", Uses: "x", Run: []string{"true"}}},
 	}
 	if err := c.Validate(); err == nil {
-		t.Fatal("★ 오타가 통과했다 ★")
+		t.Fatal("오타가 통과했다")
 	}
 	c.Requires[0].Capability = CapabilityOrchestration
 	if err := c.Validate(); err != nil {
@@ -217,9 +217,9 @@ func TestValidate_모르는_capability는_거절한다(t *testing.T) {
 	}
 }
 
-// ★ dispatch 검증 — DAG 를 정적으로 확인한다 ★ (ADR-022 §7.2)
+// dispatch 검증 — DAG 를 정적으로 확인한다 (ADR-022 §7.2)
 //
-// 뒤로 못 가면 ★ 종료가 계약 검증 단계에서 보장된다 ★. 실행 중에 무한 루프를
+// 뒤로 못 가면 종료가 계약 검증 단계에서 보장된다. 실행 중에 무한 루프를
 // 발견하는 것과 제출 시점에 400 을 받는 것은 다르다.
 func TestValidate_dispatch(t *testing.T) {
 	mk := func(d *Dispatch) Contract {
@@ -244,7 +244,7 @@ func TestValidate_dispatch(t *testing.T) {
 		"갈림길이 하나다":       {From: "route.next", To: []string{"full"}},
 		"없는 단계를 가리킨다":    {From: "route.next", To: []string{"full", "없는것"}},
 		"중복이 있다":         {From: "route.next", To: []string{"full", "full"}},
-		"★ 자기를 가리킨다 ★":   {From: "route.next", To: []string{"full", "triage"}},
+		"자기를 가리킨다":       {From: "route.next", To: []string{"full", "triage"}},
 	} {
 		if err := mk(d).Validate(); err == nil {
 			t.Fatalf("%s — 통과했다: %+v", name, d)
@@ -252,10 +252,10 @@ func TestValidate_dispatch(t *testing.T) {
 	}
 }
 
-// ★ needs 검증 — dispatch 와 같은 것을 지킨다 ★ (ADR-023 §4.3)
+// needs 검증 — dispatch 와 같은 것을 지킨다 (ADR-023 §4.3)
 //
-// 간선이 전부 뒤를 향하면 그래프가 DAG 이고, 그래서 ★ 종료가 제출 시점에
-// 정적으로 보장된다 ★. 뒤로 가야 하는 것은 의존이 아니라 반복이다.
+// 간선이 전부 뒤를 향하면 그래프가 DAG 이고, 그래서 종료가 제출 시점에
+// 정적으로 보장된다. 뒤로 가야 하는 것은 의존이 아니라 반복이다.
 func TestValidate_needs(t *testing.T) {
 	mk := func(needs []string) Contract {
 		return Contract{
@@ -274,15 +274,15 @@ func TestValidate_needs(t *testing.T) {
 		}
 	}
 	for name, bad := range map[string][]string{
-		"없는 단계를 가리킨다":  {"없는것"},
-		"중복이 있다":       {"one", "one"},
-		"★ 자기를 가리킨다 ★": {"three"},
+		"없는 단계를 가리킨다": {"없는것"},
+		"중복이 있다":      {"one", "one"},
+		"자기를 가리킨다":    {"three"},
 	} {
 		if err := mk(bad).Validate(); err == nil {
 			t.Fatalf("%s — 통과했다: %v", name, bad)
 		}
 	}
-	// ★ 뒤를 가리킨다 ★ — 위상순서를 깨는 계약은 제출 시점에 막힌다.
+	// 뒤를 가리킨다 — 위상순서를 깨는 계약은 제출 시점에 막힌다.
 	back := Contract{
 		RunID:    "r1",
 		Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
@@ -292,16 +292,16 @@ func TestValidate_needs(t *testing.T) {
 		},
 	}
 	if err := back.Validate(); err == nil {
-		t.Fatal("★ 뒤를 가리키는 needs 가 통과했다 ★ — DAG 가 안 지켜진다")
+		t.Fatal("뒤를 가리키는 needs 가 통과했다 — DAG 가 안 지켜진다")
 	}
 }
 
-// ★ 기본값은 한 곳에서 채운다 ★ — 읽는 쪽이 여럿이라 각자 알게 두면 어긋난다.
+// 기본값은 한 곳에서 채운다 — 읽는 쪽이 여럿이라 각자 알게 두면 어긋난다.
 func TestNeedsOf_기본값(t *testing.T) {
 	steps := []Step{
 		{ID: "one"},
 		{ID: "two"},                      // 안 적었다 → [직전]
-		{ID: "three", Needs: []string{}}, // ★ 빈 배열은 선언이다 ★ → 안 기다린다
+		{ID: "three", Needs: []string{}}, // 빈 배열은 선언이다 → 안 기다린다
 		{ID: "four", Needs: []string{"one"}},
 	}
 	for i, want := range [][]string{{}, {"one"}, {}, {"one"}} {
@@ -312,11 +312,11 @@ func TestNeedsOf_기본값(t *testing.T) {
 	}
 }
 
-// ★ 분기 목적지는 형제다 ★ — 직전 단계가 아니라 분기를 낸 단계 다음이다.
+// 분기 목적지는 형제다 — 직전 단계가 아니라 분기를 낸 단계 다음이다.
 //
 // 이것을 빠뜨리면 to: ["full","quick"] 에서 quick 의 기본값이 [full] 이 되어
-// ★ 형제가 사슬로 이어지고 ★, full 이 SKIPPED 가 되는 순간 전파가
-// ★ 살아 있어야 할 가지까지 죽인다 ★. 구현이 이 빈틈을 찾았다.
+// 형제가 사슬로 이어지고, full 이 SKIPPED 가 되는 순간 전파가
+// 살아 있어야 할 가지까지 죽인다. 구현이 이 빈틈을 찾았다.
 func TestNeedsOf_분기_목적지는_분기_단계를_가리킨다(t *testing.T) {
 	steps := []Step{
 		{ID: "triage", Dispatch: &Dispatch{From: "route.next", To: []string{"full", "quick"}}},
@@ -332,9 +332,9 @@ func TestNeedsOf_분기_목적지는_분기_단계를_가리킨다(t *testing.T)
 	}
 }
 
-// ★ expands 검증 — 「Run 은 하나다」의 완화를 유계로 묶는다 ★ (ADR-022 §6.3)
+// expands 검증 — 「Run 은 하나다」의 완화를 유계로 묶는다 (ADR-022 §6.3)
 //
-// 임의 확장이 아니라 ★ 한 단계가 한 번 ★ 이다. 여러 번은 재계획(P6)이고
+// 임의 확장이 아니라 한 단계가 한 번이다. 여러 번은 재계획(P6)이고
 // 그때는 깊이 상한이 따라온다.
 func TestValidate_expands(t *testing.T) {
 	mk := func(steps []Step) Contract {
@@ -350,8 +350,8 @@ func TestValidate_expands(t *testing.T) {
 	if err := mk(ok).Validate(); err != nil {
 		t.Fatalf("정상 expands 가 거절됐다: %v", err)
 	}
-	// ★ 둘 이상이어도 된다 ★ (ADR-031) — 그것이 재계획이다.
-	// 유한성은 계약이 아니라 ★ 시스템의 판 개수 상한 ★ 이 준다.
+	// 둘 이상이어도 된다 (ADR-031) — 그것이 재계획이다.
+	// 유한성은 계약이 아니라 시스템의 판 개수 상한이 준다.
 	two := []Step{
 		{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
 			Out: []string{"plan"}, Schema: sch, Expands: true},
@@ -359,11 +359,11 @@ func TestValidate_expands(t *testing.T) {
 			Out: []string{"plan"}, Schema: sch, Expands: true},
 	}
 	if err := mk(two).Validate(); err != nil {
-		t.Fatalf("★ 재계획하는 계약이 거절됐다 ★: %v", err)
+		t.Fatalf("재계획하는 계약이 거절됐다: %v", err)
 	}
 
 	for name, steps := range map[string][]Step{
-		"★ 스키마가 없다 ★": {
+		"스키마가 없다": {
 			{ID: "plan", Uses: "b", Agent: map[string]interface{}{},
 				Out: []string{"plan"}, Expands: true},
 		},
@@ -381,27 +381,27 @@ func TestValidate_expands(t *testing.T) {
 	}
 }
 
-// ★ 동일성은 우리가 정의하지 않는다 ★ (ADR-023 §6.5.2)
+// 동일성은 우리가 정의하지 않는다 (ADR-023 §6.5.2)
 //
 // 그 시스템이 「하나의 변경」이라 부르는 것의 식별자를 받아 적는다.
-// ⇒ ★ patchset 2 와 3 은 같은 Work 다 ★ — 그래야 "지난번에 이 지적을 했는데
+// ⇒ patchset 2 와 3 은 같은 Work 다 — 그래야 "지난번에 이 지적을 했는데
 // 안 고쳤다" 가 성립한다.
 func TestWorkKey_같은_변경의_패치셋들은_같은_Work다(t *testing.T) {
 	ps2 := Work{System: "gerrit", ChangeID: "12345", Patchset: 2, PatchRev: "aaa"}
 	ps3 := Work{System: "gerrit", ChangeID: "12345", Patchset: 3, PatchRev: "bbb"}
 	if ps2.Key() != ps3.Key() {
-		t.Fatalf("★ 패치셋이 Work 를 가른다 ★: %q vs %q — "+
+		t.Fatalf("패치셋이 Work 를 가른다: %q vs %q — "+
 			"Work 1:N Run 이 성립하지 않는다", ps2.Key(), ps3.Key())
 	}
 	if ps2.Key() != "gerrit:12345" {
 		t.Fatalf("유도된 키가 %q 다", ps2.Key())
 	}
-	// ★ 다른 change 는 다른 Work ★ — abandon 후 새로 올린 경우가 여기다.
+	// 다른 change 는 다른 Work — abandon 후 새로 올린 경우가 여기다.
 	other := Work{System: "gerrit", ChangeID: "99999", Patchset: 1}
 	if other.Key() == ps2.Key() {
 		t.Fatal("다른 change 가 같은 Work 가 됐다")
 	}
-	// ★ 적으면 그것을 쓴다 ★ — 그 시스템의 변경 단위가 change_id 와 다를 때.
+	// 적으면 그것을 쓴다 — 그 시스템의 변경 단위가 change_id 와 다를 때.
 	explicit := Work{System: "gerrit", ChangeID: "12345",
 		ID: &WorkID{System: "gerrit", ChangeID: "브랜치별-777"}}
 	if explicit.Key() != "gerrit:브랜치별-777" {
@@ -413,7 +413,7 @@ func TestWorkKey_같은_변경의_패치셋들은_같은_Work다(t *testing.T) {
 	}
 }
 
-// ★ 시야의 검증 — 모르는 값을 조용히 무시하지 않는다 ★ (ADR-023 §6.4)
+// 시야의 검증 — 모르는 값을 조용히 무시하지 않는다 (ADR-023 §6.4)
 func TestValidate_시야(t *testing.T) {
 	mk := func(f func(*Contract)) Contract {
 		c := Contract{
@@ -441,13 +441,13 @@ func TestValidate_시야(t *testing.T) {
 	}
 
 	for name, f := range map[string]func(*Contract){
-		"★ 모르는 scope ★": func(c *Contract) { c.Ledger = &Ledger{Scope: "global"} },
-		"★ 모르는 see ★":   func(c *Contract) { c.Steps[1].See = &See{Ledger: "all"} },
-		"★ see.from 은 아직 없다 ★": func(c *Contract) {
+		"모르는 scope": func(c *Contract) { c.Ledger = &Ledger{Scope: "global"} },
+		"모르는 see":   func(c *Contract) { c.Steps[1].See = &See{Ledger: "all"} },
+		"see.from 은 아직 없다": func(c *Contract) {
 			c.Steps[1].See = &See{From: []string{"one"}}
 		},
-		"★ 밑줄은 예약이다 ★": func(c *Contract) { c.Steps[0].Out = []string{"_ledger.json"} },
-		"★ 아무도 안 내는 것을 in.from 에 ★": func(c *Contract) {
+		"밑줄은 예약이다": func(c *Contract) { c.Steps[0].Out = []string{"_ledger.json"} },
+		"아무도 안 내는 것을 in.from 에": func(c *Contract) {
 			c.Steps[1].In = map[string]interface{}{"from": []interface{}{"없는것"}}
 		},
 	} {
@@ -457,11 +457,11 @@ func TestValidate_시야(t *testing.T) {
 	}
 }
 
-// ★ release 검증 — 폭이 열리면서 조건이 강해졌다 ★ (ADR-022 §7.4 + ADR-023)
+// release 검증 — 폭이 열리면서 조건이 강해졌다 (ADR-022 §7.4 + ADR-023)
 //
-// 순차였다면 "뒤에서 안 쓰면 된다" 로 족했다. 병렬에서는 ★ 순서가 정해지지 않은
-// 단계가 동시에 돌 수 있고 ★, 그 단계가 놓아버린 역할을 쓰면 실행 중에 임대가
-// 사라진다. ⇒ ★ 그 역할을 쓰는 모든 단계가 놓는 단계의 조상이어야 한다 ★.
+// 순차였다면 "뒤에서 안 쓰면 된다" 로 족했다. 병렬에서는 순서가 정해지지 않은
+// 단계가 동시에 돌 수 있고, 그 단계가 놓아버린 역할을 쓰면 실행 중에 임대가
+// 사라진다. ⇒ 그 역할을 쓰는 모든 단계가 놓는 단계의 조상이어야 한다.
 func TestValidate_release(t *testing.T) {
 	mk := func(steps []Step) Contract {
 		return Contract{
@@ -476,7 +476,7 @@ func TestValidate_release(t *testing.T) {
 		return Step{ID: id, Uses: uses, Run: []string{"true"}, Needs: needs, Release: release}
 	}
 
-	// ★ 조상이면 통과 ★ — first 가 second 보다 확실히 앞선다.
+	// 조상이면 통과 — first 가 second 보다 확실히 앞선다.
 	if err := mk([]Step{
 		run("first", "b", nil),
 		run("second", "c", nil, "b"),
@@ -484,22 +484,22 @@ func TestValidate_release(t *testing.T) {
 		t.Fatalf("정상 release 가 거절됐다: %v", err)
 	}
 
-	// ★ 뒤에서 쓰면 거절 ★
+	// 뒤에서 쓰면 거절
 	if err := mk([]Step{
 		run("drop", "c", nil, "b"),
 		run("later", "b", nil),
 	}).Validate(); err == nil {
-		t.Fatal("★ 놓은 자원을 뒤에서 쓰는 계약이 통과했다 ★")
+		t.Fatal("놓은 자원을 뒤에서 쓰는 계약이 통과했다")
 	}
 
-	// ★ 순서가 안 정해졌으면 거절 ★ — 동시에 돌 수 있으므로 조상이 아니다.
+	// 순서가 안 정해졌으면 거절 — 동시에 돌 수 있으므로 조상이 아니다.
 	// sibling 은 needs 가 비어 있어 drop 과 순서 관계가 없다.
 	if err := mk([]Step{
 		run("gate", "c", nil),
 		run("sibling", "b", []string{}),
 		run("drop", "c", []string{"gate"}, "b"),
 	}).Validate(); err == nil {
-		t.Fatal("★ 동시에 돌 수 있는 단계의 자원을 놓는 계약이 통과했다 ★ — " +
+		t.Fatal("동시에 돌 수 있는 단계의 자원을 놓는 계약이 통과했다 — " +
 			"실행 중에 임대가 사라진다")
 	}
 
@@ -515,7 +515,7 @@ func TestValidate_release(t *testing.T) {
 	}
 }
 
-// ★ acquire 검증 — 잡기 전에는 못 쓴다 ★ (ADR-022 §7.5 · ADR-024)
+// acquire 검증 — 잡기 전에는 못 쓴다 (ADR-022 §7.5 · ADR-024)
 func TestValidate_acquire(t *testing.T) {
 	acq := func(as string) Step {
 		return Step{ID: "try", Acquire: &Acquire{
@@ -529,7 +529,7 @@ func TestValidate_acquire(t *testing.T) {
 			Steps:    steps,
 		}
 	}
-	// ★ 잡은 뒤에 쓰면 통과 ★
+	// 잡은 뒤에 쓰면 통과
 	if err := mk([]Step{
 		acq("board"),
 		{ID: "use", Uses: "board", Run: []string{"true"}},
@@ -548,25 +548,25 @@ func TestValidate_acquire(t *testing.T) {
 	want := func(as string) *Require { return &Require{As: as, Capability: CapabilityAgentReason} }
 
 	for name, steps := range map[string][]Step{
-		"★ 잡기 전에 쓴다 ★": {
+		"잡기 전에 쓴다": {
 			{ID: "use", Uses: "board", Run: []string{"true"}},
 			acq("board"),
 			{ID: "other", Uses: "b", Run: []string{"true"}},
 		},
-		"★ requires 에 이미 있다 ★": full(&Acquire{
+		"requires 에 이미 있다": full(&Acquire{
 			Want: want("b"), Acquired: "use", Unavailable: "other"}),
-		"★ 목적지가 없다 ★": full(&Acquire{Want: want("board")}),
-		"★ 두 목적지가 같다 ★": full(&Acquire{
+		"목적지가 없다": full(&Acquire{Want: want("board")}),
+		"두 목적지가 같다": full(&Acquire{
 			Want: want("board"), Acquired: "use", Unavailable: "use"}),
-		"★ 없는 단계를 가리킨다 ★": full(&Acquire{
+		"없는 단계를 가리킨다": full(&Acquire{
 			Want: want("board"), Acquired: "use", Unavailable: "없는것"}),
-		"★ uses 가 있다 ★": {
+		"uses 가 있다": {
 			{ID: "try", Uses: "b", Acquire: &Acquire{
 				Want: want("board"), Acquired: "use", Unavailable: "other"}},
 			{ID: "use", Uses: "board", Run: []string{"true"}},
 			{ID: "other", Uses: "b", Run: []string{"true"}},
 		},
-		"★ 모르는 capability ★": full(&Acquire{
+		"모르는 capability": full(&Acquire{
 			Want:     &Require{As: "board", Capability: "board.flash"},
 			Acquired: "use", Unavailable: "other"}),
 	} {
@@ -576,7 +576,7 @@ func TestValidate_acquire(t *testing.T) {
 	}
 }
 
-// ★ loop 검증 — 뒤로 가는 유일한 간선 ★ (ADR-026)
+// loop 검증 — 뒤로 가는 유일한 간선 (ADR-026)
 func TestValidate_loop(t *testing.T) {
 	zero := 0
 	mk := func(f func([]Step) []Step) Contract {
@@ -599,39 +599,39 @@ func TestValidate_loop(t *testing.T) {
 	}
 
 	for name, f := range map[string]func([]Step) []Step{
-		"★ 앞으로 간다 ★": func(s []Step) []Step {
+		"앞으로 간다": func(s []Step) []Step {
 			s[0].Loop = &Loop{BackTo: "check", Max: 3, Until: Condition{ExitCode: &zero}}
 			return s
 		},
-		"★ 없는 단계로 간다 ★": func(s []Step) []Step {
+		"없는 단계로 간다": func(s []Step) []Step {
 			s[1].Loop = &Loop{BackTo: "없는것", Max: 3, Until: Condition{ExitCode: &zero}}
 			return s
 		},
-		"★ max 가 1 이다 ★": func(s []Step) []Step {
+		"max 가 1 이다": func(s []Step) []Step {
 			s[1].Loop = &Loop{BackTo: "write", Max: 1, Until: Condition{ExitCode: &zero}}
 			return s
 		},
-		"★ until 이 비었다 ★": func(s []Step) []Step {
+		"until 이 비었다": func(s []Step) []Step {
 			s[1].Loop = &Loop{BackTo: "write", Max: 3}
 			return s
 		},
-		"★ until 에 step 을 적었다 ★": func(s []Step) []Step {
+		"until 에 step 을 적었다": func(s []Step) []Step {
 			s[1].Loop = &Loop{BackTo: "write", Max: 3,
 				Until: Condition{Step: "write", ExitCode: &zero}}
 			return s
 		},
-		"★ validate_with 와 함께 ★": func(s []Step) []Step {
+		"validate_with 와 함께": func(s []Step) []Step {
 			s[0].ValidateWith = "check"
 			s[1].Loop = &Loop{BackTo: "write", Max: 3, Until: Condition{ExitCode: &zero}}
 			s[1].ValidateWith = "write"
 			return s
 		},
-		"★ 구간 안에서 놓는다 ★": func(s []Step) []Step {
+		"구간 안에서 놓는다": func(s []Step) []Step {
 			s[0].Release = []string{"b"}
 			s[1].Loop = &Loop{BackTo: "write", Max: 3, Until: Condition{ExitCode: &zero}}
 			return s
 		},
-		"★ agent 단계에 exit_code ★": func(s []Step) []Step {
+		"agent 단계에 exit_code": func(s []Step) []Step {
 			s[1] = Step{ID: "check", Uses: "b", Agent: map[string]interface{}{},
 				Loop: &Loop{BackTo: "write", Max: 3, Until: Condition{ExitCode: &zero}}}
 			return s
@@ -642,7 +642,7 @@ func TestValidate_loop(t *testing.T) {
 		}
 	}
 
-	// ★ 중첩은 아직 없다 ★
+	// 중첩은 아직 없다
 	nested := Contract{
 		RunID:    "r1",
 		Requires: []Require{{As: "b", Capability: CapabilityAgentReason}},
@@ -655,18 +655,18 @@ func TestValidate_loop(t *testing.T) {
 		},
 	}
 	if err := nested.Validate(); err == nil {
-		t.Fatal("★ 중첩 loop 이 통과했다 ★")
+		t.Fatal("중첩 loop 이 통과했다")
 	}
 }
 
-// ★ 시연 계약이 실제로 유효한가 ★
+// 시연 계약이 실제로 유효한가
 //
-// testdata/demo.json 은 ★ enode-design/protocol/run-contract.md §2.0 에서
-// 그대로 뽑은 것 ★ 이다. 정본에 적힌 계약이 코드가 받는 계약과 어긋나면
-// ★ 시연 당일에 알게 된다 ★ — 그것을 여기서 막는다.
+// testdata/demo.json 은 enode-design/protocol/run-contract.md §2.0 에서
+// 그대로 뽑은 것 이다. 정본에 적힌 계약이 코드가 받는 계약과 어긋나면
+// 시연 당일에 알게 된다 — 그것을 여기서 막는다.
 //
 // 이 시험이 깨지면 둘 중 하나다: 문서가 낡았거나, 검증이 문서를 배신했거나.
-// ★ 어느 쪽이든 고쳐야 한다 ★.
+// 어느 쪽이든 고쳐야 한다.
 func TestValidate_시연계약(t *testing.T) {
 	raw, err := os.ReadFile("testdata/demo.json")
 	if err != nil {
@@ -674,41 +674,41 @@ func TestValidate_시연계약(t *testing.T) {
 	}
 	var c Contract
 	if err := json.Unmarshal(raw, &c); err != nil {
-		t.Fatalf("★ 정본의 계약이 파싱조차 안 된다 ★: %v", err)
+		t.Fatalf("정본의 계약이 파싱조차 안 된다: %v", err)
 	}
 	if err := c.Validate(); err != nil {
-		t.Fatalf("★ 정본의 계약이 거절된다 ★: %v", err)
+		t.Fatalf("정본의 계약이 거절된다: %v", err)
 	}
 
-	// ★ 병렬 둘이 실제로 드러나는가 ★ — 이 계약의 값이 거기 있다.
+	// 병렬 둘이 실제로 드러나는가 — 이 계약의 값이 거기 있다.
 	needs := map[string][]string{}
 	for i, st := range c.Steps {
 		needs[st.ID] = NeedsOf(c.Steps, i)
 	}
 	if len(needs["hypothesis"]) != 0 || len(needs["baseline_build"]) != 0 {
-		t.Fatalf("★ 시작점 둘이 안 갈렸다 ★: %v %v",
+		t.Fatalf("시작점 둘이 안 갈렸다: %v %v",
 			needs["hypothesis"], needs["baseline_build"])
 	}
 	if len(needs["write_test"]) != 2 {
-		t.Fatalf("★ 합류가 한쪽만 기다린다 ★: %v", needs["write_test"])
+		t.Fatalf("합류가 한쪽만 기다린다: %v", needs["write_test"])
 	}
-	// patch_build 는 parent_build 만 기다린다 — parent_observe 와 ★ 동시에 돈다 ★.
-	// ★ write_test 가 아니다 ★ — parent_build 에 loop 이 있어서, write_test 만
-	// 기다리면 ★ 반복 도중의 test_source ★ 를 쓴다.
+	// patch_build 는 parent_build 만 기다린다 — parent_observe 와 동시에 돈다.
+	// write_test 가 아니다 — parent_build 에 loop 이 있어서, write_test 만
+	// 기다리면 반복 도중의 test_source를 쓴다.
 	if len(needs["patch_build"]) != 1 || needs["patch_build"][0] != "parent_build" {
-		t.Fatalf("★ 패치 빌드의 의존이 틀렸다 ★: %v", needs["patch_build"])
+		t.Fatalf("패치 빌드의 의존이 틀렸다: %v", needs["patch_build"])
 	}
 	if len(needs["parent_observe"]) != 1 || needs["parent_observe"][0] != "parent_build" {
-		t.Fatalf("★ 부모 관찰의 의존이 틀렸다 ★: %v", needs["parent_observe"])
+		t.Fatalf("부모 관찰의 의존이 틀렸다: %v", needs["parent_observe"])
 	}
-	// patch_observe 는 ★ 보드가 하나라는 사실 ★ 을 계약에 적어둔 자리다.
+	// patch_observe 는 보드가 하나라는 사실을 계약에 적어둔 자리다.
 	if len(needs["patch_observe"]) != 2 {
-		t.Fatalf("★ 두 관찰의 순서가 안 적혔다 ★: %v — "+
+		t.Fatalf("두 관찰의 순서가 안 적혔다: %v — "+
 			"보드가 둘이 되는 날 차분이 깨진다", needs["patch_observe"])
 	}
 }
 
-// ★ ask 검증 — 질문의 형태가 곧 스키마이고, 평면 폼만 허용한다 ★ (ADR-032)
+// ask 검증 — 질문의 형태가 곧 스키마이고, 평면 폼만 허용한다 (ADR-032)
 func TestValidate_ask(t *testing.T) {
 	form := map[string]interface{}{
 		"type": "object", "required": []interface{}{"verdict"},
@@ -735,23 +735,23 @@ func TestValidate_ask(t *testing.T) {
 	}
 
 	for name, f := range map[string]func(*Step){
-		"★ uses 가 있다 ★":   func(st *Step) { st.Uses = "b" },
-		"★ prompt 가 없다 ★": func(st *Step) { st.Ask.Prompt = "" },
-		"★ 스키마가 없다 ★":     func(st *Step) { st.Schema = nil },
-		"★ 중첩 객체 ★": func(st *Step) {
+		"uses 가 있다":   func(st *Step) { st.Uses = "b" },
+		"prompt 가 없다": func(st *Step) { st.Ask.Prompt = "" },
+		"스키마가 없다":     func(st *Step) { st.Schema = nil },
+		"중첩 객체": func(st *Step) {
 			st.Schema = map[string]interface{}{"decision": map[string]interface{}{
 				"type": "object", "properties": map[string]interface{}{
 					"inner": map[string]interface{}{"type": "object"}}}}
 		},
-		"★ 배열 ★": func(st *Step) {
+		"배열": func(st *Step) {
 			st.Schema = map[string]interface{}{"decision": map[string]interface{}{
 				"type": "object", "properties": map[string]interface{}{
 					"list": map[string]interface{}{"type": "array"}}}}
 		},
-		"★ then 이 default — 아직 없다 ★": func(st *Step) {
+		"then 이 default — 아직 없다": func(st *Step) {
 			st.Ask.Timeout = &AskTimeout{After: "1h", Then: "default"}
 		},
-		"★ 기한을 못 읽는다 ★": func(st *Step) {
+		"기한을 못 읽는다": func(st *Step) {
 			st.Ask.Timeout = &AskTimeout{After: "사흘", Then: "fail"}
 		},
 	} {
@@ -761,7 +761,7 @@ func TestValidate_ask(t *testing.T) {
 	}
 }
 
-// ★ adopts 검증 — 채택의 어휘를 못 박는다 ★ (ADR-033)
+// adopts 검증 — 채택의 어휘를 못 박는다 (ADR-033)
 func TestValidate_adopts(t *testing.T) {
 	planSch := map[string]interface{}{"plan": map[string]interface{}{"type": "object"}}
 	verdictSch := func(opts ...string) map[string]interface{} {
@@ -795,17 +795,17 @@ func TestValidate_adopts(t *testing.T) {
 	if err := mk("gate", verdictSch("approve", "reject")).Validate(); err == nil {
 		t.Fatal("expands 아닌 단계를 adopts 하는데 통과했다")
 	}
-	// ★ verdict 어휘가 없으면 채택이 기계적으로 못 갈린다 ★
+	// verdict 어휘가 없으면 채택이 기계적으로 못 갈린다
 	if err := mk("plan", verdictSch("yes", "no")).Validate(); err == nil {
 		t.Fatal("approve/reject 없는 스키마가 통과했다")
 	}
 }
 
-// ★ 사고를 낸 실제 계약이 이제 거부된다 ★ (ADR-060 §2)
+// 사고를 낸 실제 계약이 이제 거부된다 (ADR-060 §2)
 //
 // third-run-1 의 봉인된 v3 그대로다. 계획이 재시도 루프를 loop 없이 선형으로
 // 펴고 final_verify 를 세 분기의 공통 출구로 삼았는데, 그 needs 는 사슬의
-// 끝(build_4)만 가리켜서 ★ 어느 분기로도 못 닿았다 ★. 그런데 계약은 통과했고
+// 끝(build_4)만 가리켜서 어느 분기로도 못 닿았다. 그런데 계약은 통과했고
 // Run 은 목표 판정 없이 SUCCEEDED 로 봉인됐다.
 func TestThirdRun1_도달할_수_없는_출구를_거절한다(t *testing.T) {
 	b, err := os.ReadFile(filepath.Join("testdata", "third-run-1.json"))
@@ -818,22 +818,22 @@ func TestThirdRun1_도달할_수_없는_출구를_거절한다(t *testing.T) {
 	}
 	err = c.Validate()
 	if err == nil {
-		t.Fatal("★ 통과했다 ★ — 도달 가능성 검사가 사고 계약을 못 잡는다")
+		t.Fatal("통과했다 — 도달 가능성 검사가 사고 계약을 못 잡는다")
 	}
 	if !strings.Contains(err.Error(), "cannot be reached") {
 		t.Fatalf("다른 이유로 거절됐다: %v", err)
 	}
-	// ★ 오류가 갈 곳을 가리켜야 한다 ★ — 계획이 이 문장을 읽고 고친다.
+	// 오류가 갈 곳을 가리켜야 한다 — 계획이 이 문장을 읽고 고친다.
 	if !strings.Contains(err.Error(), "loop") {
-		t.Fatalf("★ loop 을 안 가리킨다 ★: %v", err)
+		t.Fatalf("loop 을 안 가리킨다: %v", err)
 	}
 }
 
-// ★ dispatch.to 가 약속한 이름을 가리킬 수 있다 ★ (ADR-062)
+// dispatch.to 가 약속한 이름을 가리킬 수 있다 (ADR-062)
 //
-// 계획 위임에서 ★ 승인 경로의 목적지는 계획이 짓는다 ★. 그런데 dispatch.to 는
+// 계획 위임에서 승인 경로의 목적지는 계획이 짓는다. 그런데 dispatch.to 는
 // 제출 시점에 실존하는 단계만 가리킬 수 있었고, 그래서 ADR-061 이 요구한
-// "거절에 갈 곳을 준다" 를 쓰려면 ★ 뜻 없는 더미 단계 ★ 를 지어야 했다.
+// "거절에 갈 곳을 준다" 를 쓰려면 뜻 없는 더미 단계를 지어야 했다.
 //
 // ADR-049 가 success_when 에 대해 연 것과 같은 자리다.
 func TestDispatch_약속한_이름을_가리킬_수_있다(t *testing.T) {
@@ -860,11 +860,11 @@ func TestDispatch_약속한_이름을_가리킬_수_있다(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := c.Validate(); err != nil {
-		t.Fatalf("★ 약속한 이름을 가리켰는데 거절됐다 ★: %v", err)
+		t.Fatalf("약속한 이름을 가리켰는데 거절됐다: %v", err)
 	}
 }
 
-// ★ 약속하지 않은 이름은 여전히 거절한다 ★ — 완화가 새어나가지 않는다.
+// 약속하지 않은 이름은 여전히 거절한다 — 완화가 새어나가지 않는다.
 func TestDispatch_약속_없는_이름은_거절한다(t *testing.T) {
 	body := []byte(`{
 	  "run_id":"p2",
@@ -883,7 +883,7 @@ func TestDispatch_약속_없는_이름은_거절한다(t *testing.T) {
 	}
 	err := c.Validate()
 	if err == nil {
-		t.Fatal("★ 아무도 약속 안 한 이름이 통과했다 ★")
+		t.Fatal("아무도 약속 안 한 이름이 통과했다")
 	}
 	if !strings.Contains(err.Error(), "unknown step") {
 		t.Fatalf("다른 이유로 거절됐다: %v", err)

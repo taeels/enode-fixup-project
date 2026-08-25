@@ -6,18 +6,18 @@ import (
 	"testing"
 )
 
-// ★ 문법이 낡으면 여기서 깨진다 ★ (ADR-045)
+// 문법이 낡으면 여기서 깨진다 (ADR-045)
 //
 // Grammar 는 사람이 읽는 텍스트이고 Validate() 는 기계가 강제하는 규칙이다.
-// ★ 둘이 갈라지는 것이 정확히 우리가 아홉 판 동안 겪은 사고다 ★ —
+// 둘이 갈라지는 것이 정확히 우리가 아홉 판 동안 겪은 사고다 —
 // 사람이 매 판 Validate 의 일부를 자연어로 번역했고, 번역이 축약되고 모순됐다.
 //
-// 그래서 문법의 ★ 각 문장마다 ★ "그 규칙을 어긴 계약이 실제로 거절되는가" 를 잰다.
+// 그래서 문법의 각 문장마다 "그 규칙을 어긴 계약이 실제로 거절되는가" 를 잰다.
 // Validate 가 늘었는데 Grammar 가 안 늘면 이 표에 항목이 없어 통과하지만,
-// ★ Grammar 가 말한 것이 거짓이 되면 즉시 깨진다 ★.
+// Grammar 가 말한 것이 거짓이 되면 즉시 깨진다.
 // go.mod 의 toolchain 을 CI 가 go-version-file 로 읽는 것과 같은 장치다.
 
-// bad 는 ★ 문법이 금지한다고 적은 것 ★ 을 실제로 어긴 계약이다.
+// bad 는 문법이 금지한다고 적은 것을 실제로 어긴 계약이다.
 type bad struct {
 	name     string // 문법의 어느 문장인가
 	mustSay  string // Grammar 에 이 문구가 있어야 한다
@@ -30,8 +30,8 @@ const okStep = `{"id":"a","uses":"n","run":["true"],"out":["log"]}`
 func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.T) {
 	cases := []bad{
 		{
-			// ★ 사람의 답에는 프로세스가 없다 ★ — 조건이 통과하면 Verify 가
-			// got=-1 로 비교해 ★ 언제나 거짓 ★ 이 되고, 저자는 왜인지 못 본다.
+			// 사람의 답에는 프로세스가 없다 — 조건이 통과하면 Verify 가
+			// got=-1 로 비교해 언제나 거짓이 되고, 저자는 왜인지 못 본다.
 			name:    "exit_code is allowed only on a run step (ask)",
 			mustSay: "exit_code is allowed only on a run step",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -42,7 +42,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "exit_code",
 		},
 		{
-			// ★ 같은 곳을 두 번 가리키면 갈림길이 아니다 ★
+			// 같은 곳을 두 번 가리키면 갈림길이 아니다
 			name:    "dispatch.to needs at least two targets, all distinct",
 			mustSay: "all distinct",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -55,7 +55,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "duplicate",
 		},
 		{
-			// ★ 없는 곳으로는 갈 수 없다 ★
+			// 없는 곳으로는 갈 수 없다
 			name:    "every branch target must exist",
 			mustSay: "every branch target must exist and come after this step",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -68,7 +68,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "unknown step",
 		},
 		{
-			// ★ capability 어휘는 닫혀 있다 ★ — 문법이 acquire 예시에서
+			// capability 어휘는 닫혀 있다 — 문법이 acquire 예시에서
 			// build.zephyr 를 가르쳤다가 이 시험이 잡았다 (실제로 밟았다).
 			name:    "capability is a closed vocabulary",
 			mustSay: "capability is a closed vocabulary",
@@ -81,7 +81,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "capability",
 		},
 		{
-			// ★ 획득도 갈림길이다 ★ — 목적지 규칙이 dispatch 와 같다.
+			// 획득도 갈림길이다 — 목적지 규칙이 dispatch 와 같다.
 			name:    "every branch target must exist and come after this step (acquire)",
 			mustSay: "every branch target must exist and come after this step",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -93,7 +93,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "forward",
 		},
 		{
-			// ★ 갈림길이 하나면 갈림길이 아니다 ★ (ADR-053 이 문법에 적었다)
+			// 갈림길이 하나면 갈림길이 아니다 (ADR-053 이 문법에 적었다)
 			name:    "dispatch.to needs at least two targets",
 			mustSay: "dispatch.to needs at least two targets",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -106,7 +106,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "at least two targets",
 		},
 		{
-			// ★ 뒤로 못 간다 = DAG = 종료가 정적으로 보장된다 ★
+			// 뒤로 못 간다 = DAG = 종료가 정적으로 보장된다
 			name:    "every branch target must exist and come after this step",
 			mustSay: "every branch target must exist and come after this step",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -120,7 +120,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			wantErr: "branches must point forward",
 		},
 		{
-			// ★ dispatch.from 은 그 단계가 내는 산출물을 가리켜야 한다 ★
+			// dispatch.from 은 그 단계가 내는 산출물을 가리켜야 한다
 			name:    "dispatch.from must name a field inside an output this step produces",
 			mustSay: "dispatch.from must name a field inside an output this step produces",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -182,7 +182,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 		t.Run(c.name, func(t *testing.T) {
 			// ① 문법이 그 말을 실제로 하고 있는가
 			if !strings.Contains(Grammar, c.mustSay) {
-				t.Fatalf("★ 문법에 %q 가 없다 ★ — Grammar 가 낡았거나 이 시험이 낡았다", c.mustSay)
+				t.Fatalf("문법에 %q 가 없다 — Grammar 가 낡았거나 이 시험이 낡았다", c.mustSay)
 			}
 			// ② 그 말대로 실제로 거절되는가
 			var ct Contract
@@ -191,7 +191,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 			}
 			err := ct.Validate()
 			if err == nil {
-				t.Fatalf("★ 문법은 거절한다고 적었는데 통과했다 ★")
+				t.Fatalf("문법은 거절한다고 적었는데 통과했다")
 			}
 			if !strings.Contains(err.Error(), c.wantErr) {
 				t.Fatalf("다른 이유로 거절됐다: %v (기대: %q)", err, c.wantErr)
@@ -200,7 +200,7 @@ func Test문법_금지한다고_적은_것은_실제로_거절된다(t *testing.
 	}
 }
 
-// ★ 스키마 어휘 목록이 갈라지지 않는지 ★ — 문법이 나열한 이름과
+// 스키마 어휘 목록이 갈라지지 않는지 — 문법이 나열한 이름과
 // schema 패키지가 허용/거절하는 이름이 같아야 한다.
 func Test문법_스키마어휘가_실제와_같다(t *testing.T) {
 	for _, name := range []string{
@@ -208,7 +208,7 @@ func Test문법_스키마어휘가_실제와_같다(t *testing.T) {
 		"additionalProperties", "title", "description",
 	} {
 		if !strings.Contains(Grammar, name) {
-			t.Errorf("★ 허용 어휘 %q 가 문법에 없다 ★", name)
+			t.Errorf("허용 어휘 %q 가 문법에 없다", name)
 		}
 	}
 	for _, name := range []string{
@@ -216,17 +216,17 @@ func Test문법_스키마어휘가_실제와_같다(t *testing.T) {
 		"pattern", "format", "minItems", "maxItems",
 	} {
 		if !strings.Contains(Grammar, name) {
-			t.Errorf("★ 거절 어휘 %q 가 문법에 없다 ★ — 계획이 그것을 쓰고 422 를 받는다", name)
+			t.Errorf("거절 어휘 %q 가 문법에 없다 — 계획이 그것을 쓰고 422 를 받는다", name)
 		}
 	}
 }
 
-// ★ 빈 계획이 값이라는 것을 문법이 말해야 한다 ★ (ADR-043)
+// 빈 계획이 값이라는 것을 문법이 말해야 한다 (ADR-043)
 // 이 문장이 없으면 계획은 고칠 것이 없을 때도 억지로 단계를 지어낸다 — 실측에서 밟았다.
 func Test문법_빈계획을_말한다(t *testing.T) {
 	for _, want := range []string{`"steps": []`, "a judgment, not an error"} {
 		if !strings.Contains(Grammar, want) {
-			t.Errorf("★ 문법에 %q 가 없다 ★", want)
+			t.Errorf("문법에 %q 가 없다", want)
 		}
 	}
 }

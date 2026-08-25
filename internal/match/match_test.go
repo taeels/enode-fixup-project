@@ -58,7 +58,7 @@ func TestMatchHappyPath(t *testing.T) {
 	}
 }
 
-// ★ 영구와 일시를 가르는 것이 ADR-014 결정 3 의 핵심이다 ★
+// 영구와 일시를 가르는 것이 ADR-014 결정 3 의 핵심이다
 // "지금 비어 있는가" 를 미리 물을 수 없는 대신 거절이 그 답을 준다.
 func TestMatchRejectCodes(t *testing.T) {
 	cases := []struct {
@@ -124,12 +124,12 @@ func TestMatchAllOrNothing(t *testing.T) {
 		t.Fatalf("어느 역할에서 깨졌는지가 안 나온다: %+v", rej)
 	}
 	if got != nil {
-		t.Fatalf("★ I5 위반 ★ 부분 배정이 남았다: %+v", got)
+		t.Fatalf("I5 위반 부분 배정이 남았다: %+v", got)
 	}
 }
 
 // ADR-019 결정 2 — 임대 키가 (노드) 이므로 노드가 배타 자원이다.
-// 다만 ★ 같은 Run 안에서는 ★ 한 노드가 여러 역할을 맡을 수 있다. 임대가 하나이기 때문이다.
+// 다만 같은 Run 안에서는한 노드가 여러 역할을 맡을 수 있다. 임대가 하나이기 때문이다.
 func TestMatchOneNodeTwoRoles(t *testing.T) {
 	both := []contract.Advert{
 		node("n9", map[string]string{"arch": "armv7", "board": "SoC-X", "repo": "corp/linux"}),
@@ -172,7 +172,7 @@ func TestMatchDeterministic(t *testing.T) {
 	}
 }
 
-// ★ dry-run 이 같은 함수를 부른다는 것의 의미 ★ — 이 함수는 아무것도 안 바꾼다.
+// dry-run 이 같은 함수를 부른다는 것의 의미 — 이 함수는 아무것도 안 바꾼다.
 func TestMatchDoesNotMutate(t *testing.T) {
 	before := make([]contract.Advert, len(fleet))
 	copy(before, fleet)
@@ -186,10 +186,10 @@ func TestMatchDoesNotMutate(t *testing.T) {
 	}
 }
 
-// ★ 영구가 일시를 이긴다 ★
+// 영구가 일시를 이긴다
 //
 // 앞의 요구가 일시(점유)이고 뒤의 요구가 영구(함대에 없음)이면,
-// 순서대로 보다 멈추는 매처는 409 를 낸다 → 호출자가 ★ 영원히 재시도 ★ 한다.
+// 순서대로 보다 멈추는 매처는 409 를 낸다 → 호출자가 영원히 재시도한다.
 // 코드가 존재하는 이유가 "재시도해도 되는지" 를 알려주는 것이므로 그건 틀렸다.
 func TestMatchPermanentBeatsTransient(t *testing.T) {
 	reqs := []contract.Require{
@@ -209,13 +209,13 @@ func TestMatchPermanentBeatsTransient(t *testing.T) {
 	}
 }
 
-// ★ 속성이 적은 노드를 먼저 준다 ★ (ADR-027)
+// 속성이 적은 노드를 먼저 준다 (ADR-027)
 //
-// 매칭이 부분집합이라 ★ 속성이 많은 노드일수록 더 많은 요구에 걸린다 ★.
-// 그것을 흔한 요구에 내주면 ★ 하나뿐인 자원이 묶인다 ★ — 실측에서 밟았다.
+// 매칭이 부분집합이라 속성이 많은 노드일수록 더 많은 요구에 걸린다.
+// 그것을 흔한 요구에 내주면 하나뿐인 자원이 묶인다 — 실측에서 밟았다.
 func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
 	adverts := []contract.Advert{
-		// ★ node_id 순으로는 보드 노드가 먼저다 ★ — 옛 규칙이면 이것이 뽑힌다.
+		// node_id 순으로는 보드 노드가 먼저다 — 옛 규칙이면 이것이 뽑힌다.
 		{NodeID: "a-board", Capabilities: []contract.Capability{{
 			Capability: "agent.reason",
 			Attrs:      map[string]string{"harness": "claude", "board": "SoC-X", "tag": "b-042"}}}},
@@ -231,11 +231,11 @@ func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
 		t.Fatalf("배정 실패: %v", rej)
 	}
 	if got[0].Nodes[0] != "z-brain" {
-		t.Fatalf("★ 희소한 노드를 내줬다 ★: %q — 보드가 하나뿐인데 추론에 잡혔다",
+		t.Fatalf("희소한 노드를 내줬다: %q — 보드가 하나뿐인데 추론에 잡혔다",
 			got[0].Nodes[0])
 	}
 
-	// ★ 보드 요구는 영향이 없다 ★ — 애초에 그 노드만 후보다.
+	// 보드 요구는 영향이 없다 — 애초에 그 노드만 후보다.
 	boardReq := []contract.Require{{As: "board", Capability: "agent.reason",
 		Attrs: map[string]string{"board": "SoC-X"}}}
 	got2, rej2 := Match(boardReq, adverts, map[string]bool{})
@@ -243,7 +243,7 @@ func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
 		t.Fatalf("보드 요구가 어긋났다: %v %v", got2, rej2)
 	}
 
-	// ★ 동점은 node_id 가 가른다 ★ — 같은 입력이면 같은 배정이어야 한다.
+	// 동점은 node_id 가 가른다 — 같은 입력이면 같은 배정이어야 한다.
 	tie := []contract.Advert{
 		{NodeID: "n2", Capabilities: []contract.Capability{{
 			Capability: "agent.reason", Attrs: map[string]string{"harness": "claude"}}}},
@@ -253,7 +253,7 @@ func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		g, _ := Match(reqs, tie, map[string]bool{})
 		if g[0].Nodes[0] != "n1" {
-			t.Fatalf("★ 동점 배정이 흔들린다 ★: %q — 매처는 순수 함수여야 한다", g[0].Nodes[0])
+			t.Fatalf("동점 배정이 흔들린다: %q — 매처는 순수 함수여야 한다", g[0].Nodes[0])
 		}
 	}
 }

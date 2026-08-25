@@ -1,4 +1,4 @@
-// enodectl — 한 기계의 enode ★ 인스턴스들 ★ 을 다룬다.
+// enodectl — 한 기계의 enode 인스턴스들을 다룬다.
 //
 //	enodectl list                설정 = 노드. 무엇이 있고 무엇이 도는가
 //	enodectl id <이름>           node_id 를 미리 계산한다 (띄우기 전에 확인)
@@ -7,15 +7,15 @@
 //	enodectl logs  <이름> [-f]
 //	enodectl status
 //
-// ★ 왜 「이름」이 인자인가 ★
+// 왜 「이름」이 인자인가
 // 설정 파일이 곧 신원이다 (ADR-015 §2). 한 기계에서 노드를 여럿 세우는 것이
-// ★ 예외가 아니라 기본 ★ 이다 — 맥에 zephyr 워크스페이스 노드, colima 안의
+// 예외가 아니라 기본이다 — 맥에 zephyr 워크스페이스 노드, colima 안의
 // 노드, qemu 노드가 각각 선다. 그래서 이 도구는 하나를 다루는 형태를 안 갖는다.
 //
-// ★ 왜 Go 인가 ★ — 셸판은 node_id 를 ★ 다시 계산 ★ 했다. sha256 파이프와
+// 왜 Go 인가 — 셸판은 node_id 를 다시 계산 했다. sha256 파이프와
 // python3 realpath 로 Derive() 를 흉내 냈고, 그래서 ① python3 가 없는 기계에서
-// 못 돌고 ② 흉내가 어긋나면 ★ 거짓 node_id ★ 를 말한다. 여기서는 enode 가
-// 쓰는 그 함수를 ★ 그대로 부른다 ★ — 정의상 어긋날 수 없다.
+// 못 돌고 ② 흉내가 어긋나면 거짓 node_id를 말한다. 여기서는 enode 가
+// 쓰는 그 함수를 그대로 부른다 — 정의상 어긋날 수 없다.
 package main
 
 import (
@@ -57,7 +57,7 @@ func main() {
 		err = cmdStatus()
 	case "-h", "--help", "help":
 		usage()
-	// ★ 도구는 자기가 무엇인지 말할 수 있어야 한다 ★ (ADR-056) — enode 와
+	// 도구는 자기가 무엇인지 말할 수 있어야 한다 (ADR-056) — enode 와
 	// runctl 은 답하는데 이것만 못 답했다. 실측(vm-scratch-5)에서 계획이
 	// `enode --version` 에 막힌 것과 같은 종류의 구멍이다.
 	case "--version", "-version", "version":
@@ -135,12 +135,12 @@ func names() []string {
 
 // pidOf 는 그 설정을 열고 있는 프로세스의 pid 다. 없으면 0.
 //
-// ★ 잠금 파일이 곧 상태다 ★ — enode 가 자기 pid 를 거기 쓰고, 죽으면 커널이
+// 잠금 파일이 곧 상태다 — enode 가 자기 pid 를 거기 쓰고, 죽으면 커널이
 // flock 을 푼다. 따로 pid 장부를 두면 그 장부가 진실과 갈라진다.
 //
-// ★ 그런데 파일의 존재만으로는 아무것도 못 말한다 ★ — enode 는 끝나도 잠금
-// 파일을 안 지운다(flock 은 커널이 푼다). 그래서 그 pid 가 ★ 살아 있고 그
-// 설정을 열고 있는지 ★ 를 함께 본다.
+// 그런데 파일의 존재만으로는 아무것도 못 말한다 — enode 는 끝나도 잠금
+// 파일을 안 지운다(flock 은 커널이 푼다). 그래서 그 pid 가 살아 있고 그
+// 설정을 열고 있는지 를 함께 본다.
 func pidOf(n string) int {
 	conf := confOf(n)
 	b, err := os.ReadFile(conf + ".lock")
@@ -152,9 +152,9 @@ func pidOf(n string) int {
 	if err != nil || pid <= 0 {
 		return 0
 	}
-	// ★ 이름이 아니라 명령줄을 본다 ★ — pid 는 재사용되고, 실행파일 이름은
+	// 이름이 아니라 명령줄을 본다 — pid 는 재사용되고, 실행파일 이름은
 	// 배포 방식에 따라 다르다(설치본은 enode, 묶음에서 바로 돌리면
-	// enode-linux-amd64). 우리가 묻는 것은 ★ 이 설정을 열고 있는가 ★ 다.
+	// enode-linux-amd64). 우리가 묻는 것은 이 설정을 열고 있는가다.
 	out, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "args=").Output()
 	if err != nil || !strings.Contains(string(out), conf) {
 		return 0
@@ -183,8 +183,8 @@ func cmdList() error {
 		id, label := identityOf(n)
 		state := "멈춤"
 		if pid := pidOf(n); pid > 0 {
-			state = fmt.Sprintf("★ 돈다 pid=%d", pid)
-			// ★ 잠자기 방지가 붙어 있는지 함께 보인다 ★ —
+			state = fmt.Sprintf("돈다 pid=%d", pid)
+			// 잠자기 방지가 붙어 있는지 함께 보인다 —
 			// 안 붙어 있으면 시연 중에 끊긴다.
 			if runtime.GOOS == "darwin" && caffeinated(pid) {
 				state += " ☕"
@@ -223,7 +223,7 @@ func cmdStart(args []string) error {
 	if pid := pidOf(n); pid > 0 {
 		return fmt.Errorf("이미 돌고 있다 (pid=%d). enode 의 flock 이 두 번째를 거절한다", pid)
 	}
-	// ★ PATH 에 claude 가 있는지 본다 ★ — 맥에서 가장 잘 밟는 자리다.
+	// PATH 에 claude 가 있는지 본다 — 맥에서 가장 잘 밟는 자리다.
 	// launchd 로 띄우면 PATH 가 최소 집합이라 claude 를 못 찾고, 그러면
 	// harness 가 광고에서 조용히 빠져 계약이 422 를 받는다. 원인이 안 보인다.
 	if _, err := exec.LookPath("claude"); err != nil {
@@ -241,7 +241,7 @@ func cmdStart(args []string) error {
 
 	c := exec.Command(bin, append([]string{"--config", conf}, rest...)...)
 	c.Stdout, c.Stderr = log, log
-	// ★ 부모에서 떼어낸다 ★ — enodectl 이 끝나도 노드는 살아 있어야 한다.
+	// 부모에서 떼어낸다 — enodectl 이 끝나도 노드는 살아 있어야 한다.
 	c.SysProcAttr = detachAttr()
 	if err := c.Start(); err != nil {
 		return err
@@ -256,7 +256,7 @@ func cmdStart(args []string) error {
 		return errors.New("기동 실패")
 	}
 	ident, _ := enode.Derive(conf)
-	fmt.Printf("★ 떴다 ★  %s  node=%s  pid=%d\n", n, ident.NodeID, pid)
+	fmt.Printf("떴다        %s  node=%s  pid=%d\n", n, ident.NodeID, pid)
 	fmt.Printf("  로그: %s\n", logOf(n))
 	keepAwake(pid)
 	return nil
@@ -272,8 +272,8 @@ func cmdStop(args []string) error {
 		fmt.Printf("이미 멈춰 있다: %s\n", n)
 		return nil
 	}
-	// SIGTERM 이면 signal.NotifyContext 가 받아 ★ 스스로 정리하고 끝난다 ★.
-	// ★ 윈도우에는 그 길이 없다 ★ — proc_windows.go 가 이유를 적는다.
+	// SIGTERM 이면 signal.NotifyContext 가 받아 스스로 정리하고 끝난다.
+	// 윈도우에는 그 길이 없다 — proc_windows.go 가 이유를 적는다.
 	if err := signalStop(pid); err != nil {
 		return err
 	}
@@ -335,7 +335,7 @@ func oneName(args []string) (string, error) {
 	return n, nil
 }
 
-// identityOf 는 목록에 쓸 값이다. ★ 실패해도 줄을 지우지 않는다 ★ —
+// identityOf 는 목록에 쓸 값이다. 실패해도 줄을 지우지 않는다 —
 // git 이메일이 없으면 신원을 못 만들지만, 그 설정이 있다는 사실은 보여야 한다.
 func identityOf(n string) (id, label string) {
 	ident, err := enode.Derive(confOf(n))
@@ -345,16 +345,16 @@ func identityOf(n string) (id, label string) {
 	return ident.NodeID, ident.Label
 }
 
-// keepAwake 는 ★ 시스템 잠자기가 함대를 끊는 것을 막는다 ★ (맥에서만).
+// keepAwake 는 시스템 잠자기가 함대를 끊는 것을 막는다 (맥에서만).
 //
-// 디스플레이가 꺼지는 것은 상관없다. ★ 시스템 잠자기 ★ 가 CPU 와 네트워크를
-// 멈추고, 그러면 광고가 끊기고 ★ not_after 가 지나 Run 이 죽는다 ★.
+// 디스플레이가 꺼지는 것은 상관없다. 시스템 잠자기가 CPU 와 네트워크를
+// 멈추고, 그러면 광고가 끊기고 not_after 가 지나 Run 이 죽는다.
 // 실측에서 밟았다: 승인을 기다리던 Run 이 맥이 조용해진 지 180초 만에
 // "임대 만료로 Run 을 회수했다" 로 FAILED 가 됐다.
 //
-// ★ enode 의 수명에 묶는다 ★ (-w) — 껐다 잊는 일이 없고 유령이 안 남는다.
-// ★ -d 는 안 준다 ★ — 화면은 꺼져도 된다. 우리가 막는 것은 그것이 아니다.
-// ★ sudo 를 안 쓴다 ★ — 전원 설정을 영구히 바꾸지 않는다.
+// enode 의 수명에 묶는다 (-w) — 껐다 잊는 일이 없고 유령이 안 남는다.
+// -d 는 안 준다 — 화면은 꺼져도 된다. 우리가 막는 것은 그것이 아니다.
+// sudo 를 안 쓴다 — 전원 설정을 영구히 바꾸지 않는다.
 func keepAwake(pid int) {
 	if runtime.GOOS != "darwin" {
 		return

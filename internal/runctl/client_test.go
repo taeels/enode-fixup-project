@@ -14,7 +14,7 @@ func newClient(h http.HandlerFunc) (*Client, func()) {
 	return &Client{Base: srv.URL, Token: "t", Principal: "a@b", HTTP: srv.Client()}, srv.Close
 }
 
-// ★ 와이어의 HTTP 상태를 그대로 들고 온다 ★ — CLI 종료코드로의 번역은
+// 와이어의 HTTP 상태를 그대로 들고 온다 — CLI 종료코드로의 번역은
 // cmd/runctl 이 한다. 경계가 둘이라 하나로 통일하지 않는다 (INVARIANTS §4).
 func TestFailCarriesWireCode(t *testing.T) {
 	for _, code := range []int{400, 409, 422, 503} {
@@ -61,7 +61,7 @@ func TestHeaders(t *testing.T) {
 	}
 }
 
-// ★ Wait 는 폴링일 뿐이다 ★ — runctl 을 상태 있게 만들지 않는다.
+// Wait 는 폴링일 뿐이다 — runctl 을 상태 있게 만들지 않는다.
 // 중간에 죽어도 Run 은 계속 돈다 (ADR-013 이 --interactive 를 거절한 사유).
 func TestWaitUntilTerminal(t *testing.T) {
 	n := 0

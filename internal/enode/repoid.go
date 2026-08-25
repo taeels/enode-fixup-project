@@ -9,7 +9,7 @@ import (
 
 // CanonicalRepoID 는 저장소 주소를 정규화한다 (ADR-017 결정 1).
 //
-// ★ 정규화를 안 하면 조용히 매칭이 실패하고 이유가 안 보인다 ★
+// 정규화를 안 하면 조용히 매칭이 실패하고 이유가 안 보인다
 //
 //	ssh://git@gerrit.corp:29418/kernel/linux  ┐
 //	https://gerrit.corp/kernel/linux.git      ├─▶ gerrit.corp/kernel/linux
@@ -26,7 +26,7 @@ func CanonicalRepoID(remote string) string {
 	if i := strings.Index(s, "://"); i >= 0 {
 		s = s[i+3:]
 	}
-	// 자격증명 제거. user@ 도 user:pass@ 도 있고, ★ : 가 @ 보다 먼저 올 수 있다 ★.
+	// 자격증명 제거. user@ 도 user:pass@ 도 있고, : 가 @ 보다 먼저 올 수 있다.
 	// 그래서 "첫 / 앞에 있는 마지막 @" 를 기준으로 자른다 — 경로의 @ 는 안 건드린다.
 	head := s
 	if i := strings.IndexByte(s, '/'); i >= 0 {
@@ -71,7 +71,7 @@ func isDigits(s string) bool {
 //	.repo 가 있으면   manifest 주소 + manifest 브랜치   (repo-id#branch)
 //	없으면            .git 의 origin remote
 //
-// ★ 사람이 저장소 주소를 적지 않는다 ★ — runctl 은 cwd 에서, enode 는
+// 사람이 저장소 주소를 적지 않는다 — runctl 은 cwd 에서, enode 는
 // 워크스페이스에서 같은 방식으로 유도한다 (ADR-015 가 git config 를 읽는 것과 같은 트릭).
 func DetectRepo(workspace string) string {
 	if id := detectRepoManifest(workspace); id != "" {
@@ -94,7 +94,7 @@ func detectRepoManifest(workspace string) string {
 		return ""
 	}
 	id := CanonicalRepoID(url)
-	// 같은 manifest 의 다른 브랜치는 ★ 다른 트리 ★ 다 (ADR-017).
+	// 같은 manifest 의 다른 브랜치는 다른 트리다 (ADR-017).
 	if br, err := gitIn(manifests, "rev-parse", "--abbrev-ref", "HEAD"); err == nil && br != "" && br != "HEAD" {
 		return id + "#" + br
 	}

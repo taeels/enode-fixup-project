@@ -35,10 +35,10 @@ func TestCollect_적은_경로를_옮긴다(t *testing.T) {
 	}
 }
 
-// ★ 워크스페이스 밖을 못 가리킨다 ★
+// 워크스페이스 밖을 못 가리킨다
 //
 // (ADR-042 이전 표현: acceptEdits + --add-dir) 모델이 쓸 수 있는 곳과 collect 가
-// 아무 데나 가리키면 ★ 계약이 그 경계를 우회한다 ★. 계약은 노드 주인이 아닌
+// 아무 데나 가리키면 계약이 그 경계를 우회한다. 계약은 노드 주인이 아닌
 // 사람이 낸다.
 func TestCollect_바깥을_못_가리킨다(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
@@ -55,18 +55,18 @@ func TestCollect_바깥을_못_가리킨다(t *testing.T) {
 	} {
 		got, notes := collectDeclared(ws, out, map[string]string{"x": pat})
 		if len(got) != 0 {
-			t.Fatalf("★ %q 를 걷었다 ★", pat)
+			t.Fatalf("%q 를 걷었다", pat)
 		}
 		if len(notes) != 1 {
 			t.Fatalf("%q — 이유를 안 남겼다: %+v", pat, notes)
 		}
 	}
 	if n := len(harvest(out)); n != 0 {
-		t.Fatalf("★ $OUT 에 뭔가 들어갔다 ★: %v", harvest(out))
+		t.Fatalf("$OUT 에 뭔가 들어갔다: %v", harvest(out))
 	}
 }
 
-// ★ 심링크를 안 따라간다 ★ — 글롭은 워크스페이스 안이어도 가리키는 곳은 밖일 수 있다.
+// 심링크를 안 따라간다 — 글롭은 워크스페이스 안이어도 가리키는 곳은 밖일 수 있다.
 func TestCollect_심링크를_안_따라간다(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
 	secret := filepath.Join(t.TempDir(), "비밀.txt")
@@ -80,17 +80,17 @@ func TestCollect_심링크를_안_따라간다(t *testing.T) {
 	got, notes := collectDeclared(ws, out, map[string]string{"x": "미끼"})
 	if len(got) != 0 {
 		b, _ := os.ReadFile(filepath.Join(out, "x"))
-		t.Fatalf("★ 심링크를 따라가 밖을 걷었다 ★: %q", b)
+		t.Fatalf("심링크를 따라가 밖을 걷었다: %q", b)
 	}
 	if len(notes) != 1 || !strings.Contains(notes[0].Why, "no file matches") {
 		t.Fatalf("이유: %+v", notes)
 	}
 }
 
-// ★ 부모가 심링크여도 안 걷는다 ★
+// 부모가 심링크여도 안 걷는다
 //
 // 최종 항목만 Lstat 으로 보면 통과해 버린다 — 심링크는 부모 쪽에 있기 때문이다.
-// git 이 심링크를 담을 수 있으므로 ★ 리뷰 대상 코드가 스스로 통로를 놓을 수 있다 ★.
+// git 이 심링크를 담을 수 있으므로 리뷰 대상 코드가 스스로 통로를 놓을 수 있다.
 func TestCollect_심링크_부모를_안_따라간다(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
 	outside := t.TempDir()
@@ -104,15 +104,15 @@ func TestCollect_심링크_부모를_안_따라간다(t *testing.T) {
 	got, notes := collectDeclared(ws, out, map[string]string{"leak": "x/shadow"})
 	if len(got) != 0 {
 		b, _ := os.ReadFile(filepath.Join(out, "leak"))
-		t.Fatalf("★ 심링크 부모를 통과해 밖을 걷었다 ★: %q", b)
+		t.Fatalf("심링크 부모를 통과해 밖을 걷었다: %q", b)
 	}
 	if len(notes) != 1 || !strings.Contains(notes[0].Why, "no file matches") {
 		t.Fatalf("이유: %+v", notes)
 	}
 }
 
-// ★ 워크스페이스 자신이 심링크 아래 있어도 걷는다 ★ — 음성 대조.
-// 양쪽을 다 풀지 않으면 실경로 비교가 ★ 정상 산출물까지 ★ 떨어뜨린다.
+// 워크스페이스 자신이 심링크 아래 있어도 걷는다 — 음성 대조.
+// 양쪽을 다 풀지 않으면 실경로 비교가 정상 산출물까지 떨어뜨린다.
 func TestCollect_워크스페이스가_심링크여도_걷는다(t *testing.T) {
 	actual, out := t.TempDir(), t.TempDir()
 	mk(t, actual, "a.ko", "모듈")
@@ -123,7 +123,7 @@ func TestCollect_워크스페이스가_심링크여도_걷는다(t *testing.T) {
 
 	got, notes := collectDeclared(link, out, map[string]string{"m": "a.ko"})
 	if len(got) != 1 || len(notes) != 0 {
-		t.Fatalf("★ 정상 산출물을 떨어뜨렸다 ★: got=%v notes=%+v", got, notes)
+		t.Fatalf("정상 산출물을 떨어뜨렸다: got=%v notes=%+v", got, notes)
 	}
 	b, err := os.ReadFile(filepath.Join(out, "m"))
 	if err != nil || string(b) != "모듈" {
@@ -131,7 +131,7 @@ func TestCollect_워크스페이스가_심링크여도_걷는다(t *testing.T) {
 	}
 }
 
-// ★ 여럿이 맞으면 안 걷고 목록을 남긴다 ★ — 하나의 blob 이름에 여럿을 넣으면
+// 여럿이 맞으면 안 걷고 목록을 남긴다 — 하나의 blob 이름에 여럿을 넣으면
 // 소비자가 예측을 못 한다 (어떨 땐 .ko, 어떨 땐 묶음).
 func TestCollect_여럿이면_안_걷고_알린다(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
@@ -146,7 +146,7 @@ func TestCollect_여럿이면_안_걷고_알린다(t *testing.T) {
 		t.Fatalf("이유가 부실하다: %+v", notes)
 	}
 	if !strings.Contains(notes[0].Why, "a.ko") || !strings.Contains(notes[0].Why, "b.ko") {
-		t.Fatalf("★ 무엇이 맞았는지 안 알려줬다 ★: %s", notes[0].Why)
+		t.Fatalf("무엇이 맞았는지 안 알려줬다: %s", notes[0].Why)
 	}
 }
 
@@ -160,7 +160,7 @@ func TestCollect_글롭이_하나면_걷는다(t *testing.T) {
 	}
 }
 
-// ★ 스크립트가 직접 낸 것이 우선 ★ — collect 는 보조다.
+// 스크립트가 직접 낸 것이 우선 — collect 는 보조다.
 func TestCollect_이미_있으면_안_덮는다(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
 	mk(t, ws, "a.bin", "워크스페이스것")
@@ -170,11 +170,11 @@ func TestCollect_이미_있으면_안_덮는다(t *testing.T) {
 	collectDeclared(ws, out, map[string]string{"artifact": "a.bin"})
 	b, _ := os.ReadFile(filepath.Join(out, "artifact"))
 	if string(b) != "스크립트것" {
-		t.Fatalf("★ 덮어썼다 ★: %q", b)
+		t.Fatalf("덮어썼다: %q", b)
 	}
 }
 
-// 없으면 ★ 왜 없는지 ★ 를 남긴다 — 새 실패 경로는 안 만든다.
+// 없으면 왜 없는지를 남긴다 — 새 실패 경로는 안 만든다.
 func TestCollect_없으면_이유를_남긴다(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
 	got, notes := collectDeclared(ws, out, map[string]string{"artifact": "없는/경로.ko"})
@@ -182,7 +182,7 @@ func TestCollect_없으면_이유를_남긴다(t *testing.T) {
 		t.Fatalf("got=%v notes=%+v", got, notes)
 	}
 	if !strings.Contains(notes[0].Why, "없는/경로.ko") {
-		t.Fatalf("★ 어느 경로를 못 찾았는지 안 적었다 ★: %s", notes[0].Why)
+		t.Fatalf("어느 경로를 못 찾았는지 안 적었다: %s", notes[0].Why)
 	}
 }
 
@@ -198,7 +198,7 @@ func TestCollect_디렉터리는_안_걷는다(t *testing.T) {
 	}
 }
 
-// 못 걷은 이유가 ★ 기록에 실린다 ★ — 없으면 사람이 계약과 트리를 대조해야 한다.
+// 못 걷은 이유가 기록에 실린다 — 없으면 사람이 계약과 트리를 대조해야 한다.
 func TestCollect_이유가_기록에_실린다(t *testing.T) {
 	out := t.TempDir()
 	writeChangedNote(out, []string{"artifact"}, Stamp{},
@@ -214,7 +214,7 @@ func TestCollect_이유가_기록에_실린다(t *testing.T) {
 	}
 }
 
-// ★ $IN 은 읽기 전용이다 ★
+// $IN 은 읽기 전용이다
 //
 // $IN 은 읽기만 필요한데 쓰기가 열려 있으므로, 훅이 못 보는 쓰기가
 // 생긴다. 시연에 대입하면 ④의 리뷰 대상 diff · ⑥의 되먹인 빌드 로그다.
@@ -233,15 +233,15 @@ func Test입력_잠금_고칠_수_없다(t *testing.T) {
 
 	// ① 내용을 못 바꾼다
 	if err := os.WriteFile(filepath.Join(in, "diff"), []byte("위조"), 0o644); err == nil {
-		t.Fatal("★ 입력을 고쳐 썼다 ★")
+		t.Fatal("입력을 고쳐 썼다")
 	}
 	// ② 새 파일을 못 만든다
 	if err := os.WriteFile(filepath.Join(in, "새것"), []byte("x"), 0o644); err == nil {
-		t.Fatal("★ $IN 에 새 파일을 만들었다 ★")
+		t.Fatal("$IN 에 새 파일을 만들었다")
 	}
-	// ③ ★ 지우고 다시 만들기도 막힌다 ★ — 파일만 잠그면 이 길이 열린다
+	// ③ 지우고 다시 만들기도 막힌다 — 파일만 잠그면 이 길이 열린다
 	if err := os.Remove(filepath.Join(in, "diff")); err == nil {
-		t.Fatal("★ 입력을 지웠다 ★")
+		t.Fatal("입력을 지웠다")
 	}
 	// ④ 읽기는 된다 — 잠금이 단계를 깨면 안 된다
 	b, err := os.ReadFile(filepath.Join(in, "diff"))

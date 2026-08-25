@@ -1,13 +1,13 @@
 # deb 과 rpm 을 같은 정의에서 굽는다 (nfpm).
 #
-# ★ 왜 nfpm 인가 ★ — dpkg-deb 와 rpmbuild 를 각각 쓰면 정의가 두 벌이 되고,
-# 그 둘이 어긋나면 ★ 배포판마다 다른 것이 깔린다 ★. nfpm 은 Go 실행파일 하나라
+# 왜 nfpm 인가 — dpkg-deb 와 rpmbuild 를 각각 쓰면 정의가 두 벌이 되고,
+# 그 둘이 어긋나면 배포판마다 다른 것이 깔린다. nfpm 은 Go 실행파일 하나라
 # 루트도 안 필요하고 CI 에서 받아 쓰기 쉽다.
 #
-# ★ 이것은 템플릿이다 ★ — @이름@ 자리를 build-installers.sh 가 채운다.
-# nfpm 자신은 contents[].src 에서 환경변수를 ★ 안 펼친다 ★ (실측: glob failed:
+# 이것은 템플릿이다 — @이름@ 자리를 build-installers.sh 가 채운다.
+# nfpm 자신은 contents[].src 에서 환경변수를 안 펼친다 (실측: glob failed:
 # ${PKG_BIN}/enode). arch·version 은 펼치지만 경로는 아니라서, 한쪽만 되는 것에
-# 기대면 나중에 조용히 어긋난다. 그래서 ★ 전부 우리가 채운다 ★.
+# 기대면 나중에 조용히 어긋난다. 그래서 전부 우리가 채운다.
 name: enode
 arch: "@ARCH@"
 platform: linux
@@ -32,9 +32,9 @@ contents:
   - src: @BIN@/enodectl
     dst: /usr/bin/enodectl
 
-  # ★ 설정은 안 넣는다 ★ — 설정 파일이 곧 신원이고(ADR-015 §2) 한 기계에
+  # 설정은 안 넣는다 — 설정 파일이 곧 신원이고(ADR-015 §2) 한 기계에
   # 노드를 여럿 세우는 것이 기본이다. 패키지가 하나를 못박으면 그 모델이
-  # 깨진다. 대신 ★ 예시를 둘 자리 ★ 와 ★ 놓을 자리 ★ 만 만든다.
+  # 깨진다. 대신 예시를 둘 자리와 놓을 자리만 만든다.
   - src: @EXAMPLES@/local.yaml
     dst: /usr/share/doc/enode/examples/local.yaml
   - src: @EXAMPLES@/qemu.yaml
@@ -48,12 +48,12 @@ contents:
     file_info:
       mode: 0755
 
-# ★ 서비스 유닛은 아직 안 넣는다 ★
+# 서비스 유닛은 아직 안 넣는다
 #
-# 진짜 이유 — 노드는 ★ 설정 파일마다 하나 ★ 다(ADR-017: 워크스페이스가 노드다).
+# 진짜 이유 — 노드는 설정 파일마다 하나 다(ADR-017: 워크스페이스가 노드다).
 # 그래서 필요한 것은 enode.service 하나가 아니라 enode@.service 템플릿이고,
 # 그것은 「어느 사용자로 도는가 · 자격증명이 어디서 오는가」를 정해야 한다.
-# ★ 그 답이 credential-gateway-survey.md 에 걸려 있다 ★ — 조사 전에 못박으면
+# 그 답이 credential-gateway-survey.md 에 걸려 있다 — 조사 전에 못박으면
 # 나중에 유닛을 갈아야 하고, 이미 깔린 기계에서 그것은 비싸다.
 #
-# ★ 여는 조건 ★ — 자격증명 게이트웨이의 답이 나오면 그때 enode@.service 를 넣는다.
+# 여는 조건 — 자격증명 게이트웨이의 답이 나오면 그때 enode@.service 를 넣는다.

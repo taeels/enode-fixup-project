@@ -33,17 +33,17 @@ type Claim struct {
 	LongPollSeconds int `yaml:"long_poll_seconds"`
 }
 
-// Notify 는 ★ 알림 웹훅 ★ 이다 (ADR-032 §4). 푸시는 보조이고 인박스가 정본이다.
+// Notify 는 알림 웹훅이다 (ADR-032 §4). 푸시는 보조이고 인박스가 정본이다.
 type Notify struct {
 	// AsksURL 로 질문이 올라올 때마다 AskEvent JSON 하나를 POST 한다.
-	// 비면 알림 없음. ★ 재시도 없음 ★ — 유실돼도 인박스에 남는다.
+	// 비면 알림 없음. 재시도 없음 — 유실돼도 인박스에 남는다.
 	AsksURL string `yaml:"asks_url"`
 }
 
-// Contract 는 ★ 계약이 실행 중에 얼마나 자랄 수 있는가 ★ 다 (ADR-031).
+// Contract 는 계약이 실행 중에 얼마나 자랄 수 있는가다 (ADR-031).
 //
-// ★ 계약이 못 건드리는 자리여야 한다 ★ — 계약을 짓는 것이 기계이므로,
-// 계약 안에 상한을 두면 ★ 기계가 자기 상한을 늘린다 ★. 종료 보장은 시스템이 쥔다
+// 계약이 못 건드리는 자리여야 한다 — 계약을 짓는 것이 기계이므로,
+// 계약 안에 상한을 두면 기계가 자기 상한을 늘린다. 종료 보장은 시스템이 쥔다
 // (ADR-022 §7.8 이 "종료 보장이 계약 밖으로 나간다" 로 예고한 자리다).
 type Contract struct {
 	// MaxVersions 는 계약의 열이 가질 수 있는 판의 최대 개수다. v1(제출본)을 포함한다.
@@ -51,7 +51,7 @@ type Contract struct {
 	MaxVersions int `yaml:"max_versions"`
 }
 
-// Lease 의 값 셋은 ★ 서로 묶여 있다 ★ (ADR-016).
+// Lease 의 값 셋은 서로 묶여 있다 (ADR-016).
 // 하트비트 주기 = 광고 만료 = 임대 갱신 주기이고, 그 값이 취소가 enode 에 닿는
 // 지연(창의 크기)도 동시에 정한다. 지금은 임시치이며 S4 에서 실측으로 고친다.
 type Lease struct {
@@ -61,12 +61,12 @@ type Lease struct {
 	// 1 이면 하트비트 한 번만 놓쳐도 죽는다 — 그건 ADR-016 이 금지한 동작이다
 	// ("실패한 하트비트 하나는 중단 신호가 아니다").
 	NotAfterFactor int `yaml:"not_after_factor"`
-	// MaxPerRun 은 ★ 한 Run 이 동시에 쥘 수 있는 노드 수 ★ 다 (ADR-024 §4.2).
+	// MaxPerRun 은 한 Run 이 동시에 쥘 수 있는 노드 수다 (ADR-024 §4.2).
 	//
-	// 임대가 (노드) 단위이고 워커가 직렬이므로 ★ 이것이 곧 폭의 상한 ★ 이다.
+	// 임대가 (노드) 단위이고 워커가 직렬이므로 이것이 곧 폭의 상한이다.
 	// 오늘의 자연 상한("requires 의 개수" — ADR-023 §12)은 사람이 선언할 때
-	// 이야기이고, acquire 를 ★ 계획이 짓기 시작하면 ★ 그 상한이 사라진다.
-	// max_versions 와 같은 이유로 ★ 계약이 못 건드리는 자리 ★ 에 둔다.
+	// 이야기이고, acquire 를 계획이 짓기 시작하면 그 상한이 사라진다.
+	// max_versions 와 같은 이유로 계약이 못 건드리는 자리에 둔다.
 	// 0 이면 무제한 — 오늘 동작 그대로다. 값은 돌려보고 정한다.
 	MaxPerRun int `yaml:"max_per_run"`
 }
@@ -77,7 +77,7 @@ func Default() Config {
 		Database:  Database{URL: "postgres:///enode"},
 		Artifacts: Artifacts{Root: "/var/lib/enode-mediator/artifacts", MaxBlobBytes: 10 << 20},
 		Claim:     Claim{LongPollSeconds: 7200}, // 2h (ADR-015 §5)
-		// v1 제출본 + 계획 + 재계획 둘 — ★ 돌려보고 정할 값이다 ★ (INVARIANTS §4).
+		// v1 제출본 + 계획 + 재계획 둘 — 돌려보고 정할 값이다 (INVARIANTS §4).
 		Contract: Contract{MaxVersions: 4},
 		Lease:    Lease{TTLSeconds: 3600, RenewSeconds: 60, NotAfterFactor: 3},
 	}
@@ -89,7 +89,7 @@ func Default() Config {
 //	                 >  ~/.config/enode-mediator/config.yaml
 //	                 >  /etc/enode-mediator/config.yaml
 //
-// ★ 사용자 경로가 시스템 경로를 이긴다 ★ — 그래야 시연에서 Mediator 가
+// 사용자 경로가 시스템 경로를 이긴다 — 그래야 시연에서 Mediator 가
 // 발표자 노트북에 평범한 사용자로 sudo 없이 뜬다 (ADR-007 D3).
 func Load(flagPath string) (Config, error) {
 	c := Default()

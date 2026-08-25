@@ -1,20 +1,20 @@
 // Command iapadapter 는 It's a Plan 과 enode 함대를 잇는 어댑터다.
 //
-// ★ 바깥을 아는 부품은 이것 하나뿐이다 ★ (ADR-040 §2).
+// 바깥을 아는 부품은 이것 하나뿐이다 (ADR-040 §2).
 // Mediator 는 It's a Plan 을 모르고 (ADR-002 의 범위를 안 넓힌다),
 // 계약도 이슈 칸 이름을 모른다. 트래커가 하나 더 붙으면 어댑터가 하나 더 는다.
 //
 // 흐름은 docs/itsaplan-adapter-example.md §1.2 그대로다:
 //
-//	① 사람이 이슈의 delegate 를 이 에이전트로 바꾼다      ★ 우리 밖 ★
+//	① 사람이 이슈의 delegate 를 이 에이전트로 바꾼다      우리 밖
 //	② 어댑터가 당긴다        POST /agent-runs/claim
 //	③ 어댑터가 오케스트레이터를 띄운다   enode --once --ready-file, labels{issue}
-//	④ 오케스트레이터가 스스로 함대에 붙는다               ★ 오늘 그대로 ★
+//	④ 오케스트레이터가 스스로 함대에 붙는다               오늘 그대로
 //	⑤ 어댑터가 광고를 기다린다
 //	⑥ 어댑터가 Run 을 낸다   POST /v1/runs  (고정 템플릿 · 추론 0)
-//	⑦ 매칭이 그 오케스트레이터를 고른다                   ★ 오늘 그대로 ★
+//	⑦ 매칭이 그 오케스트레이터를 고른다                   오늘 그대로
 //	⑧ 오케스트레이터가 계획을 짓고 함대가 실행한다
-//	⑨ 되묻기가 오면 어댑터가 코멘트로 옮긴다              ★ 손을 뗀다 ★
+//	⑨ 되묻기가 오면 어댑터가 코멘트로 옮긴다              손을 뗀다
 //	⑩ Run 이 끝나면 코멘트 · 칸 이동 · result
 //	⑪ 오케스트레이터가 --once 로 죽고 광고가 만료된다
 package main
@@ -103,7 +103,7 @@ func (a *Adapter) loadColumns(ctx context.Context) error {
 
 // Run 은 큐를 드레인한다.
 //
-// ★ 이슈마다 고루틴 하나다 ★ — 이슈 둘이 동시에 오면 오케스트레이터도 둘이고,
+// 이슈마다 고루틴 하나다 — 이슈 둘이 동시에 오면 오케스트레이터도 둘이고,
 // 설정 경로가 다르므로 node_id 도 다르다 (ADR-015). I1 이 안 부딪힌다.
 func (a *Adapter) Run(ctx context.Context, once bool) {
 	for {
@@ -164,7 +164,7 @@ func (a *Adapter) handle(ctx context.Context, rr *RunnerRun) {
 		return
 	}
 
-	// 하트비트를 끝까지 돌린다 — ★ 리스가 만료되면 같은 일감이 다시 나온다 ★.
+	// 하트비트를 끝까지 돌린다 — 리스가 만료되면 같은 일감이 다시 나온다.
 	hbCtx, hbStop := context.WithCancel(ctx)
 	defer hbStop()
 	go a.heartbeat(hbCtx, rr.ID)
@@ -199,7 +199,7 @@ func (a *Adapter) handleNewWork(ctx context.Context, rr *RunnerRun) {
 	issueKey := rr.IssueIdentifier
 	log := a.log.With("issue", issueKey, "agent_run", rr.ID)
 
-	// ★ run_id 를 이슈에서 유도한다 ★ — 어댑터가 죽어도 답이 왔을 때 같은
+	// run_id 를 이슈에서 유도한다 — 어댑터가 죽어도 답이 왔을 때 같은
 	// 이름을 다시 계산할 수 있다. ADR-040 §3.5 가 어댑터 DB 를 기각한 이유가
 	// 그것이고, 유도 가능하면 표 자체가 필요 없다.
 	runID, err := a.nextRunID(ctx, issueKey)
@@ -222,8 +222,8 @@ func (a *Adapter) handleNewWork(ctx context.Context, rr *RunnerRun) {
 		a.failOut(ctx, rr, "오케스트레이터를 못 띄웠다: "+err.Error())
 		return
 	}
-	// ★ 되묻기로 손을 뗄 때는 안 죽인다 ★ — 답이 오면 그 자리에서 이어야 한다.
-	// ★ 그래도 거두기는 한다 ★ — 안 그러면 그 판마다 좀비가 하나씩 쌓인다.
+	// 되묻기로 손을 뗄 때는 안 죽인다 — 답이 오면 그 자리에서 이어야 한다.
+	// 그래도 거두기는 한다 — 안 그러면 그 판마다 좀비가 하나씩 쌓인다.
 	keepAlive := false
 	defer func() {
 		if keepAlive {
@@ -278,7 +278,7 @@ func (a *Adapter) follow(ctx context.Context, rr *RunnerRun, runID, issueKey str
 			return false
 		}
 
-		// ★ 되묻기 ★ — 인박스가 정본이다 (ADR-032 §4).
+		// 되묻기 — 인박스가 정본이다 (ADR-032 §4).
 		ask, err := a.med.AskFor(ctx, runID)
 		if err != nil || ask == nil {
 			continue
@@ -288,11 +288,11 @@ func (a *Adapter) follow(ctx context.Context, rr *RunnerRun, runID, issueKey str
 	}
 }
 
-// handOff 는 되묻기를 이슈로 내보내고 ★ 손을 뗀다 ★.
+// handOff 는 되묻기를 이슈로 내보내고 손을 뗀다.
 //
-// ★ 실행을 붙잡고 기다리면 실패로 끝난다 ★ (integration §6.2 의 함정) —
+// 실행을 붙잡고 기다리면 실패로 끝난다 (integration §6.2 의 함정) —
 // It's a Plan 의 리스는 300초이고 사람은 그보다 오래 걸린다. 그래서 result 는
-// success 다: ★ 실패가 아니라 손을 뗀 것 ★ (ADR-040 §4).
+// success 다: 실패가 아니라 손을 뗀 것 (ADR-040 §4).
 func (a *Adapter) handOff(ctx context.Context, rr *RunnerRun, run *RunView, ask *AskView, log *slog.Logger) {
 	commentID, err := a.iap.Comment(ctx, *rr.IssueID, RenderQuestion(ask, run.RunID), 0)
 	if err != nil {
@@ -302,10 +302,10 @@ func (a *Adapter) handOff(ctx context.Context, rr *RunnerRun, run *RunView, ask 
 	}
 	log.Info("질문을 코멘트로 옮겼다", "comment", commentID, "step", ask.Step, "seq", ask.Seq)
 
-	// ★ 밖에 남긴 것도 산출물이다 ★ (ADR-040 §3.3).
+	// 밖에 남긴 것도 산출물이다 (ADR-040 §3.3).
 	//
 	// 어댑터의 표가 아니라 blob 으로 낸다 — 그러면 원장에 저절로 나타나고
-	// 봉인에 저절로 남는다. ★ 새 부품이 0 개다 ★. 밑줄 예약이 이름 충돌을
+	// 봉인에 저절로 남는다. 새 부품이 0 개다. 밑줄 예약이 이름 충돌을
 	// 막으므로 계약이 이 이름을 못 쓴다 (ADR-023 §6.3.1).
 	ob, _ := json.Marshal(map[string]any{
 		"system":  "itsaplan",
@@ -316,7 +316,7 @@ func (a *Adapter) handOff(ctx context.Context, rr *RunnerRun, run *RunView, ask 
 		"at":      time.Now().UTC().Format(time.RFC3339Nano),
 	})
 	if err := a.med.PutBlob(ctx, run.RunID, ask.Seq, "_outbound", ob); err != nil {
-		// ★ 막지 않는다 ★ — 질문은 이미 나갔다. 다만 답을 맞출 재료가 약해지므로
+		// 막지 않는다 — 질문은 이미 나갔다. 다만 답을 맞출 재료가 약해지므로
 		// 크게 적는다.
 		log.Error("_outbound 를 못 남겼다; 답 매칭이 약해진다", "err", err)
 	}
@@ -329,7 +329,7 @@ func (a *Adapter) handOff(ctx context.Context, rr *RunnerRun, run *RunView, ask 
 	}
 }
 
-// finish 는 끝난 Run 을 밖으로 넘긴다 — ★ 셋으로 갈린다 ★ (ADR-040 §1).
+// finish 는 끝난 Run 을 밖으로 넘긴다 — 셋으로 갈린다 (ADR-040 §1).
 func (a *Adapter) finish(ctx context.Context, rr *RunnerRun, run *RunView, log *slog.Logger) {
 	// ② 사람이 읽는 것
 	summary := summaryOf(ctx, a.med, run.RunID)
@@ -344,7 +344,7 @@ func (a *Adapter) finish(ctx context.Context, rr *RunnerRun, run *RunView, log *
 	}
 	a.move(ctx, *rr.IssueID, col, log)
 
-	// ① 기계가 읽는 것 — ★ 우리 완주 판정이 그대로 사상된다 ★
+	// ① 기계가 읽는 것 — 우리 완주 판정이 그대로 사상된다
 	status := "failed"
 	errMsg := ""
 	if run.State == "SUCCEEDED" {
@@ -369,7 +369,7 @@ func (a *Adapter) failOut(ctx context.Context, rr *RunnerRun, msg string) {
 
 // move 는 칸을 옮긴다. 이름이 비었거나 모르면 안 옮긴다.
 //
-// ★ 실패해도 되돌릴 것이 없다 ★ (ADR-040 §6) — 판정은 이미 끝났다.
+// 실패해도 되돌릴 것이 없다 (ADR-040 §6) — 판정은 이미 끝났다.
 func (a *Adapter) move(ctx context.Context, issueID int, columnName string, log *slog.Logger) {
 	if columnName == "" || a.columns == nil {
 		return
@@ -387,29 +387,29 @@ func (a *Adapter) move(ctx context.Context, issueID int, columnName string, log 
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// 답 — 사람이 질문 코멘트에 답글을 달면 ★ 새 mention run ★ 으로 온다
+// 답 — 사람이 질문 코멘트에 답글을 달면 새 mention run으로 온다
 // ───────────────────────────────────────────────────────────────────────────
 
-// ★ \b 를 쓰면 안 된다 ★ — Go 의 RE2 에서 \b 는 ASCII 낱말 경계라
+// \b 를 쓰면 안 된다 — Go 의 RE2 에서 \b 는 ASCII 낱말 경계라
 // "승인" 이 한 번도 안 걸린다. 시험이 그것을 잡았다.
 var verdictRe = regexp.MustCompile(
 	`(?i)(?:^|[^0-9A-Za-z])(ok|again|approve|reject|승인|거절)(?:[^0-9A-Za-z]|$)`)
 
 // handleAnswer 는 답글로 온 일감을 되묻기의 답으로 옮긴다.
 //
-// ★ 상관관계 식별자가 구조에 없다 ★ (실측 ③) — 그래서 (이슈, 우리가 남긴 질문
+// 상관관계 식별자가 구조에 없다 (실측 ③) — 그래서 (이슈, 우리가 남긴 질문
 // 코멘트 번호)로 맞춘다. 그 번호는 _outbound 산출물에 있고, 원장이 scope:"work"
-// 이므로 ★ 이전 Run 이 낸 것까지 보인다 ★ (ADR-040 §3.4).
+// 이므로 이전 Run 이 낸 것까지 보인다 (ADR-040 §3.4).
 func (a *Adapter) handleAnswer(ctx context.Context, rr *RunnerRun) {
 	issueKey := rr.IssueIdentifier
 	log := a.log.With("issue", issueKey, "agent_run", rr.ID)
 
 	runID, ask, err := a.findOpenAsk(ctx, issueKey)
 	if err != nil || ask == nil {
-		// ★ 열린 질문이 없다고 할 일이 없는 것은 아니다 ★ — 어댑터가 죽거나
+		// 열린 질문이 없다고 할 일이 없는 것은 아니다 — 어댑터가 죽거나
 		// 재시작하면 이미 끝난 Run 의 결과가 아직 안 나갔을 수 있다.
 		// Mediator 와 노드는 어댑터를 모르므로 Run 은 어댑터 없이도 끝난다
-		// (adapter-example §2). 그래서 ★ 끝난 것을 다시 찾아 넘긴다 ★.
+		// (adapter-example §2). 그래서 끝난 것을 다시 찾아 넘긴다.
 		if a.reportUnreported(ctx, rr, issueKey, log) {
 			return
 		}
@@ -444,8 +444,8 @@ func (a *Adapter) handleAnswer(ctx context.Context, rr *RunnerRun) {
 
 // reportUnreported 는 끝났는데 아직 밖으로 안 넘긴 Run 을 찾아 넘긴다.
 //
-// ★ 중복을 어떻게 막나 ★ — 어댑터가 표를 들면 ADR-040 §3.5 가 기각한 것으로
-// 되돌아간다. 그래서 ★ 이슈 자신에게 물어본다 ★: 결과 코멘트의 꼬리표에
+// 중복을 어떻게 막나 — 어댑터가 표를 들면 ADR-040 §3.5 가 기각한 것으로
+// 되돌아간다. 그래서 이슈 자신에게 물어본다: 결과 코멘트의 꼬리표에
 // run_id 가 들어 있으므로, 그것이 피드에 있으면 이미 넘긴 것이다.
 func (a *Adapter) reportUnreported(ctx context.Context, rr *RunnerRun, issueKey string, log *slog.Logger) bool {
 	runID, run := a.latestRun(ctx, issueKey)
@@ -483,7 +483,7 @@ func (a *Adapter) latestRun(ctx context.Context, issueKey string) (string, *RunV
 
 // findOpenAsk 는 이 이슈의 열린 되묻기를 찾는다.
 //
-// ★ 어댑터가 표를 안 든다 ★ — 인박스를 훑고, run_id 가 이 이슈에서 유도된
+// 어댑터가 표를 안 든다 — 인박스를 훑고, run_id 가 이 이슈에서 유도된
 // 이름인지로 가른다. 어댑터가 재시작해도 그대로 성립한다.
 func (a *Adapter) findOpenAsk(ctx context.Context, issueKey string) (string, *AskView, error) {
 	asks, err := a.med.Asks(ctx)
@@ -497,7 +497,7 @@ func (a *Adapter) findOpenAsk(ctx context.Context, issueKey string) (string, *As
 		if !strings.HasPrefix(asks[i].RunID, prefix) {
 			continue
 		}
-		// 세대가 여럿이면 ★ 가장 최근 것 ★ 을 고른다.
+		// 세대가 여럿이면 가장 최근 것을 고른다.
 		if bestRun == "" || asks[i].RunID > bestRun {
 			best = &asks[i]
 			bestRun = asks[i].RunID
@@ -511,11 +511,11 @@ func (a *Adapter) findOpenAsk(ctx context.Context, issueKey string) (string, *As
 
 // parseAnswer 는 답글 본문에서 판정과 이유를 뽑는다.
 //
-// ★ It's a Plan 에 폼이 없다 ★ (ADR-040 §4) — 스키마 강제는 우리 쪽에 남으므로
-// 여기서 자연어를 스키마에 맞춘다. 못 맞추면 ★ 질문은 열린 채 남는다 ★.
+// It's a Plan 에 폼이 없다 (ADR-040 §4) — 스키마 강제는 우리 쪽에 남으므로
+// 여기서 자연어를 스키마에 맞춘다. 못 맞추면 질문은 열린 채 남는다.
 func parseAnswer(prompt string) (verdict, note string) {
 	// 답 run 의 프롬프트는 스레드를 통째로 싣는다 (실측 §10.5.2). 우리가 찾는
-	// 것은 ★ 우리를 부른 그 코멘트 ★ 이므로 그 표지 뒤를 본다.
+	// 것은 우리를 부른 그 코멘트 이므로 그 표지 뒤를 본다.
 	body := prompt
 	for _, marker := range []string{
 		"The comment that mentioned you:",
@@ -553,7 +553,7 @@ func runIDPrefix(issueKey string) string { return "itsaplan-" + issueKey + "-" }
 
 // nextRunID 는 이 이슈의 다음 세대 이름을 고른다.
 //
-// ★ 표가 아니라 탐침이다 ★ — itsaplan-EP-2-1 부터 올려 보며 없는 첫 이름을
+// 표가 아니라 탐침이다 — itsaplan-EP-2-1 부터 올려 보며 없는 첫 이름을
 // 쓴다. 어댑터가 죽어도, 다시 떠도, 같은 규칙이 같은 답을 준다.
 func (a *Adapter) nextRunID(ctx context.Context, issueKey string) (string, error) {
 	prefix := runIDPrefix(issueKey)

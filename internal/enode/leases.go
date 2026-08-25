@@ -7,20 +7,20 @@ import (
 
 // Held 는 이 노드가 지금 들고 있는 임대다.
 //
-// ★ 하트비트 응답으로 통째로 교체된다 ★ (ADR-016) — 목록은 델타가 아니라
+// 하트비트 응답으로 통째로 교체된다 (ADR-016) — 목록은 델타가 아니라
 // 전부이므로, 목록에서 빠지는 것이 곧 취소 통보다. 병합하면 그 뜻이 사라진다.
 type Held struct {
 	mu     sync.RWMutex
 	byRun  map[string]Lease
 	lastOK time.Time
 
-	// everHeld 는 ★ 한 번이라도 일을 집었는가 ★ 다 (--once). EverHeld 를 보라.
+	// everHeld 는 한 번이라도 일을 집었는가다 (--once). EverHeld 를 보라.
 	everHeld bool
 }
 
 func NewHeld() *Held { return &Held{byRun: map[string]Lease{}} }
 
-// Set 은 ★ 교체한다 ★. 없어진 임대는 없어진 것이다.
+// Set 은 교체한다. 없어진 임대는 없어진 것이다.
 func (h *Held) Set(ls []Lease) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -41,18 +41,18 @@ func (h *Held) Add(l Lease) {
 	h.everHeld = true
 }
 
-// EverHeld 는 ★ 이 노드가 한 번이라도 일을 집었는가 ★ 다 (--once).
+// EverHeld 는 이 노드가 한 번이라도 일을 집었는가다 (--once).
 //
-// ★ 왜 Set 이 아니라 Add 에서 세는가 ★ — Set 은 광고 응답이고 주기가 길다
-// (기본 60초). ★ 그보다 짧은 Run 은 광고가 임대를 한 번도 못 본다 ★:
+// 왜 Set 이 아니라 Add 에서 세는가 — Set 은 광고 응답이고 주기가 길다
+// (기본 60초). 그보다 짧은 Run 은 광고가 임대를 한 번도 못 본다:
 //
 //	광고 t=0    leases: []          ← 아직 일이 없다
 //	claim → 단계 실행 → Run 종료 (37초)
-//	광고 t=60   leases: []          ← ★ 이미 끝나서 임대가 없다 ★
+//	광고 t=60   leases: []          ← 이미 끝나서 임대가 없다
 //	                                  ⇒ 「한 번이라도 있었나」를 못 잰다
 //
-// ★ 실측에서 밟았다 ★ (2026-08-24) — --once 로 띄운 탄력 노드가 Run 을
-// 마쳤는데 종료하지 않았다. claim 은 임대를 ★ 확실히 ★ 지나므로 여기서 센다.
+// 실측에서 밟았다 (2026-08-24) — --once 로 띄운 탄력 노드가 Run 을
+// 마쳤는데 종료하지 않았다. claim 은 임대를 확실히 지나므로 여기서 센다.
 func (h *Held) EverHeld() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -61,7 +61,7 @@ func (h *Held) EverHeld() bool {
 
 // Valid 는 이 Run 의 단계를 지금 시작해도 되는지다.
 //
-// ★ 권위는 not_after 이지 응답의 유무가 아니다 ★ (ADR-016) —
+// 권위는 not_after 이지 응답의 유무가 아니다 (ADR-016) —
 // 하트비트가 한 번 실패했다고 멈추지 않는다. 갱신을 못 받는 동안 not_after 가
 // 다가오고, 지나면 그때 멈춘다. 뒤집으면 네트워크가 한 번 끊길 때마다 빌드가 죽는다.
 func (h *Held) Valid(runID string) (Lease, bool) {

@@ -6,7 +6,7 @@
 //	runctl record  <run-id> [-o out.tar]
 //	runctl cancel  <run-id>
 //
-// ★ runctl 은 무상태다 ★ — 제출하고 잊는다. 죽어도 Run 은 계속 돈다.
+// runctl 은 무상태다 — 제출하고 잊는다. 죽어도 Run 은 계속 돈다.
 package main
 
 import (
@@ -28,15 +28,15 @@ import (
 	"github.com/taeels/enode/internal/runctl"
 )
 
-// ★ CLI 종료코드는 0~3 이다 ★ (INVARIANTS §4 「에러 코드 체계」)
+// CLI 종료코드는 0~3 이다 (INVARIANTS §4 「에러 코드 체계」)
 //
 // 와이어는 HTTP 를 쓰고 CLI 는 이 넷을 쓴다 — 경계가 둘이라 하나로 통일하지 않는다.
 // 셸 스크립트가 필요로 하는 구분은 "일이 실패했나 / 내 요청이 틀렸나 / 시스템이 죽었나" 다.
 const (
 	exitOK      = 0 // Run 이 SUCCEEDED
-	exitRunFail = 1 // ★ Run 이 FAILED ★ — 요청은 정상이었다
-	exitRequest = 2 // ★ 요청이 거절됐다 ★ (4xx) — 계약을 고치거나 나중에 다시
-	exitSystem  = 3 // ★ Mediator 에 못 닿았다 ★ 또는 내부 오류
+	exitRunFail = 1 // Run 이 FAILED — 요청은 정상이었다
+	exitRequest = 2 // 요청이 거절됐다 (4xx) — 계약을 고치거나 나중에 다시
+	exitSystem  = 3 // Mediator 에 못 닿았다 또는 내부 오류
 )
 
 func main() { os.Exit(run()) }
@@ -72,7 +72,7 @@ func permute(args []string) []string {
 }
 
 func run() int {
-	// ★ --version 은 플래그 파싱보다 앞이다 ★ (ADR-056) — 토큰이 없어도 답한다.
+	// --version 은 플래그 파싱보다 앞이다 (ADR-056) — 토큰이 없어도 답한다.
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
 		fmt.Println(build.Version("runctl"))
 		return 0
@@ -86,9 +86,9 @@ func run() int {
 	var sets stringList
 	flag.Var(&sets, "set", "answer field=value (repeatable; values are strings)")
 	flag.Usage = usage
-	// ★ 표준 flag 는 첫 위치인자에서 파싱을 멈춘다 ★
+	// 표준 flag 는 첫 위치인자에서 파싱을 멈춘다
 	// 그런데 사람은 `runctl submit x.json --wait` 라고 쓴다. 그 순서를 안 받으면
-	// 플래그가 조용히 무시되고, ★ 조용한 무시가 가장 나쁘다 ★.
+	// 플래그가 조용히 무시되고, 조용한 무시가 가장 나쁘다.
 	flag.CommandLine.Parse(permute(os.Args[1:]))
 
 	// capabilities 는 인자가 없다.
@@ -103,7 +103,7 @@ func run() int {
 		return exitRequest
 	}
 
-	// ★ 신원은 git config 에서 읽는다 ★ — 사람이 두 곳에 같은 사실을 적지 않는다.
+	// 신원은 git config 에서 읽는다 — 사람이 두 곳에 같은 사실을 적지 않는다.
 	// 없으면 그 자리에서 죽는다 (ADR-015 §1).
 	principal, err := runctl.Principal()
 	if err != nil {
@@ -153,14 +153,14 @@ func run() int {
 		for _, a := range asks {
 			mark := " "
 			if a.CanAnswer {
-				mark = "★" // 내가 답할 수 있는 것
+				mark = "" // 내가 답할 수 있는 것
 			}
 			line := fmt.Sprintf("%s %s #%d %-14s %s", mark, a.RunID, a.Seq, a.Step, a.Prompt)
 			if a.Deadline != nil {
 				line += fmt.Sprintf("  (deadline %s)", a.Deadline.Local().Format("01-02 15:04"))
 			}
 			fmt.Println(line)
-			// ★ 질문과 함께 볼 것 ★ (ask.show) — 보지 않고 답하게 만들지 않는다.
+			// 질문과 함께 볼 것 (ask.show) — 보지 않고 답하게 만들지 않는다.
 			for _, sh := range a.Shown {
 				c := string(sh.Content)
 				if len(c) > 300 {
@@ -172,12 +172,12 @@ func run() int {
 				}
 				fmt.Printf("    ┆ %s%s: %s\n", sh.Name, mark2, c)
 			}
-			// ★ 제안된 판정 기준 ★ (adopts) — 무엇을 승인하는지 보여준다.
+			// 제안된 판정 기준 (adopts) — 무엇을 승인하는지 보여준다.
 			if len(a.Proposes) > 0 {
 				pb, _ := json.Marshal(a.Proposes)
 				fmt.Printf("    | proposed success criteria: %s\n", pb)
 			}
-			// ★ 스키마가 곧 질문의 형태다 ★ — 무엇을 적어야 하는지 보여준다.
+			// 스키마가 곧 질문의 형태다 — 무엇을 적어야 하는지 보여준다.
 			var form struct {
 				Required   []string                          `json:"required"`
 				Properties map[string]map[string]interface{} `json:"properties"`
@@ -226,7 +226,7 @@ func run() int {
 			fmt.Fprintln(os.Stderr, "invalid step sequence:", flag.Arg(2))
 			return exitRequest
 		}
-		// ★ 답을 조립한다 ★ — --json 이 통짜, --set k=v 가 문자열 필드.
+		// 답을 조립한다 — --json 이 통짜, --set k=v 가 문자열 필드.
 		answer := map[string]any{}
 		if *answerJSON != "" {
 			if err := json.Unmarshal([]byte(*answerJSON), &answer); err != nil {
@@ -337,7 +337,7 @@ func report(err error) int {
 	return exitSystem
 }
 
-// verdictCode 는 ★ Run 의 성패 ★ 를 종료코드로 옮긴다.
+// verdictCode 는 Run 의 성패를 종료코드로 옮긴다.
 // 요청이 정상이었는데 일이 실패한 것이므로 2 가 아니라 1 이다.
 func verdictCode(r *runctl.Run) int {
 	if r.State == "SUCCEEDED" {
@@ -348,7 +348,7 @@ func verdictCode(r *runctl.Run) int {
 
 func printRun(r *runctl.Run) {
 	fmt.Printf("%s  %s\n", r.RunID, r.State)
-	// ★ 경고를 먼저 찍는다 ★ (ADR-061 §2) — 제출은 됐지만 뜻대로 안 도는 것이
+	// 경고를 먼저 찍는다 (ADR-061 §2) — 제출은 됐지만 뜻대로 안 도는 것이
 	// 있으면 그것부터 보여야 한다. 아래 줄들에 묻히면 못 읽는다.
 	for _, wmsg := range r.Warnings {
 		fmt.Printf("  ▲ %s\n", wmsg)
@@ -358,14 +358,14 @@ func printRun(r *runctl.Run) {
 			fmt.Printf("  %-10s %s  %s\n", a.As, n.Node, n.Label)
 		}
 	}
-	// ★ 폭이 1 을 넘으면 Run 상태 한 줄로는 안 보인다 ★ (ADR-025) —
+	// 폭이 1 을 넘으면 Run 상태 한 줄로는 안 보인다 (ADR-025) —
 	// 어느 가지가 어디까지 갔고 지금 도는 것이 어느 기계인지를 여기서 읽는다.
 	for _, st := range r.Steps {
 		line := fmt.Sprintf("  %2d %-16s %-8s %s", st.Seq, st.ID, st.State, st.Node)
 		if st.Attempt > 0 {
 			line += fmt.Sprintf("  (attempt %d)", st.Attempt+1)
 		}
-		// 기다리는 중이면 ★ 무엇을 기다리는지 ★ 를 같이 보여준다.
+		// 기다리는 중이면 무엇을 기다리는지를 같이 보여준다.
 		if st.State == "PENDING" && len(st.Needs) > 0 {
 			line += "  ← " + strings.Join(st.Needs, " · ")
 		}
