@@ -20,11 +20,11 @@ func TestFailCarriesWireCode(t *testing.T) {
 	for _, code := range []int{400, 409, 422, 503} {
 		c, done := newClient(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(code)
-			_, _ = w.Write([]byte(`{"error":{"code":` + itoa(code) + `,"reason":"이유"}}`))
+			_, _ = w.Write([]byte(`{"error":{"code":` + itoa(code) + `,"reason":"why"}}`))
 		})
 		_, err := c.Status(context.Background(), "r")
 		var f *Fail
-		if !errors.As(err, &f) || f.Code != code || f.Reason != "이유" {
+		if !errors.As(err, &f) || f.Code != code || f.Reason != "why" {
 			t.Fatalf("code=%d → %v", code, err)
 		}
 		done()

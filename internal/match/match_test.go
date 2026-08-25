@@ -33,7 +33,7 @@ func assigned(t *testing.T, as []Assignment, role string) []string {
 			return a.Nodes
 		}
 	}
-	t.Fatalf("역할 %q 가 배정에 없다: %+v", role, as)
+	t.Fatalf("role %q is missing from the assignment: %+v", role, as)
 	return nil
 }
 
@@ -45,7 +45,7 @@ func TestMatchHappyPath(t *testing.T) {
 	}
 	got, rej := Match(reqs, fleet, nil)
 	if rej != nil {
-		t.Fatalf("거절됐다: %v", rej)
+		t.Fatalf("rejected: %v", rej)
 	}
 	if n := assigned(t, got, "brain"); !reflect.DeepEqual(n, []string{"n01-mac"}) {
 		t.Fatalf("brain=%v", n)
@@ -68,27 +68,27 @@ func TestMatchRejectCodes(t *testing.T) {
 		code int
 	}{
 		{
-			"어휘가 함대에 없다 → 영구",
+			"vocabulary absent from the fleet → permanent",
 			[]contract.Require{req("v", 0, map[string]string{"machine": "qemu-virt-armv7"})},
 			nil, CodeNoCandidate,
 		},
 		{
-			"속성 값이 다르다 → 영구",
+			"attribute value differs → permanent",
 			[]contract.Require{req("b", 0, map[string]string{"arch": "riscv64"})},
 			nil, CodeNoCandidate,
 		},
 		{
-			"count 가 총수를 넘는다 → 영구",
+			"count exceeds the total → permanent",
 			[]contract.Require{req("vs", 8, map[string]string{"repo": "corp/linux"})},
 			nil, CodeNoCandidate,
 		},
 		{
-			"후보는 있는데 점유됨 → 일시",
+			"candidates exist but are held → temporary",
 			[]contract.Require{req("board", 0, map[string]string{"board": "SoC-X"})},
 			map[string]bool{"n03-board": true}, CodeAllBusy,
 		},
 		{
-			"count 는 되는데 지금 모자람 → 일시",
+			"count is reachable but short right now → temporary",
 			[]contract.Require{req("vs", 2, map[string]string{"repo": "corp/linux"})},
 			map[string]bool{"n01-mac": true}, CodeAllBusy,
 		},
@@ -97,14 +97,14 @@ func TestMatchRejectCodes(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			got, rej := Match(c.reqs, fleet, c.busy)
 			if rej == nil {
-				t.Fatalf("통과해버렸다: %+v", got)
+				t.Fatalf("it passed: %+v", got)
 			}
 			if rej.Code != c.code {
-				t.Fatalf("code=%d 기대 %d (%s)", rej.Code, c.code, rej.Reason)
+				t.Fatalf("code=%d, want %d (%s)", rej.Code, c.code, rej.Reason)
 			}
 			// I5 — 하나라도 실패하면 아무것도 배정하지 않는다.
 			if got != nil {
-				t.Fatalf("거절인데 배정이 남았다: %+v", got)
+				t.Fatalf("rejected, yet an assignment remains: %+v", got)
 			}
 		})
 	}
@@ -113,18 +113,18 @@ func TestMatchRejectCodes(t *testing.T) {
 // I5 — 전부 아니면 전무. 앞의 요구가 되더라도 뒤가 안 되면 전부 없다.
 func TestMatchAllOrNothing(t *testing.T) {
 	reqs := []contract.Require{
-		req("brain", 0, map[string]string{"harness": "claude"}), // 된다
-		req("board", 0, map[string]string{"board": "SoC-Y"}),    // 없다
+		req("brain", 0, map[string]string{"harness": "claude"}), // matches
+		req("board", 0, map[string]string{"board": "SoC-Y"}),    // absent
 	}
 	got, rej := Match(reqs, fleet, nil)
 	if rej == nil {
-		t.Fatal("통과해버렸다")
+		t.Fatal("it passed")
 	}
 	if rej.As != "board" {
-		t.Fatalf("어느 역할에서 깨졌는지가 안 나온다: %+v", rej)
+		t.Fatalf("which role broke is not reported: %+v", rej)
 	}
 	if got != nil {
-		t.Fatalf("I5 위반 부분 배정이 남았다: %+v", got)
+		t.Fatalf("I5 violated: a partial assignment remains: %+v", got)
 	}
 }
 
@@ -140,10 +140,10 @@ func TestMatchOneNodeTwoRoles(t *testing.T) {
 	}
 	got, rej := Match(reqs, both, nil)
 	if rej != nil {
-		t.Fatalf("거절됐다: %v", rej)
+		t.Fatalf("rejected: %v", rej)
 	}
 	if assigned(t, got, "builder")[0] != "n9" || assigned(t, got, "board")[0] != "n9" {
-		t.Fatalf("같은 노드가 두 역할을 못 맡았다: %+v", got)
+		t.Fatalf("one node could not take two roles: %+v", got)
 	}
 }
 
@@ -152,11 +152,11 @@ func TestMatchCountDistinct(t *testing.T) {
 	reqs := []contract.Require{req("vs", 2, map[string]string{"repo": "corp/linux"})}
 	got, rej := Match(reqs, fleet, nil)
 	if rej != nil {
-		t.Fatalf("거절됐다: %v", rej)
+		t.Fatalf("rejected: %v", rej)
 	}
 	n := assigned(t, got, "vs")
 	if len(n) != 2 || n[0] == n[1] {
-		t.Fatalf("count 안에서 중복됐다: %v", n)
+		t.Fatalf("duplicated within count: %v", n)
 	}
 }
 
@@ -168,7 +168,7 @@ func TestMatchDeterministic(t *testing.T) {
 	a, _ := Match(reqs, fleet, nil)
 	b, _ := Match(reqs, shuffled, nil)
 	if !reflect.DeepEqual(a, b) {
-		t.Fatalf("입력 순서가 배정을 바꿨다: %+v vs %+v", a, b)
+		t.Fatalf("input order changed the assignment: %+v vs %+v", a, b)
 	}
 }
 
@@ -179,10 +179,10 @@ func TestMatchDoesNotMutate(t *testing.T) {
 	busy := map[string]bool{"n01-mac": true}
 	Match([]contract.Require{req("b", 0, map[string]string{"arch": "armv7"})}, fleet, busy)
 	if !reflect.DeepEqual(before, fleet) {
-		t.Fatal("광고 목록이 변형됐다")
+		t.Fatal("the advertisement list was mutated")
 	}
 	if len(busy) != 1 || !busy["n01-mac"] {
-		t.Fatal("점유 장부가 변형됐다")
+		t.Fatal("the hold ledger was mutated")
 	}
 }
 
@@ -193,19 +193,19 @@ func TestMatchDoesNotMutate(t *testing.T) {
 // 코드가 존재하는 이유가 "재시도해도 되는지" 를 알려주는 것이므로 그건 틀렸다.
 func TestMatchPermanentBeatsTransient(t *testing.T) {
 	reqs := []contract.Require{
-		req("busy", 0, map[string]string{"harness": "claude"}), // 있는데 점유됨 → 일시
-		req("never", 0, map[string]string{"board": "SoC-Z"}),   // 함대에 없음 → 영구
+		req("busy", 0, map[string]string{"harness": "claude"}), // exists but held → temporary
+		req("never", 0, map[string]string{"board": "SoC-Z"}),   // absent from the fleet → permanent
 	}
 	_, rej := Match(reqs, fleet, map[string]bool{"n01-mac": true})
 	if rej == nil {
-		t.Fatal("통과해버렸다")
+		t.Fatal("it passed")
 	}
 	if rej.Code != CodeNoCandidate {
-		t.Fatalf("code=%d 기대 %d — 영구 문제가 있는데 재시도하라고 답했다 (%s)",
+		t.Fatalf("code=%d, want %d — told to retry despite a permanent problem (%s)",
 			rej.Code, CodeNoCandidate, rej.Reason)
 	}
 	if rej.As != "never" {
-		t.Fatalf("어느 역할이 영구인지가 안 나온다: %+v", rej)
+		t.Fatalf("which role is permanent is not reported: %+v", rej)
 	}
 }
 
@@ -213,7 +213,7 @@ func TestMatchPermanentBeatsTransient(t *testing.T) {
 //
 // 매칭이 부분집합이라 속성이 많은 노드일수록 더 많은 요구에 걸린다.
 // 그것을 흔한 요구에 내주면 하나뿐인 자원이 묶인다 — 실측에서 밟았다.
-func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
+func TestMatch_SpendsScarceNodesLast(t *testing.T) {
 	adverts := []contract.Advert{
 		// node_id 순으로는 보드 노드가 먼저다 — 옛 규칙이면 이것이 뽑힌다.
 		{NodeID: "a-board", Capabilities: []contract.Capability{{
@@ -228,10 +228,10 @@ func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
 
 	got, rej := Match(reqs, adverts, map[string]bool{})
 	if rej != nil {
-		t.Fatalf("배정 실패: %v", rej)
+		t.Fatalf("assignment failed: %v", rej)
 	}
 	if got[0].Nodes[0] != "z-brain" {
-		t.Fatalf("희소한 노드를 내줬다: %q — 보드가 하나뿐인데 추론에 잡혔다",
+		t.Fatalf("gave away a scarce node: %q — the only board went to reasoning",
 			got[0].Nodes[0])
 	}
 
@@ -240,7 +240,7 @@ func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
 		Attrs: map[string]string{"board": "SoC-X"}}}
 	got2, rej2 := Match(boardReq, adverts, map[string]bool{})
 	if rej2 != nil || got2[0].Nodes[0] != "a-board" {
-		t.Fatalf("보드 요구가 어긋났다: %v %v", got2, rej2)
+		t.Fatalf("the board requirement did not hold: %v %v", got2, rej2)
 	}
 
 	// 동점은 node_id 가 가른다 — 같은 입력이면 같은 배정이어야 한다.
@@ -253,7 +253,7 @@ func TestMatch_희소한_노드를_아껴_고른다(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		g, _ := Match(reqs, tie, map[string]bool{})
 		if g[0].Nodes[0] != "n1" {
-			t.Fatalf("동점 배정이 흔들린다: %q — 매처는 순수 함수여야 한다", g[0].Nodes[0])
+			t.Fatalf("tie-breaking wobbles: %q — the matcher must be a pure function", g[0].Nodes[0])
 		}
 	}
 }

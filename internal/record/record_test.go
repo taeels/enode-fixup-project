@@ -39,21 +39,21 @@ func TestSealMakesItImmutable(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !s.Sealed("r") {
-		t.Fatal("봉인 표시가 안 됐다")
+		t.Fatal("the seal mark is missing")
 	}
 	d := s.dir("r")
 
 	// 덮어쓰기가 막혀야 한다
 	if err := os.WriteFile(filepath.Join(d, "verdict.json"), []byte("tampered"), 0o644); err == nil {
-		t.Fatal("I4 위반 봉인된 파일이 덮어써졌다")
+		t.Fatal("I4 violated: a sealed file was overwritten")
 	}
 	// 새 파일 주입도 막혀야 한다
 	if err := os.WriteFile(filepath.Join(d, "steps", "03-injected.json"), []byte("{}"), 0o644); err == nil {
-		t.Fatal("I4 위반 봉인된 디렉터리에 파일이 주입됐다")
+		t.Fatal("I4 violated: a file was injected into a sealed directory")
 	}
 	// 읽기는 되어야 한다 — 봉인은 잠그는 것이지 숨기는 것이 아니다
 	if _, err := os.ReadFile(filepath.Join(d, "manifest.json")); err != nil {
-		t.Fatalf("봉인된 것을 못 읽는다: %v", err)
+		t.Fatalf("cannot read what was sealed: %v", err)
 	}
 }
 
@@ -67,14 +67,14 @@ func TestSealIsIdempotent(t *testing.T) {
 	// 두 번째 봉인이 내용을 바꾸면 안 된다
 	if err := s.Seal("r", map[string]any{"run_id": "r", "state": "TAMPERED"},
 		map[string]any{"state": "TAMPERED"}, nil); err != nil {
-		t.Fatalf("두 번째 봉인이 에러를 냈다: %v", err)
+		t.Fatalf("the second seal returned an error: %v", err)
 	}
 	b, err := os.ReadFile(filepath.Join(s.dir("r"), "manifest.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(b), "TAMPERED") {
-		t.Fatal("봉인된 것이 다시 쓰였다")
+		t.Fatal("something sealed was written again")
 	}
 }
 
@@ -95,12 +95,12 @@ func TestStepsCarryNodeAttribution(t *testing.T) {
 			t.Fatal(err)
 		}
 		if sf.Node == "" || sf.NodeLabel == "" {
-			t.Fatalf("노드 귀속이 없다: %s", f)
+			t.Fatalf("node attribution is missing: %s", f)
 		}
 		seen[sf.Node] = sf.NodeLabel
 	}
 	if len(seen) != 2 {
-		t.Fatalf("O1 서로 다른 노드가 %d 개 — 2 여야 한다", len(seen))
+		t.Fatalf("O1: %d distinct nodes — want 2", len(seen))
 	}
 }
 
@@ -139,7 +139,7 @@ func TestTarIsSelfSufficient(t *testing.T) {
 	}
 	for name, got := range want {
 		if !got {
-			t.Fatalf("자기충족 위반 묶음에 %s 가 없다", name)
+			t.Fatalf("self-containment violated: the bundle lacks %s", name)
 		}
 	}
 }
@@ -151,7 +151,7 @@ func TestTarRefusesUnsealed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.Tar("r", io.Discard); err != ErrNotSealed {
-		t.Fatalf("err=%v 기대 ErrNotSealed", err)
+		t.Fatalf("err=%v, want ErrNotSealed", err)
 	}
 }
 
@@ -169,7 +169,7 @@ func TestLogTruncationIsMarked(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(b), "truncated") {
-		t.Fatalf("잘렸다는 표시가 없다: %q", b)
+		t.Fatalf("no truncation marker: %q", b)
 	}
 }
 
@@ -182,7 +182,7 @@ func TestPathTraversalIsBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "..", "..", "etc", "evil")); err == nil {
-		t.Fatal("경로를 탈출했다")
+		t.Fatal("escaped the path")
 	}
 }
 
@@ -208,12 +208,12 @@ func TestBlobKeepsEveryStepButServesLatest(t *testing.T) {
 	b, _ := io.ReadAll(f)
 	f.Close()
 	if string(b) != "ELF-patch" {
-		t.Fatalf("최신이 아니다: %q", b)
+		t.Fatalf("not the latest: %q", b)
 	}
 	// 그런데 둘 다 남아 있어야 한다
 	for _, name := range []string{"01.0-artifact", "03.0-artifact"} {
 		if _, err := os.Stat(filepath.Join(s.dir("r"), "blobs", name)); err != nil {
-			t.Fatalf("단계별 산출물이 덮어써졌다: %s 가 없다", name)
+			t.Fatalf("per-step artifacts were overwritten: %s is missing", name)
 		}
 	}
 }
@@ -225,15 +225,15 @@ func TestBlobRefusesOversize(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := s.WriteBlob("r", 1, 0, "big", strings.NewReader(strings.Repeat("x", 100)), 10); err != ErrTooBig {
-		t.Fatalf("err=%v 기대 ErrTooBig", err)
+		t.Fatalf("err=%v, want ErrTooBig", err)
 	}
 	if _, _, err := s.OpenBlob("r", "big"); err != ErrNoBlob {
-		t.Fatal("상한을 넘었는데 저장됐다")
+		t.Fatal("stored even though it exceeded the limit")
 	}
 	// 임시 파일도 안 남아야 한다
 	ents, _ := os.ReadDir(filepath.Join(s.dir("r"), "blobs"))
 	if len(ents) != 0 {
-		t.Fatalf("찌꺼기가 남았다: %v", ents)
+		t.Fatalf("leftovers remain: %v", ents)
 	}
 }
 
@@ -265,12 +265,12 @@ func TestBlobRecencyBeatsSequence(t *testing.T) {
 	b, _ := io.ReadAll(f)
 	f.Close()
 	if string(b) != "GOOD" {
-		t.Fatalf("재시도가 가려졌다 받은 것: %q", b)
+		t.Fatalf("the retry was hidden; got: %q", b)
 	}
 	// 회차별로 전부 남아야 한다 — "왜 두 번 시도했는가" 가 재구성되어야 한다
 	for _, n := range []string{"01.0-test_source", "01.1-test_source", "02.0-test_source"} {
 		if _, err := os.Stat(filepath.Join(s.dir("r"), "blobs", n)); err != nil {
-			t.Fatalf("회차 기록이 사라졌다: %s", n)
+			t.Fatalf("the attempt record disappeared: %s", n)
 		}
 	}
 }
