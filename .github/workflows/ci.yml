@@ -38,7 +38,10 @@ jobs:
       # 재고를 0 으로 만든 뒤이므로 「하나라도 있으면 실패」가 성립한다.
       - name: 장식 문자가 없는지
         run: |
-          if grep -rlP '\x{2605}' --exclude-dir=.git --exclude-dir=dist . ; then
+          # -I 로 이진 파일을 건너뛴다. 검사 대상은 사람이 쓴 텍스트인데,
+          # 컴파일된 바이너리에서 E2 98 85 세 바이트가 우연히 이어지면
+          # 그것을 잡고 「어느 소스에 별이 들어왔나」로 사람을 보낸다.
+          if grep -rlIP '\x{2605}' --exclude-dir=.git --exclude-dir=dist . ; then
             echo
             echo '위 파일에 장식 강조가 들어왔다 (CLAUDE.md 1.2).'
             exit 1
