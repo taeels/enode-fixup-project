@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -153,6 +154,88 @@ func TestTarRefusesUnsealed(t *testing.T) {
 	if err := s.Tar("r", io.Discard); err != ErrNotSealed {
 		t.Fatalf("err=%v, want ErrNotSealed", err)
 	}
+}
+
+// errShortDisk 는 아래 writer 가 더 못 받겠다고 말하는 오류다.
+var errShortDisk = errors.New("no space left on device")
+
+// failAfterN 은 N 바이트까지만 받고 그 뒤로는 실패하는 writer 다.
+// tar 는 본문을 먼저 쓰고 트레일러(0 블록 둘)를 Close 에서 쓰므로,
+// N 을 그 경계에 두면 「본문은 다 썼고 트레일러만 못 쓴」 상태가 선다.
+type failAfterN struct {
+	left     int
+	Accepted int
+}
+
+func (w *failAfterN) Write(p []byte) (int, error) {
+	if len(p) <= w.left {
+		w.left -= len(p)
+		w.Accepted += len(p)
+		return len(p), nil
+	}
+	n := w.left
+	w.left = 0
+	w.Accepted += n
+	return n, errShortDisk
+}
+
+// 잘린 묶음이 성공과 함께 나가면 안 된다 (FR3.3).
+//
+// tar.Writer.Close() 가 트레일러를 쓴다. 그 오류를 삼키면 본문만 있고
+// 끝맺음이 없는 아카이브가 nil 오류와 함께 나가고, 받는 쪽은 성질 4
+// (자기충족)가 깨진 것을 모른다 — Record 내보내기는 I4 가 사는 자리다.
+func TestTarReportsAFailedTrailer(t *testing.T) {
+	newSealed := func(t *testing.T) *Store {
+		t.Helper()
+		s := newStore(t)
+		if err := s.Open("r"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.AppendLog("r", 1, "build", strings.NewReader("  CC foo.o\n"), 1<<20); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Seal("r", map[string]any{"run_id": "r"},
+			map[string]any{"state": "SUCCEEDED"}, steps()); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+
+	// 온전한 묶음의 크기를 먼저 재서 트레일러 경계를 찾는다.
+	s := newSealed(t)
+	var full bytes.Buffer
+	if err := s.Tar("r", &full); err != nil {
+		t.Fatal(err)
+	}
+	const trailer = 1024 // 0 블록 둘 — Close 가 쓰는 몫이다
+	if full.Len() <= trailer {
+		t.Fatalf("the bundle is too small to split: %d bytes", full.Len())
+	}
+
+	t.Run("a failed trailer is reported", func(t *testing.T) {
+		s := newSealed(t)
+		w := &failAfterN{left: full.Len() - trailer}
+		err := s.Tar("r", w)
+		if w.Accepted >= full.Len() {
+			t.Fatalf("the writer accepted the whole bundle (%d bytes) - it never reached the trailer",
+				w.Accepted)
+		}
+		if err == nil {
+			t.Fatalf("self-containment violated: Tar returned nil after writing only %d of %d bytes - a truncated bundle went out as a success",
+				w.Accepted, full.Len())
+		}
+	})
+
+	// Walk 이 먼저 낸 오류를 Close 의 오류가 덮으면 안 된다 —
+	// 먼저 난 실패가 실제 원인이다.
+	t.Run("an earlier body failure is not masked", func(t *testing.T) {
+		s := newSealed(t)
+		w := &failAfterN{left: 0} // 첫 헤더부터 실패한다
+		err := s.Tar("r", w)
+		if !errors.Is(err, errShortDisk) {
+			t.Fatalf("err=%v, want the body write error %v", err, errShortDisk)
+		}
+	})
 }
 
 // 로그는 상한을 넘으면 잘라 저장하고 잘렸음을 표시한다 (ADR-015 §5).
