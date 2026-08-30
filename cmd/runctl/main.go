@@ -170,7 +170,7 @@ func run() int {
 				if sh.Truncated {
 					mark2 = " (truncated; see record/blob for the full text)"
 				}
-				fmt.Printf("    ┆ %s%s: %s\n", sh.Name, mark2, c)
+				fmt.Printf("    ┆ %s%s: %s\n", sh.Name, mark2, c) // 괘선이라 대상이 아님 - 세로줄로 묶는다
 			}
 			// 제안된 판정 기준 (adopts) — 무엇을 승인하는지 보여준다.
 			if len(a.Proposes) > 0 {
@@ -253,7 +253,7 @@ func run() int {
 		}
 		fmt.Printf("answered  %s #%d", arg, seq)
 		if r.State != "" {
-			fmt.Printf("  → run %s", r.State)
+			fmt.Printf("  run is now %s", r.State)
 		}
 		fmt.Println()
 		return exitOK
@@ -351,7 +351,7 @@ func printRun(r *runctl.Run) {
 	// 경고를 먼저 찍는다 (ADR-061 §2) — 제출은 됐지만 뜻대로 안 도는 것이
 	// 있으면 그것부터 보여야 한다. 아래 줄들에 묻히면 못 읽는다.
 	for _, wmsg := range r.Warnings {
-		fmt.Printf("  ▲ %s\n", wmsg)
+		fmt.Printf("  warning: %s\n", wmsg)
 	}
 	for _, a := range r.Assigned {
 		for _, n := range a.Nodes {
@@ -367,7 +367,7 @@ func printRun(r *runctl.Run) {
 		}
 		// 기다리는 중이면 무엇을 기다리는지를 같이 보여준다.
 		if st.State == "PENDING" && len(st.Needs) > 0 {
-			line += "  ← " + strings.Join(st.Needs, " · ")
+			line += "  waits on " + strings.Join(st.Needs, " · ")
 		}
 		fmt.Println(line)
 	}
@@ -385,7 +385,7 @@ func printRun(r *runctl.Run) {
 			for _, ch := range v.Checks {
 				mark := "ok"
 				if !ch.OK {
-					mark = "✗ "
+					mark = "bad"
 				}
 				fmt.Printf("  %-3s %s %s %s\n", mark, ch.Step, ch.What, ch.Note)
 			}

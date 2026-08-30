@@ -100,9 +100,9 @@ func RenderResult(ctx context.Context, m *Mediator, run *RunView, summary string
 	if len(run.Verdict.Checks) > 0 {
 		b.WriteString("**판정**\n\n")
 		for _, c := range run.Verdict.Checks {
-			mark := "✗"
+			mark := "실패"
 			if c.OK {
-				mark = "✓"
+				mark = "통과"
 			}
 			fmt.Fprintf(&b, "- %s `%s` — %s", mark, c.Step, c.What)
 			if w := describe(c.Want); w != "" {
@@ -134,9 +134,9 @@ func RenderResult(ctx context.Context, m *Mediator, run *RunView, summary string
 			sch := "—"
 			if e.SchemaOK != nil {
 				if *e.SchemaOK {
-					sch = "✓"
+					sch = "통과"
 				} else {
-					sch = "✗"
+					sch = "실패"
 				}
 			}
 			fmt.Fprintf(&b, "| `%s` | %s | %d | %d | %s |\n", e.Name, e.By, e.Attempt, e.Bytes, sch)

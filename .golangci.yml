@@ -1,0 +1,46 @@
+# golangci-lint 설정. 이 파일이 얻으려는 것은 「지적이 적은 상태」가 아니라
+# 「같은 커밋에서 두 번 돌리면 같은 목록이 나오는 상태」다 (NFR2).
+#
+# 왜 이 모양인가 — 기본값을 그대로 두면 실측 66건이 32건으로 보고되고,
+# 그 32건의 구성원이 실행마다 달라진다(3회 실측 확인). max-* 둘을 0 으로
+# 두는 것이 이 설정의 존재 이유이며, 지적 수를 줄이는 것은 부수 효과다.
+#
+# 기각한 것 — errcheck.check-blank: true 는 켜지 않는다. 260건으로 뛰지만
+# 늘어나는 것이 전부 `_ = ...` 명시적 폐기라 재현성에도 결함 발견에도
+# 보태는 것이 없다.
+version: "2"
+
+linters:
+  # default: none 으로 시작해 다섯을 이름으로 켠다. 프리셋에 기대면
+  # golangci-lint 부 버전 갱신이 목록을 조용히 바꾼다.
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+  settings:
+    errcheck:
+      # 여섯 줄이 66건을 20건으로 내린다. 고른 기준은 「반환 오류를 확인해도
+      # 호출자가 할 수 있는 것이 없는 자리」다.
+      #
+      # 이 목록이 과하지 않다는 증거는 앵커 하나다 — internal/record/record.go:217
+      # 의 tw.Close 미검사가 제외 뒤에도 여전히 보고된다. tar.Writer 의 Close 는
+      # 트레일러를 쓰므로 오류가 「잘린 아카이브」를 뜻하고, io.Closer 계열과
+      # 성격이 다르다. (*tar.Writer).Close 를 이 목록에 넣으면 안 된다.
+      exclude-functions:
+        - (io.ReadCloser).Close
+        - (io.Closer).Close
+        - (*os.File).Close
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
+
+issues:
+  # 이 둘이 이 파일의 핵심이다. 기본값(max-same-issues: 3 ·
+  # max-issues-per-linter: 50)은 보고를 잘라내면서 무엇을 잘랐는지 말하지
+  # 않고, 잘리는 대상이 실행마다 달라진다.
+  max-same-issues: 0
+  max-issues-per-linter: 0
