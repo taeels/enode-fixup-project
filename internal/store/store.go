@@ -35,6 +35,15 @@ type Store struct {
 	// NotifyURL 은 되묻기 알림 웹훅이다 (ADR-032 §4). 비면 알림 없음.
 	// 푸시는 보조다 — 인박스(GET /v1/asks)가 정본이고, 유실돼도 재시도 없다.
 	NotifyURL string
+	// AnswerPath 는 알림에 실을 응답 지점의 경로를 짓는다 (ADR-032 §4).
+	//
+	// 상태 층은 HTTP 를 모른다 — 라우트를 여기서 지으면 등록하는 곳과
+	// 발행하는 곳이 둘로 갈려 한쪽만 바뀌어도 아무도 모른다. 그래서 경로는
+	// HTTP 표면을 소유한 쪽(internal/api)이 주입한다 (FR3.2).
+	//
+	// 비면 알림에 직링크가 없다. 그것으로 충분하다 — 인박스가 정본이고
+	// 직링크는 편의다. 없는 경로를 지어 보내는 것보다 낫다.
+	AnswerPath func(runID string, seq int) string
 	// MaxLeasesPerRun 은 한 Run 이 동시에 쥘 수 있는 노드 수다 (ADR-024 §4.2).
 	// 폭의 상한 — 0 이면 무제한(오늘 그대로).
 	MaxLeasesPerRun int

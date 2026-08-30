@@ -17,6 +17,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -37,6 +38,11 @@ type Server struct {
 }
 
 func New(st *store.Store, cfg config.Config, log *slog.Logger) *Server {
+	// 되묻기 알림에 실릴 응답 지점의 경로를 여기서 건넨다 (FR3.2).
+	// 상태 층은 HTTP 를 모르므로 라우트를 스스로 짓지 않는다. 주입을
+	// 껍데기(cmd/mediator)에 맡기지 않고 New 가 하는 이유는 하나다 —
+	// HTTP 표면을 세우는 곳이면 어디서든 잊을 수가 없어야 한다.
+	st.AnswerPath = answerPath
 	return &Server{st: st, records: st.Records, cfg: cfg, log: log}
 }
 
@@ -60,7 +66,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/runs/{id}", s.auth(s.getRun))
 	mux.HandleFunc("GET /v1/capabilities", s.auth(s.getCapabilities))
 	mux.HandleFunc("GET /v1/asks", s.auth(s.getAsks))
-	mux.HandleFunc("POST /v1/runs/{run}/steps/{seq}/answer", s.auth(s.postAnswer))
+	mux.HandleFunc("POST "+answerRoute, s.auth(s.postAnswer))
 	mux.HandleFunc("GET /v1/runs/{id}/ledger", s.auth(s.getLedger))
 	mux.HandleFunc("GET /v1/runs/{id}/record", s.auth(s.getRecord))
 	mux.HandleFunc("POST /v1/runs/{id}/cancel", s.auth(s.postCancel))
@@ -68,6 +74,24 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/blob/{name}", s.auth(s.putBlob))
 	mux.HandleFunc("GET /v1/runs/{run}/blob/{name}", s.auth(s.getBlob))
 	return mux
+}
+
+// answerRoute 는 응답 지점의 하나뿐인 출처다 (FR3.2).
+//
+// mux 등록과 알림에 싣는 직링크가 같은 문자열에서 나온다. 두 곳에서 따로
+// 지으면 한쪽만 바뀌어도 아무도 모르고, 정본이 「표면이 하나」라고 말하는
+// 것과 어긋난다.
+const answerRoute = "/v1/runs/{run}/steps/{seq}/answer"
+
+// answerPath 는 그 라우트에 실제 값을 끼운 경로다.
+//
+// run_id 를 이스케이프한다 — 계약은 run_id 의 글자를 제한하지 않으므로
+// (Validate 는 비어 있는지만 본다) 경로 구획을 깨는 값이 올 수 있다.
+// ServeMux 의 {run} 은 구획 하나를 받아 되돌려 풀므로 짝이 맞는다.
+// 이스케이프를 아는 것이 HTTP 표면의 몫이고, 그래서 이 함수가 여기 있다.
+func answerPath(runID string, seq int) string {
+	p := strings.Replace(answerRoute, "{run}", url.PathEscape(runID), 1)
+	return strings.Replace(p, "{seq}", strconv.Itoa(seq), 1)
 }
 
 // ── 인증과 식별 (ADR-015 §1) ──────────────────────────────────────────────
