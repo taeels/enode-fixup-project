@@ -85,7 +85,10 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const prefix = "Bearer "
 		got := r.Header.Get("Authorization")
-		if s.cfg.Token == "" || len(got) <= len(prefix) ||
+		// 접두사는 비밀이 아니다 — 스킴은 그냥 보고, 상수 시간 비교는
+		// 토큰 몫으로 남긴다. 길이만 보고 자르면 앞 7 바이트가 무엇이든
+		// 통과해 스킴을 안 보는 인증이 된다 (FR3.6).
+		if s.cfg.Token == "" || !strings.HasPrefix(got, prefix) ||
 			subtle.ConstantTimeCompare([]byte(got[len(prefix):]), []byte(s.cfg.Token)) != 1 {
 			fail(w, 401, "missing or invalid token")
 			return
