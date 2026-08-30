@@ -25,22 +25,37 @@ import (
 	"github.com/taeels/enode/internal/enode"
 )
 
-func main() {
+func main() { os.Exit(run()) }
+
+// run 은 main 의 몸통이다. 종료 코드를 돌려주고 os.Exit 을 직접 부르지 않는다.
+//
+// 왜 가르는가 — 이 모양이 아니면 이 패키지에 테스트 가능한 이음매가 하나도
+// 없다. 103 문장 중 80 이 main() 안에 있었고, 프로세스를 띄우지 않고는
+// 그 80 에 닿는 방법이 없었다. cmd/runctl 이 이미 같은 이유로 같은 모양이다.
+//
+// 무엇이 달라지는가 — os.Exit 은 defer 를 안 돌리고 return 은 돌린다.
+// 여기서 그 차이가 실제로 나는 자리는 하나뿐이다: lock.Release() 와 stop()
+// 을 등록한 뒤의 실패 경로, 즉 인스턴스 표식을 못 뽑았을 때다. 예전에는
+// 그 경로에서 잠금 파일의 flock 을 커널이 프로세스 종료로 풀었고 이제는
+// Release() 가 먼저 푼다. 밖에서 보이는 것(종료 코드 1 · 같은 stderr)은
+// 같고, 달라지는 것은 푸는 주체다. entrypoint_unix_test.go 가 그 계약을
+// 프로세스 경계에서 잡고 있다.
+func run() int {
 	// 하위 명령이 하나 있다 — `enode hook stop` (R5③ · R6).
 	// 훅을 별도 스크립트로 두지 않고 enode 자신이 되는 이유는 hook.go 에 적었다.
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
-		os.Exit(runHookCmd(os.Args[2:]))
+		return runHookCmd(os.Args[2:])
 	}
 	// setup 은 플래그 파싱보다 앞이다 — 설정이 없어서 부르는 명령이므로
 	// 설정을 찾다가 죽는 경로를 지나가면 안 된다.
 	if len(os.Args) > 1 && os.Args[1] == "setup" {
-		os.Exit(runSetupCmd(os.Args[2:]))
+		return runSetupCmd(os.Args[2:])
 	}
 	// --version 은 플래그 파싱보다 앞이다 (ADR-056) — 설정 파일이 없어도
 	// 답해야 한다. 자기 갱신이 받아온 것이 무엇인지를 이것으로 판정한다.
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
 		fmt.Println(build.Version("enode"))
-		return
+		return 0
 	}
 
 	// 기본값을 비운다 — 자리는 enode.ConfigPaths() 가 안다. 유닉스만 아는
@@ -77,12 +92,12 @@ func main() {
 			"The token must match the mediator's; a node with a different token is\nrejected with 401. "+
 			"The absolute path of this file is part of the node id,\nso moving it makes a different node.\n",
 			enode.SampleLocal())
-		os.Exit(1)
+		return 1
 	}
 	local, err := enode.LoadLocal(confPath)
 	if err != nil {
 		log.Error("cannot read config", "path", confPath, "err", err)
-		os.Exit(1)
+		return 1
 	}
 	if *mediator != "" {
 		local.Mediator = *mediator
@@ -95,21 +110,21 @@ func main() {
 	}
 	if local.Mediator == "" || local.Token == "" {
 		log.Error("mediator and token are required")
-		os.Exit(1)
+		return 1
 	}
 
 	// 신원. 이메일이 없으면 그 자리에서 죽는다 — 조용한 대체를 안 한다.
 	ident, err := enode.Derive(confPath)
 	if err != nil {
 		log.Error("cannot derive node identity", "err", err)
-		os.Exit(1)
+		return 1
 	}
 
 	// 중복 실행 방지는 로컬에서 — Mediator 는 재시작과 중복을 구분할 수 없다.
 	lock, err := enode.Acquire(ident.Config)
 	if err != nil {
 		log.Error("cannot acquire lock", "err", err)
-		os.Exit(1)
+		return 1
 	}
 	defer lock.Release()
 
@@ -121,7 +136,7 @@ func main() {
 	inst := make([]byte, 8)
 	if _, err := rand.Read(inst); err != nil {
 		log.Error("cannot generate instance id", "err", err)
-		os.Exit(1)
+		return 1
 	}
 
 	client := &enode.Client{
@@ -198,4 +213,5 @@ func main() {
 	go func() { defer wg.Done(); worker.Run(ctx) }()
 	wg.Wait()
 	log.Info("stopped")
+	return 0
 }
