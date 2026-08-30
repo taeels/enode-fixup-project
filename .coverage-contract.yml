@@ -1,0 +1,139 @@
+# 커버리지 계약 (CT-5) — U7 이 단독으로 소유하고 단독으로 쓴다.
+#
+# 이 파일이 고정하는 것은 수치가 아니라 그 수치를 게이트 입력으로 인정하는
+# 조건이다. FR4.4 가 "그 명령이 아닌 측정치는 게이트 입력으로 쓰이지 않는다"
+# 로 못박은 것이 아래 command 블록이고, 집행하는 자리는
+# .github/workflows/ci.yml 의 "커버리지 (표준 측정 명령 · 지금은 재기만)"
+# 스텝이다. 두 자리가 어긋나면 이 파일이 맞다.
+version: 1
+
+command:
+  # 빠지면 무슨 일이 나는가 — 실측이다. 두 경우 모두 go test 는 exit 0 이라
+  # 종료코드만 보는 게이트는 잘못 잰 것과 제대로 잰 것을 구별하지 못한다.
+  #
+  #   ENODE_TEST_DATABASE_URL 을 빼면
+  #     전체            3486/5951 = 58.6%  ->  2036/5951 = 34.2%
+  #     internal/store  1213/1498 = 81.0%  ->    82/1498 =  5.5%
+  #     internal/api 의 통합 테스트 78개가 t.Skip 으로 사라진다
+  #
+  #   -coverpkg=./... 를 빼면 각 패키지가 자기 테스트로 덮은 것만 세므로
+  #     다른 패키지의 테스트가 덮은 문장이 빠진다
+  #     internal/schema  81/107 = 75.7%  ->  80/107 = 74.8%
+  #     (차이 나는 한 블록은 internal/schema/schema.go:50-52 의 boundary()
+  #      조기 반환이고, 그것을 밟는 것은 internal/contract 쪽 테스트다)
+  env: [ENODE_TEST_DATABASE_URL]
+  flags: ["-coverpkg=./...", "-count=1"]
+
+  # 플랫폼이 분모를 바꾼다 — //go:build windows 파일 셋
+  # (cmd/enodectl/proc_windows.go · internal/enode/lock_windows.go ·
+  # internal/enode/disk_windows.go)이 리눅스 프로파일에 아예 안 나온다.
+  # AC3.4.6 이 명령뿐 아니라 플랫폼까지 고정하는 이유다.
+  platform: linux/amd64
+
+  measured_total_pct: 58.6
+
+  # 기준선을 잰 커밋. 재는 시점에 U5 · U6 · U7 의 변경이 아직 커밋되지 않은
+  # 채 워킹 트리에 있었고, 그 셋이 Go 문장 수를 바꾸지 않는다는 것을 확인하고
+  # 이 값을 적었다 — U5 의 Go 변경 24줄은 전부 문자열 리터럴 일대일 교체이고
+  # (장식 문자를 낱말로 바꾼 것), U6 은 go.mod 의 간접 의존 두 줄이며,
+  # U7 은 Go 파일을 하나도 건드리지 않는다.
+  #
+  # 브랜치가 main 으로 들어갈 때 이 값을 그 커밋으로 갱신한다. 갱신하지 않으면
+  # 기준선이 명령과 짝을 잃고, 원장 검사기의 「측정」 규칙이 그것을 막는다.
+  measured_at_commit: f46e1872d1546d7657a6d0b4857a9a64d9bf9ab3
+
+floor:
+  # FR4.1. 저장소 전체 합계 하나가 아니라 패키지마다 개별로 넘는다.
+  #
+  # 지금은 차단이 아니다 — 15개 중 11개가 미달인 상태에서 막으면 U9~U13 이
+  # 끝날 때까지 CI 가 빨간 채로 남아 그 구간의 진짜 실패를 가린다. 차단으로
+  # 올리는 것은 ledger/handover/U7/01.md 에 인계로 남겼다.
+  default_pct: 80
+  exclude: [packaging/]
+
+# 기준선 — 위 command 를 그대로 돌려 나온 값이다. 같은 명령을 두 번 돌려
+# 패키지 단위까지 글자 그대로 같았다(AC3.4.6).
+#
+# owner_unit 이 null 인 넷은 이미 하한을 넘어 U9~U13 의 대상이 아니다.
+# CT-5 의 owner_unit 열거값에 null 이 없으나, 기준선에서 네 패키지를 빼면
+# 그것은 기준선이 아니라 작업 목록이 된다 — 스키마 소유자로서 null 을 더하고
+# 그 사실을 여기 적는다.
+#
+# statements 는 하네스 유무와 무관하고 covered 만 움직인다. 아래 covered 는
+# 가짜 claude 스텁이 PATH 에 있는 구성, 즉 CI 가 실제로 재는 구성의 값이다.
+# 진짜 claude 로 재면 internal/enode 가 1031(67.5%), 스텁 없이 재면
+# 1034(67.7%)다 — 스킵하는 쪽이 더 높다.
+packages:
+  - path: cmd/iapadapter
+    statements: 717
+    covered: 137
+    owner_unit: U9
+  - path: cmd/runctl
+    statements: 224
+    covered: 0
+    owner_unit: U10
+  - path: cmd/enodectl
+    statements: 201
+    covered: 0
+    owner_unit: U10
+  - path: cmd/enode
+    statements: 103
+    covered: 0
+    owner_unit: U11
+  - path: cmd/mediator
+    statements: 211
+    covered: 0
+    owner_unit: U11
+  - path: internal/api
+    statements: 399
+    covered: 260
+    owner_unit: U12
+  - path: internal/runctl
+    statements: 81
+    covered: 30
+    owner_unit: U12
+  - path: internal/config
+    statements: 118
+    covered: 66
+    owner_unit: U12
+  - path: internal/schema
+    statements: 107
+    covered: 81
+    owner_unit: U12
+  - path: internal/build
+    statements: 20
+    covered: 15
+    owner_unit: U12
+  - path: internal/enode
+    statements: 1527
+    covered: 1032
+    owner_unit: U13
+  - path: internal/store
+    statements: 1498
+    covered: 1213
+    owner_unit: null
+  - path: internal/record
+    statements: 157
+    covered: 128
+    owner_unit: null
+  - path: internal/contract
+    statements: 548
+    covered: 485
+    owner_unit: null
+  - path: internal/match
+    statements: 40
+    covered: 39
+    owner_unit: null
+
+# CT-6 의 allowed_skips 블록은 이 파일에 없다.
+#
+# CT-6 은 허용목록을 "같은 파일의 다른 블록" 으로 적었으나 AC3.4.3 은 그
+# 목록의 이름을 .ci-allowed-skips 로 문면에 든다. 두 자리에 두면 한쪽만
+# 낡는 것이 이 워크플로가 막으려는 실패 양식 그대로라, 스키마 소유자로서
+# 자리를 .ci-allowed-skips 하나로 정하고 그 사실을 여기 적는다. 필드는
+# CT-6 이 정한 다섯을 그대로 쓴다 —
+# test_name · file · condition · why_unprovisionable · requested_by.
+#
+# 그 파일을 읽는 것은 ci.yml 의 "스킵 감시 (전 패키지)" 스텝이고, 지금
+# 항목은 0개다. CI 가 조건을 갖출 수 없는 스킵이 하나도 없기 때문이며,
+# 빈 목록은 "어떤 스킵도 봐주지 않는다" 는 뜻이다.
