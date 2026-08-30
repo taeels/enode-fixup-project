@@ -208,13 +208,23 @@ var ErrNotSealed = errors.New("not sealed")
 //
 // 성질 4(자기충족)가 전송 형식까지 정한다 — 묶음 하나를 받아 풀면
 // 그 안에 전부 있다. 외부 조회가 필요하면 실패다.
-func (s *Store) Tar(runID string, w io.Writer) error {
+func (s *Store) Tar(runID string, w io.Writer) (err error) {
 	d := s.dir(runID)
 	if !s.Sealed(runID) {
 		return ErrNotSealed
 	}
 	tw := tar.NewWriter(w)
-	defer tw.Close()
+	// Close 가 트레일러(0 블록 둘)를 쓴다 — 끝맺음도 묶음의 일부다.
+	// 그 오류를 삼키면 본문만 있는 잘린 아카이브가 nil 오류와 함께 나가고,
+	// 받는 쪽은 성질 4(자기충족)가 깨진 것을 모른다 (FR3.3).
+	//
+	// Walk 이 이미 낸 오류는 덮지 않는다 — 그쪽이 먼저 난 실제 실패이고,
+	// 쓰기가 실패한 뒤의 Close 는 같은 실패를 되풀이할 뿐이다.
+	defer func() {
+		if cerr := tw.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 	base := filepath.Base(d)
 	return filepath.Walk(d, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
