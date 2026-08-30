@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# 읽기만 한다 — ci 는 검사만 하고 아무것도 내보내지 않는다.
+# 기본 토큰 권한은 저장소 설정에 달려 있어 워크플로마다 명시한다
+# (package.yml · release.yml 도 각자 든다).
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest

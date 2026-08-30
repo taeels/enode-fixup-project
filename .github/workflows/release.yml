@@ -16,7 +16,7 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: write
+  contents: write # gh release 가 릴리즈를 만들고 자산과 SHA256SUMS 를 올린다
 
 jobs:
   # 짓고 · 깔아 보고 — package.yml 이 전부 한다.
