@@ -34,6 +34,35 @@ jobs:
 
       - run: go version
 
+      # 가짜 claude 스텁을 PATH 에 둔다 (FR4.5 · AC3.4.4)
+      #
+      # 이 두 줄이 없으면 아래 두 테스트가 매 실행마다 조용히 사라진다:
+      #
+      #   internal/enode/claude_test.go:106  TestAdapter_ProbeIsResolve
+      #   internal/enode/enode_test.go:145   TestDetect_OrchestrationAdvertisesExclusively
+      #
+      # 후자가 단언하는 것은 "오케스트레이션 노드는 arch 를 광고하면 안
+      # 된다"(ADR-022 §5)이고, 광고하면 명령 단계가 Mediator 기계에서 돌아
+      # DB·아티팩트·토큰에 무경계 argv 가 닿는다. 그 단언이 이 저장소의 CI 에서
+      # 한 번도 실행된 적이 없다.
+      #
+      # 커버리지로는 이 구멍이 안 보인다 - 실측으로 하네스가 없는 쪽이
+      # internal/enode 67.7%, 있는 쪽이 67.6% 다. 스킵하는 구성이 오히려
+      # 커버리지가 높으므로, 커버리지만 보는 게이트는 스킵하는 구성을
+      # 선호한다. 잃는 것은 0.1 포인트가 아니라 단언 자체다.
+      #
+      # 여기서 한 번 돌려 보는 이유 - PATH 에 넣기만 하고 넘어가면 실행
+      # 권한이 빠졌거나 스크립트가 깨졌을 때 그 결과가 "두 테스트가 스킵된다"
+      # 로만 나타난다. 그것은 이 스텝이 막으려던 바로 그 조용한 실패다.
+      - name: 가짜 claude 스텁을 PATH 에 둔다
+        run: |
+          stub="$GITHUB_WORKSPACE/.github/ci-stubs"
+          chmod +x "$stub/claude"
+          v=$("$stub/claude" --version) || { echo '스텁이 실행되지 않는다'; exit 1; }
+          test -n "$v" || { echo '스텁이 버전을 안 낸다 - Probe 가 이것을 읽는다'; exit 1; }
+          echo "스텁 버전: $v"
+          echo "$stub" >> "$GITHUB_PATH"
+
       # 표기 규약(CLAUDE.md · enode-design 표기 규약 제2판)의 집행 자리다.
       # 재고를 0 으로 만든 뒤이므로 「하나라도 있으면 실패」가 성립한다.
       - name: 장식 문자가 없는지
@@ -47,16 +76,304 @@ jobs:
             exit 1
           fi
 
+      # 위 스텝은 U+2605 한 글자만 본다. 저장소에 실제로 있던 장식 문자는
+      # 전부 다른 글자였으므로 그 검사는 고치기 전에도 통과했다 - 집행하는
+      # 것처럼 보이면서 아무것도 집행하지 않았다. 아래가 그 구멍을 메운다.
+      #
+      # 둘을 다 두는 이유: 위는 저장소 전체(마크다운 · 워크플로 YAML 포함)를
+      # 보고 아래는 Go 문자열 리터럴만 본다. 아래로 갈아치우면 Go 밖 파일의
+      # 감시가 사라진다.
+      - name: 출력 문자열에 장식 문자가 없는지
+        run: go run ./scripts/glyphscan.go
+
       - name: 포맷
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - name: vet
         run: go vet ./...
+
+      # 버전을 고정한다. 「보고가 정확히 20건」이 린터 버전에 매여 있어서,
+      # latest 로 두면 린터 부 버전 갱신만으로 기준선이 조용히 달라진다.
+      # 버전을 올릴 때는 새 수를 세어 기준선을 함께 고친다.
+      - uses: golangci/golangci-lint-action@v9.3.0
+        with:
+          version: v2.13.2
+          install-only: true
+
+      # 지금은 경고다 - 지적 20건을 남겨 둔 채 기준선만 세우는 단계이고,
+      # 차단으로 올리는 것은 그 20건의 처분이 끝난 뒤다. continue-on-error
+      # 가 그 결정을 코드로 든다: 스텝은 빨개도 워크플로는 초록이다.
+      #
+      # 시간을 함께 잰다. 이 게이트가 지켜야 하는 것은 지적 수가 아니라
+      # 「같은 커밋에서 두 번 돌리면 같은 목록이 나온다」이고, 그 재현성은
+      # 사람이 실제로 매번 돌릴 만큼 빠를 때만 유지된다. bc 와
+      # /usr/bin/time 에 기대지 않으려고 date +%s%N 과 awk 로 잰다.
+      - name: 린트 (경고 전용)
+        continue-on-error: true
+        run: |
+          code=0
+          start=$(date +%s%N)
+          golangci-lint run ./... || code=$?
+          end=$(date +%s%N)
+          awk -v s="$start" -v e="$end" \
+            'BEGIN { printf "golangci-lint 실행 시간: %.3f초\n", (e - s) / 1000000000 }'
+          exit $code
+
+      # 스캐너 버전은 고정하고 취약점 DB 는 고정하지 않는다. 둘을 가르는
+      # 이유가 이 게이트의 성격이다 - 이것은 저장소에서 유일하게 외부
+      # 시간축을 갖는 검사로, 코드가 한 줄도 안 바뀌어도 DB 갱신만으로
+      # 빨개진다. 그것이 고장이 아니라 이 게이트를 두는 이유다. DB 를
+      # 고정하면 새로 알려진 취약점을 영영 못 보고, 스캐너를 안 고정하면
+      # 판정 로직이 부 버전 갱신으로 조용히 달라진다.
+      #
+      # go install 로 넣는다. govulncheck-action 을 안 쓰는 이유는 그것이
+      # Go 버전을 자기 입력으로 받아서다 - 버전은 go.mod 한 곳에서만
+      # 관리한다(ADR-012). 여기서는 setup-go 가 이미 깐 툴체인을 그대로 쓴다.
+      - name: govulncheck 설치
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+
+      # 차단이다 - 바로 위 린트 스텝과 정반대이고, 그 차이가 의도다.
+      # 린트의 20건은 문체 지적이라 기준선만 세우면 되지만, 이쪽은 심볼
+      # 도달 가능한 알려진 취약점이라 들어오면 막는다. continue-on-error
+      # 를 여기 붙이면 게이트가 게이트가 아니게 된다.
+      #
+      # 이 스텝이 우리 커밋과 무관하게 빨개졌을 때 무엇을 하는가:
+      #
+      #   1. 출력의 "Fixed in" 을 본다. 수정본이 있으면 그 버전으로 올리고
+      #      go mod tidy 를 돌린 뒤 이 스텝이 초록인지 확인한다. 대개
+      #      여기서 끝난다 - GO-2026-5970 이 그랬고 go.mod 두 줄이었다.
+      #
+      #   2. 수정본이 아직 없으면 올릴 것이 없고, govulncheck 에는 개별
+      #      취약점을 억제하는 기능이 없다. 유예 목록 파일 같은 기계
+      #      장치는 일부러 두지 않았다 - 목록이 있으면 유예가 조용한
+      #      기본값이 되고, 이 게이트가 지키려던 것이 그 자리에서 사라진다.
+      #      그 상황에서는 사람이 이 스텝을 손으로 고쳐 막힌 것을 풀고,
+      #      무엇을 왜 유예했는지와 다시 볼 시점을 이 자리 주석에 남긴다.
+      #      유예는 리뷰를 거치는 눈에 보이는 편집이지 설정 한 줄이 아니다.
+      #
+      # 시간을 함께 잰다 - 린트 스텝과 같은 이유이고 같은 방법이다.
+      # 실측: 취약점 하나가 걸린 상태 6.56초, 깨끗한 상태 2.33 / 3.37 /
+      # 2.51초(웜 캐시). 이 자리의 상한은 10초다.
+      - name: 취약점 (차단)
+        run: |
+          code=0
+          start=$(date +%s%N)
+          govulncheck ./... || code=$?
+          end=$(date +%s%N)
+          awk -v s="$start" -v e="$end" \
+            'BEGIN { printf "govulncheck 실행 시간: %.3f초\n", (e - s) / 1000000000 }'
+          exit $code
+
       - name: 테스트
         run: go test ./... -count=1
-      - name: DB 테스트가 스킵되지 않았는지
+
+      # 재는 명령이 곧 게이트의 입력이다 (FR4.4 · AC3.4.1 · AC3.4.2)
+      #
+      # 아래 명령의 두 조각 중 하나만 빠져도 수치가 크게 달라지는데 종료코드는
+      # 두 경우 모두 0 이라, 게이트가 exit code 만 보면 둘을 구별하지 못한다.
+      # 실측한 값을 그대로 적는다:
+      #
+      #   ENODE_TEST_DATABASE_URL 을 빼면
+      #     전체            3486/5951 = 58.6%  ->  2036/5951 = 34.2%
+      #     internal/store  1213/1498 = 81.0%  ->    82/1498 =  5.5%
+      #     internal/api 의 통합 테스트 78개가 t.Skip 으로 조용히 사라진다
+      #     그런데도 go test 는 exit 0 이다
+      #
+      #   -coverpkg=./... 를 빼면 각 패키지가 자기 테스트로 덮은 것만 세므로
+      #     다른 패키지의 테스트가 덮은 문장이 빠진다. 실측: internal/schema 가
+      #     81/107(75.7%) 대신 80/107(74.8%) 로 읽힌다 - 차이 나는 한 블록은
+      #     internal/schema/schema.go:50-52 의 boundary() 조기 반환이고
+      #     그것을 밟는 것은 internal/contract 쪽 테스트다
+      #
+      # 그래서 이 명령이 아닌 측정치는 게이트 입력으로 쓰지 않는다.
+      #
+      # 지금은 재기만 하고 80% 하한으로 막지 않는다 - 15개 패키지 중 11개가
+      # 미달인 상태라, 지금 막으면 커버리지를 올리는 작업이 끝날 때까지 CI 가
+      # 계속 빨갛고 그 구간의 진짜 실패가 그 빨강에 묻힌다. 차단으로 올리는
+      # 것은 그 작업이 끝난 뒤이며 인계 기록에 남겨 두었다.
+      #
+      # 위 테스트 스텝과 이 스텝이 스위트를 두 번 도는 것은 알고 두었다.
+      # 실측으로 계측 실행이 20.92 / 21.35초, 평범한 실행이 20.74초라 계측
+      # 자체는 거의 공짜이고 값은 전부 한 번 더 도는 데서 나온다(이 기계
+      # 기준 약 +21초). 둘을 하나로 합치면 그만큼 돌아오지만 실패했을 때
+      # 사람이 읽는 출력이 JSON 이 된다. 어느 쪽을 고를지는 실제 러너의
+      # 시간을 본 뒤의 결정이라 여기서 정하지 않고 수치만 남긴다.
+      #
+      # 측정 함정 하나 더 - -coverpkg=./... 는 테스트 바이너리마다 전체
+      # 패키지의 프로파일을 내므로 프로파일 파일에 같은 블록이 여러 번 나온다.
+      # 줄을 그냥 더하면 58.6% 가 6.5% 로 읽힌다(실측으로 한 번 밟았다).
+      # 아래 awk 가 블록 키로 병합하면서 count 의 최댓값을 취하는 이유다.
+      - name: 커버리지 (표준 측정 명령 · 지금은 재기만)
         run: |
-          go test ./internal/api/ -count=1 -v 2>&1 | tee /tmp/api.log
-          grep -q 'SKIP' /tmp/api.log && { echo 'DB 테스트가 스킵됐다'; exit 1; } || true
+          go test ./... -count=1 -coverpkg=./... \
+            -coverprofile=/tmp/cover.out -json > /tmp/test.json
+          awk -v floor=80 '
+          NR > 1 {
+            k = $1
+            if ($3 + 0 > m[k]) m[k] = $3 + 0
+            n[k] = $2 + 0
+            p = k
+            sub(/:[0-9]+\.[0-9]+,[0-9]+\.[0-9]+$/, "", p)
+            sub(/\/[^\/]*$/, "", p)
+            pk[k] = p
+          }
+          END {
+            for (k in n) {
+              t[pk[k]] += n[k]; T += n[k]
+              if (m[k] > 0) { c[pk[k]] += n[k]; C += n[k] }
+            }
+            cmd = "sort -n"
+            for (p in t) {
+              pct = 100 * c[p] / t[p]
+              if (pct < floor) below++
+              printf "  %6.1f%%  %5d/%-5d  %s  %s\n", pct, c[p], t[p],
+                (pct >= floor ? "통과" : "미달"), p | cmd
+            }
+            close(cmd)
+            printf "\n  전체 %d/%d = %.1f%%   하한 %d%% 미달 %d개\n",
+              C, T, 100 * C / T, floor, below
+            print "  지금은 재기만 한다 - 이 수치로 빌드를 막지 않는다."
+          }' /tmp/cover.out
+
+      # 전 패키지 스킵 감시 (FR4.5 · AC3.4.3)
+      #
+      # 이 스텝이 있기 전에는 internal/api 의 로그에서 SKIP 문자열을 grep 하는
+      # 검사 하나뿐이었다. 그것이 잡던 것은 DB 축 하나였고, 같은 실행에서
+      # 하네스 축으로 사라지던 두 단언은 못 봤다.
+      #
+      # go test 는 스킵된 테스트를 실패로 세지 않는다 - 몇 개가 사라지든
+      # exit 0 이다. 그래서 "CI 가 초록이다" 와 "테스트가 실제로 돌아
+      # 통과했다" 가 갈라진다. 이 스텝이 그 둘을 다시 붙인다.
+      #
+      # 왜 -json 인가 - -v 출력에서는 어느 패키지의 스킵인지 확실하게 못
+      # 가른다(패키지 블록이 뒤섞여 찍힌다). 이름만으로 면제하면 다른
+      # 패키지의 같은 이름까지 함께 면제되므로 패키지와 이름을 둘 다 본다.
+      #
+      # 왜 패키지 수를 세는가 - 감시 장치의 유일한 실패 양식은 항진명제가
+      # 되는 것이다. 로그가 비었거나 잘렸으면 "스킵이 없다" 가 아니라
+      # "볼 것이 없었다" 이고, 그 둘을 구별하지 않으면 이 스텝은 아무것도
+      # 집행하지 않으면서 집행하는 것처럼 보인다.
+      #
+      # 모듈 경로와 패키지 수는 go 에게 묻는다 - 여기 적어 두면 같은 사실이
+      # 두 곳에 살게 되고 한쪽만 낡는다.
+      #
+      # 입력이 어디서 오는가 - 바로 위 커버리지 스텝이 만든 /tmp/test.json 이다.
+      # 그 스텝의
+      #
+      #     go test ./... -count=1 -coverpkg=./... -coverprofile=/tmp/cover.out -json
+      #
+      # 가 낸 로그이고 이 스텝은 그것을 읽기만 한다. 즉 이 감시는 다른 스텝의
+      # 산물에 매여 있다. 그 매임을 조용히 두지 않으려고 둘을 실측해 두었다.
+      #
+      #   1. 판정이 그 스텝의 플래그에 의존하지 않는다. -coverpkg 가 붙은 로그와
+      #      평범한 go test ./... -count=1 -json 로그 양쪽에서 같은 결과가 나온다
+      #      (np=15 want=15 exit 0, 스킵을 심으면 양쪽 다 exit 1). 아래 seen
+      #      규칙의 주석이 그 둘을 가르던 것이 무엇이었는지 적는다.
+      #
+      #   2. 입력이 없거나 비면 조용히 통과하지 않는다. 파일이 없으면 awk 가
+      #      열지 못해 exit 2 로 죽고, 비었으면 np=0 < want 로 걸려 exit 1 이다.
+      #      둘 다 실측했다 - 이 스텝의 유일한 실패 양식이 항진명제가 되는
+      #      것이므로 "볼 것이 없었다" 는 반드시 실패여야 한다.
+      - name: 스킵 감시 (전 패키지)
+        run: |
+          awk -v allow=.ci-allowed-skips \
+              -v module="$(go list -m)" \
+              -v want="$(go list ./... | wc -l)" '
+          function trim(x) { gsub(/^[ \t\r]+|[ \t\r]+$/, "", x); return x }
+          function jstr(s, key,   re, p) {
+            re = "\"" key "\":\""
+            p = index(s, re)
+            if (p == 0) return ""
+            s = substr(s, p + length(re))
+            p = index(s, "\"")
+            if (p == 0) return ""
+            return substr(s, 1, p - 1)
+          }
+          BEGIN {
+            while ((getline line < allow) > 0) {
+              ln++
+              t = trim(line)
+              if (t == "" || substr(t, 1, 1) == "#") continue
+              n = split(line, f, "|")
+              if (n != 5) {
+                bad[++nbad] = allow ":" ln " 칸이 5개가 아니라 " n "개다: " t
+                continue
+              }
+              name = trim(f[1]); file = trim(f[2]); cond = trim(f[3])
+              why = trim(f[4]); who = trim(f[5])
+              if (name == "" || file == "" || cond == "" || why == "" || who == "") {
+                bad[++nbad] = allow ":" ln " 빈 칸이 있다 - 이유 없는 면제는 성립하지 않는다: " t
+                continue
+              }
+              dir = file
+              if (sub(/\/[^\/]*$/, "", dir) == 0) {
+                bad[++nbad] = allow ":" ln " file 이 디렉터리를 안 갖는다: " file
+                continue
+              }
+              allowed[module "/" dir SUBSEP name] = 1
+              src[module "/" dir SUBSEP name] = allow ":" ln
+              nallow++
+            }
+            close(allow)
+          }
+          # 이 규칙이 아래 스킵 판정보다 먼저 와야 한다 - 순서가 곧 정확성이다.
+          #
+          # go test -json 은 테스트 파일이 없는 패키지에 대해 "Test" 필드 없이
+          # "Action":"skip" 을 낸다("no test files"). 이 저장소에 그런 패키지가
+          # 넷이다 - cmd/enode · cmd/enodectl · cmd/mediator · cmd/runctl.
+          #
+          # 이 규칙을 아래에 두면 그 넷의 줄이 스킵 판정 블록의 next 에 먼저
+          # 소비되어 여기 영영 도달하지 못하고, 완결성 가드가 그것을 "결과를
+          # 안 낸 패키지" 로 읽어 np=11 want=15 로 실패한다. 실제 스킵이 하나도
+          # 없는 초록 실행에서 나는 실패이므로 상시 위양성이다.
+          #
+          # 그 결함이 지금껏 안 터진 것은 입력이 -coverpkg 붙은 로그여서다 -
+          # 그 구성에서는 테스트 없는 넷도 pass 로 나와 15가 채워진다. 즉 이
+          # 게이트가 다른 스텝의 특정 플래그에 조용히 기대고 있었다. 감시가
+          # 위양성으로 상시 빨가면 진짜 신호도 똑같이 못 낸다.
+          #
+          # 패키지 레벨 스킵도 "결과를 낸 패키지" 다 - 세는 것은 스킵 여부가
+          # 아니라 그 패키지가 무언가를 보고했는가이기 때문이다.
+          /"Action":"(pass|fail|skip)"/ && ! /"Test":/ { seen[jstr($0, "Package")] = 1 }
+          /"Action":"skip"/ {
+            test = jstr($0, "Test")
+            if (test == "") next    # 패키지 레벨 스킵. 위 규칙이 이미 셌다
+            pkg = jstr($0, "Package")
+            if ((pkg SUBSEP test) in allowed) {
+              hit[pkg SUBSEP test] = 1
+              exempt[++nex] = pkg " " test
+              next
+            }
+            viol[++nv] = pkg " " test
+          }
+          END {
+            if (nbad > 0) {
+              print "허용목록의 형식이 깨졌다:"
+              for (i = 1; i <= nbad; i++) print "  " bad[i]
+              exit 1
+            }
+            for (p in seen) np++
+            if (np < want) {
+              printf "결과를 낸 패키지가 %d개인데 %d개여야 한다.\n", np, want
+              print "로그가 잘렸거나 실행이 안 끝났다 - 볼 것이 없으면 통과가 아니라 실패다."
+              exit 1
+            }
+            printf "패키지 %d개의 결과를 봤다. 허용목록 항목 %d개.\n", np, nallow
+            for (i = 1; i <= nex; i++) print "면제: " exempt[i]
+            for (k in allowed) if (! (k in hit)) {
+              u = k; sub(SUBSEP, " ", u)
+              print "안내: 허용목록 항목이 이번 실행에서 안 쓰였다 (" src[k] "): " u
+            }
+            if (nv > 0) {
+              printf "\n허용목록 밖의 스킵이 %d건이다:\n", nv
+              for (i = 1; i <= nv; i++) print "  " viol[i]
+              print ""
+              print "스킵은 종료코드에 안 나타난다 - go test 는 그래도 0 으로 끝난다."
+              print "고치는 방법은 둘 중 하나다: CI 에 그 조건을 갖추거나(대개 이쪽이다),"
+              print "정말 갖출 수 없으면 .ci-allowed-skips 에 이유와 함께 올린다."
+              exit 1
+            }
+            print "허용목록 밖의 스킵이 없다."
+          }' /tmp/test.json
 
   # ADR-015 가 Go 를 고른 핵심 이유를 검증한다
   # "리눅스 CI 에서 GOOS=windows 로 exe 가 나온다" 가 깨지면
