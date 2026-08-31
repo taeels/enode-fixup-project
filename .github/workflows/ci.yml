@@ -159,14 +159,57 @@ jobs:
       # 시간을 함께 잰다 - 린트 스텝과 같은 이유이고 같은 방법이다.
       # 실측: 취약점 하나가 걸린 상태 6.56초, 깨끗한 상태 2.33 / 3.37 /
       # 2.51초(웜 캐시). 이 자리의 상한은 10초다.
-      - name: 취약점 (차단)
+      #
+      # 취약점 발견과 DB 접근 실패를 가른다.
+      #
+      # 이 게이트는 저장소에서 유일하게 외부 시간축을 갖는다 - 코드가 한 줄도
+      # 안 바뀌어도 DB 갱신만으로 빨개진다. 그것은 고장이 아니라 이 게이트를
+      # 두는 이유다. 그런데 vuln.go.dev 에 **못 닿아서** 빨개지는 것은 그것과
+      # 다른 일이고, 종료코드만 보면 둘이 같아 보인다.
+      #
+      # 「검사 못 함」이 「막음」이 되면 게이트가 자기가 지키지 않는 것을
+      # 지키는 것처럼 보인다 - 사람은 빨강을 보고 취약점을 찾다가 없다는 것을
+      # 알게 되고, 그 학습이 쌓이면 다음번 진짜 빨강도 같은 눈으로 본다.
+      #
+      # 그래서 셋으로 가른다.
+      #
+      #   취약점을 찾았다        exit 1  (막는다)
+      #   DB 에 못 닿았다        exit 0  (경고를 남기고 통과)
+      #   그 밖의 실패           exit 1  (막는다 - 모르는 실패는 막는 쪽이다)
+      #
+      # 접근 실패는 세 번까지 다시 시도한다. 한 번 못 닿았다고 바로 포기하면
+      # 지나가는 네트워크 잔떨림이 게이트를 통과시켜 버린다.
+      - name: 취약점 (차단 · DB 접근 실패는 경고)
         run: |
-          code=0
           start=$(date +%s%N)
-          govulncheck ./... || code=$?
+          code=0
+          for attempt in 1 2 3; do
+            code=0
+            govulncheck ./... > /tmp/vuln.log 2>&1 || code=$?
+            if [ "$code" = "0" ]; then break; fi
+            # govulncheck 은 취약점을 찾으면 3 으로, 그 밖의 오류는 1 로 끝난다.
+            # 취약점이면 다시 시도할 것이 없다.
+            if [ "$code" = "3" ]; then break; fi
+            if grep -qiE 'no such host|connection refused|timeout|TLS handshake|i/o timeout|temporary failure in name resolution|dial tcp' /tmp/vuln.log; then
+              echo "취약점 DB 에 못 닿았다 (시도 $attempt/3). 다시 시도한다."
+              sleep $((attempt * 5))
+              continue
+            fi
+            break
+          done
+          cat /tmp/vuln.log
           end=$(date +%s%N)
           awk -v s="$start" -v e="$end" \
             'BEGIN { printf "govulncheck 실행 시간: %.3f초\n", (e - s) / 1000000000 }'
+          if [ "$code" = "0" ]; then
+            echo "취약점 없음."
+            exit 0
+          fi
+          if [ "$code" != "3" ] && grep -qiE 'no such host|connection refused|timeout|TLS handshake|i/o timeout|temporary failure in name resolution|dial tcp' /tmp/vuln.log; then
+            echo "::warning::취약점 DB(vuln.go.dev)에 세 번 못 닿아 이번 실행은 스캔하지 못했다."
+            echo "이것은 통과가 아니라 '검사하지 못했다' 이다. 다음 실행에서 다시 시도한다."
+            exit 0
+          fi
           exit $code
 
       - name: 테스트
@@ -192,10 +235,21 @@ jobs:
       #
       # 그래서 이 명령이 아닌 측정치는 게이트 입력으로 쓰지 않는다.
       #
-      # 지금은 재기만 하고 80% 하한으로 막지 않는다 - 15개 패키지 중 11개가
-      # 미달인 상태라, 지금 막으면 커버리지를 올리는 작업이 끝날 때까지 CI 가
-      # 계속 빨갛고 그 구간의 진짜 실패가 그 빨강에 묻힌다. 차단으로 올리는
-      # 것은 그 작업이 끝난 뒤이며 인계 기록에 남겨 두었다.
+      # 80% 하한으로 막는다. 한 패키지라도 미달이면 이 스텝이 exit 1 이다.
+      #
+      # 이 게이트는 조건이 갖춰진 뒤에 켰다. 처음 세울 때는 15개 중 11개가
+      # 미달이라 재기만 했다 - 그때 막았으면 커버리지를 올리는 작업이 끝날
+      # 때까지 CI 가 계속 빨갛고 그 구간의 진짜 실패가 그 빨강에 묻혔을
+      # 것이다. 그 작업이 끝나 미달이 0개가 된 시점에 켰다.
+      #
+      # 여유가 얇은 자리가 하나 있다 - internal/build 가 16/20 = 정확히
+      # 80.0% 다. 남은 넷은 이 프로젝트의 표준 명령(-buildvcs 미지정)에서
+      # 도달 불가라 산술 상한이고, 그 패키지에 문장 하나만 늘어도 이 게이트가
+      # 빨개진다. 그때 할 일은 하한을 낮추는 것이 아니라 그 문장을 덮는
+      # 것이다 - 하한을 낮추면 이 게이트가 지키던 것이 사라진다.
+      #
+      # 저장소 전체 합계로 읽지 않는다. 합계로 보면 0% 인 패키지가 높은
+      # 패키지에 가려진다 - 이 저장소가 실제로 그 모양이었다.
       #
       # 위 테스트 스텝과 이 스텝이 스위트를 두 번 도는 것은 알고 두었다.
       # 실측으로 계측 실행이 20.92 / 21.35초, 평범한 실행이 20.74초라 계측
@@ -208,7 +262,7 @@ jobs:
       # 패키지의 프로파일을 내므로 프로파일 파일에 같은 블록이 여러 번 나온다.
       # 줄을 그냥 더하면 58.6% 가 6.5% 로 읽힌다(실측으로 한 번 밟았다).
       # 아래 awk 가 블록 키로 병합하면서 count 의 최댓값을 취하는 이유다.
-      - name: 커버리지 (표준 측정 명령 · 지금은 재기만)
+      - name: 커버리지 (표준 측정 명령 · 패키지별 80% 하한)
         run: |
           go test ./... -count=1 -coverpkg=./... \
             -coverprofile=/tmp/cover.out -json > /tmp/test.json
@@ -237,7 +291,12 @@ jobs:
             close(cmd)
             printf "\n  전체 %d/%d = %.1f%%   하한 %d%% 미달 %d개\n",
               C, T, 100 * C / T, floor, below
-            print "  지금은 재기만 한다 - 이 수치로 빌드를 막지 않는다."
+            if (below > 0) {
+              print "  하한 미달이 있다 - 위 표의 미달 행을 덮는다."
+              print "  하한을 낮추는 것은 고치는 것이 아니다."
+              exit 1
+            }
+            print "  모든 패키지가 하한을 넘었다."
           }' /tmp/cover.out
 
       # 전 패키지 스킵 감시 (FR4.5 · AC3.4.3)
