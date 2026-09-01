@@ -2,7 +2,12 @@
 
 package main
 
-import "syscall"
+import (
+	"os/exec"
+	"strconv"
+	"strings"
+	"syscall"
+)
 
 // 프로세스를 다루는 네 가지만 플랫폼마다 다르다. 나머지는 전부 공통이다.
 //
@@ -34,4 +39,17 @@ func signalStop(pid int) error {
 // signalKill 은 안 끝날 때의 마지막 수단이다.
 func signalKill(pid int) error {
 	return syscall.Kill(pid, syscall.SIGKILL)
+}
+
+// exeSuffix 는 실행 파일 이름에 붙는 것이다.
+const exeSuffix = ""
+
+// ownsConfig 는 그 pid 가 이 설정을 열고 있는지다.
+//
+// 이름이 아니라 명령줄을 본다 — pid 는 재사용되고, 실행파일 이름은 배포
+// 방식에 따라 다르다(설치본은 enode, 묶음에서 바로 돌리면
+// enode-linux-amd64). 우리가 묻는 것은 이 설정을 열고 있는가다.
+func ownsConfig(pid int, conf string) bool {
+	out, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "args=").Output()
+	return err == nil && strings.Contains(string(out), conf)
 }
