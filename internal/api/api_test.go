@@ -137,6 +137,66 @@ func TestAuthRequired(t *testing.T) {
 	}
 }
 
+// 스킴을 안 보는 인증은 인증이 아니다 (FR3.6).
+//
+// 길이만 보고 앞 7 바이트를 잘라내면 그 자리에 무엇이 있든 통과한다 —
+// ADR-015 §1 이 정한 것은 Bearer 하나이고, 접두사는 비밀이 아니므로
+// 상수 시간으로 볼 필요가 없다. 상수 시간 비교는 토큰 몫으로 남는다.
+func TestAuth_TheBearerSchemeIsChecked(t *testing.T) {
+	srv := newServer(t)
+	cases := map[string]struct {
+		header string
+		want   int
+	}{
+		// 접두사 길이만 맞으면 통과하던 자리다.
+		"a wrong scheme of the same length": {"XXXXXXX" + token, 401},
+		// 클라이언트 여섯이 전부 "Bearer " 를 보낸다 — 소문자는 우리 스킴이 아니다.
+		"a lowercase scheme": {"bearer " + token, 401},
+		"no scheme at all":   {token, 401},
+		// 회귀 방지 — 400 은 인증을 통과하고 계약에서 걸렸다는 뜻이다.
+		"the Bearer scheme still passes": {"Bearer " + token, 400},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			code, _ := do(t, srv, "POST", "/v1/runs", "{}",
+				map[string]string{"Authorization": c.header})
+			if code != c.want {
+				t.Fatalf("Authorization %q got %d, want %d", c.header, code, c.want)
+			}
+		})
+	}
+}
+
+// 접두사는 「어딘가에 있다」가 아니라 「맨 앞이다」 (FR3.6).
+//
+// 위 시험만으로는 HasPrefix 와 Contains 가 안 갈린다 — 거기 쓰는 헤더들은
+// "Bearer " 가 나타나더라도 0번 자리에만 나타나기 때문이다. 둘을 가르려면
+// 스킴이 **뒤쪽에** 있으면서 잘라낸 뒷부분이 토큰과 정확히 같아야 한다.
+// 토큰을 "earer secret" 으로 두고 앞에 "XXXXXXB" 를 붙이면 "Bearer " 가
+// 6번째 자리에 걸쳐 나타나고, 7 글자를 자른 나머지는 토큰과 같아진다.
+func TestAuth_TheSchemeMustBeAtTheFront(t *testing.T) {
+	const secret = "earer secret"
+	srv, _ := newServerFast(t, func(c *config.Config) { c.Token = secret })
+	cases := map[string]struct {
+		header string
+		want   int
+	}{
+		// 스킴이 6번째 자리에 걸쳐 있다 — 맨 앞이 아니므로 거절이다.
+		"the scheme straddles into the token": {"XXXXXXB" + secret, 401},
+		// 회귀 방지 — 맨 앞에 있으면 통과한다(400 은 계약에서 걸렸다는 뜻).
+		"the scheme at the front": {"Bearer " + secret, 400},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			code, _ := do(t, srv, "POST", "/v1/runs", "{}",
+				map[string]string{"Authorization": c.header})
+			if code != c.want {
+				t.Fatalf("Authorization %q got %d, want %d", c.header, code, c.want)
+			}
+		})
+	}
+}
+
 // ── 400 — 계약이 문법적으로 틀렸다 ────────────────────────────────────────
 
 func TestSubmitRejectsBadContract(t *testing.T) {

@@ -68,7 +68,7 @@ func main() {
 		err = fmt.Errorf("unknown command: %s  (setup · list · id · start · stop · logs · status · version)", cmd)
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "✗ %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -191,7 +191,7 @@ func cmdList() error {
 			// 잠자기 방지가 붙어 있는지 함께 보인다 —
 			// 안 붙어 있으면 시연 중에 끊긴다.
 			if runtime.GOOS == "darwin" && caffeinated(pid) {
-				state += " ☕"
+				state += " sleep-held"
 			}
 		}
 		fmt.Printf("  %-14s %-14s %-24s %s\n", n, id, label, state)
@@ -231,7 +231,7 @@ func cmdStart(args []string) error {
 	// launchd 로 띄우면 PATH 가 최소 집합이라 claude 를 못 찾고, 그러면
 	// harness 가 광고에서 조용히 빠져 계약이 422 를 받는다. 원인이 안 보인다.
 	if _, err := exec.LookPath("claude"); err != nil {
-		fmt.Fprintln(os.Stderr, "▲ claude is not on PATH; this node will not advertise a harness.")
+		fmt.Fprintln(os.Stderr, "warning: claude is not on PATH; this node will not advertise a harness.")
 	}
 	if err := os.MkdirAll(stateDir(), 0o755); err != nil {
 		return err
@@ -255,7 +255,7 @@ func cmdStart(args []string) error {
 	time.Sleep(time.Second)
 	pid := pidOf(n)
 	if pid == 0 {
-		fmt.Fprintln(os.Stderr, "✗ did not come up. tail of the log:")
+		fmt.Fprintln(os.Stderr, "error: did not come up. tail of the log:")
 		tailTo(os.Stderr, logOf(n), 20)
 		return errors.New("start failed")
 	}
@@ -288,7 +288,7 @@ func cmdStop(args []string) error {
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
-	fmt.Fprintf(os.Stderr, "▲ did not exit within 10s; killing (pid=%d)\n", pid)
+	fmt.Fprintf(os.Stderr, "warning: did not exit within 10s; killing (pid=%d)\n", pid)
 	return signalKill(pid)
 }
 
@@ -319,7 +319,7 @@ func cmdStatus() error {
 		if pidOf(n) == 0 {
 			continue
 		}
-		fmt.Printf("── %s ── recent log\n", n)
+		fmt.Printf("── %s ── recent log\n", n) // 괘선이라 대상이 아님 - 표를 그린다
 		tailIndent(os.Stdout, logOf(n), 5, "   ")
 		fmt.Println()
 	}
@@ -347,34 +347,6 @@ func identityOf(n string) (id, label string) {
 		return "(no identity)", "(" + err.Error() + ")"
 	}
 	return ident.NodeID, ident.Label
-}
-
-// keepAwake 는 시스템 잠자기가 함대를 끊는 것을 막는다 (맥에서만).
-//
-// 디스플레이가 꺼지는 것은 상관없다. 시스템 잠자기가 CPU 와 네트워크를
-// 멈추고, 그러면 광고가 끊기고 not_after 가 지나 Run 이 죽는다.
-// 실측에서 밟았다: 승인을 기다리던 Run 이 맥이 조용해진 지 180초 만에
-// "임대 만료로 Run 을 회수했다" 로 FAILED 가 됐다.
-//
-// enode 의 수명에 묶는다 (-w) — 껐다 잊는 일이 없고 유령이 안 남는다.
-// -d 는 안 준다 — 화면은 꺼져도 된다. 우리가 막는 것은 그것이 아니다.
-// sudo 를 안 쓴다 — 전원 설정을 영구히 바꾸지 않는다.
-func keepAwake(pid int) {
-	if runtime.GOOS != "darwin" {
-		return
-	}
-	if _, err := exec.LookPath("caffeinate"); err != nil {
-		fmt.Fprintln(os.Stderr, "  ▲ caffeinate is missing — system sleep can cut the fleet")
-		return
-	}
-	c := exec.Command("caffeinate", "-i", "-s", "-w", strconv.Itoa(pid))
-	c.SysProcAttr = detachAttr()
-	if err := c.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "  ▲ could not start caffeinate: %v\n", err)
-		return
-	}
-	_ = c.Process.Release()
-	fmt.Printf("  ☕ sleep held off (while enode pid=%d lives)\n", pid)
 }
 
 // caffeinated 는 그 pid 를 지키는 caffeinate 가 붙어 있는지다.

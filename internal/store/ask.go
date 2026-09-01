@@ -75,7 +75,7 @@ func (s *Store) raiseAsks(ctx context.Context, tx pgx.Tx, runID string) ([]AskEv
 		raised = append(raised, AskEvent{
 			Event: "ask", RunID: runID, Seq: seq, Step: st.ID,
 			Prompt: st.Ask.Prompt, Answerers: st.Ask.Answerers, Deadline: deadline,
-			AnswerPath: fmt.Sprintf("/v1/runs/%s/steps/%d/answer", runID, seq),
+			AnswerPath: s.answerPath(runID, seq),
 		})
 	}
 	return raised, nil
@@ -95,6 +95,15 @@ type AskEvent struct {
 	Answerers  []string   `json:"answerers,omitempty"`
 	Deadline   *time.Time `json:"deadline,omitempty"`
 	AnswerPath string     `json:"answer_path"`
+}
+
+// answerPath 는 주입된 경로 생성기를 쓴다. 없으면 빈 문자열이다 —
+// 상태 층이 라우트를 지어내지 않는다 (FR3.2).
+func (s *Store) answerPath(runID string, seq int) string {
+	if s.AnswerPath == nil {
+		return ""
+	}
+	return s.AnswerPath(runID, seq)
 }
 
 // PushAsks 는 올라온 질문을 웹훅으로 알린다. 커밋 뒤에만 부른다 —

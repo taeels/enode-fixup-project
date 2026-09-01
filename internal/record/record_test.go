@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -153,6 +154,128 @@ func TestTarRefusesUnsealed(t *testing.T) {
 	if err := s.Tar("r", io.Discard); err != ErrNotSealed {
 		t.Fatalf("err=%v, want ErrNotSealed", err)
 	}
+}
+
+// errShortDisk 는 아래 writer 가 더 못 받겠다고 말하는 오류다.
+var errShortDisk = errors.New("no space left on device")
+
+// failAfterN 은 N 바이트까지만 받고 그 뒤로는 실패하는 writer 다.
+// tar 는 본문을 먼저 쓰고 트레일러(0 블록 둘)를 Close 에서 쓰므로,
+// N 을 그 경계에 두면 「본문은 다 썼고 트레일러만 못 쓴」 상태가 선다.
+type failAfterN struct {
+	left     int
+	Accepted int
+}
+
+func (w *failAfterN) Write(p []byte) (int, error) {
+	if len(p) <= w.left {
+		w.left -= len(p)
+		w.Accepted += len(p)
+		return len(p), nil
+	}
+	n := w.left
+	w.left = 0
+	w.Accepted += n
+	return n, errShortDisk
+}
+
+// shortInBody 는 512 바이트를 넘는 첫 쓰기(= 파일 본문)를 절반만 받고
+// **오류는 내지 않는** writer 다. tar 의 헤더 블록은 언제나 정확히 512 이고
+// 패딩은 그보다 작으므로, 512 초과는 본문뿐이다.
+//
+// 오류를 안 내는 것이 핵심이다 — tar 의 내부 오류 상태가 깨끗하게 남아
+// io.Copy 만 io.ErrShortWrite 를 내고, 그제야 Close 가 자기 오류
+// ("missed writing N bytes")를 따로 낸다. 본문 실패와 마감 실패가 **서로
+// 다른 오류**가 되는 유일한 모양이라, 우선순위 구현 둘이 여기서 갈린다.
+type shortInBody struct {
+	done bool
+}
+
+func (w *shortInBody) Write(p []byte) (int, error) {
+	if !w.done && len(p) > 512 {
+		w.done = true
+		return len(p) / 2, nil // 짧은 쓰기. 오류가 아니다
+	}
+	return len(p), nil
+}
+
+// 잘린 묶음이 성공과 함께 나가면 안 된다 (FR3.3).
+//
+// tar.Writer.Close() 가 트레일러를 쓴다. 그 오류를 삼키면 본문만 있고
+// 끝맺음이 없는 아카이브가 nil 오류와 함께 나가고, 받는 쪽은 성질 4
+// (자기충족)가 깨진 것을 모른다 — Record 내보내기는 I4 가 사는 자리다.
+func TestTarReportsAFailedTrailer(t *testing.T) {
+	newSealed := func(t *testing.T) *Store {
+		t.Helper()
+		s := newStore(t)
+		if err := s.Open("r"); err != nil {
+			t.Fatal(err)
+		}
+		// 512 바이트를 넘겨야 한다 — 아래 shortInBody 가 헤더 블록(512)과
+		// 본문을 크기로 가르므로, 본문 쓰기가 하나는 있어야 시험이 선다.
+		log := strings.Repeat("  CC foo.o\n", 64)
+		if _, err := s.AppendLog("r", 1, "build", strings.NewReader(log), 1<<20); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Seal("r", map[string]any{"run_id": "r"},
+			map[string]any{"state": "SUCCEEDED"}, steps()); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+
+	// 온전한 묶음의 크기를 먼저 재서 트레일러 경계를 찾는다.
+	s := newSealed(t)
+	var full bytes.Buffer
+	if err := s.Tar("r", &full); err != nil {
+		t.Fatal(err)
+	}
+	const trailer = 1024 // 0 블록 둘 — Close 가 쓰는 몫이다
+	if full.Len() <= trailer {
+		t.Fatalf("the bundle is too small to split: %d bytes", full.Len())
+	}
+
+	t.Run("a failed trailer is reported", func(t *testing.T) {
+		s := newSealed(t)
+		w := &failAfterN{left: full.Len() - trailer}
+		err := s.Tar("r", w)
+		if w.Accepted >= full.Len() {
+			t.Fatalf("the writer accepted the whole bundle (%d bytes) - it never reached the trailer",
+				w.Accepted)
+		}
+		if err == nil {
+			t.Fatalf("self-containment violated: Tar returned nil after writing only %d of %d bytes - a truncated bundle went out as a success",
+				w.Accepted, full.Len())
+		}
+	})
+
+	// Walk 이 먼저 낸 오류를 Close 의 오류가 덮으면 안 된다 —
+	// 먼저 난 실패가 실제 원인이다.
+	t.Run("an earlier body failure is not masked", func(t *testing.T) {
+		s := newSealed(t)
+		w := &failAfterN{left: 0} // 첫 헤더부터 실패한다
+		err := s.Tar("r", w)
+		if !errors.Is(err, errShortDisk) {
+			t.Fatalf("err=%v, want the body write error %v", err, errShortDisk)
+		}
+	})
+
+	// 위 하위 시험만으로는 우선순위가 안 갈린다 — 쓰기가 오류로 실패하면
+	// tar 가 그 오류를 기억했다가 Close 에서 **같은 오류**를 돌려주므로,
+	// 덮든 안 덮든 결과가 같기 때문이다. 두 오류가 실제로 달라지는 자리를
+	// 따로 세운다: 본문은 io.ErrShortWrite 로, 마감은 tar 자신의
+	// "missed writing" 으로 실패한다. 덮으면 호출자가 원인 대신 증상을 본다.
+	t.Run("a different close failure does not mask the body failure", func(t *testing.T) {
+		s := newSealed(t)
+		err := s.Tar("r", &shortInBody{})
+		if err == nil {
+			t.Fatal("self-containment violated: Tar returned nil after a short body write")
+		}
+		if !errors.Is(err, io.ErrShortWrite) {
+			t.Fatalf("err=%v, want the body failure %v - the close error masked the real cause",
+				err, io.ErrShortWrite)
+		}
+	})
 }
 
 // 로그는 상한을 넘으면 잘라 저장하고 잘렸음을 표시한다 (ADR-015 §5).

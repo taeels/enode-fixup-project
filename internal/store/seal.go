@@ -96,7 +96,11 @@ const (
 )
 
 // ByStep 은 어느 단계가 지었는지를 가리킨다 (ADR-022 P4·P6).
-// 아직 부르는 곳이 없다 — expands 와 재계획이 생기면 그때 쓴다.
+//
+// 부르는 곳은 아직 seal_manifest_test.go 뿐이다 — 봉인 매니페스트가 이
+// 어휘를 읽을 수 있다는 것만 못박아 두었고, 생산 코드에서 이 값을 쓰는
+// 자리는 expands 와 재계획이 생길 때 열린다. 그때까지 어휘를 여기 남겨
+// 두는 이유는 Record 를 읽는 쪽이 문자열을 추측하면 안 되기 때문이다.
 func ByStep(stepID string) string { return "step:" + stepID }
 
 // StepFiles 는 봉인에 쓸 단계 기록을 모은다.

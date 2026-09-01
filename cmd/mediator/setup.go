@@ -6,12 +6,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/taeels/enode/internal/config"
 	"github.com/taeels/enode/internal/store"
 )
@@ -28,7 +30,51 @@ import (
 // 권한은 바이너리가 아니라 건네는 자격이 정한다. 여기서 묻는 관리자 자격은
 // 이 실행 동안만 살고 파일에 안 남는다. 돌 때의 mediator 는 config 의
 // database.url 로만 붙는다.
-func runSetup(args []string) int {
+func runSetup(args []string) int { return runSetupWith(args, liveSetupIO()) }
+
+// adminDB 는 setup 이 관리자 자격으로 하는 것 전부다 — 셋뿐이다.
+//
+// *pgx.Conn 을 그대로 받지 않고 이 셋만 받는 이유는 하나다: 이 셋만 있으면
+// 이 함수를 진짜 Postgres 없이 부를 수 있고, 그것이 안 되면 setup 의 123
+// 문장은 「독립 함수라 호출 가능」할 뿐 「오늘 테스트 가능」하지 않다.
+// 좁게 잡은 것도 일부러다 — 넓히면 새 검사를 넣기 쉬워지고, 그것은 이
+// 단위가 하지 않기로 한 일이다.
+type adminDB interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Close(ctx context.Context) error
+}
+
+var _ adminDB = (*pgx.Conn)(nil)
+
+// setupIO 는 runSetup 이 프로세스 밖에서 잡는 것들이다 — 대화형 stdin 과
+// 실 PostgreSQL 두 연결.
+//
+// 출력은 안 넣었다. setup 은 fmt.Println 으로 os.Stdout 에 직접 쓰고, 찍힌
+// 것을 읽는 방법은 패키지 변수를 갈아끼우는 것으로 이미 있다
+// (cmd/runctl · cmd/enodectl 의 captureOutput). 출력 대상을 io.Writer 로
+// 바꾸는 안을 그 둘이 이미 같은 이유로 기각했다 — 이음매를 뽑는 일이
+// CLI 의 모양을 바꾸기 시작하면 무엇을 시험하는지가 흐려진다.
+type setupIO struct {
+	in      io.Reader
+	connect func(ctx context.Context, url string) (adminDB, error)
+	open    func(ctx context.Context, url string) (*store.Store, error)
+}
+
+// liveSetupIO 는 오늘 동작 그대로다 — 인자 없이 runSetup 을 부르면 이것이
+// 쓰인다. 기본값이 오늘과 같아야 main 쪽 호출이 안 바뀌고, 주입이 새 기능이
+// 아니라 이음매로 남는다.
+func liveSetupIO() setupIO {
+	return setupIO{
+		in: os.Stdin,
+		connect: func(ctx context.Context, url string) (adminDB, error) {
+			return pgx.Connect(ctx, url)
+		},
+		open: store.Open,
+	}
+}
+
+func runSetupWith(args []string, deps setupIO) int {
 	fs := flag.NewFlagSet("mediator setup", flag.ExitOnError)
 	cfgPath := fs.String("config", "", "config file to write (default: first of the search paths)")
 	adminURL := fs.String("admin-url", "", "postgres URL with rights to create roles and databases")
@@ -58,7 +104,7 @@ and are never stored.
 		return 2
 	}
 
-	in := bufio.NewReader(os.Stdin)
+	in := bufio.NewReader(deps.in)
 	interactive := !*yes && !*check
 
 	if interactive {
@@ -90,7 +136,7 @@ and are never stored.
 	defer cancel()
 
 	// ① 아무것도 안 바꾸는 구간 — 붙어 보고, 무엇이 없는지만 본다.
-	admin, err := pgx.Connect(ctx, *adminURL)
+	admin, err := deps.connect(ctx, *adminURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cannot reach postgres: %v\n", err)
 		fmt.Fprintf(os.Stderr, "nothing was changed.\n")
@@ -163,7 +209,7 @@ and are never stored.
 	//
 	// 판을 세지 않는다 — schema.sql 은 전부 IF NOT EXISTS 라 매번 다 돌려도
 	// 안전하다. 판 개념은 되돌릴 수 없는 변경이 처음 생기는 날에 들어온다.
-	st, err := store.Open(ctx, *appURL)
+	st, err := deps.open(ctx, *appURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cannot connect as %s: %v\n", *dbUser, err)
 		return 1
@@ -243,7 +289,7 @@ func mark(have bool) string {
 	return "   missing"
 }
 
-func exists(ctx context.Context, c *pgx.Conn, q string, arg any) (bool, error) {
+func exists(ctx context.Context, c adminDB, q string, arg any) (bool, error) {
 	var one int
 	err := c.QueryRow(ctx, q, arg).Scan(&one)
 	if errors.Is(err, pgx.ErrNoRows) {
