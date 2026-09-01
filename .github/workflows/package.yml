@@ -137,6 +137,43 @@ jobs:
             echo "✓ 갈려 있다"
           '
 
+      # 묶음도 검증한다 — deb 과 rpm 만 보던 자리에 tar.gz 가 빠져 있었다.
+      # 윈도우의 zip 과 같은 종류의 구멍이고, 릴리즈 노트가 「그 밖에」 통로로
+      # 안내하는 것이 이쪽이다. 컨테이너 안에서는 패키지 관리자를 거치는 것이
+      # 오히려 번거로워 손으로 밀어 넣는 자리가 있다(build-installers.sh 의
+      # 「원본 묶음」 주석).
+      #
+      # 한 이미지에서만 돈다 — 묶음이 온전한지는 배포판을 안 탄다.
+      - name: 묶음을 풀어 돌린다
+        if: startsWith(matrix.image, 'debian')
+        run: |
+          docker run --rm -v "$PWD/w":/w:ro ${{ matrix.image }} sh -c '
+            set -e
+            n=0
+            for t in /w/*-linux-amd64.tar.gz; do
+              n=$((n + 1))
+              d=$(mktemp -d)
+              tar xzf "$t" -C "$d"
+              found=0
+              for e in $(find "$d" -type f -perm -u+x); do
+                echo "묶음: $(basename "$t") -> $(basename "$e")"
+                "$e" --version
+                found=$((found + 1))
+              done
+              [ "$found" -gt 0 ] || { echo "묶음에 실행 파일이 없다: $t"; exit 1; }
+            done
+            [ "$n" -eq 2 ] || { echo "묶음이 둘이어야 한다: $n 개"; exit 1; }
+            # 노드 묶음에 셋이 다 있어야 한다 - 하나라도 빠지면 푼 사람이
+            # 그것만 따로 구해야 한다.
+            d=$(mktemp -d)
+            tar xzf /w/enode-0*-linux-amd64.tar.gz -C "$d"
+            for c in enode runctl enodectl; do
+              find "$d" -type f -name "$c" | grep -q . || {
+                echo "노드 묶음에 없다: $c"; exit 1; }
+            done
+            echo "✓ 묶음 둘이 온전하다"
+          '
+
   verify-windows:
     needs: build
     runs-on: windows-latest
@@ -168,5 +205,41 @@ jobs:
           foreach ($e in $want) {
             if (-not (Test-Path $e)) { throw "설치 경로에 없다: $e" }
             & $e --version
+          }
+
+      # 묶음도 검증한다 — 여기가 비어 있어서 rc13 이 그대로 나갔다.
+      #
+      # msi 와 zip 은 같은 바이너리를 담지만 도착하는 자리가 다르다. msi 는
+      # 설치 관리자가 Program Files 에 쓰고, zip 은 사람이 받은 자리에 푼다.
+      # 릴리즈 노트가 「그 밖에」 통로로 안내하는 것이 이쪽이고, rc13 에서
+      # enodectl.exe 가 사라진 것도 이쪽이었다.
+      #
+      # 백신 삭제 자체는 여기서 재현되지 않는다 — 러너에 그 제품이 없다.
+      # 그것을 부른 원인은 ci.yml 의 링크 표면 게이트가 잡는다. 여기서
+      # 지키는 것은 그보다 앞의 것이다: 묶음이 온전하고 실제로 도는가.
+      - name: 묶음을 풀어 돌린다
+        shell: pwsh
+        run: |
+          $zips = Get-ChildItem w\*-windows-amd64.zip
+          if ($zips.Count -lt 2) { throw "묶음이 둘이어야 한다: $($zips.Count) 개" }
+          foreach ($z in $zips) {
+            $dest = Join-Path $PWD "unzipped\$($z.BaseName)"
+            Expand-Archive $z.FullName -DestinationPath $dest -Force
+            $exes = Get-ChildItem $dest -Recurse -Filter *.exe
+            if ($exes.Count -eq 0) { throw "묶음에 실행 파일이 없다: $($z.Name)" }
+            foreach ($e in $exes) {
+              Write-Host "묶음: $($z.Name) -> $($e.Name)"
+              & $e.FullName --version
+              if ($LASTEXITCODE -ne 0) { throw "묶음의 $($e.Name) 이 --version 에 실패한다" }
+            }
+          }
+          # 노드 묶음에 셋이 다 있어야 한다 - 하나라도 빠지면 푼 사람이
+          # 그것만 따로 구해야 한다.
+          $node = Get-ChildItem "unzipped\enode-*-windows-amd64" -Directory |
+                  Where-Object { $_.Name -notlike "enode-mediator-*" }
+          foreach ($n in "enode.exe", "runctl.exe", "enodectl.exe") {
+            if (-not (Get-ChildItem $node.FullName -Recurse -Filter $n)) {
+              throw "노드 묶음에 없다: $n"
+            }
           }
 
