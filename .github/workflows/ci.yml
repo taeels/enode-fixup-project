@@ -456,3 +456,36 @@ jobs:
           GOOS=windows GOARCH=amd64 go build ./...
           GOOS=linux   GOARCH=arm GOARM=7 go build ./...
           GOOS=darwin  GOARCH=arm64 go build ./...
+
+      # enodectl 은 한 기계 안쪽만 아는 도구다. 바깥과 통신할 이유가 없고,
+      # 통신할 수 있게 되면 그 사실이 바이너리에 남아 백신이 그것을 읽는다.
+      #
+      # rc13 에서 실제로 났다 — setup 명령 하나가 internal/enode 를 링크
+      # 대상으로 끌어와 TLS 스택이 통째로 들어왔고, 남의 프로세스를 죽이는
+      # 코드와 한자리에 모이자 AhnLab V3 가 Trojan/Win.Generic.C5874069 로
+      # 진단해 지웠다. 사람이 받은 묶음에서 enodectl.exe 만 사라졌다.
+      # 경위는 scripts/avprobe/README.md 에 있다.
+      #
+      # go list -deps 로는 못 잰다 — 그것은 임포트 그래프를 보는데 링커는
+      # 함수 단위 도달성을 본다. 고친 뒤에도 net/http 는 임포트 그래프에
+      # 남아 있고, 최종 바이너리에만 없다. 그래서 바이너리를 직접 센다.
+      #
+      # 코드 심볼(T)만 센다. 데이터 심볼과 init 은 패키지를 스치기만 해도
+      # 남으므로 「코드가 링크됐는가」를 못 가른다.
+      #
+      # 실측 — rc13 은 crypto/tls 393 · net/http 687 이고 rc14 는 1 · 6 이다.
+      # 상한을 그 사이에 크게 벌려 둔다. 판올림으로 잔여 심볼이 몇 개
+      # 늘어나는 것에는 안 걸리고, 스택이 다시 들어오면 반드시 걸린다.
+      - name: enodectl 이 네트워크 스택을 삼키지 않았는지
+        run: |
+          GOOS=windows GOARCH=amd64 go build -o /tmp/enodectl.exe ./cmd/enodectl
+          tls=$(go tool nm /tmp/enodectl.exe | grep -c ' T crypto/tls\.' || true)
+          http=$(go tool nm /tmp/enodectl.exe | grep -c ' T net/http\.' || true)
+          echo "enodectl  crypto/tls=$tls  net/http=$http  (상한 10 · 50)"
+          if [ "$tls" -gt 10 ] || [ "$http" -gt 50 ]; then
+            echo
+            echo 'enodectl 이 네트워크 스택을 다시 링크한다.'
+            echo '바깥과 통신해야 하는 일은 enode 나 runctl 로 넘긴다 —'
+            echo 'cmd/enodectl/setup.go 가 그 방법을 보인다.'
+            exit 1
+          fi
