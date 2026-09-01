@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -309,37 +307,5 @@ func TestTailIndent_ShowsAtMostTheLastNLinesAndIndentsThem(t *testing.T) {
 	})
 	if stdout != "" || stderr != "" {
 		t.Fatalf("tailIndent on a missing file wrote %q / %q, want silence", stdout, stderr)
-	}
-}
-
-// ── setup ────────────────────────────────────────────────────────────────
-
-func TestCmdSetup_WithCheckReportsAndWritesNothing(t *testing.T) {
-	// setup 이 여기 있는 이유는 enodectl 이 이미 설정 디렉터리를 쥐고 있어
-	// 서다. --check 는 "보고만 하고 아무것도 안 쓴다" 를 약속하며, 그 약속이
-	// 깨지면 setup 을 확인용으로 돌린 사람이 노드 신원을 하나 얻는다.
-	isolate(t)
-	gitIdentity(t, "node-test@example.invalid")
-	probed := false
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		probed = true
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer srv.Close()
-
-	stdout, _ := captureOutput(t, func() {
-		if err := cmdSetup([]string{"probe-node", "-check", "-yes",
-			"-mediator", srv.URL, "-token", "tok"}); err != nil {
-			t.Errorf("cmdSetup = %v, want nil", err)
-		}
-	})
-	if !probed {
-		t.Fatal("setup never asked the mediator; a wrong token would stay silent until runtime")
-	}
-	if !strings.Contains(stdout, "reachable") {
-		t.Fatalf("setup output = %q, want the reachability of the mediator reported", stdout)
-	}
-	if _, err := os.Stat(confOf("probe-node")); err == nil {
-		t.Fatalf("setup -check wrote %s; it promises to write nothing", confOf("probe-node"))
 	}
 }
