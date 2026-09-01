@@ -23,3 +23,4 @@
 
 # 탐침 산출물 (scripts/avprobe/build.sh)
 /scripts/avprobe/dist/
+/scripts/avprobe/dist-bisect/
