@@ -102,8 +102,18 @@ while ($true) {
 bash scripts/avprobe/bisect.sh
 ```
 
-`scripts/avprobe/dist-bisect/` 에 네 벌이 나온다. `gh` 로 릴리즈 자산을 받으므로
-로그인이 되어 있어야 한다.
+`scripts/avprobe/dist-bisect/` 에 네 벌이 나온다. 여기서 굽는 것이지 윈도우에서
+돌리는 것이 아니다 — 산출물만 옮긴다.
+
+릴리즈 자산 둘은 대조군이고, 저장소가 비공개라 익명 다운로드가 안 된다.
+`github.com` 에 로그인된 `gh` 가 있으면 알아서 받는다. 사내 GHES 에만 붙은
+기계처럼 그것이 안 되는 자리에서는 릴리즈 페이지에서 손으로 받아 건넨다.
+
+```sh
+ZIP_BAD=~/Downloads/enode-0.0.1-rc13-windows-amd64.zip \
+ZIP_GOOD=~/Downloads/enode-0.0.1-rc9-windows-amd64.zip \
+  bash scripts/avprobe/bisect.sh
+```
 
 ```text
    A  rc13 릴리즈 자산 그대로        지워지는 것으로 알려진 원본

@@ -8,7 +8,13 @@
 # API 집합이 아니고, 남은 후보는 실제 코드량과 문자열과 구조다. 그것들은
 # 흉내 낼 수 없으므로 실물을 반으로 가른다.
 #
-# gh 가 필요하다 — 릴리즈 자산을 받아 대조군으로 쓴다.
+# 릴리즈 자산 둘이 대조군이다. 저장소가 비공개라 익명 다운로드가 안 되므로
+# github.com 에 로그인된 gh 로 받는다. 사내 GHES 에만 붙은 기계처럼 그것이
+# 안 되는 자리에서는 손으로 받은 zip 을 건네면 gh 를 건너뛴다.
+#
+#   ZIP_BAD=~/Downloads/enode-0.0.1-rc13-windows-amd64.zip \
+#   ZIP_GOOD=~/Downloads/enode-0.0.1-rc9-windows-amd64.zip \
+#     bash scripts/avprobe/bisect.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -26,18 +32,32 @@ build() { # <워크트리> <출력이름>
       -o "$OUT/$2" ./cmd/enodectl )
 }
 
+# 미리 받아 둔 zip 이 있으면 그것을 쓰고, 없으면 gh 로 받는다.
+fetch() { # <태그> <출력이름> <미리받은zip 또는 빈값>
+  local tag="$1" out="$2" given="${3:-}" d="$TMP/rel-$1"
+  mkdir -p "$d"
+  if [ -n "$given" ]; then
+    [ -f "$given" ] || { echo "없는 파일이다: $given" >&2; exit 1; }
+    cp "$given" "$d/asset.zip"
+  else
+    if ! gh auth status --hostname github.com >/dev/null 2>&1; then
+      echo "gh 가 github.com 에 로그인돼 있지 않다." >&2
+      echo "릴리즈 페이지에서 zip 둘을 받아 ZIP_BAD 와 ZIP_GOOD 로 건넨다:" >&2
+      echo "  https://github.com/taeels/enode/releases" >&2
+      exit 1
+    fi
+    gh release download "$tag" --repo taeels/enode \
+      --pattern "enode-${tag#v}-windows-amd64.zip" -O "$d/asset.zip"
+  fi
+  ( cd "$d" && unzip -oq asset.zip )
+  local src; src="$(find "$d" -name enodectl.exe | head -1)"
+  [ -n "$src" ] || { echo "묶음 안에 enodectl.exe 가 없다: $tag" >&2; exit 1; }
+  cp "$src" "$OUT/$out"
+}
+
 echo "== A · D  릴리즈 자산 =="
-for t in "$BAD" "$GOOD"; do
-  d="$TMP/rel-$t"; mkdir -p "$d"
-  gh release download "$t" --repo taeels/enode \
-    --pattern "enode-${t#v}-windows-amd64.zip" -D "$d" >/dev/null
-  ( cd "$d" && unzip -oq ./*.zip )
-  src="$(find "$d" -name enodectl.exe | head -1)"
-  case "$t" in
-    "$BAD")  cp "$src" "$OUT/A-${t#v}-release.exe" ;;
-    "$GOOD") cp "$src" "$OUT/D-${t#v}-release.exe" ;;
-  esac
-done
+fetch "$BAD"  "A-${BAD#v}-release.exe"  "${ZIP_BAD:-}"
+fetch "$GOOD" "D-${GOOD#v}-release.exe" "${ZIP_GOOD:-}"
 
 echo "== B  같은 소스를 여기서 굽는다 =="
 git -C "$ROOT" worktree add -q --detach "$TMP/wt13" "$BAD"
