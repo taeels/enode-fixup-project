@@ -20,3 +20,6 @@
 
 # 로컬 실행이 남기는 로그
 *.log
+
+# 탐침 산출물 (scripts/avprobe/build.sh)
+/scripts/avprobe/dist/
