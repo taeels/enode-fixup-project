@@ -103,13 +103,24 @@ RUNNING=$(node_pid "$BINDIR/enode" "$CFG")
 # 옛 것을 지우지 않는다 — .prev 로 남긴다. 되돌릴 것이 없으면 되돌릴 수 없다.
 say "== 바꾼다 =="
 mkdir -p "$BINDIR" "$STATEDIR"
+# 실행 파일 위에 cp 하면 ETXTBSY 로 실패한다. mv 는 디렉터리 항목만 바꾸므로
+# 도는 프로세스가 옛 inode 를 계속 쓰고, 그래서 실행 중이어도 된다.
+#
+# 이 규칙이 예전에는 여기 주석으로만 있었고 되돌림 경로가 그것을 안 따라
+# runctl·enodectl 을 cp 로 덮었다. 규칙을 이름 붙여 양쪽이 같은 것을 부르게 한다.
+# 되돌림은 별도 스크립트(아래 INNER)라 함수를 공유할 수 없으므로 거기에도 같은
+# 이름으로 한 벌 더 둔다 — 갈라지면 이름이 같은 두 개가 달라진 것이 보인다.
+swap() { # swap <원본> <자리>
+  cp "$1" "$2.new" || return 1
+  chmod +x "$2.new" || return 1
+  mv "$2.new" "$2"
+}
+
 for c in enode runctl enodectl; do
   [ -f "$SRC/$c-$PLAT" ] || continue
+  # .prev 는 읽기라 실행 중이어도 안전하다 — 막히는 것은 쓰기뿐이다.
   [ -f "$BINDIR/$c" ] && cp -p "$BINDIR/$c" "$BINDIR/$c.prev"
-  # mv 는 실행 중이어도 된다 — 도는 프로세스는 옛 inode 를 계속 쓴다.
-  cp "$SRC/$c-$PLAT" "$BINDIR/$c.new"
-  chmod +x "$BINDIR/$c.new"
-  mv "$BINDIR/$c.new" "$BINDIR/$c"
+  swap "$SRC/$c-$PLAT" "$BINDIR/$c" || die "$c 교체 실패"
   say "   $c ← $c-$PLAT"
 done
 
@@ -157,10 +168,16 @@ start() {
   # 되돌린다 — 새 것이 안 뜨면 노드가 사라진다. 그것이 최악이다.
   echo "새 노드가 안 떴다 — 되돌린다"
   if [ -f "$BINDIR/enode.prev" ]; then
-    cp "$BINDIR/enode.prev" "$BINDIR/enode.rollback" && chmod +x "$BINDIR/enode.rollback"
-    mv "$BINDIR/enode.rollback" "$BINDIR/enode"
-    [ -f "$BINDIR/runctl.prev" ] && cp -p "$BINDIR/runctl.prev" "$BINDIR/runctl"
-    [ -f "$BINDIR/enodectl.prev" ] && cp -p "$BINDIR/enodectl.prev" "$BINDIR/enodectl"
+    # 바깥의 swap 과 같은 것이다. 되돌림에서 runctl 이 cp 로 덮이던 자리가
+    # 여기였다 — runctl submit --wait 이 몇 분씩 도는 동안 되돌림이 걸리면
+    # ETXTBSY 로 그 파일만 실패해 enode 는 옛 판, runctl 은 새 판으로 갈린다.
+    # 하필 「새 노드가 안 떴다」인 상황이라 부분 실패가 제일 나쁘게 남는다.
+    for c in enode runctl enodectl; do
+      [ -f "$BINDIR/$c.prev" ] || continue
+      cp "$BINDIR/$c.prev" "$BINDIR/$c.new" || { echo "  되돌림 실패 $c"; continue; }
+      chmod +x "$BINDIR/$c.new"
+      mv "$BINDIR/$c.new" "$BINDIR/$c" || echo "  되돌림 실패 $c"
+    done
     start
     sleep 5
     NEW=$(cat "$STATEDIR/$NAME.newpid" 2>/dev/null)
