@@ -107,15 +107,36 @@ func stateDir() string       { return enode.StateDir() }
 func confOf(n string) string { return filepath.Join(confDir(), n+".yaml") }
 func logOf(n string) string  { return filepath.Join(stateDir(), n+".log") }
 
-// enodeBin 은 PATH 의 enode 를 먼저 보고, 없으면 ~/.local/bin 을 쓴다.
+// enodeBin 은 함께 깔린 enode 를 찾는다.
+//
+// 자기 옆을 먼저 본다 — 셋은 늘 한 자리에 함께 깔린다(윈도우 MSI 의 컴포넌트
+// 셋 · deb 과 rpm 의 /usr/bin · 묶음을 푼 디렉터리). 그런데 윈도우 MSI 는
+// PATH 를 안 건드리므로(packaging/windows/enode.wxs) LookPath 만 보면
+// C:\Program Files\enode 에 나란히 있는 enode.exe 를 못 찾는다.
+//
+// 확장자도 플랫폼이 정한다. 전에는 "enode" 를 그대로 이어 붙여서 윈도우에서는
+// 있을 수 없는 이름을 가리켰고, 게다가 그 폴백 경로 ~/.local/bin 자체가
+// 유닉스 관례라 두 번 어긋났다.
 func enodeBin() string {
 	if v := os.Getenv("ENODE_BIN"); v != "" {
 		return v
 	}
+	name := "enode" + exeSuffix
+	if self, err := os.Executable(); err == nil {
+		if p := filepath.Join(filepath.Dir(self), name); isFile(p) {
+			return p
+		}
+	}
 	if p, err := exec.LookPath("enode"); err == nil {
 		return p
 	}
-	return filepath.Join(home(), ".local", "bin", "enode")
+	return filepath.Join(home(), ".local", "bin", name)
+}
+
+// isFile 은 그 자리에 실제로 파일이 있는지다.
+func isFile(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && !st.IsDir()
 }
 
 // names 는 설정 디렉터리의 <이름>.yaml 을 이름만 뽑아 정렬해 돌려준다.
@@ -156,22 +177,13 @@ func pidOf(n string) int {
 	if err != nil || pid <= 0 {
 		return 0
 	}
-	// 이름이 아니라 명령줄을 본다 — pid 는 재사용되고, 실행파일 이름은
-	// 배포 방식에 따라 다르다(설치본은 enode, 묶음에서 바로 돌리면
-	// enode-linux-amd64). 우리가 묻는 것은 이 설정을 열고 있는가다.
-	out, err := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "args=").Output()
-	if err != nil || !strings.Contains(string(out), conf) {
+	// 그 pid 가 이 설정을 쥐고 있는지는 플랫폼마다 묻는 법이 다르다 —
+	// proc_unix.go 와 proc_windows.go 가 각각 답한다. 여기서 ps 를 직접
+	// 부르면 ps 가 없는 곳에서는 언제나 「아무것도 안 돈다」가 된다.
+	if !ownsConfig(pid, conf) {
 		return 0
 	}
 	return pid
-}
-
-// alive 는 그 pid 가 아직 사는지다.
-func alive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	return processAlive(pid)
 }
 
 // ── 명령 ─────────────────────────────────────────────────────────────────

@@ -694,7 +694,9 @@ func TestDispatch_EverySubcommandReachesItsHandler(t *testing.T) {
 		{"version", []string{"version"}, "enodectl"},
 		{"--version", []string{"--version"}, "enodectl"},
 		{"-version", []string{"-version"}, "enodectl"},
-		{"setup", []string{"setup", "probe", "-check", "-yes", "-mediator", srv.URL, "-token", "t"}, "reachable"},
+		// 여기서 재는 것은 갈래다 — setup 이 enode 로 건너갔고 인자가 순서대로
+		// 따라갔는가. setup 자체의 동작은 internal/enode/setup_test.go 가 본다.
+		{"setup", []string{"setup", "probe", "-check", "-yes", "-mediator", srv.URL, "-token", "t"}, "setup probe -check"},
 		{"start", []string{"start", "zephyr"}, "up"},
 		{"stop", []string{"stop", "zephyr"}, "stopped: zephyr"},
 	} {
@@ -708,8 +710,9 @@ func TestDispatch_EverySubcommandReachesItsHandler(t *testing.T) {
 			}
 		})
 	}
-	// setup --check 는 여기서도 아무것도 안 써야 한다.
+	// enodectl 은 설정을 직접 쓰지 않는다 — 넘길 뿐이다. 넘기는 구조가
+	// 무너져 다시 제 손으로 쓰기 시작하면 여기서 걸린다.
 	if _, err := os.Stat(confOf("probe")); err == nil {
-		t.Fatalf("the setup dispatch wrote %s; --check writes nothing", confOf("probe"))
+		t.Fatalf("enodectl wrote %s itself; setup belongs to enode", confOf("probe"))
 	}
 }

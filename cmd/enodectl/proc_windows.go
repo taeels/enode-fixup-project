@@ -64,3 +64,27 @@ func signalKill(pid int) error {
 	defer syscall.CloseHandle(h)
 	return syscall.TerminateProcess(h, 1)
 }
+
+// exeSuffix 는 실행 파일 이름에 붙는 것이다.
+const exeSuffix = ".exe"
+
+// ownsConfig 는 그 pid 가 이 설정을 열고 있는지다.
+//
+// 유닉스판은 ps 로 명령줄을 읽어 설정 경로까지 맞춰 보지만, 윈도우에는 ps 가
+// 없다. 그래서 여기서는 살아 있는지까지만 본다.
+//
+// 전에는 공통 코드가 ps 를 직접 불렀고, 그래서 윈도우에서는 언제나 0 을
+// 돌려줬다 — 도는 노드가 늘 stopped 로 보이고, start 는 노드를 띄워 놓고
+// 「did not come up」으로 죽고, stop 은 늘 already stopped 였다. 애써 만든
+// processAlive 는 아무도 부르지 않아 도달조차 못 했다.
+//
+// 명령줄을 못 보므로 pid 가 재사용되면 틀릴 수 있다. 그 값을 받는 것은
+// 잠금 파일에 적힌 pid 뿐이고 중복 실행을 실제로 막는 것은 enode 의 flock
+// 이므로, 여기서 틀려도 두 노드가 서는 일은 없다.
+//
+// 되돌리는 조건 — 그 오판이 실제로 관측되면 QueryFullProcessImageName 으로
+// 실행 파일 경로까지 맞춰 본다. golang.org/x/sys/windows 가 필요하다.
+func ownsConfig(pid int, conf string) bool {
+	_ = conf
+	return processAlive(pid)
+}

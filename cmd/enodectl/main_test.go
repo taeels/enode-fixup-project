@@ -3,8 +3,6 @@ package main
 import (
 	"bytes"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -312,34 +310,41 @@ func TestTailIndent_ShowsAtMostTheLastNLinesAndIndentsThem(t *testing.T) {
 	}
 }
 
-// ── setup ────────────────────────────────────────────────────────────────
+// ── enode 를 어디서 찾나 ──────────────────────────────────────────────────
+//
+// 우선순위 자체는 lifecycle_unix_test.go 가 덮는다. 여기 둘은 플랫폼을 안
+// 타는 자리에 있어야 하는 것들이다 — 고쳐야 했던 결함이 정확히 윈도우
+// 것이었고, _unix 파일에 두면 그 플랫폼에서 한 번도 안 돈다.
 
-func TestCmdSetup_WithCheckReportsAndWritesNothing(t *testing.T) {
-	// setup 이 여기 있는 이유는 enodectl 이 이미 설정 디렉터리를 쥐고 있어
-	// 서다. --check 는 "보고만 하고 아무것도 안 쓴다" 를 약속하며, 그 약속이
-	// 깨지면 setup 을 확인용으로 돌린 사람이 노드 신원을 하나 얻는다.
-	isolate(t)
-	gitIdentity(t, "node-test@example.invalid")
-	probed := false
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		probed = true
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer srv.Close()
+func TestEnodeBin_PrefersTheOneBesideItself(t *testing.T) {
+	// 셋은 늘 한 자리에 함께 깔리는데, 윈도우 MSI 는 PATH 를 안 건드린다.
+	// LookPath 만 보면 나란히 있는 것을 두고도 못 찾는다.
+	self, err := os.Executable()
+	if err != nil {
+		t.Skipf("os.Executable: %v", err)
+	}
+	beside := filepath.Join(filepath.Dir(self), "enode"+exeSuffix)
+	if _, err := os.Stat(beside); err == nil {
+		t.Skip("이미 그 자리에 있다 — 지우면 남의 것을 지운다")
+	}
+	if err := os.WriteFile(beside, []byte("stub"), 0o755); err != nil {
+		t.Skipf("자기 옆에 못 쓴다: %v", err)
+	}
+	t.Cleanup(func() { os.Remove(beside) }) //nolint:errcheck
+	t.Setenv("ENODE_BIN", "")
 
-	stdout, _ := captureOutput(t, func() {
-		if err := cmdSetup([]string{"probe-node", "-check", "-yes",
-			"-mediator", srv.URL, "-token", "tok"}); err != nil {
-			t.Errorf("cmdSetup = %v, want nil", err)
-		}
-	})
-	if !probed {
-		t.Fatal("setup never asked the mediator; a wrong token would stay silent until runtime")
+	if got := enodeBin(); got != beside {
+		t.Errorf("enodeBin() = %q, want %q", got, beside)
 	}
-	if !strings.Contains(stdout, "reachable") {
-		t.Fatalf("setup output = %q, want the reachability of the mediator reported", stdout)
-	}
-	if _, err := os.Stat(confOf("probe-node")); err == nil {
-		t.Fatalf("setup -check wrote %s; it promises to write nothing", confOf("probe-node"))
+}
+
+func TestEnodeBin_FallbackCarriesThePlatformSuffix(t *testing.T) {
+	// 확장자를 빼먹으면 윈도우에서는 있을 수 없는 이름을 가리킨다.
+	t.Setenv("ENODE_BIN", "")
+	t.Setenv("PATH", t.TempDir()) // LookPath 가 못 찾게 비운다
+
+	got := enodeBin()
+	if want := "enode" + exeSuffix; filepath.Base(got) != want {
+		t.Errorf("enodeBin() = %q, want its name to be %q", got, want)
 	}
 }
