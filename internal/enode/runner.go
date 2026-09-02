@@ -85,7 +85,7 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	}
 	env := harnessEnv(h.Env(), fixed, j.Inject)
 
-	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd := noConsole(exec.CommandContext(ctx, bin, args...))
 	cmd.Dir = j.IO.Dir
 	cmd.Stdin = strings.NewReader(j.Prompt)
 	// 화이트리스트로 조립된 것만 넘어간다 — os.Environ() 을 얹지 않는다.

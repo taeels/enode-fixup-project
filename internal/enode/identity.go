@@ -89,7 +89,7 @@ func deriveLabel(email, host, configPath string) string {
 // 같아야 하므로), enode 는 데몬이라 저장소 맥락이 무의미하고 시작 디렉터리에
 // 따라 신원이 흔들리면 안 된다.
 func gitEmail() (string, error) {
-	out, err := exec.Command("git", "config", "--global", "--get", "user.email").Output()
+	out, err := noConsole(exec.Command("git", "config", "--global", "--get", "user.email")).Output()
 	if err != nil {
 		return "", ErrNoEmail
 	}

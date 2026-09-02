@@ -102,7 +102,7 @@ func (claudeHarness) Probe(ctx context.Context, bin string) (string, error) {
 	if err := claudeUsable(ctx, path); err != nil {
 		return "", err
 	}
-	out, err := exec.CommandContext(ctx, path, "--version").Output()
+	out, err := noConsole(exec.CommandContext(ctx, path, "--version")).Output()
 	if err != nil {
 		// 쓸 수 있는데 --version 이 실패하면 「있다」로 본다.
 		// 버전을 모르는 것과 못 쓰는 것은 다르다 — 없다고 하면 광고가 빠져
@@ -139,7 +139,7 @@ func claudeUsable(ctx context.Context, path string) error {
 	//	분명히 찍고 있었다 — 우리가 그것을 안 읽은 것이다.
 	//
 	// ⇒ stdout 에 판정할 것이 있으면 종료코드와 무관하게 읽는다.
-	cmd := exec.CommandContext(ctx, path, "auth", "status", "--json")
+	cmd := noConsole(exec.CommandContext(ctx, path, "auth", "status", "--json"))
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	_ = cmd.Run() // 종료코드는 안 본다

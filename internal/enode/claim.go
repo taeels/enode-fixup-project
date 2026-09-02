@@ -546,7 +546,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		log.Warn("argv contains unexpanded variables; no shell is used", "names", left)
 	}
 
-	cmd := exec.CommandContext(runCtx, argv[0], argv[1:]...)
+	cmd := noConsole(exec.CommandContext(runCtx, argv[0], argv[1:]...))
 	cmd.Dir = dir
 	// 명령 단계도 화이트리스트다 (R1)
 	//
