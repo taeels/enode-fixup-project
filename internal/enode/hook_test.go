@@ -221,6 +221,72 @@ func TestHook_TheSettingsFileSitsOutsideOUT(t *testing.T) {
 	}
 }
 
+// 사내 인증 게이트웨이의 인증 필드(apiKeyHelper · env)는 병합된다.
+//
+// 값은 값이 아니라 통과 여부만 본다 — apiKeyHelper 는 실행되는 스크립트 경로고
+// env 는 그 스크립트가 인증 모드를 고르는 재료라, 병합 대상인지가 중요하다.
+func TestHook_MergesGatewayAuthFieldsFromPersonalSettings(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	personal := `{
+		"apiKeyHelper": "/opt/gateway/api-key-helper",
+		"env": {"OIDC_ISSUER_URL": "https://example.invalid", "OIDC_CLIENT_ID": "abc123"},
+		"permissions": {"allow": ["Bash"]}
+	}`
+	if err := os.WriteFile(filepath.Join(home, ".claude", "settings.json"), []byte(personal), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	inst, out := t.TempDir(), t.TempDir()
+	if _, err := WriteHookSettings(inst, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(inst, "enode-settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["apiKeyHelper"] != "/opt/gateway/api-key-helper" {
+		t.Fatalf("apiKeyHelper was not merged: %v", got["apiKeyHelper"])
+	}
+	env, ok := got["env"].(map[string]any)
+	if !ok || env["OIDC_ISSUER_URL"] != "https://example.invalid" || env["OIDC_CLIENT_ID"] != "abc123" {
+		t.Fatalf("env was not merged: %v", got["env"])
+	}
+	// 그 밖의 개인 설정(권한 등)은 여전히 안 옮겨진다 — R6 의 나머지는 그대로다.
+	if _, ok := got["permissions"]; ok {
+		t.Fatalf("an unrelated personal setting leaked through: %v", got)
+	}
+}
+
+// 개인 설정 파일이 없으면(개인 구독 · Bedrock · Vertex 는 흔히 없다)
+// 조용히 아무것도 병합하지 않는다 — 지금까지의 동작 그대로다.
+func TestHook_NoPersonalSettingsIsFine(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // .claude/settings.json 이 존재하지 않는 HOME
+
+	inst, out := t.TempDir(), t.TempDir()
+	if _, err := WriteHookSettings(inst, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(inst, "enode-settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := got["apiKeyHelper"]; ok {
+		t.Fatalf("apiKeyHelper appeared with no personal settings file: %v", got)
+	}
+}
+
 // 공백이 든 경로가 훅 명령에서 안 깨진다 — 셸이 한 줄로 받기 때문이다.
 func TestHook_APathWithSpacesSurvives(t *testing.T) {
 	inst := t.TempDir()
