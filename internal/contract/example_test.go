@@ -14,7 +14,7 @@ import (
 func TestExamples_ParseAndValidate(t *testing.T) {
 	names := ExampleNames()
 	if len(names) == 0 {
-		t.Fatal("예시가 하나도 없다 — embed 가 비었거나 파일이 사라졌다")
+		t.Fatal("no examples; the embed is empty or the files are gone")
 	}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
@@ -24,7 +24,7 @@ func TestExamples_ParseAndValidate(t *testing.T) {
 			}
 			var c Contract
 			if err := json.Unmarshal(b, &c); err != nil {
-				t.Fatalf("붙여넣으면 도는 것이어야 하는데 파싱이 안 된다: %v", err)
+				t.Fatalf("example must parse as printed: %v", err)
 			}
 			if err := c.Validate(); err != nil {
 				t.Fatalf("Validate = %v", err)
@@ -47,7 +47,7 @@ func TestExamples_EveryStepHasASuccessCondition(t *testing.T) {
 				t.Fatal(err)
 			}
 			if len(c.SuccessWhen) == 0 {
-				t.Fatal("success_when 이 비었다 — 어떤 단계가 실패해도 Run 이 성공한다")
+				t.Fatal("success_when is empty; the run would succeed even if every step failed")
 			}
 			judged := map[string]bool{}
 			for _, cond := range c.SuccessWhen {
@@ -55,7 +55,7 @@ func TestExamples_EveryStepHasASuccessCondition(t *testing.T) {
 			}
 			for _, s := range c.Steps {
 				if !judged[s.ID] {
-					t.Errorf("단계 %q 를 판정하는 조건이 없다", s.ID)
+					t.Errorf("no condition judges step %q", s.ID)
 				}
 			}
 		})
@@ -71,7 +71,7 @@ func TestExample_UnknownNameListsWhatExists(t *testing.T) {
 	}
 	for _, name := range ExampleNames() {
 		if !strings.Contains(err.Error(), name) {
-			t.Errorf("오류가 %q 를 안 알려준다: %v", name, err)
+			t.Errorf("error = %v, want it to list %q", err, name)
 		}
 	}
 }

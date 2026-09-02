@@ -367,11 +367,11 @@ func nextStep(reason string) string {
 		return "see: runctl capabilities"
 	case strings.Contains(reason, "no node"), strings.Contains(reason, "unsatisfied"),
 		strings.Contains(reason, "no match"):
-		return "see: runctl capabilities   (매칭되는 속성 조합이 함대에 없다)"
+		return "see: runctl capabilities   (no node advertises that attribute set)"
 	case strings.Contains(reason, "duplicate"), strings.Contains(reason, "exists"):
-		return "run_id 는 함대에서 유일해야 한다"
+		return "run_id must be unique across the fleet"
 	case strings.Contains(reason, "busy"), strings.Contains(reason, "capacity"):
-		return "함대가 지금 바쁘다. 잠시 뒤 다시 낸다"
+		return "the fleet is busy right now; submit again shortly"
 	}
 	// 그 밖의 계약 오류는 형식 문제일 때가 많다.
 	if strings.Contains(reason, "step") || strings.Contains(reason, "contract") ||

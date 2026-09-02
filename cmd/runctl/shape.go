@@ -55,7 +55,7 @@ func cmdLint(path string) int {
 	var c contract.Contract
 	if err := json.Unmarshal(b, &c); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
-		fmt.Fprintln(os.Stderr, "  runctl example  로 도는 계약을 하나 받아 견줘 본다")
+		fmt.Fprintln(os.Stderr, "  runctl example   print a valid one to compare against")
 		return exitRequest
 	}
 	if err := c.Validate(); err != nil {
@@ -81,10 +81,10 @@ func lintWarnings(c contract.Contract) []string {
 	// ADR-066 의 출발점이다. success_when 이 비면 어떤 단계가 실패해도 Run 이
 	// 성공한다 — 실측에서 exit_code 1 에 산출물도 없는 Run 이 SUCCEEDED 로 끝났다.
 	if len(c.SuccessWhen) == 0 {
-		out = append(out, "warning: success_when 이 비어 있다. 어떤 단계가 실패해도 Run 은 성공한다")
+		out = append(out, "warning: success_when is empty; the run succeeds even if every step fails")
 		if len(c.Steps) > 0 {
 			s := c.Steps[0]
-			out = append(out, "  이렇게 적을 수 있다:")
+			out = append(out, "  add a condition like:")
 			out = append(out, "    "+suggestCondition(s))
 		}
 		return out
@@ -96,20 +96,12 @@ func lintWarnings(c contract.Contract) []string {
 	}
 	for _, s := range c.Steps {
 		if !judged[s.ID] {
-			out = append(out, fmt.Sprintf("warning: 단계 %q 를 판정하는 조건이 없다. 그 단계는 실패해도 Run 이 성공한다", s.ID))
+			out = append(out, fmt.Sprintf("warning: no condition judges step %q; it can fail and the run still succeeds", s.ID))
 			out = append(out, "  "+suggestCondition(s))
 		}
 	}
-	// 조건이 없는 단계를 가리키면 그 조건은 영원히 안 맞는다.
-	ids := map[string]bool{}
-	for _, s := range c.Steps {
-		ids[s.ID] = true
-	}
-	for _, cond := range c.SuccessWhen {
-		if cond.Step != "" && !ids[cond.Step] {
-			out = append(out, fmt.Sprintf("warning: success_when 이 없는 단계 %q 를 가리킨다", cond.Step))
-		}
-	}
+	// 없는 단계를 가리키는 조건은 여기서 안 본다 — Validate 가 이미 거절하므로
+	// 이 자리까지 오지 않는다. 겹쳐 두면 도달하지 않는 코드가 하나 는다.
 	return out
 }
 
@@ -130,7 +122,7 @@ func suggestCondition(s contract.Step) string {
 		return fmt.Sprintf(`{ "step": "%s", "exit_code": 0%s }`, s.ID, produced)
 	}
 	if produced == "" {
-		return fmt.Sprintf(`{ "step": "%s", "produced": ["<산출물 이름>"] }`, s.ID)
+		return fmt.Sprintf(`{ "step": "%s", "produced": ["<artifact name>"] }`, s.ID)
 	}
 	return fmt.Sprintf(`{ "step": "%s"%s }`, s.ID, strings.TrimPrefix(produced, ", "))
 }
@@ -149,17 +141,17 @@ func cmdSchema(section string) int {
 		note string
 	}
 	sects := []sect{
-		{"contract", reflect.TypeOf(contract.Contract{}), "계약 전체"},
-		{"steps", reflect.TypeOf(contract.Step{}), "steps[] 의 한 칸"},
-		{"requires", reflect.TypeOf(contract.Require{}), "requires[] 의 한 칸. 여기 없는 키는 전부 매칭 속성이 된다"},
-		{"success_when", reflect.TypeOf(contract.Condition{}), "success_when[] 의 한 칸"},
+		{"contract", reflect.TypeOf(contract.Contract{}), "the whole contract"},
+		{"steps", reflect.TypeOf(contract.Step{}), "one entry of steps[]"},
+		{"requires", reflect.TypeOf(contract.Require{}), "one entry of requires[]; any other key is a matching attribute"},
+		{"success_when", reflect.TypeOf(contract.Condition{}), "one entry of success_when[]"},
 	}
 	if section == "" {
 		for _, s := range sects {
 			fmt.Printf("%-14s %s\n", s.name, s.note)
 		}
-		fmt.Println("\n  runctl schema <section>   그 칸의 필드를 본다")
-		fmt.Println("  runctl example            먼저 이것을 보는 편이 빠르다")
+		fmt.Println("\n  runctl schema <section>   fields of that section")
+		fmt.Println("  runctl example            usually faster to start here")
 		return exitOK
 	}
 	for _, s := range sects {
@@ -193,9 +185,9 @@ func printFields(t reflect.Type) {
 		if name == "" {
 			name = f.Name // 태그가 없으면 커스텀 마샬러가 있다는 뜻이다
 		}
-		required := "필수"
+		required := "required"
 		if strings.Contains(opts, "omitempty") || f.Type.Kind() == reflect.Ptr {
-			required = "선택"
+			required = "optional"
 		}
 		fmt.Printf("  %-14s %-24s %s\n", name, typeName(f.Type), required)
 	}

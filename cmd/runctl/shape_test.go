@@ -60,12 +60,12 @@ func TestLintWarnings_CatchesTheSilentSuccess(t *testing.T) {
 	}
 	got := strings.Join(lintWarnings(c), "\n")
 	if !strings.Contains(got, "success_when") {
-		t.Fatalf("경고가 success_when 을 안 짚는다:\n%s", got)
+		t.Fatalf("warnings = %q, want them to name success_when", got)
 	}
 	// 제안이 그대로 붙여넣어져야 한다 — 「고치라」고만 하면 다시 찾아야 한다.
 	if !strings.Contains(got, `"step": "shot"`) || !strings.Contains(got, `"exit_code": 0`) ||
 		!strings.Contains(got, `"produced": ["screen.png"]`) {
-		t.Fatalf("제안이 붙여넣을 수 있는 모양이 아니다:\n%s", got)
+		t.Fatalf("warnings = %q, want a paste-ready condition", got)
 	}
 }
 
@@ -81,27 +81,11 @@ func TestLintWarnings_NamesTheUnjudgedStep(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := strings.Join(lintWarnings(c), "\n")
-	if !strings.Contains(got, `"b"`) {
-		t.Fatalf("판정 없는 단계 b 를 안 짚는다:\n%s", got)
+	if !strings.Contains(got, `step "b"`) {
+		t.Fatalf("warnings = %q, want them to name the unjudged step b", got)
 	}
-	if strings.Contains(got, `단계 "a"`) {
-		t.Fatalf("판정이 있는 a 를 짚는다:\n%s", got)
-	}
-}
-
-// 없는 단계를 가리키는 조건은 영원히 안 맞는다.
-func TestLintWarnings_ConditionPointingNowhere(t *testing.T) {
-	var c contract.Contract
-	if err := json.Unmarshal([]byte(`{
-	  "run_id": "t", "requires": [{"as":"w","capability":"agent.reason"}],
-	  "steps": [{"id":"a","uses":"w","run":["true"],"out":["x"]}],
-	  "success_when": [{"step":"a","exit_code":0},{"step":"ghost","exit_code":0}]
-	}`), &c); err != nil {
-		t.Fatal(err)
-	}
-	got := strings.Join(lintWarnings(c), "\n")
-	if !strings.Contains(got, "ghost") {
-		t.Fatalf("없는 단계를 가리키는 조건을 안 짚는다:\n%s", got)
+	if strings.Contains(got, `step "a"`) {
+		t.Fatalf("warnings = %q, want step a left alone; it is judged", got)
 	}
 }
 
@@ -118,7 +102,7 @@ func TestExamples_LintClean(t *testing.T) {
 				t.Fatal(err)
 			}
 			if w := lintWarnings(c); len(w) > 0 {
-				t.Errorf("예시에 경고가 있다:\n%s", strings.Join(w, "\n"))
+				t.Errorf("example has warnings:\n%s", strings.Join(w, "\n"))
 			}
 		})
 	}
@@ -130,14 +114,14 @@ func TestCmdLint_SaysWhatIsWrongWithTheFile(t *testing.T) {
 		t.Errorf("cmdLint(\"\") = %d, want %d", code, exitRequest)
 	}
 	if code := cmdLint(filepath.Join(t.TempDir(), "missing.json")); code != exitRequest {
-		t.Error("없는 파일인데 거절하지 않는다")
+		t.Error("cmdLint on a missing file did not reject it")
 	}
 	bad := filepath.Join(t.TempDir(), "bad.json")
 	if err := os.WriteFile(bad, []byte("{not json"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if code := cmdLint(bad); code != exitRequest {
-		t.Error("깨진 JSON 인데 거절하지 않는다")
+		t.Error("cmdLint on broken JSON did not reject it")
 	}
 }
 
