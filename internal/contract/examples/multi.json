@@ -1,0 +1,30 @@
+{
+  "run_id": "example-multi",
+  "work": {
+    "id": { "system": "manual", "change_id": "example-multi" },
+    "system": "manual"
+  },
+  "requires": [
+    { "as": "worker", "capability": "agent.reason" }
+  ],
+  "steps": [
+    {
+      "id": "make",
+      "uses": "worker",
+      "run": ["sh", "-c", "printf 'one\\ntwo\\n' > $OUT/lines.txt"],
+      "out": ["lines.txt"]
+    },
+    {
+      "id": "count",
+      "uses": "worker",
+      "needs": ["make"],
+      "in": { "from": ["lines.txt"] },
+      "run": ["sh", "-c", "wc -l < $IN/lines.txt > $OUT/count.txt"],
+      "out": ["count.txt"]
+    }
+  ],
+  "success_when": [
+    { "step": "make", "exit_code": 0, "produced": ["lines.txt"] },
+    { "step": "count", "exit_code": 0, "produced": ["count.txt"] }
+  ]
+}

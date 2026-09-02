@@ -91,6 +91,21 @@ func run() int {
 	// 플래그가 조용히 무시되고, 조용한 무시가 가장 나쁘다.
 	flag.CommandLine.Parse(permute(os.Args[1:]))
 
+	// 함대를 안 거치는 셋은 여기서 끝낸다 (ADR-066 §4).
+	//
+	// Mediator 주소도 토큰도 git 신원도 요구하지 않는다 — 그것을 요구하면
+	// 「계약을 어떻게 쓰나」를 물으려고 먼저 함대를 세워야 하고, 그러면
+	// 이 셋이 있어야 하는 이유가 사라진다. 처음 오는 쪽이 가장 먼저 잡는
+	// 것이 이 셋이다.
+	switch flag.Arg(0) {
+	case "example":
+		return cmdExample(flag.Arg(1))
+	case "schema":
+		return cmdSchema(flag.Arg(1))
+	case "lint":
+		return cmdLint(flag.Arg(1))
+	}
+
 	// capabilities 는 인자가 없다.
 	if flag.NArg() == 1 && (flag.Arg(0) == "capabilities" || flag.Arg(0) == "asks") {
 		flag.CommandLine.Parse(append(permute(os.Args[1:]), "-"))
@@ -328,6 +343,11 @@ func report(err error) int {
 	var f *runctl.Fail
 	if errors.As(err, &f) {
 		fmt.Fprintf(os.Stderr, "%d %s\n", f.Code, f.Reason)
+		// 무엇이 틀렸는지만 말하고 무엇이 맞는지는 안 말하면 왕복이 하나 는다
+		// (ADR-066 §4.4). 답을 들고 있는 명령이 바로 옆에 있다.
+		if next := nextStep(f.Reason); next != "" {
+			fmt.Fprintln(os.Stderr, "  "+next)
+		}
 		if f.Code/100 == 4 {
 			return exitRequest // 계약이 틀렸거나(400/422) 지금은 안 된다(409)
 		}
@@ -335,6 +355,30 @@ func report(err error) int {
 	}
 	fmt.Fprintln(os.Stderr, err)
 	return exitSystem
+}
+
+// nextStep 은 거절 사유에 맞는 다음 행동 한 줄이다 (ADR-066 §4.4).
+//
+// 사유 문자열로 가른다 — Mediator 가 구조화된 코드를 주지 않기 때문이다.
+// 못 맞히면 빈 문자열이고, 그때는 오늘과 같다. 틀린 안내를 하느니 안 한다.
+func nextStep(reason string) string {
+	switch {
+	case strings.Contains(reason, "unknown capability"):
+		return "see: runctl capabilities"
+	case strings.Contains(reason, "no node"), strings.Contains(reason, "unsatisfied"),
+		strings.Contains(reason, "no match"):
+		return "see: runctl capabilities   (no node advertises that attribute set)"
+	case strings.Contains(reason, "duplicate"), strings.Contains(reason, "exists"):
+		return "run_id must be unique across the fleet"
+	case strings.Contains(reason, "busy"), strings.Contains(reason, "capacity"):
+		return "the fleet is busy right now; submit again shortly"
+	}
+	// 그 밖의 계약 오류는 형식 문제일 때가 많다.
+	if strings.Contains(reason, "step") || strings.Contains(reason, "contract") ||
+		strings.Contains(reason, "required") {
+		return "see: runctl lint <contract.json>  ·  runctl example"
+	}
+	return ""
 }
 
 // verdictCode 는 Run 의 성패를 종료코드로 옮긴다.
@@ -410,6 +454,12 @@ func usage() {
   runctl capabilities                     attribute vocabulary of the fleet
   runctl asks                             questions awaiting an answer
   runctl answer <run-id> <seq> --set k=v [--set ...]   answer a question
+
+Writing a contract           these three need no mediator and no token
+  runctl example                          list the ready-to-run examples
+  runctl example <name>                   print one; it is valid as-is
+  runctl lint <contract.json>             check it before you submit it
+  runctl schema [section]                 the field vocabulary
 
 Exit codes
   0  run succeeded (or is still running)
