@@ -1,0 +1,21 @@
+{
+  "run_id": "example-command",
+  "work": {
+    "id": { "system": "manual", "change_id": "example-command" },
+    "system": "manual"
+  },
+  "requires": [
+    { "as": "worker", "capability": "agent.reason" }
+  ],
+  "steps": [
+    {
+      "id": "greet",
+      "uses": "worker",
+      "run": ["sh", "-c", "echo hello > $OUT/greeting.txt"],
+      "out": ["greeting.txt"]
+    }
+  ],
+  "success_when": [
+    { "step": "greet", "exit_code": 0, "produced": ["greeting.txt"] }
+  ]
+}

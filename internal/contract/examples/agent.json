@@ -1,0 +1,29 @@
+{
+  "run_id": "example-agent",
+  "work": {
+    "id": { "system": "manual", "change_id": "example-agent" },
+    "system": "manual"
+  },
+  "requires": [
+    { "as": "brain", "capability": "agent.reason", "harness": "claude" }
+  ],
+  "steps": [
+    {
+      "id": "summarize",
+      "uses": "brain",
+      "agent": { "max_turns": 5, "ask": "never" },
+      "in": { "prompt": "Write a one-line summary of this workspace into $OUT/summary.json as {\"summary\": \"...\"}." },
+      "out": ["summary.json"],
+      "schema": {
+        "summary.json": {
+          "type": "object",
+          "required": ["summary"],
+          "properties": { "summary": { "type": "string" } }
+        }
+      }
+    }
+  ],
+  "success_when": [
+    { "step": "summarize", "produced": ["summary.json"] }
+  ]
+}
