@@ -148,7 +148,7 @@ func (w *Worker) checkout(ctx context.Context, dir, rev string, log *slog.Logger
 }
 
 func run(ctx context.Context, dir string, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := noConsole(exec.CommandContext(ctx, name, args...))
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

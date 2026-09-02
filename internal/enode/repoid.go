@@ -102,7 +102,7 @@ func detectRepoManifest(workspace string) string {
 }
 
 func gitIn(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", args...)
+	cmd := noConsole(exec.Command("git", args...))
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {
