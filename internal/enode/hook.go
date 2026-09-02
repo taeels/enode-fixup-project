@@ -316,6 +316,9 @@ func WriteHookSettings(dir string, self string, a HookArgs) ([]string, error) {
 			}},
 		},
 	}
+	for k, v := range gatewayAuthFields() {
+		settings[k] = v
+	}
 	b, err := json.Marshal(settings)
 	if err != nil {
 		return nil, err
@@ -330,9 +333,50 @@ func WriteHookSettings(dir string, self string, a HookArgs) ([]string, error) {
 	// Run 은 재현 가능해야 하고, 그것이 Record 를 남기는 이유다 (ADR-005).
 	// --setting-sources '' 로 아무것도 안 읽게 하고 우리가 준 --settings 만 쓴다.
 	//
-	// 인증은 안 끊긴다 — 자격증명은 설정이 아니라 ~/.claude 의 별도 파일이고
-	// HOME 이 화이트리스트에 있다 (R1). 실측으로 확인했다.
+	// 인증은 안 끊긴다는 실측이 두 가지였다 — 순수 로그인(OAuth 세션이
+	// ~/.claude/.credentials.json 에 있고 설정과 무관)에서는 HOME 이
+	// 화이트리스트에 있는 것으로 충분했다. 그런데 사내 인증 게이트웨이를
+	// 거치는 환경은 인증 자체가 설정 파일의 필드(apiKeyHelper · env)로
+	// 되어 있어서 그 실측이 안 맞았다 (보드 노드 실측, 2026-09-01/02).
+	// gatewayAuthFields() 가 그 두 필드만 골라 우리 settings 에 얹는다 —
+	// 나머지(권한·훅·모델 오버라이드 등)는 여전히 사람 설정에서 안 읽는다.
 	return []string{"--settings", path, "--setting-sources", ""}, nil
+}
+
+// gatewayAuthFields 는 사람의 ~/.claude/settings.json 에서 인증에 쓰이는
+// 필드만 골라 돌려준다 — apiKeyHelper 와 env 뿐이다.
+//
+// 왜 이 두 개인가 — 사내 인증 게이트웨이를 거치는 환경에서 인증은 프로세스
+// 환경변수가 아니라 이 두 필드로 온다. apiKeyHelper 는 키를 매 요청마다
+// 재발급하는 스크립트고, env 안의 OIDC 설정이 있어야 그 스크립트가 캐시된
+// 키를 찾는다. 실측으로 세 조합을 다 확인했다 — env 만 있으면 apiKeyHelper
+// 자체가 안 불려 "Not logged in"으로 떨어지고, apiKeyHelper 만 있으면 그
+// 스크립트가 인증 모드를 잘못 판단해 재시도만 반복하다 타임아웃한다.
+// 둘 다 있어야만 캐시된 키를 즉시 찾는다.
+//
+// 못 읽으면 조용히 빈 채로 돈다 — 파일이 없는 것은 흔한 정상 상태다
+// (개인 구독·Bedrock·Vertex 는 이 파일에 인증을 안 둔다).
+func gatewayAuthFields() map[string]any {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	b, err := os.ReadFile(filepath.Join(home, ".claude", "settings.json"))
+	if err != nil {
+		return nil
+	}
+	var personal map[string]any
+	if json.Unmarshal(b, &personal) != nil {
+		return nil
+	}
+	out := map[string]any{}
+	if v, ok := personal["apiKeyHelper"]; ok {
+		out["apiKeyHelper"] = v
+	}
+	if v, ok := personal["env"]; ok {
+		out["env"] = v
+	}
+	return out
 }
 
 // shellJoin 은 훅 명령을 한 줄로 만든다. 하네스가 셸에 넘기기 때문이다.
