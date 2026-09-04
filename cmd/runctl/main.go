@@ -71,14 +71,41 @@ func permute(args []string) []string {
 	return append(flags, rest...)
 }
 
+// flagGiven 은 그 플래그가 명령줄에 실제로 왔는지다.
+//
+// flag.Visit 은 기본값으로 남은 것을 안 돈다 - 사람이 준 값과 우리가
+// 채워 넣은 값을 가르는 유일한 방법이다. 값이 비었는지로 가르면 그 둘이
+// 같아 보인다.
+func flagGiven(name string) bool {
+	given := false
+	flag.CommandLine.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			given = true
+		}
+	})
+	return given
+}
+
 func run() int {
 	// --version 은 플래그 파싱보다 앞이다 (ADR-056) — 토큰이 없어도 답한다.
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
 		fmt.Println(build.Version("runctl"))
 		return 0
 	}
+	// 자격증명은 플래그 기본값에 넣지 않는다.
+	//
+	// flag.PrintDefaults() 는 기본값을 (default "...") 로 그대로 찍고,
+	// 사용법은 인자가 틀릴 때마다 나온다. 그래서 여기에 os.Getenv 를 두면
+	// 토큰이 로그와 화면과 이슈 첨부에 그대로 남는다. 기본값을 비우고
+	// 파싱 뒤에 읽는다 - cmd/enode 도 같은 순서다.
+	//
+	// Mediator 주소는 반대다. 비밀이 아니고, 어디에 붙는지가 보이는 편이
+	// 사람을 돕는다. 가리는 기준은 "환경변수에서 왔는가" 가 아니라
+	// "알려지면 곤란한가" 이므로 이 둘을 같은 자리에 두지 않는다.
+	// 되돌리는 조건 - ENODE_MEDIATOR 가 비밀을 담게 되면(주소 자체에
+	// 자격증명이 실리는 형태가 생기면) 이것도 토큰과 같은 자리로 내린다.
 	base := flag.String("mediator", os.Getenv("ENODE_MEDIATOR"), "mediator address ($ENODE_MEDIATOR)")
-	token := flag.String("token", os.Getenv("ENODE_TOKEN"), "auth token ($ENODE_TOKEN)")
+	token := flag.String("token", "", "auth token ($ENODE_TOKEN)")
 	wait := flag.Bool("wait", false, "wait until the run reaches a terminal state")
 	out := flag.String("o", "", "file to write the record to (default: stdout)")
 	every := flag.Duration("poll", 2*time.Second, "polling interval for --wait")
@@ -90,6 +117,17 @@ func run() int {
 	// 그런데 사람은 `runctl submit x.json --wait` 라고 쓴다. 그 순서를 안 받으면
 	// 플래그가 조용히 무시되고, 조용한 무시가 가장 나쁘다.
 	flag.CommandLine.Parse(permute(os.Args[1:]))
+
+	// 토큰은 파싱 뒤에 읽는다. 플래그가 안 왔을 때만 환경변수를 쓰므로
+	// 우선순위는 오늘과 같다 - 플래그가 환경변수를 이긴다.
+	//
+	// 값이 비었는지가 아니라 플래그가 왔는지로 가른다. `--token=` 로 일부러
+	// 비운 것을 환경변수가 도로 채우면 사람이 준 것을 조용히 무시하는 것이고,
+	// 그러면 그 호출은 오늘처럼 "토큰이 필요하다" 로 죽지 않고 엉뚱한
+	// 자격증명으로 나간다.
+	if !flagGiven("token") {
+		*token = os.Getenv("ENODE_TOKEN")
+	}
 
 	// 함대를 안 거치는 셋은 여기서 끝낸다 (ADR-066 §4).
 	//
