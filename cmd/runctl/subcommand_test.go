@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -71,11 +70,17 @@ func newCLI(t *testing.T, h http.HandlerFunc) *cli {
 // 나간다. ContinueOnError 로 두면 그 자리에서 죽는 대신 실패한다 - 이
 // 파일의 어떤 테스트도 잘못된 플래그를 먹이지 않으므로 그 차이가 실제로
 // 쓰이지는 않는다.
+//
+// 새 집합의 출력을 io.Discard 로 막던 것을 걷었다. 막아 두면 usage() 가
+// 부르는 flag.PrintDefaults() 의 출력만 통째로 사라져서, 이 파일은
+// "CLI 가 찍은 것" 이라고 부르는 것 중 한 갈래를 못 본다. 사용법에
+// 토큰이 실려 나간 결함이 그 사각지대에서 살았다. 지금은 출력을 안
+// 지정하므로 flag 가 쓰는 시점의 os.Stderr, 즉 captureOutput 이 끼운
+// 파이프로 간다 - 생산에서 사람이 보는 것과 같은 자리다.
 func (c *cli) exec(args ...string) (code int, stdout, stderr string) {
 	c.t.Helper()
 	oldArgs, oldFlags := os.Args, flag.CommandLine
 	fs := flag.NewFlagSet("runctl", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
 	os.Args, flag.CommandLine = append([]string{"runctl"}, args...), fs
 	defer func() { os.Args, flag.CommandLine = oldArgs, oldFlags }()
 	stdout, stderr = captureOutput(c.t, func() { code = run() })
@@ -148,6 +153,47 @@ func TestRun_IncompleteInvocationsPrintUsageAndAskForAFix(t *testing.T) {
 				t.Fatalf("stderr = %q, want the usage text listing the subcommands", stderr)
 			}
 		})
+	}
+}
+
+// 사용법은 토큰의 이름만 말하고 값은 말하지 않는다.
+//
+// 왜 이것을 재는가 - 사용법은 인자가 틀릴 때마다 나오고, 사람은 그것을
+// 이슈에 붙이고 화면에 띄운다. 자격증명이 거기 한 줄이라도 실리면 그
+// 순간부터 그 토큰은 공개된 것이다. 실제로 플래그 기본값에
+// os.Getenv("ENODE_TOKEN") 이 들어 있었고 flag.PrintDefaults() 가 그것을
+// (default "...") 로 그대로 찍었다.
+//
+// 재는 대상은 "환경변수를 안 읽는다" 가 아니라 "읽은 값을 안 찍는다" 다 -
+// 환경변수로 준 토큰이 실제 요청에 실리는 것은
+// TestRun_CapabilitiesSortsTheAttributeVocabulary 가, 플래그가 환경변수를
+// 이기는 것은 TestRun_ExplicitFlagsBeatTheEnvironment 가 각각 잡고 있다.
+func TestRun_UsageNamesTheTokenVariableWithoutPrintingItsValue(t *testing.T) {
+	const secret = "usage-must-not-print-this-value"
+	c := newCLI(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("the mediator was called for an incomplete invocation")
+	})
+	t.Setenv("ENODE_TOKEN", secret)
+
+	// 인자가 없으면 사용법이 나온다. 이것이 사람이 가장 자주 보는 경로다.
+	code, stdout, stderr := c.exec()
+	if code != exitRequest {
+		t.Fatalf("code = %d, want %d", code, exitRequest)
+	}
+	// 사용법에 플래그 목록이 실제로 실려 있어야 아래 단언이 의미를 갖는다.
+	if !strings.Contains(stderr, "-token string") {
+		t.Fatalf("stderr = %q, want the flag defaults section listing -token", stderr)
+	}
+	// 값을 가리는 대신 이름을 지우는 것은 고친 것이 아니다. 어디서 읽는지는
+	// 계속 말해야 한다.
+	if !strings.Contains(stderr, "$ENODE_TOKEN") {
+		t.Fatalf("stderr = %q, want the usage to still name the variable it reads the token from", stderr)
+	}
+	if strings.Contains(stderr, secret) {
+		t.Fatal("the usage text printed the value of $ENODE_TOKEN; it must name the variable and never its value")
+	}
+	if strings.Contains(stdout, secret) {
+		t.Fatal("the value of $ENODE_TOKEN reached stdout; a credential must not be printed")
 	}
 }
 
