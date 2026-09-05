@@ -25,7 +25,7 @@ func TestFirstSuccessfulAdvertNotifies(t *testing.T) {
 	a := &Advertiser{
 		Client:  &Client{Base: srv.URL, Token: "t", Principal: "p", HTTP: srv.Client()},
 		Ident:   Identity{NodeID: "n1", Label: "l"},
-		Local:   Local{},
+		Caps:    func() Capabilities { return Capabilities{} },
 		Every:   20 * time.Millisecond,
 		Log:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		OnReady: func() { mu.Lock(); ready++; mu.Unlock() },
@@ -64,6 +64,7 @@ func TestAFailedAdvertDoesNotNotify(t *testing.T) {
 	a := &Advertiser{
 		Client:  &Client{Base: srv.URL, Token: "t", Principal: "p", HTTP: srv.Client()},
 		Ident:   Identity{NodeID: "n1"},
+		Caps:    func() Capabilities { return Capabilities{} },
 		Every:   20 * time.Millisecond,
 		Log:     slog.New(slog.NewTextHandler(io.Discard, nil)),
 		OnReady: func() { mu.Lock(); ready++; mu.Unlock() },

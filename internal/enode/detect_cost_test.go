@@ -97,3 +97,88 @@ func TestDetectComesBackWhenItsContextIsCancelled(t *testing.T) {
 		t.Fatal("Detect outlived its context — the advertise loop would be stuck with it")
 	}
 }
+
+// 광고가 읽는 자리는 프로세스를 안 띄운다 (ADR-068).
+//
+// 여기가 이 갈래의 요점이다. 예전에는 광고 루프가 직접 탐지했고, 그래서
+// 광고 주기가 곧 프로세스 기동 주기였다. Mediator 가 renew_seconds 를
+// 낮추면 아무도 고른 적 없는 경로로 하네스 탐지까지 촘촘해졌다.
+func TestReadingTheCapabilitiesSpawnsNothing(t *testing.T) {
+	dir := t.TempDir()
+	callLog := filepath.Join(dir, "calls")
+	bin := recordingClaude(t, dir, callLog)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	d := NewDetector(context.Background(), Local{HarnessBin: bin}, time.Hour, log)
+	before := countLines(t, callLog)
+
+	// 광고가 열 번 돈 셈 친다.
+	for i := 0; i < 10; i++ {
+		if got := d.Capabilities(); len(got.Caps) == 0 {
+			t.Fatal("the advert went out empty")
+		}
+	}
+
+	if after := countLines(t, callLog); after != before {
+		t.Fatalf("reading the capabilities ran %d more processes; the advert loop must spawn none",
+			after-before)
+	}
+}
+
+// 탐지가 안 돌아와도 광고는 마지막 값을 들고 나간다 (ADR-068).
+//
+// 예전에는 이 자리에서 노드가 조용히 사라졌다 — 탐지가 멈추면 하트비트가
+// 함께 멈추고, 프로세스도 로그도 정상인 채로 광고가 만료된다. ADR-028 이
+// 겪은 증상이 그것이고, 그때 첫 번째로 의심한 것이 하네스 탐지였다.
+func TestTheAdvertDoesNotWaitForADetectionThatHangs(t *testing.T) {
+	dir := t.TempDir()
+	counter := filepath.Join(dir, "n")
+	p := filepath.Join(dir, "claude")
+	// 첫 번째는 즉시 답하고, 그 뒤로는 안 돌아온다.
+	script := "#!/bin/sh\n" +
+		"n=$(cat " + shQuote(counter) + " 2>/dev/null || echo 0)\n" +
+		"n=$((n+1)); echo $n > " + shQuote(counter) + "\n" +
+		"[ \"$n\" -gt 1 ] && sleep 60\n" +
+		"echo '{\"loggedIn\":true}'\n"
+	if err := os.WriteFile(p, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewDetector(ctx, Local{HarnessBin: p}, 20*time.Millisecond, log)
+	go d.Run(ctx)
+
+	// 두 번째 탐지가 시작되어 걸릴 때까지 기다린다.
+	deadline := time.Now().Add(3 * time.Second)
+	for countLines(t, counter) < 1 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// 그 사이에도 광고는 즉시 답해야 하고, 마지막으로 알아낸 것을 들고 있어야 한다.
+	done := make(chan Capabilities, 1)
+	go func() { done <- d.Capabilities() }()
+	select {
+	case got := <-done:
+		if len(got.Caps) == 0 || got.Caps[0].Attrs["harness"] != "claude" {
+			t.Fatalf("the advert lost what it already knew: %+v", got.Caps)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("reading the capabilities blocked on a hanging detection")
+	}
+}
+
+func countLines(t *testing.T, path string) int {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	s := strings.TrimSpace(string(b))
+	if s == "" {
+		return 0
+	}
+	return len(strings.Split(s, "\n"))
+}

@@ -18,12 +18,22 @@ import (
 //
 // capability 어휘는 agent.reason 하나뿐이므로(ADR-019) 구별은 전부 속성이 한다.
 //
-// ctx 를 받는 이유 — 탐지의 일부는 외부 프로세스를 띄운다. 그것이 안 돌아오면
-// 부르는 쪽(광고 루프)이 함께 멈추고, 하트비트가 안 나가 노드가 조용히
-// 함대에서 사라진다. ADR-028 이 그 증상을 이미 겪었고 그때 첫 번째로 의심한
-// 것이 이 자리였다. 그때는 원인이 아니었지만 구멍은 그대로 남아 있었다.
-// 여기로 취소가 닿아야 종료 신호도 자식 프로세스까지 간다.
+// 두 갈래를 한 번에 한다 (ADR-068)
+//
+// 알아내는 비용이 속성마다 다르다 — 어떤 것은 상수이고 어떤 것은 외부
+// 프로세스를 띄운다. 광고 루프는 비싼 쪽을 직접 부르면 안 되므로(Detector 가
+// 대신 든다), 이 함수는 둘을 함께 하는 형태로 남는다. 한 번만 도는 자리가
+// 쓴다 — setup 과 Detector 의 첫 탐지가 그것이다.
 func Detect(ctx context.Context, l Local, log *slog.Logger) []contract.Capability {
+	return capabilities(l, log, costlyAttrs(ctx, l, log), cheapAttrs(l, log))
+}
+
+// cheapAttrs 는 외부 프로세스를 안 띄우고 알아내는 것이다 (ADR-068 §4 비용 축).
+//
+// 상수 · syscall · 설정값뿐이라 광고마다 새로 봐도 된다. 오히려 새로 봐야
+// 한다 — 디스크 여유가 여기 있고, 그것이 동적이라는 것이 ADR-017 결정 3 의
+// 근거였다. 빌드가 도는 동안 디스크가 차면 다음 광고에서 바로 빠져야 한다.
+func cheapAttrs(l Local, log *slog.Logger) map[string]string {
 	attrs := map[string]string{}
 
 	// 이 기계가 무엇인가 (ADR-055) — 계약이 고르는 데도 쓰이고,
@@ -39,7 +49,50 @@ func Detect(ctx context.Context, l Local, log *slog.Logger) []contract.Capabilit
 	attrs["os"] = runtime.GOOS
 	attrs["host_arch"] = runtime.GOARCH
 
-	// 추론 하네스가 있나 — Probe() 가 곧 executable resolve 다 (R3).
+	if l.Workspace != "" {
+		// 워크스페이스가 어디인가 (ADR-055) — 계획이 「파일을 어디에
+		// 둘 수 있나」를 알아야 명령을 지을 수 있다. 조사로 알아내려면
+		// 판이 하나 든다.
+		//
+		// 매칭에도 쓰이지만 주된 값은 정보다 — 계약이 경로로 노드를
+		// 고르는 일은 드물고, 계획이 그 경로를 쓰는 일은 매번 있다.
+		attrs["ws"] = l.Workspace
+	}
+
+	// 빌드 능력 — 툴체인이 있고 디스크가 남아 있을 때만 광고한다.
+	if arch := detectArch(l); arch != "" {
+		if ok, free := hasRoom(l, log); ok {
+			attrs["arch"] = arch
+		} else {
+			log.Warn("not enough free disk; dropping build capability from the advertisement",
+				"free_gb", free, "min_gb", l.MinFreeGB)
+		}
+	}
+
+	// 포트에 무엇이 달렸는지는 기계가 모른다 — 그 기계에만 적는다 (ADR-012).
+	//
+	// 여기는 탐지가 아니라 선언이다 — 사람이 적은 것을 그대로 싣는다.
+	// 보드가 뽑혀도 광고에 남으므로, 매칭은 통과하고 실행 시점에 죽는다.
+	// ADR-059 가 하네스에서 고친 것과 같은 모양이 여기 남아 있다.
+	// 고치려면 살아있음을 물어봐야 하는데, 그 확인은 지금 일하는 Run 이 쥔
+	// 포트를 여는 일이라 임대와 맞물려야 한다 (ADR-068 §4.1 · §5.1 순연).
+	if l.Board != nil && l.Board.SoC != "" {
+		attrs["board"] = l.Board.SoC
+		if l.Board.Tag != "" {
+			attrs["tag"] = l.Board.Tag
+		}
+	}
+	return attrs
+}
+
+// costlyAttrs 는 외부 프로세스를 띄워야 알아내는 것이다 (ADR-068 §4 비용 축).
+//
+// 광고 루프가 이것을 직접 부르면 안 된다 — 여기서 멈추면 하트비트가 함께
+// 멈추고 노드가 조용히 함대에서 사라진다. Detector 가 자기 시계로 갱신한다.
+func costlyAttrs(ctx context.Context, l Local, log *slog.Logger) map[string]string {
+	attrs := map[string]string{}
+
+	// 추론 하네스가 있나 — Usable() 이 곧 executable resolve 다 (R3).
 	// 없으면 광고에 안 실리고 → 후보에서 빠지고 → 계약이 요구하면 422 다.
 	// "설치 안 된 하네스는 실행 안 한다" 가 별도 코드 없이 성립한다.
 	for _, h := range harnesses {
@@ -47,8 +100,7 @@ func Detect(ctx context.Context, l Local, log *slog.Logger) []contract.Capabilit
 		if h.Name() != "claude" {
 			bin = "" // 지금은 claude 만 덮어쓸 수 있다
 		}
-		err := h.Usable(ctx, bin)
-		if err != nil {
+		if err := h.Usable(ctx, bin); err != nil {
 			// 「있는데 못 쓴다」는 조용히 빠지면 안 된다 (ADR-059)
 			//
 			// 없는 것은 당연한 일이라 로그가 필요 없다 — 그 기계에 안 깔았을 뿐이다.
@@ -78,13 +130,6 @@ func Detect(ctx context.Context, l Local, log *slog.Logger) []contract.Capabilit
 	// 유도가 이긴다 — .repo · .git 이 있으면 workspace_id 는 무시한다.
 	// 사람이 적은 것이 기계가 본 것을 이기면 둘이 어긋났을 때 조용히 틀린다.
 	if l.Workspace != "" {
-		// 워크스페이스가 어디인가 (ADR-055) — 계획이 「파일을 어디에
-		// 둘 수 있나」를 알아야 명령을 지을 수 있다. 조사로 알아내려면
-		// 판이 하나 든다.
-		//
-		// 매칭에도 쓰이지만 주된 값은 정보다 — 계약이 경로로 노드를
-		// 고르는 일은 드물고, 계획이 그 경로를 쓰는 일은 매번 있다.
-		attrs["ws"] = l.Workspace
 		if repo := DetectRepo(ctx, l.Workspace); repo != "" {
 			attrs["repo"] = repo
 		} else if l.WorkspaceID != "" {
@@ -92,22 +137,19 @@ func Detect(ctx context.Context, l Local, log *slog.Logger) []contract.Capabilit
 			attrs["repo"] = l.WorkspaceID
 		}
 	}
+	return attrs
+}
 
-	// 빌드 능력 — 툴체인이 있고 디스크가 남아 있을 때만 광고한다.
-	if arch := detectArch(l); arch != "" {
-		if ok, free := hasRoom(l, log); ok {
-			attrs["arch"] = arch
-		} else {
-			log.Warn("not enough free disk; dropping build capability from the advertisement",
-				"free_gb", free, "min_gb", l.MinFreeGB)
-		}
-	}
-
-	// 포트에 무엇이 달렸는지는 기계가 모른다 — 그 기계에만 적는다 (ADR-012).
-	if l.Board != nil && l.Board.SoC != "" {
-		attrs["board"] = l.Board.SoC
-		if l.Board.Tag != "" {
-			attrs["tag"] = l.Board.Tag
+// capabilities 는 알아낸 조각들을 광고에 실을 모양으로 합친다.
+//
+// 조각을 나눈 것은 알아내는 비용 때문이고(ADR-068), 합치고 나면 광고가
+// 무엇을 싣는지는 하나도 안 바뀐다 — ADR-012 의 「매번 전부」도,
+// ADR-017 결정 3 의 「못 하면 뺀다」도 그대로다.
+func capabilities(l Local, log *slog.Logger, parts ...map[string]string) []contract.Capability {
+	attrs := map[string]string{}
+	for _, part := range parts {
+		for k, v := range part {
+			attrs[k] = v
 		}
 	}
 

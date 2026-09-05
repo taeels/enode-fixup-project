@@ -90,7 +90,14 @@ func (c *Client) Advertise(ctx context.Context, a contract.Advert) (*AdvertRespo
 type Advertiser struct {
 	Client *Client
 	Ident  Identity
-	Local  Local
+
+	// Caps 는 지금 광고할 능력을 돌려준다 (ADR-068).
+	//
+	// 여기서 탐지하지 않는다 — 탐지의 일부는 외부 프로세스를 띄우고,
+	// 그것이 안 돌아오면 이 루프가 함께 멈춘다. 그러면 하트비트가 끊기고
+	// 노드는 프로세스도 로그도 정상인 채로 함대에서 사라진다.
+	// 비싼 것은 Detector 가 자기 시계로 갱신하고 여기서는 읽기만 한다.
+	Caps func() Capabilities
 	// Every 는 첫 광고 전까지의 기본값이다 (ADR-028) —
 	// 응답이 오면 Mediator 가 말한 주기로 바뀐다. Run 루프만 이 값을 만진다.
 	Every time.Duration
@@ -130,13 +137,18 @@ func (a *Advertiser) Run(ctx context.Context) {
 		case <-t.C:
 		}
 
-		// 매번 다시 탐지한다 — 보드가 빠지거나 디스크가 차면 그 항목이
+		// 매번 전부 보낸다 — 보드가 빠지거나 디스크가 차면 그 항목이
 		// 빠진 채로 나가고, 그것이 곧 "지금은 못 한다" 다 (ADR-017 결정 3).
+		//
+		// 보내는 규칙은 그대로이고 알아내는 자리만 옮겼다 (ADR-068).
+		// 디스크처럼 값싼 것은 Caps 안에서 지금 새로 보므로, 빌드가 도는
+		// 동안 디스크가 차면 다음 광고에서 바로 빠진다.
+		snap := a.Caps()
 		ad := contract.Advert{
 			NodeID:       a.Ident.NodeID,
 			Label:        a.Ident.Label,
 			Instance:     a.Client.Instance, // 이번 생 (ADR-030)
-			Capabilities: Detect(ctx, a.Local, a.Log),
+			Capabilities: snap.Caps,
 		}
 		resp, err := a.Client.Advertise(ctx, ad)
 		switch {
@@ -156,7 +168,11 @@ func (a *Advertiser) Run(ctx context.Context) {
 					a.Every = want
 				}
 			}
-			a.Log.Debug("advertise", "node", ad.NodeID, "caps", len(ad.Capabilities), "leases", len(resp.Leases))
+			// 값의 나이를 함께 찍는다 — 비싼 탐지는 자기 주기로 도므로
+			// 여기 실린 harness·repo 는 「지금」이 아니다. 그 사실이 안
+			// 보이면 「왜 로그아웃했는데 아직 광고에 있지」가 미궁이 된다.
+			a.Log.Debug("advertise", "node", ad.NodeID, "caps", len(ad.Capabilities),
+				"leases", len(resp.Leases), "caps_age", time.Since(snap.At).Round(time.Second))
 			// 첫 광고가 성공했다 — 이제 매칭이 이 노드를 고를 수 있다.
 			if a.OnReady != nil {
 				f := a.OnReady
