@@ -85,7 +85,7 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	}
 	env := harnessEnv(h.Env(), fixed, j.Inject)
 
-	cmd := noConsole(exec.CommandContext(ctx, bin, args...))
+	cmd := child(exec.CommandContext(ctx, bin, args...))
 	cmd.Dir = j.IO.Dir
 	cmd.Stdin = strings.NewReader(j.Prompt)
 	// 화이트리스트로 조립된 것만 넘어간다 — os.Environ() 을 얹지 않는다.
@@ -105,13 +105,17 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	}
 	res := h.Decode(bytes.NewReader(stdout.Bytes()), code, emit)
 	// 버전은 runner 가 채운다 — 어댑터마다 잊을 수 있는 일을 한 곳에 둔다.
-	// Probe 가 실패해도 실행은 이미 됐으므로 결과를 버리지 않는다.
+	// Version 이 실패해도 실행은 이미 됐으므로 결과를 버리지 않는다.
 	//
 	// 캐시하지 않는다 — enode 는 며칠씩 살아 있어서, 그 사이 하네스가
 	// 업그레이드되면 캐시된 버전은 거짓이 된다. 그런데 우리가 버전을 남기는
 	// 이유가 바로 그 드리프트를 잡기 위해서다. 캐시는 잡으려는 것을 숨긴다.
 	// 비용은 단계당 프로세스 하나(~50ms)이고, 단계는 실측 74초였다 — 0.07% 다.
-	if v, err := h.Probe(ctx, bin); err == nil {
+	//
+	// 그 「하나」가 예전에는 둘이었다 — Probe 가 버전을 알아내기 전에
+	// 「쓸 수 있는가」를 먼저 확인했고, 이 자리에는 그 확인이 필요 없다.
+	// 실행은 이미 끝났고 결과가 손에 있다.
+	if v, err := h.Version(ctx, bin); err == nil {
 		res.Version = v
 	}
 

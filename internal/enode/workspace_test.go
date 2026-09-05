@@ -134,13 +134,13 @@ func TestDetect_WorkspaceIDIsUsedOnlyWhenDerivationFails(t *testing.T) {
 
 	// git 도 .repo 도 없는 디렉터리 — 사람이 적은 이름이 쓰인다.
 	plain := t.TempDir()
-	caps := Detect(Local{Workspace: plain, WorkspaceID: "docs/handbook"}, log)
+	caps := Detect(context.Background(), Local{Workspace: plain, WorkspaceID: "docs/handbook"}, log)
 	if got := attrOf(caps, "repo"); got != "docs/handbook" {
 		t.Fatalf("the written name did not ride along: %q", got)
 	}
 
 	// 안 적으면 오늘 그대로 — 속성이 없다.
-	caps = Detect(Local{Workspace: plain}, log)
+	caps = Detect(context.Background(), Local{Workspace: plain}, log)
 	if got := attrOf(caps, "repo"); got != "" {
 		t.Fatalf("should be absent, yet %q rode along", got)
 	}
@@ -157,7 +157,7 @@ func TestDetect_WorkspaceIDIsUsedOnlyWhenDerivationFails(t *testing.T) {
 			t.Skipf("git is unusable: %v %s", err, out)
 		}
 	}
-	caps = Detect(Local{Workspace: repo, WorkspaceID: "written/by-hand"}, log)
+	caps = Detect(context.Background(), Local{Workspace: repo, WorkspaceID: "written/by-hand"}, log)
 	if got := attrOf(caps, "repo"); got != "gerrit.corp/kernel/linux" {
 		t.Fatalf("the hand-written value beat derivation: %q", got)
 	}

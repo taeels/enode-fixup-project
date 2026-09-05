@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -73,36 +74,39 @@ func isDigits(s string) bool {
 //
 // 사람이 저장소 주소를 적지 않는다 — runctl 은 cwd 에서, enode 는
 // 워크스페이스에서 같은 방식으로 유도한다 (ADR-015 가 git config 를 읽는 것과 같은 트릭).
-func DetectRepo(workspace string) string {
-	if id := detectRepoManifest(workspace); id != "" {
+func DetectRepo(ctx context.Context, workspace string) string {
+	if id := detectRepoManifest(ctx, workspace); id != "" {
 		return id
 	}
-	out, err := gitIn(workspace, "config", "--get", "remote.origin.url")
+	out, err := gitIn(ctx, workspace, "config", "--get", "remote.origin.url")
 	if err != nil {
 		return ""
 	}
 	return CanonicalRepoID(out)
 }
 
-func detectRepoManifest(workspace string) string {
+func detectRepoManifest(ctx context.Context, workspace string) string {
 	manifests := filepath.Join(workspace, ".repo", "manifests")
 	if _, err := os.Stat(manifests); err != nil {
 		return ""
 	}
-	url, err := gitIn(manifests, "config", "--get", "remote.origin.url")
+	url, err := gitIn(ctx, manifests, "config", "--get", "remote.origin.url")
 	if err != nil || url == "" {
 		return ""
 	}
 	id := CanonicalRepoID(url)
 	// 같은 manifest 의 다른 브랜치는 다른 트리다 (ADR-017).
-	if br, err := gitIn(manifests, "rev-parse", "--abbrev-ref", "HEAD"); err == nil && br != "" && br != "HEAD" {
+	if br, err := gitIn(ctx, manifests, "rev-parse", "--abbrev-ref", "HEAD"); err == nil && br != "" && br != "HEAD" {
 		return id + "#" + br
 	}
 	return id
 }
 
-func gitIn(dir string, args ...string) (string, error) {
-	cmd := noConsole(exec.Command("git", args...))
+// gitIn 은 ctx 를 받는다 — 워크스페이스가 네트워크 파일시스템 위에 있거나
+// 자격증명 헬퍼가 안 돌아오면 이 git 이 무기한 걸릴 수 있고, 그때 부르는
+// 쪽(광고 루프)이 함께 멈춘다. Detect 의 주석이 그 사슬을 적는다.
+func gitIn(ctx context.Context, dir string, args ...string) (string, error) {
+	cmd := child(exec.CommandContext(ctx, "git", args...))
 	cmd.Dir = dir
 	out, err := cmd.Output()
 	if err != nil {

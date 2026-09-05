@@ -136,7 +136,7 @@ func (a *Advertiser) Run(ctx context.Context) {
 			NodeID:       a.Ident.NodeID,
 			Label:        a.Ident.Label,
 			Instance:     a.Client.Instance, // 이번 생 (ADR-030)
-			Capabilities: Detect(a.Local, a.Log),
+			Capabilities: Detect(ctx, a.Local, a.Log),
 		}
 		resp, err := a.Client.Advertise(ctx, ad)
 		switch {

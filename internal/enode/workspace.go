@@ -50,7 +50,7 @@ func (w *Worker) Prepare(ctx context.Context, spec *WorkspaceSpec, log *slog.Log
 	}
 
 	// 매칭이 이미 걸렀지만 확인한다 — 다른 저장소를 빌드하면 조용히 틀린 결과가 나온다.
-	if got := DetectRepo(dir); got != spec.Repo {
+	if got := DetectRepo(ctx, dir); got != spec.Repo {
 		return PrepNone, fmt.Errorf("workspace repository mismatch: node has %q, contract wants %q", got, spec.Repo)
 	}
 
@@ -148,7 +148,7 @@ func (w *Worker) checkout(ctx context.Context, dir, rev string, log *slog.Logger
 }
 
 func run(ctx context.Context, dir string, name string, args ...string) error {
-	cmd := noConsole(exec.CommandContext(ctx, name, args...))
+	cmd := child(exec.CommandContext(ctx, name, args...))
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()
 	if err != nil {

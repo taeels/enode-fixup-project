@@ -148,7 +148,11 @@ func run() int {
 		// 응답이 유실되어 그 단계를 아무도 안 돌린다 (claim 은 비멱등이다).
 		Poll: &http.Client{},
 	}
-	caps := enode.Detect(local, log)
+	// 이 탐지는 기동 로그를 위한 것이고, 곧 뜨는 Advertiser 가 즉시 한 번 더
+	// 탐지한다 — 그래서 기동 순간에는 같은 외부 프로세스가 두 벌 뜬다.
+	// 탐지를 광고 루프에서 떼어내면 이 중복도 함께 없어지므로 그때 한 번에
+	// 정리한다 (ADR-068). 지금 여기서만 없애면 기동 로그가 능력을 못 찍는다.
+	caps := enode.Detect(ctx, local, log)
 	log.Info("enode started",
 		"node", ident.NodeID, "label", ident.Label,
 		"config", ident.Config, "caps", caps)

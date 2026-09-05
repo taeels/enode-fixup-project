@@ -17,7 +17,13 @@ import (
 // (ADR-017 결정 3). Mediator 는 아무것도 새로 알 필요가 없다.
 //
 // capability 어휘는 agent.reason 하나뿐이므로(ADR-019) 구별은 전부 속성이 한다.
-func Detect(l Local, log *slog.Logger) []contract.Capability {
+//
+// ctx 를 받는 이유 — 탐지의 일부는 외부 프로세스를 띄운다. 그것이 안 돌아오면
+// 부르는 쪽(광고 루프)이 함께 멈추고, 하트비트가 안 나가 노드가 조용히
+// 함대에서 사라진다. ADR-028 이 그 증상을 이미 겪었고 그때 첫 번째로 의심한
+// 것이 이 자리였다. 그때는 원인이 아니었지만 구멍은 그대로 남아 있었다.
+// 여기로 취소가 닿아야 종료 신호도 자식 프로세스까지 간다.
+func Detect(ctx context.Context, l Local, log *slog.Logger) []contract.Capability {
 	attrs := map[string]string{}
 
 	// 이 기계가 무엇인가 (ADR-055) — 계약이 고르는 데도 쓰이고,
@@ -41,7 +47,7 @@ func Detect(l Local, log *slog.Logger) []contract.Capability {
 		if h.Name() != "claude" {
 			bin = "" // 지금은 claude 만 덮어쓸 수 있다
 		}
-		ver, err := h.Probe(context.Background(), bin)
+		err := h.Usable(ctx, bin)
 		if err != nil {
 			// 「있는데 못 쓴다」는 조용히 빠지면 안 된다 (ADR-059)
 			//
@@ -55,12 +61,15 @@ func Detect(l Local, log *slog.Logger) []contract.Capability {
 			}
 			continue
 		}
-		attrs["harness"] = h.Name()
 		// 버전은 광고에 안 싣는다 — 매처는 동등 비교뿐이라
 		// "2.1.236 (Claude Code)" 같은 문자열은 매칭에 못 쓰고 공간만 더럽힌다.
 		// 버전이 필요한 이유는 기록 이므로 HarnessResult 로 간다
 		// (ADR-005 성질 4 — 봉인된 묶음만 보고 알 수 있어야 한다).
-		_ = ver
+		//
+		// 그래서 여기서 Version 을 안 부른다. 예전에는 Probe 하나가 둘을
+		// 겸했고 돌려받은 버전을 그 자리에서 버렸는데, 버리는 값을 위해
+		// 프로세스는 광고마다 그대로 떴다.
+		attrs["harness"] = h.Name()
 		break
 	}
 
@@ -76,7 +85,7 @@ func Detect(l Local, log *slog.Logger) []contract.Capability {
 		// 매칭에도 쓰이지만 주된 값은 정보다 — 계약이 경로로 노드를
 		// 고르는 일은 드물고, 계획이 그 경로를 쓰는 일은 매번 있다.
 		attrs["ws"] = l.Workspace
-		if repo := DetectRepo(l.Workspace); repo != "" {
+		if repo := DetectRepo(ctx, l.Workspace); repo != "" {
 			attrs["repo"] = repo
 		} else if l.WorkspaceID != "" {
 			// 유도할 수 없는 워크스페이스 — 사람이 적은 이름을 쓴다 (ADR-036).
