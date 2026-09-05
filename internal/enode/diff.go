@@ -139,7 +139,7 @@ func gitOutName(ctx context.Context, dir string, env []string, name string, args
 	if name == "git" {
 		args = append([]string{"-c", "core.quotePath=false"}, args...)
 	}
-	cmd := noConsole(exec.CommandContext(ctx, name, args...))
+	cmd := child(exec.CommandContext(ctx, name, args...))
 	cmd.Dir = dir
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)

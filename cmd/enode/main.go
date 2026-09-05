@@ -65,6 +65,16 @@ func run() int {
 	mediator := flag.String("mediator", "", "mediator address (overrides config)")
 	token := flag.String("token", "", "auth token (overrides config)")
 	every := flag.Duration("every", 60*time.Second, "interval for advertise, heartbeat and lease renewal")
+	// 탐지 주기는 광고 주기와 다른 것에 매여 있다 (ADR-068)
+	//
+	// 광고 주기는 Mediator 의 만료 계산에 맞아야 하고(ADR-028), 탐지 주기는
+	// 알아내려는 사실이 얼마나 빨리 변하느냐에 맞아야 한다. 한 손잡이가 둘을
+	// 움직이면 Mediator 가 renew_seconds 를 낮출 때 아무도 고른 적 없는
+	// 경로로 하네스 탐지까지 촘촘해진다.
+	//
+	// 값싼 탐지는 이 주기를 안 탄다 — 디스크 여유는 광고마다 새로 본다.
+	detectEvery := flag.Duration("detect-every", enode.DefaultDetectEvery,
+		"interval for re-detecting what costs a process to find out (harness, repository)")
 	debug := flag.Bool("debug", false, "")
 	// 탄력 노드를 위한 둘 (docs/elastic-nodes.md)
 	//
@@ -148,10 +158,16 @@ func run() int {
 		// 응답이 유실되어 그 단계를 아무도 안 돌린다 (claim 은 비멱등이다).
 		Poll: &http.Client{},
 	}
-	caps := enode.Detect(local, log)
+	// 첫 탐지는 여기서 동기로 한 번 돈다 (ADR-068)
+	//
+	// 첫 광고가 빈 능력으로 나가면 안 된다 — 광고가 곧 능력이므로 빈 광고는
+	// "아무것도 못 한다" 는 선언이고, 그 사이 들어온 Run 은 422 로 거절된다.
+	// 그 한 번이 기동 로그도 겸한다. 예전에는 로그를 위해 한 번, Advertiser 가
+	// 즉시 또 한 번 탐지해서 기동 순간에 같은 외부 프로세스가 두 벌 떴다.
+	det := enode.NewDetector(ctx, local, *detectEvery, log)
 	log.Info("enode started",
 		"node", ident.NodeID, "label", ident.Label,
-		"config", ident.Config, "caps", caps)
+		"config", ident.Config, "caps", det.Capabilities().Caps)
 
 	// 두 연결을 동시에 든다 (ADR-016)
 	//   claim   롱폴 — 일을 기다린다. 서버가 대기 시간을 정한다
@@ -161,8 +177,9 @@ func run() int {
 	held := enode.NewHeld()
 
 	adv := &enode.Advertiser{
-		Client: client, Ident: ident, Local: local, Every: *every, Log: log,
-		OnLeases: held.Set, // 응답이 임대의 갱신이자 취소 통보다 통째로 교체한다
+		Client: client, Ident: ident, Every: *every, Log: log,
+		Caps:     det.Capabilities, // 여기서 탐지하지 않는다 (ADR-068)
+		OnLeases: held.Set,         // 응답이 임대의 갱신이자 취소 통보다 통째로 교체한다
 	}
 
 	// 떴다는 신호 — 첫 광고가 성공한 뒤 한 번 (docs/elastic-nodes.md §4.4).
@@ -207,8 +224,15 @@ func run() int {
 	}
 	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log}
 
+	// 고루틴이 셋이다 (ADR-016 의 둘에 ADR-068 이 하나를 더한다)
+	//   claim    롱폴 — 일을 기다린다. 서버가 대기 시간을 정한다
+	//   nodes    짧은 주기 — 살아 있다고 말하고 권한을 받는다
+	//   detect   자기 주기 — 비싼 탐지를 다시 돈다
+	// 셋을 가르는 논거가 같다 — 주기와 의미가 다른 일을 한 고루틴에 두면
+	// 느린 쪽이 빠른 쪽을 잡아먹는다.
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
+	go func() { defer wg.Done(); det.Run(ctx) }()
 	go func() { defer wg.Done(); adv.Run(ctx) }()
 	go func() { defer wg.Done(); worker.Run(ctx) }()
 	wg.Wait()

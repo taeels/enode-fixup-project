@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"context"
 	"github.com/taeels/enode/internal/contract"
 	"io"
 	"log/slog"
@@ -116,14 +117,14 @@ func TestDetectDropsBuildWhenDiskLow(t *testing.T) {
 	ws := t.TempDir()
 
 	l := Local{Workspace: ws, Arch: "armv7", MinFreeGB: 1}
-	caps := Detect(l, log)
+	caps := Detect(context.Background(), l, log)
 	if len(caps) == 0 || caps[0].Attrs["arch"] != "armv7" {
 		t.Fatalf("with free space there must be a build capability: %+v", caps)
 	}
 
 	// 임계값을 현실적으로 불가능하게 올린다 → 빠져야 한다
 	l.MinFreeGB = 1 << 20 // 1 PB
-	caps = Detect(l, log)
+	caps = Detect(context.Background(), l, log)
 	for _, c := range caps {
 		if _, ok := c.Attrs["arch"]; ok {
 			t.Fatal("advertised a build capability with too little disk")
@@ -147,7 +148,7 @@ func TestDetect_OrchestrationAdvertisesExclusively(t *testing.T) {
 	ws := t.TempDir()
 
 	l := Local{Workspace: ws, Arch: "armv7", Orchestration: true}
-	caps := Detect(l, log)
+	caps := Detect(context.Background(), l, log)
 	if len(caps) == 0 {
 		t.Skip("no harness and no repo, so there is nothing to advertise")
 	}
@@ -163,7 +164,7 @@ func TestDetect_OrchestrationAdvertisesExclusively(t *testing.T) {
 
 	// 음성 대조 — 같은 설정에서 플래그만 끄면 arch 가 돌아온다
 	l.Orchestration = false
-	caps = Detect(l, log)
+	caps = Detect(context.Background(), l, log)
 	if len(caps) == 0 || caps[0].Capability != contract.CapabilityAgentReason ||
 		caps[0].Attrs["arch"] != "armv7" {
 		t.Fatalf("the flag is off yet this is not an ordinary node: %+v", caps)
@@ -176,7 +177,7 @@ func TestDetect_OrchestrationAdvertisesExclusively(t *testing.T) {
 // 있으므로 설정이 비어도 실린다. 그것들만 남으면 광고 자체를 안 한다.
 func TestDetectEmpty(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	if caps := Detect(Local{}, log); len(caps) != 0 {
+	if caps := Detect(context.Background(), Local{}, log); len(caps) != 0 {
 		// claude 가 설치된 기계에서는 harness 가 잡힐 수 있다 — 그건 정상이다.
 		for _, c := range caps {
 			for k := range c.Attrs {
@@ -214,7 +215,7 @@ func TestMachineFactsAloneDoNotAdvertise(t *testing.T) {
 func TestTheAdvertCarriesMachineFacts(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ws := t.TempDir()
-	caps := Detect(Local{Workspace: ws, Arch: "arm64", MinFreeGB: 0}, log)
+	caps := Detect(context.Background(), Local{Workspace: ws, Arch: "arm64", MinFreeGB: 0}, log)
 	if len(caps) == 0 {
 		t.Fatal("arch exists yet the advert is empty")
 	}
@@ -240,7 +241,7 @@ func TestTheAdvertCarriesMachineFacts(t *testing.T) {
 // ADR-012 가 "속성 어휘는 창발한다" 로 열어둔 자리다.
 func TestLabelsRideTheAdvert(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	caps := Detect(Local{
+	caps := Detect(context.Background(), Local{
 		Workspace: t.TempDir(),
 		Arch:      "arm64",
 		Labels:    map[string]string{"issue": "PROJ-42", "pool": "cloud-builders"},
@@ -255,7 +256,7 @@ func TestLabelsRideTheAdvert(t *testing.T) {
 
 	// 탐지한 것을 못 덮는다 — 사람이 적은 것이 기계가 본 것을 이기면
 	// 둘이 어긋났을 때 조용히 틀린다.
-	caps = Detect(Local{
+	caps = Detect(context.Background(), Local{
 		Workspace: t.TempDir(),
 		Arch:      "arm64",
 		Labels:    map[string]string{"os": "plausible-lie", "arch": "x86"},

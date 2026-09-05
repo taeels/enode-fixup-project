@@ -104,7 +104,11 @@ func Setup(o SetupOptions) int {
 	// setup 이 보여줘야 하는 것이다 (ADR-059): 로그인 안 한 claude 는
 	// 광고에서 빠지고, 사람은 그 이유를 여기서 알아야 한다.
 	dlog := slog.New(slog.NewTextHandler(o.Out, &slog.HandlerOptions{Level: slog.LevelWarn}))
-	caps := Detect(local, dlog)
+	// 여기서는 Background 가 맞다 — setup 은 사람이 앞에 앉아 한 번 도는
+	// 명령이고, 탐지가 걸리면 그 사람이 Ctrl-C 로 끊는다. Detect 가 ctx 를
+	// 받는 이유는 광고 루프가 그것 때문에 멈추지 않게 하려는 것인데,
+	// 여기에는 멈출 루프가 없다.
+	caps := Detect(context.Background(), local, dlog)
 
 	p("\n  looking at this machine…\n\n")
 	if len(caps) == 0 {
@@ -129,7 +133,7 @@ func Setup(o SetupOptions) int {
 		if o.BoardSoC != "" {
 			local.Board = &Board{SoC: o.BoardSoC, Tag: o.BoardTag, Port: o.BoardPort}
 		}
-		caps = Detect(local, dlog)
+		caps = Detect(context.Background(), local, dlog)
 	}
 
 	// ② 쓰기 전에 Mediator 에 물어본다.

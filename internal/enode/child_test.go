@@ -19,10 +19,10 @@ import (
 //
 // glyphscan 이 문자열 리터럴을 훑는 것과 같은 성질이다.
 func TestEveryChildProcessIsWrapped(t *testing.T) {
-	// exec.Command( 또는 exec.CommandContext( 를 찾되, 바로 앞이 noConsole(
+	// exec.Command( 또는 exec.CommandContext( 를 찾되, 바로 앞이 child(
 	// 인 것은 뺀다.
 	call := regexp.MustCompile(`exec\.Command(Context)?\(`)
-	wrapped := regexp.MustCompile(`noConsole\(exec\.Command(Context)?\(`)
+	wrapped := regexp.MustCompile(`child\(exec\.Command(Context)?\(`)
 
 	ents, err := os.ReadDir(".")
 	if err != nil {
@@ -34,7 +34,7 @@ func TestEveryChildProcessIsWrapped(t *testing.T) {
 		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
 			continue
 		}
-		if name == "console.go" { // 감싸는 쪽이다
+		if name == "child.go" { // 감싸는 쪽이다
 			continue
 		}
 		b, err := os.ReadFile(filepath.Join(".", name))
@@ -49,7 +49,7 @@ func TestEveryChildProcessIsWrapped(t *testing.T) {
 		}
 	}
 	if len(bad) > 0 {
-		t.Fatalf("child processes not wrapped in noConsole:\n  %s\n\n"+
+		t.Fatalf("child processes not wrapped in child:\n  %s\n\n"+
 			"on windows a child inherits the parent console and can change its title;\n"+
 			"see childAttr in console_windows.go", strings.Join(bad, "\n  "))
 	}
@@ -64,12 +64,12 @@ func TestChildAttr_IsNilOffWindows(t *testing.T) {
 	}
 }
 
-// noConsole 은 받은 cmd 를 그대로 돌려준다 — 체이닝이 성립해야 한다.
-// identity.go 가 noConsole(...).Output() 으로 쓰므로 이것이 깨지면 컴파일은
+// child 은 받은 cmd 를 그대로 돌려준다 — 체이닝이 성립해야 한다.
+// identity.go 가 child(...).Output() 으로 쓰므로 이것이 깨지면 컴파일은
 // 되지만 감싸는 효과가 사라진다.
-func TestNoConsole_ReturnsTheSameCommand(t *testing.T) {
+func TestChild_ReturnsTheSameCommand(t *testing.T) {
 	want := exec.Command("true")
-	if got := noConsole(want); got != want {
-		t.Errorf("noConsole returned a different command")
+	if got := child(want); got != want {
+		t.Errorf("child returned a different command")
 	}
 }

@@ -70,22 +70,19 @@ func (claudeHarness) Fixed() map[string]string {
 	return map[string]string{"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
 }
 
-// Probe 는 설치 확인이자 executable resolve 다.
+// Usable 은 설치 확인이자 executable resolve 이자 「쓸 수 있는가」다 (ADR-059).
 //
 // 없으면 광고에 안 실리고 → 후보에서 빠지고 → 계약이 요구하면 422 다.
 // "설치 안 된 하네스의 실행은 MVP 에서 제외한다" 가 별도 코드 없이 성립한다.
 //
-// 버전을 돌려주는 이유 — 우리가 의존하는 건 문서화된 프로토콜이 아니라
-// CLI 출력 형태이고, claude 의 봉투는 비공개 계약이다. 필드명이 바뀌면
-// num_turns 를 못 읽어 Turns=0 이 되고 예산 신호가 조용히 죽는다.
-// 버전이 기록에 있어야 봉인된 묶음만 보고 드리프트를 알 수 있다 (ADR-005 성질 4).
-func (claudeHarness) Probe(ctx context.Context, bin string) (string, error) {
-	if bin == "" {
-		bin = "claude"
-	}
-	path, err := execLookPath(bin)
+// 버전을 안 알아낸다 — 광고가 버전을 안 싣기 때문이다(detect.go).
+// 예전에는 이 자리가 Probe 하나였고 「쓸 수 있는가」와 버전을 함께 돌려줬다.
+// 그런데 광고 경로는 버전을 받자마자 버렸고, 버리는 값을 위해 프로세스가
+// 60초마다 하나씩 더 떴다. 부르는 쪽이 필요한 것만 부르게 가른다.
+func (claudeHarness) Usable(ctx context.Context, bin string) error {
+	path, err := claudePath(bin)
 	if err != nil {
-		return "", err
+		return err
 	}
 	// 「있다」와 「쓸 수 있다」를 가른다 (ADR-059)
 	//
@@ -99,17 +96,38 @@ func (claudeHarness) Probe(ctx context.Context, bin string) (string, error) {
 	//
 	// ADR-012 가 적은 그대로다 — "못 하는 것을 빼고 보내는 것이
 	// 「지금은 못 한다」를 표현하는 방법이다".
-	if err := claudeUsable(ctx, path); err != nil {
+	return claudeUsable(ctx, path)
+}
+
+// Version 은 기록에 남길 버전 문자열이다 (ADR-005 성질 4).
+//
+// 우리가 의존하는 건 문서화된 프로토콜이 아니라 CLI 출력 형태이고,
+// claude 의 봉투는 비공개 계약이다. 필드명이 바뀌면 num_turns 를 못 읽어
+// Turns=0 이 되고 예산 신호가 조용히 죽는다. 버전이 기록에 있어야
+// 봉인된 묶음만 보고 드리프트를 알 수 있다.
+//
+// 실행 경로만 부른다 — 광고는 이것을 안 부른다.
+func (claudeHarness) Version(ctx context.Context, bin string) (string, error) {
+	path, err := claudePath(bin)
+	if err != nil {
 		return "", err
 	}
-	out, err := noConsole(exec.CommandContext(ctx, path, "--version")).Output()
+	out, err := child(exec.CommandContext(ctx, path, "--version")).Output()
 	if err != nil {
-		// 쓸 수 있는데 --version 이 실패하면 「있다」로 본다.
-		// 버전을 모르는 것과 못 쓰는 것은 다르다 — 없다고 하면 광고가 빠져
-		// 시연 직전에 노드가 통째로 사라진다.
+		// 있는데 --version 이 실패하면 「모른다」다. 버전을 모르는 것과
+		// 못 쓰는 것은 다르다 — 여기서 오류를 내면 부르는 쪽이 이미 끝난
+		// 실행의 기록을 통째로 버릴 수 있다.
 		return "unknown", nil
 	}
 	return strings.TrimSpace(string(out)), nil
+}
+
+// claudePath 는 빈 이름을 기본값으로 채우고 실행 파일을 해석한다.
+func claudePath(bin string) (string, error) {
+	if bin == "" {
+		bin = "claude"
+	}
+	return execLookPath(bin)
 }
 
 // errNotUsable 은 있는데 못 쓴다는 뜻이다 (ADR-059).
@@ -139,7 +157,7 @@ func claudeUsable(ctx context.Context, path string) error {
 	//	분명히 찍고 있었다 — 우리가 그것을 안 읽은 것이다.
 	//
 	// ⇒ stdout 에 판정할 것이 있으면 종료코드와 무관하게 읽는다.
-	cmd := noConsole(exec.CommandContext(ctx, path, "auth", "status", "--json"))
+	cmd := child(exec.CommandContext(ctx, path, "auth", "status", "--json"))
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	_ = cmd.Run() // 종료코드는 안 본다

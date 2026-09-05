@@ -102,15 +102,18 @@ func TestAdapter_AnUnknownNameIsReportedAbsent(t *testing.T) {
 	}
 }
 
-// Probe 가 곧 executable resolve 다 — 없으면 err, 있으면 버전.
-func TestAdapter_ProbeIsResolve(t *testing.T) {
-	if _, err := (claudeHarness{}).Probe(context.Background(), "definitely-no-such-binary"); err == nil {
+// Usable 이 곧 executable resolve 다 — 없으면 err. Version 도 같은 해석을 쓴다.
+func TestAdapter_UsableIsResolve(t *testing.T) {
+	if err := (claudeHarness{}).Usable(context.Background(), "definitely-no-such-binary"); err == nil {
 		t.Fatal("claimed a missing binary exists — riding the advert, it blows up on stage")
+	}
+	if _, err := (claudeHarness{}).Version(context.Background(), "definitely-no-such-binary"); err == nil {
+		t.Fatal("gave a version for a binary that is not there")
 	}
 	if _, err := execLookPath("claude"); err != nil {
 		t.Skip("claude is not on this machine")
 	}
-	v, err := (claudeHarness{}).Probe(context.Background(), "claude")
+	v, err := (claudeHarness{}).Version(context.Background(), "claude")
 	if err != nil || v == "" {
 		t.Fatalf("could not get the version: %q %v", v, err)
 	}

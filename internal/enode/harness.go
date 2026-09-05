@@ -183,7 +183,16 @@ type Harness interface {
 	// 통과 목록에 넣으면 노드에 그 변수가 없을 때 조용히 안 걸린다.
 	// 재현성을 위해 꺼야 하는 것들이 여기 온다.
 	Fixed() map[string]string
-	Probe(ctx context.Context, bin string) (version string, err error)
+	// Usable 은 이 하네스로 지금 일을 시킬 수 있는지 본다 (ADR-059).
+	//
+	// 광고 경로가 부른다. 그래서 값싸야 하고, 광고가 안 쓰는 것을
+	// 알아내지 않는다 — 버전은 Version 이 따로 답한다.
+	Usable(ctx context.Context, bin string) error
+	// Version 은 기록에 남길 버전 문자열이다 (ADR-005 성질 4).
+	//
+	// 실행 경로만 부른다. 광고는 버전을 안 싣는다(detect.go) —
+	// 매처가 동등 비교뿐이라 매칭에 못 쓰기 때문이다.
+	Version(ctx context.Context, bin string) (version string, err error)
 	// Instrument 는 훅·플러그인을 심고 플래그를 돌려준다 (R6).
 	//
 	// 하네스마다 심는 방법이 다르다 — claude 는 --settings 로 훅을 받고,
