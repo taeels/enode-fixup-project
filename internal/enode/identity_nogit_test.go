@@ -50,9 +50,26 @@ func TestANodeWithoutGitCanStillHaveAnIdentity(t *testing.T) {
 // 유도가 이기고, 신원은 사람의 것이라 사람이 이긴다. 한 기계의 git 전역
 // 설정이 그 기계 노드 전부의 신원을 강제하면 팀 공용 노드를 세울 자리가 없다.
 func TestTheConfiguredPrincipalWinsOverGit(t *testing.T) {
-	if _, err := gitEmail(); err != nil {
-		t.Skip("this machine has no git email, so there is nothing to win over")
+	// 이겨야 할 상대를 여기서 만든다.
+	//
+	// 이 기계의 git 설정에 기대면 CI 처럼 이메일이 없는 곳에서 시험이
+	// 스킵되고, 스킵은 종료코드에 안 나타나므로 「통과」로 보인다. 그러면
+	// 이 시험이 지키려던 것을 아무도 안 지킨다.
+	home := t.TempDir()
+	gc := filepath.Join(home, "gitconfig")
+	if err := os.WriteFile(gc, []byte("[user]\n\temail = machine@example.com\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
+	// GIT_CONFIG_GLOBAL 이 정본이고, 옛 git 을 위해 HOME 도 함께 옮긴다.
+	t.Setenv("GIT_CONFIG_GLOBAL", gc)
+	t.Setenv("XDG_CONFIG_HOME", home)
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+
+	if got, err := gitEmail(); err != nil || got != "machine@example.com" {
+		t.Fatalf("could not stage a git email to win over: %q %v", got, err)
+	}
+
 	conf := writeConfig(t, "mediator: http://x\ntoken: t\nprincipal: team@example.com\n")
 	id, err := Derive(conf)
 	if err != nil {
