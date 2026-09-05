@@ -36,6 +36,7 @@ type SetupOptions struct {
 	Labels        map[string]string
 	Orchestration bool
 	MinFreeGB     int
+	Principal     string // 비우면 git 전역 설정을 읽는다 (ADR-015 §1)
 
 	Check bool // 아무것도 안 쓰고 상태만 본다
 	Yes   bool // 묻지 않는다
@@ -94,7 +95,7 @@ func Setup(o SetupOptions) int {
 		Mediator: o.Mediator, Token: o.Token, Workspace: o.Workspace,
 		WorkspaceID: o.WorkspaceID,
 		Arch:        o.Arch, Labels: o.Labels, Orchestration: o.Orchestration,
-		MinFreeGB: o.MinFreeGB,
+		MinFreeGB: o.MinFreeGB, Principal: o.Principal,
 	}
 	if o.BoardSoC != "" || o.BoardTag != "" || o.BoardPort != "" {
 		local.Board = &Board{SoC: o.BoardSoC, Tag: o.BoardTag, Port: o.BoardPort}
@@ -116,6 +117,27 @@ func Setup(o SetupOptions) int {
 	}
 	for _, c := range caps {
 		printAttrs(o.Out, c.Attrs)
+	}
+
+	// 신원은 못 찾으면 노드가 아예 안 뜬다 — 여기서 잡는다 (ADR-015 §1)
+	//
+	// git 이 있고 이메일이 설정돼 있으면 아무것도 안 묻는다. "사람이 두 곳에
+	// 같은 사실을 적게 하지 않는다" 가 ADR-015 가 git 을 고른 이유였고,
+	// 그것은 여전히 옳다. 못 찾을 때만 물어야 그 원칙이 안 깨진다.
+	//
+	// 여기서 안 잡으면 setup 은 조용히 성공하고 start 가 "start failed" 로
+	// 죽는다 — 가장 늦게 아는 실패다. 실측 (2026-09-06) git 이 안 깔린
+	// 윈도우 노트북에서 그렇게 났다.
+	if local.Principal == "" {
+		if _, err := gitEmail(); err != nil {
+			if !interactive {
+				p("\n  note  no identity: %v\n", err)
+			} else {
+				p("\n  This machine has no git email, so the node cannot name itself.\n\n")
+				o.Principal = ask(in, o.Out, "your email (principal)", o.Principal)
+				local.Principal = o.Principal
+			}
+		}
 	}
 
 	if interactive {
@@ -162,10 +184,13 @@ func Setup(o SetupOptions) int {
 	}
 
 	p("\n")
-	if id, err := Derive(o.Path); err == nil {
+	// 파일을 쓰기 전이므로 Derive 가 아니라 DeriveFor 다 — 여기서 Derive 를
+	// 부르면 아직 없는 파일을 읽고 방금 답한 principal 을 못 본다.
+	if id, err := DeriveFor(o.Path, local); err == nil {
 		p("  node id      %s   %s\n", id.NodeID, id.Label)
 	} else {
 		p("  node id      cannot derive: %v\n", err)
+		p("               the node will not start until this is fixed.\n")
 	}
 	// 속성을 여기서 한 번 더 낸다. 위의 「looking at this machine」 은 사람이
 	// arch · board · labels 를 답하기 전 것이라, 답한 뒤에 실제로 나가는
@@ -330,6 +355,8 @@ func SetupCLI(prog string, args []string) int {
 		label = fs.String("label", "", "k=v pairs, comma separated")
 		orch  = fs.Bool("orchestration", false, "this node builds contracts instead of running commands")
 		free  = fs.Int("min-free-gb", 0, "stop advertising build capacity below this")
+		princ = fs.String("principal", "",
+			"your email; needed only where git config --global user.email is not set")
 		check = fs.Bool("check", false, "report and write nothing")
 		yes   = fs.Bool("yes", false, "ask nothing")
 	)
@@ -363,7 +390,7 @@ func SetupCLI(prog string, args []string) int {
 	return Setup(SetupOptions{
 		Name: name, Path: *path,
 		Mediator: *med, Token: *tok, Workspace: *ws, WorkspaceID: *wsid,
-		Arch: *arch, BoardSoC: *soc, BoardTag: *tag, BoardPort: *port,
+		Arch: *arch, BoardSoC: *soc, BoardTag: *tag, BoardPort: *port, Principal: *princ,
 		Labels: parseLabels(*label), Orchestration: *orch, MinFreeGB: *free,
 		Check: *check, Yes: *yes,
 	})

@@ -14,6 +14,26 @@ type Local struct {
 	Mediator string `yaml:"mediator"`
 	Token    string `yaml:"token"`
 
+	// Principal 은 이 노드가 누구의 것인가다 (ADR-015 §1). 비우면 git 을 본다.
+	//
+	// 왜 자리가 생겼나 — ADR-015 는 git 전역 설정의 이메일을 정본으로 삼으면서
+	// "커널 개발자는 예외 없이 user.email 을 설정해 두었다. 이미 있는 것을
+	// 읽는다" 를 근거로 들었다. 그 전제가 안 서는 기계가 있다.
+	//
+	//	실측 (2026-09-06) git 이 안 깔린 윈도우 노트북에서 노드가 신원을
+	//	못 만들고 그 자리에서 죽었다. enodectl 은 "start failed" 만 냈다.
+	//	그 노드는 추론만 하므로 git 이 할 일이 애초에 없었다.
+	//
+	// 조용한 대체가 아니다 — ADR-015 가 막은 것은 $USER 나 hostname 으로
+	// 몰래 채우는 것이고, 그 비교 목록에 「사람이 적는다」가 없었다.
+	// 여기 적힌 값은 사람이 고른 것이라 어긋나도 어디를 볼지가 분명하다.
+	//
+	// 적혀 있으면 이것이 이긴다 — repo 와 반대 방향인데 근거가 같다.
+	// repo 는 기계가 관찰하는 사실이라 유도가 이기고, 신원은 사람의 것이라
+	// 사람이 이긴다. 한 기계의 git 전역 설정이 그 기계 노드 전부의 신원을
+	// 강제하면 팀 공용 노드를 세울 자리가 없다.
+	Principal string `yaml:"principal,omitempty"`
+
 	// 이 enode 가 서 있는 워크스페이스. 경로가 곧 신원의 일부다 (ADR-017).
 	// repo canonical id 는 여기서 유도한다 — 사람이 저장소 주소를 안 적는다.
 	Workspace string `yaml:"workspace"`
@@ -98,6 +118,7 @@ func SampleLocal() string {
 	return `    mediator: http://<mediator-host>:8080
     token: "<the same token the mediator has>"
     workspace: <path to a checkout; omit it to advertise reasoning only>
+    principal: <your email; omit it to read git config --global user.email>
 
 `
 }
