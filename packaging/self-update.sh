@@ -41,8 +41,21 @@ die() { printf '실패 %s\n' "$*" >&2; exit 1; }
 # awk 자신은 안 걸린다 — command 의 첫 토큰($2)이 실행파일 경로와 같아야
 # 하는데 awk 행의 첫 토큰은 awk 다. grep 의 [e]node 관용구가 필요 없다.
 node_pid() {
+  # awk 가 exit 하지 않는다 — 첫 줄을 찾아도 ps 를 끝까지 읽는다.
+  #
+  # exit 하면 ps 가 아직 쓰는 중일 때 파이프가 닫혀 SIGPIPE 로 죽는다.
+  # 이 스크립트는 머리에 pipefail 이 걸려 있으므로 그 죽음이 곧 함수의
+  # 실패이고, set -e 가 스크립트 전체를 그 자리에서 끝낸다.
+  #
+  #	실측 (2026-09-06) 맥 노드 둘이 「== 검증 ==」 까지만 찍고 조용히
+  #	멈췄다. 리눅스 VM 에서는 같은 스크립트가 끝까지 돌았다 — 거기는
+  #	프로세스가 적어 ps 가 awk 보다 먼저 끝났을 뿐이다. 경쟁이므로
+  #	기계가 바쁠수록 걸린다.
+  #
+  # 첫 번째만 쓰는 성질은 그대로다. END 에서 하나만 찍는다.
   ps -eo pid=,command= | awk -v bin="$1" -v cfg="$2" '
-    $2 == bin && index($0, "--config " cfg) { print $1; exit }'
+    $2 == bin && index($0, "--config " cfg) && !p { p = $1 }
+    END { if (p != "") print p }'
 }
 
 [ -f "$CFG" ] || die "설정이 없다: $CFG"
@@ -140,8 +153,12 @@ LOG="$STATEDIR/$NAME.log"
 # 노드가 조상에서 빠지므로 오늘은 pgrep 으로도 맞는다. 그러나 그것은
 # 타이밍에 기댄 것 이고, 같은 함정을 두 곳에 두지 않는다.
 node_pid() {
+  # 바깥의 같은 함수와 같은 이유로 exit 하지 않는다 — 거기 주석이 적는다.
+  # 여기는 set -e 도 pipefail 도 없지만, 갈라지면 이름이 같은 두 개가
+  # 달라진 것이 안 보인다.
   ps -eo pid=,command= | awk -v bin="$1" -v cfg="$2" '
-    $2 == bin && index($0, "--config " cfg) { print $1; exit }'
+    $2 == bin && index($0, "--config " cfg) && !p { p = $1 }
+    END { if (p != "") print p }'
 }
 sleep "$DELAY"
 start() {
