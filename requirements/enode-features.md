@@ -5,7 +5,6 @@
 
 ```text
    decisions.md         이미 정해진 것.  다시 논의하지 않는다
-   unit-boundaries.md   권장 유닛 경계 + 만지는 파일
    scene-gates.md       장면 조각 게이트 CP0 ~ CP4.  이 문서의 수용 기준이다
    canon.md             enode-design 과의 연결.  어긋나면 INVARIANTS 가 이긴다
    constraints.md       안 만드는 것 여덟 범주
