@@ -1,0 +1,3 @@
+[submodule "enode-design"]
+	path = enode-design
+	url = https://github.com/taeels/enode-design
