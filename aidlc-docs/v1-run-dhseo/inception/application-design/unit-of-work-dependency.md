@@ -71,7 +71,7 @@ end-to-end 검증만 demo-back 병합 뒤다. `panel` 도 같다 — obs 로 착
 
 **담당 배정과 handle 은 `aidlc-docs/construction-roster.md`** 가 진다 — W0 obs(taeels) ·
 W1 queue(shin-son)·mcp(taeels)·ui 실모드(runixs) · W2 drain(shin-son)·demo-back(runixs) ·
-W3 panel(shin-son)·ui 데모모드(runixs) · W4 transcript(shin-son) · card-news(nacl1119 ·
+W3 panel(nacl1119)·ui 데모모드(runixs) · W4 transcript(nacl1119) · card-news(nacl1119 ·
 construction 완료·계속 업데이트).
 
 ---

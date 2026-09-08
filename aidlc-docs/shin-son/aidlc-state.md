@@ -1,8 +1,9 @@
 # Construction 상태 — shin-son (손신)
 
-담당 유닛 — **queue**(W1 · CP2) · **drain**(W2 · CP3) · **panel**(W3 · CP4) ·
-**transcript**(W4 · CP6). 임계 경로 등뼈를 진다. 자기 브랜치에서 작업하고 PR 로
-main 에 병합한다(게이트 초록 뒤). 산출물은 이 디렉터리 `aidlc-docs/shin-son/` 아래.
+담당 유닛 — **queue**(W1 · CP2) · **drain**(W2 · CP3). 임계 경로 앞머리(obs 뒤
+queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병합한다(게이트 초록 뒤).
+산출물은 이 디렉터리 `aidlc-docs/shin-son/` 아래. (panel·transcript 는 nacl1119 로
+재배정됨 — 2026-09-08.)
 
 ## 유닛 (의존 순)
 
@@ -11,16 +12,7 @@ main 에 병합한다(게이트 초록 뒤). 산출물은 이 디렉터리 `aidl
     DrainingNodes · submit 202 분기 · mediator 기동 wake
 - [ ] drain — CP3 · 의존 queue
   - enode 정책 파일·광고 경로 · postResult at-boundary Cancel(drain:<node_id>) + WakeQueued
-- [ ] panel 제어판 — CP4 · 의존 obs · drain
-  - internal/proc 추출 · internal/panel · enodectl serve · cmd/enode panel · 경계 검사 테스트
-  - **완료 조건에 조작 넷(status·start·stop·logs) + drain 걸기·모드·풀기 전부 나열**
-- [ ] transcript — CP6 · 의존 panel · obs
-  - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
-
-## 열린 미정
-
-- panel 착수 전 — 제어판이 데몬 Capabilities{Caps,At} 를 읽는 계약(ADR-068).
-  진행자가 `requirements/decisions.md` 에 행을 더해 닫는다.
+  - 정책 파일 위치·형식·enum 과 at-boundary tx 경계는 FD (decisions §1)
 
 ## 선행 · 공용
 
@@ -30,4 +22,6 @@ main 에 병합한다(게이트 초록 뒤). 산출물은 이 디렉터리 `aidl
 ## 다음
 
 **queue Functional Design 부터** (obs 병합 뒤 W1). 접점 `internal/store` ·
-`internal/panel`(transcript 와) · `cmd/mediator/main.go` 는 진행자 직렬 병합.
+`cmd/mediator/main.go`(기동 wake)는 진행자 직렬 병합. drain 은 queue 병합 뒤 W2 ·
+`internal/enode`(광고·정책)를 만지고 postResult 취소 경로를 넓힌다. drain 이 넘겨받는
+자리는 nacl1119 의 panel(제어판 drain 토글이 쓰는 정책 파일)이다 — 형식을 맞춘다.

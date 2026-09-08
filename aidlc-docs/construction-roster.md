@@ -24,9 +24,9 @@ CONSTRUCTION 을 이 배정으로 돈다. 유닛 정본은
           ui (실 함대 모드)    runixs     CP1·CP2        obs
    W2     drain              shin-son   CP3            queue
           demo-back          runixs     CP9            obs · queue
-   W3     panel              shin-son   CP4            obs · drain
+   W3     panel              nacl1119   CP4            obs · drain
           ui (데모 모드)       runixs     CP8·CP9·CP11   demo-back(제출 라우트)
-   W4     transcript         shin-son   CP6            panel · obs
+   W4     transcript         nacl1119   CP6            panel · obs
 
    별개   card-news          nacl1119   CP8            construction 완료 · 계속 업데이트
 ```
@@ -50,7 +50,7 @@ runixs 의 `ui` 는 한 유닛이지만 딛는 게 갈린다.
    ───         ─────────────         ──────────       ─────────────       ──────────
 
    obs   ->    queue          ->     drain      ->    panel        ->     transcript
-   taeels      shin-son              shin-son         shin-son            shin-son
+   taeels      shin-son              shin-son         nacl1119            nacl1119
    CP1         CP2                   CP3              CP4                 CP6
 
          ->    mcp
@@ -66,9 +66,10 @@ runixs 의 `ui` 는 한 유닛이지만 딛는 게 갈린다.
 ```
 
 화살표는 의존이다. 세로 등뼈 `obs -> queue -> drain -> panel -> transcript` 가
-임계 경로(다섯 깊이 · 전부 shin-son 이 등뼈를 진다). 점선은 `ui` 가 W1 에 착수해
-W3 에 완료로 걸치는 것 — demo-back(W2)의 제출 라우트를 딛는다. 가치 게이트 **CP10**
-(데모 완주)은 ui(데모 모드)·demo-back·하드웨어가 W3 에 닫는다.
+임계 경로(다섯 깊이). 등뼈를 **shin-son 이 queue·drain, nacl1119 가 panel·transcript**
+로 나눠 진다 — 넘겨받는 자리(drain -> panel)가 shin-son -> nacl1119 다. 점선은 `ui` 가
+W1 에 착수해 W3 에 완료로 걸치는 것 — demo-back(W2)의 제출 라우트를 딛는다. 가치
+게이트 **CP10**(데모 완주)은 ui(데모 모드)·demo-back·하드웨어가 W3 에 닫는다.
 
 ## 5. 문서 · 브랜치 · 병합 정책
 
@@ -83,7 +84,9 @@ W3 에 완료로 걸치는 것 — demo-back(W2)의 제출 라우트를 딛는�
               그 유닛의 장면 게이트가 초록인 뒤에만 (scene-gates)
    접점        internal/store · internal/api/api.go · internal/panel ·
               cmd/mediator/main.go 는 여러 담당이 만진다.  PR 을 직렬로 병합하고
-              api.go 는 등록 줄만 (constraints)
+              api.go 는 등록 줄만 (constraints).  internal/panel 은 panel·transcript
+              둘 다 nacl1119 라 한 손 안이다.  internal/api/ui 는 runixs(ui)와
+              nacl1119(card-news)가 나눈다
    진행자만    aidlc-state.md(회차·공용) · design/*.pen 은 진행자가 병합 뒤 정리.
               audit.md 는 .gitattributes 의 merge=union 으로 git 이 합친다
 ```
@@ -91,6 +94,6 @@ W3 에 완료로 걸치는 것 — demo-back(W2)의 제출 라우트를 딛는�
 ## 6. 열린 미정 (해당 유닛 담당이 FD 전에 진행자와 닫는다)
 
 ```text
-   Capabilities{Caps,At} 읽기 계약 (ADR-068)   panel · shin-son.  진행자 decisions
+   Capabilities{Caps,At} 읽기 계약 (ADR-068)   panel · nacl1119.  진행자 decisions
    sandbox 표시 출처 (decisions §8.5)           ui · runixs.  있는 값을 읽는다 · FD
 ```

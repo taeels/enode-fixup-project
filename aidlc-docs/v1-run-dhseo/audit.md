@@ -299,3 +299,11 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: CONSTRUCTION 착수. 담당 넷 · 담당별 문서 루트 · PR to main. 다음 — 각자 자기 브랜치에서 obs·queue·ui 실모드 Functional Design 착수.
 
 ---
+
+## Construction 재배정 — panel·transcript → nacl1119
+**Timestamp**: 2026-09-08T11:06:31Z
+**User Input**: "panel과 transcript는 nacl1119에게 배정할게. 다시 푸시해라."
+**AI Response**: panel(W3·CP4)·transcript(W4·CP6)을 shin-son 에서 nacl1119 로 재배정했다. 갱신 — `construction-roster.md`(§2 표 · §4 박스 그래프 owners · 등뼈 분담 문구 · §6 ADR-068 담당) · `shin-son/aidlc-state.md`(queue·drain 만) · `nacl1119/aidlc-state.md`(card-news + panel + transcript + 겹치는 자리 조율) · `unit-of-work-dependency.md`(roster 포인터). 최종 배정 — taeels: obs·mcp / shin-son: queue·drain / nacl1119: card-news·panel·transcript / runixs: ui·demo-back. `internal/panel` 이 panel·transcript 둘 다 nacl1119 라 한 손 안(접점 아님)이 됐다. emphasis-check 통과. v1-run-dhseo·main 커밋·푸시.
+**Context**: CONSTRUCTION 담당 재배정. 다음 — 각자 브랜치 Functional Design 착수.
+
+---
