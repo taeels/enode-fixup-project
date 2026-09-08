@@ -61,7 +61,7 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 - [x] Units Generation — SKIP
 
 ### 🟢 CONSTRUCTION PHASE
-- [ ] Functional Design — IN PROGRESS (demo-pen. 계획 파일 질문 답변 대기)
+- [ ] Functional Design — 산출물 넷 생성 · 승인 대기 (demo-pen)
 - [x] NFR Requirements — SKIP
 - [x] NFR Design — SKIP
 - [x] Infrastructure Design — SKIP

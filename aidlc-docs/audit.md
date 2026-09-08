@@ -137,3 +137,11 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: CONSTRUCTION - Functional Design (demo-pen). 질문 답변 대기.
 
 ---
+
+## Functional Design — 질문 답 수신 · 산출물 생성
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: "답변 완료. pencil mcp는 열어 둘거야." (계획 파일 답: Q1 X "사용자가 계약 명세를 적는것이 아님. 그냥 버튼이 두개 있음 1. LED Toggle 작업 요청 / 2. 사운드 재생 작업 요청" · Q2 X "이름을 뽑는것이 아닌, 그냥 사용자 LOGIN 버튼이 있고 user_randomnumber 이런식으로 배정 받으면 됨, 사용자 구분은 브라우저 캐시로 구분하면 될 듯함." · Q3 "B, 3D 함대 탑뷰가 -> run을 클릭하면 run view로 바뀌면됨" · Q4 A · Q5 A · Q6 B)
+**AI Response**: 여섯 답을 읽고 모순 검사를 했다 — 없음. Q3 의 「run 클릭 시 패널이 run 뷰로 바뀐다」가 Q4 A 와 맞물려 D5 를 D2 의 틀 안에서 좌 상단 패널만 바뀌는 구조로 닫았다. 산출물 넷을 냈다 — `aidlc-docs/construction/demo-pen/functional-design/{frontend-components, domain-entities, business-rules, business-logic-model}.md`. Q1 · Q2 · Q3 가 requirements.md 의 D1 · D4 · D5 원안을 바꾸므로 그 자리에 정정 줄을 달았다. 계획 파일의 1~5 를 [x] 로 표시했다. 확장 준수 — security · resiliency 끔, PBT Partial 은 이 유닛에 코드가 없어 전 규칙 N/A.
+**Context**: CONSTRUCTION - Functional Design (demo-pen). 승인 대기.
+
+---

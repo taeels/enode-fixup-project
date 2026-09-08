@@ -23,11 +23,11 @@ Code Generation 이 `design/enode-demo.pen` 으로 그린다.
 
 ## 계획
 
-- [ ] 1. 화면 흐름과 상태 전이를 닫는다 (D1 -> D2 -> D3 -> D4 -> D5)
-- [ ] 2. 아트보드마다 영역 배치 · 요소 · 버튼 전수 · 전환을 적는다
-- [ ] 3. 데모 전용 도메인 개념을 정의한다 (Guest 세션 · 이름 · 투어 진행 · 첫 방문)
-- [ ] 4. 규칙을 적는다 — 어휘(enum 원문) · 값을 지어내지 않기 · 표기 규약
-- [ ] 5. 산출물 넷을 낸다
+- [x] 1. 화면 흐름과 상태 전이를 닫는다 (D1 -> D2 -> D3 -> D4 -> D5)
+- [x] 2. 아트보드마다 영역 배치 · 요소 · 버튼 전수 · 전환을 적는다
+- [x] 3. 데모 전용 도메인 개념을 정의한다 (Guest 세션 · 이름 · 투어 진행 · 첫 방문)
+- [x] 4. 규칙을 적는다 — 어휘(enum 원문) · 값을 지어내지 않기 · 표기 규약
+- [x] 5. 산출물 넷을 낸다
   - `aidlc-docs/construction/demo-pen/functional-design/frontend-components.md` (주 문서 — 화면 사양)
   - `aidlc-docs/construction/demo-pen/functional-design/domain-entities.md`
   - `aidlc-docs/construction/demo-pen/functional-design/business-rules.md`
@@ -56,7 +56,7 @@ C) 필드별 폼 — run_id · work · requires · steps 를 각각 입력 칸�
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: 사용자가 계약 명세를 적는것이 아님. 그냥 버튼이 두개 있음 1. LED Toggle 작업 요청 / 2. 사운드 재생 작업 요청 
 
 ### Question 2
 D1 Guest 로그인의 이름은 언제 보이나?
@@ -67,7 +67,7 @@ B) D1 에 뽑힌 이름이 미리 보이고 "이 이름으로 입장" 을 누른
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: X 이름을 뽑는것이 아닌, 그냥 사용자 LOGIN 버튼이 있고 user_randomnumber 이런식으로 배정 받으면 됨, 사용자 구분은 브라우저 캐시로 구분하면 될 듯함.
 
 ### Question 3
 D2 데모 현황판의 영역 배치는?
@@ -89,7 +89,7 @@ B) 3D 함대 좌상 크게 · 웹캠 좌하 · 현재 작업 목록 우측 세�
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: B, 3D 함대 탑뷰가 -> run을 클릭하면 run view로 바뀌면됨
 
 ### Question 4
 D5 작업 그래프에서 run 목록이 안 가리게 하는 배치는?
@@ -102,7 +102,7 @@ C) 세 열 — 좌 3D 그래프 · 중 선택 단계 상세 · 우 run 목록
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 5
 D3 가이드투어의 표현 방식은?
@@ -113,7 +113,7 @@ B) 번호 마커 — 대상 넷에 1~4 마커를 동시에 찍고 우측에 설�
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A 
 
 ### Question 6
 아트보드 폭은?
@@ -124,4 +124,4 @@ B) 1920 (공개 데모 전시용 큰 화면)
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: B
