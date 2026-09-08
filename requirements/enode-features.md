@@ -1,13 +1,13 @@
 # enode 기능 추가 요구사항 정의서 — 2판
 
 1판에서 **미정**이던 값을 `decisions.md` 가 닫았다. 이 문서는 값을 다시 적지
-않고 그 표를 가리킨다. **미정으로 남은 것은 4절의 이월뿐이다.**
+않고 그 표를 가리킨다. **미정으로 남은 것은 4절의 이월과 5절 하나뿐이다.**
 
 ```text
    decisions.md         이미 정해진 것.  다시 논의하지 않는다
-   scene-gates.md       장면 조각 게이트 CP0 ~ CP4.  이 문서의 수용 기준이다
+   scene-gates.md       장면 조각 게이트 CP0 ~ CP6.  이 문서의 수용 기준이다
    canon.md             enode-design 과의 연결.  어긋나면 INVARIANTS 가 이긴다
-   constraints.md       안 만드는 것 여덟 범주
+   constraints.md       안 만드는 것 여덟 범주와 구조 불변식
    design/              화면 여덟 장과 그리는 규칙
 ```
 
@@ -19,14 +19,14 @@ enode 는 **부재중인 기능 담당자의 대리인**이다. 복제할 수 �
 개발자가 쌓아온 컨텍스트)에 추론이 찾아가게 한다. 지금은 그 함대가 **보이지
 않고, 소유자가 통제할 수 없고, 자원이 없으면 그냥 실패한다.**
 
-이번에 그 셋을 메운다. 넷을 만들고 그 넷이 장면 하나를 완주한다.
+이번에 그 셋을 메운다. 여섯을 만들고 그중 넷이 장면 하나를 완주한다.
 
 ### 1.2 구성 요소 (기존)
 
 ```text
    Mediator    매칭 · 임대 · 시퀀싱 · Record 봉인.  PostgreSQL.  Listen :8080
    enode       노드 데몬.  광고 · claim 롱폴 · 하네스 실행.  밖으로 듣지 않는다
-   runctl      제출 · 상태 · Record · 취소 · shape.  무상태
+   runctl      제출 · 상태 · Record · 취소 · example · lint · schema.  무상태
    enodectl    노드 로컬 제어.  setup · list · id · start · stop · logs · status
 ```
 
@@ -97,11 +97,19 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 
 - **함대 목록** — `GET /v1/nodes` **신규**
   - 응답 모양은 `ADR-065` 결정 그대로 — `observed_at` · `nodes[]` 의 `node_id` ·
-    `label` · `instance` · `capabilities` · `seen_at` · `expires_at` · `lease{run_id, not_after}`
-  - 여기에 `draining` 을 더한다 (`decisions.md` 2절 · `canon.md` §3 선행 조건)
-  - `principal` 을 내지 않는다 · 필터를 주지 않는다 · 만료되지 않은 광고만 낸다
+    `label` · `instance` · `capabilities` · `seen_at` · `expires_at` ·
+    `lease{run_id, not_after}` · `draining`
+  - `draining` 은 2026-09-04 개정으로 그 결정 안에 들어왔다 — 값은 `""` ·
+    `graceful` · `at-boundary` 이고 노드 정책 파일의 복사본이다. 이 팩이 더하는
+    필드가 아니다
+  - `principal` 을 내지 않는다 · 필터를 주지 않는다 ·
+    `nodes.expires_at > now()` 인 광고만 낸다
 - **Run 목록** — `GET /v1/runs` **신규**
-  - 응답 모양과 필터는 `decisions.md` 2절. 시간 역순. `limit` 기본 100. 페이지네이션 없음
+  - 응답 모양과 필터는 `decisions.md` 2절. `runs.created_at` 내림차순.
+    `limit` 기본 100. 페이지네이션 없음
+  - 필터가 보는 열 — `state` 는 `runs.state`, `since` 는 `runs.created_at`
+    하한, `work` 는 `runs.work_id` 일치. `principal` 필터는 없다
+    (`protocol/mediator-api.md` `GET /v1/runs` 절)
   - 대기열(3.2.1)을 보이려면 필수다
 - **작업 그래프** — Run 하나의 단계 의존 그래프
   - 오늘 이미 나온다. `GET /v1/runs/{id}` 의 `steps[]` 와 `needs[]` 가 간선이다
@@ -110,7 +118,9 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 
 **UI/UX 요구사항**: `design/README.md` 의 규칙을 따른다.
 - 화면 S0 · S0b · S1 · S1b · S2. 함대 카드 격자 + Run 목록이 한 화면(S1)
-- 카드에 — `label` · 살아있나 · 임대 유무 · 지금 무슨 단계 · 언제 풀리나 · draining 배지
+- 카드에 — `label` · 살아있나 · 임대 유무 · 지금 무슨 단계 · 언제 풀리나 ·
+  draining 배지. 배지는 두 국면으로 갈린다 — 「draining · 진행 중」(아직 도는
+  작업이 있다)과 「draining · 대기 중」(다 끝났다) (`design/README.md` §2.2 · C4 · C5)
 - 중앙은 **읽기 전용**이다. drain 을 걸 수 없다
 - 폴링. 간격과 임계값은 `decisions.md` 2절. 화면은 「마지막 갱신 시각」을 보인다
 
@@ -121,9 +131,14 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 이다. 화면이 S0 에서 토큰을 받아 `Authorization` 헤더로 두 라우트를 부른다.
 토큰은 브라우저 세션 저장소에만 둔다
 
+**비기능 요구사항**: `constraints.md` 의 차단 게이트 다섯을 전부 넘긴다. 이
+기능이 새로 만드는 `internal/api/ui` 패키지는 **패키지별 커버리지 하한 80%**
+에 프로파일에 나타나는 순간 자동으로 걸린다 (`ci.yml:265`). 유닛의 완료
+조건에 그 재측정을 넣는다
+
 **수용 기준**: `scene-gates.md` CP1. 노드가 여섯이면 카드가 여섯 뜬다. 임대된
 노드는 언제 풀리는지가 보인다. 대기 중인 Run 이 목록에 뜬다. draining 노드는
-「있는데 안 빌려준다」로 보인다
+「있는데 안 빌려준다」로 보이고, 도는 작업이 남았는지가 배지에서 갈린다
 
 #### 3.1.2 호스트 제어판
 
@@ -132,23 +147,30 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 **기능 요구사항**:
 
 - **위치** — `enodectl serve <name>`. 별도 프로세스. 새 실행파일 없음 (`decisions.md` 1절).
-  이름은 기존 하위 명령과 같은 규칙 — `names()` 가 하나면 생략, 여럿이면 필수
+  이름은 기존 하위 명령과 같은 규칙 — `id` · `start` · `stop` · `logs` 가 부르는
+  `oneName` 이 이름을 언제나 요구한다. 생략은 어디에도 없다
 - **프로세스 제어** — `enodectl` 의 `status` · `start` · `stop` · `logs` 를 감싼다
 - **신원 표시** — `node_id` · `label` · `principal` · `instance` 전부. 자기 기계다
-- **탐지 능력 표시** — `Detect()` 결과를 **읽기 전용**으로 보인다. 편집 자리를
-  만들지 않는다 — 광고는 매번 전부이고 다음 광고가 덮는다 (`ADR-017` 결정 3)
+- **탐지 능력 표시** — 데몬이 마지막으로 알아낸 능력을 **읽기 전용**으로
+  보인다. 편집 자리를 만들지 않는다 — 광고는 매번 전부이고 다음 광고가
+  덮는다 (`ADR-017` 결정 3).
+  **`Detect()` 를 제어판이 직접 부르지 않는다** — `ADR-068` 이 탐지를 광고에서
+  떼어 `internal/enode/detector.go` 의 자기 시계(기본 5분)로 옮겼고, 값과
+  그것을 알아낸 시각이 `Capabilities{Caps, At}` 에 데몬 메모리로만 있다.
+  화면은 **언제 잰 값인가**를 함께 보인다
 - **현재 작업** — 임대 유무 · 임대한 Run · `not_after` · `CLAIMED` 단계 이름 ·
   회차(`attempt`) · 시작 시각. 출처는 Mediator 조회 (`decisions.md` 2절)
 - **drain 토글** — 3.2.2 를 부른다. 걸기 · 모드 고르기 · 풀기. 건 뒤에는 현재
-  모드와 「풀기」가 보인다 (`design/README.md` §7)
+  모드와 「풀기」가 보인다 (`design/README.md` §4.2)
 - **Mediator 연결 상태** — 마지막 응답 시각. 끊기면 drain 통보가 늦어진다는 사실
 
 **기존 코드에서 확인된 것**:
 - `internal/enode` 에 `net.Listen` 이 **0건**이다. 노드는 밖으로 듣지 않고 Mediator
   로 나가기만 한다. **HTTP 서버를 처음부터 세워야 한다** — `enodectl serve` 가 그것이다
-- `cmd/enodectl/main.go` 의 `names` · `pidOf` · `identityOf` · `ownsConfig` ·
-  `signalStop` 과 `proc_unix.go` · `proc_windows.go` 의 `processAlive` 가 프로세스
-  제어의 재료다. `internal/panel` 로 내려서 같이 쓴다
+- `cmd/enodectl/main.go` 의 `names` · `pidOf` · `identityOf` 와
+  `proc_unix.go` · `proc_windows.go` 의 `processAlive` · `signalStop` ·
+  `ownsConfig` 가 프로세스 제어의 재료다. 뒤의 셋은 플랫폼으로 갈린 짝이라
+  내리면 파일 둘이 함께 간다. `internal/panel` 로 내려서 같이 쓴다
 
 **보안 요구사항**:
 - 바인딩 기본값 **`127.0.0.1:8081`**. LAN 노출은 `--listen` 명시로만. 켜면 정책
@@ -157,17 +179,41 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 - 인증 없음이 기본인 이유 — 그 기계에 접속한 것이 소유의 증거다 (`ADR-063` §3)
 - 정책 파일은 소유자만 쓸 수 있는 권한으로 만든다
 
-**수용 기준**: `scene-gates.md` CP3 · CP4. 노드가 도는 상태에서 열면 임대 ·
-현재 단계 · 회차가 보인다. 멈춘 상태에서 열면 그 사실이 보이고 `start` 로 띄울
-수 있다. 기본 바인딩으로 띄우면 다른 기계에서 접속되지 않는다
+**비기능 요구사항**: `ci.yml` 의 차단 스텝 열을 새 표면이 전부 넘겨야 한다.
+`continue-on-error` 가 붙은 것은 「린트」 하나뿐이다.
+
+```text
+   포맷 · vet · 테스트 · glyphscan · 장식 문자 · 취약점 ·
+   스킵 감시(허용목록 0) · 커버리지 하한 80% · 크로스 빌드 셋
+```
+
+이 기능에 직접 걸리는 것이 하나 더 있다 — `ci.yml:479` 가 윈도우로 빌드한
+`enodectl.exe` 의 `crypto/tls` T 심볼 10 · `net/http` T 심볼 50 을 상한으로
+막는다. 지금 값은 `1` 과 `6` 이다. 게이트가 있는 이유는 rc13 에서 백신이
+`enodectl.exe` 를 지운 사건이고 경위는 `scripts/avprobe/README.md` 에 있다.
+
+`enodectl serve` 는 Mediator 를 HTTP 로 부르고(`constraints.md` 구조 불변식)
+`internal/panel` 을 딛는다. **`cmd/enodectl` 의 링크 그래프가 그 패키지를
+통해 `net/http` 에 닿으면 이 게이트가 빨개진다.** 그 사실이 이 기능의 설계
+제약이다 — 어떻게 푸는지는 Functional Design 몫이고, 넘겨야 한다는 것이
+요구다. 유닛의 완료 조건에 재측정을 넣는다.
+
+**수용 기준**: `scene-gates.md` CP4. 노드가 도는 상태에서 열면 임대 ·
+현재 단계 · 회차가 보인다. 멈춘 상태에서 열면 그 사실이 보이고 `start` 로
+띄울 수 있다. 기본 바인딩으로 띄우면 다른 기계에서 접속되지 않는다.
+**화면의 조작을 전부 센다** — `status` · `start` · `stop` · `logs` 와
+drain 의 「걸기」 · 모드 고르기(`graceful` · `at-boundary`) · 「풀기」다.
+건 뒤에는 현재 모드 배지와 「풀기」가 보인다 (`design/README.md` §4.2 · C3).
+`scene-gates.md` §2.1 이 「그 화면의 버튼을 전부 나열한다」로 이 조건을 세웠다
 
 #### 3.1.3 하네스 트랜스크립트 — 도는 것과 지난 것
 
 **목적**: 노드 소유자가 **에이전트가 지금 뱉는 글자**를 자기 제어판에서 본다.
 그리고 이 노드가 지난에 한 작업의 **결과와 봉인된 기록**을 눌러 본다.
 
-**맥락**: 지금 제어판에 하네스 출력이 **0 줄**이다. 「로그」 카드는
-`Node.Tail` 이 읽는 **데몬 로그**이고 `design/README.md` 가 「다른 물건이다」로
+**맥락**: 지금 제어판에 하네스 출력이 **0 줄**이다. 「로그」 카드가 읽는 것은
+`cmd/enodectl/main.go` 의 `tailIndent` 가 읽는 것과 같은 데몬 로그
+(`<이름>.log`)이고, `design/index.html` 이 「헤더의 「로그」와 다른 물건이다」로
 갈라 두었다. 봉인된 기록은 `runctl record` 로만 닿는다. **그리고 도는 동안은
 어디에도 없다** — `internal/enode/runner.go` 가 `bytes.Buffer` 로 통째로 받아
 `cmd.Run()` 이 끝나야 `Decode` 를 부르므로 데몬 자신도 못 본다. 팩을 팔 때는
@@ -176,14 +222,18 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 **기능 요구사항**:
 - 데몬이 단계의 stdout 과 stderr 를 노드의 **고정 크기 링 파일**에 tee 한다.
   에이전트 단계(`runner.go`)와 명령 단계(`claim.go`) 둘 다다
-- 제어판이 `GET /api/transcript?node=` 로 그것을 읽어 S3 의 카드에 그린다.
-  화면이 **1초에 한 번** 읽는다 — Mediator 폴링(5초)과 별개 타이머다
+- 제어판이 `GET /api/transcript?node=<설정 이름>` 로 그것을 읽어 S3 의 카드에
+  그린다. 값은 `enodectl serve <name>` 의 그 이름이다 — 제어판이 아는 유일한
+  식별자다. 화면이 **1초에 한 번** 읽는다 — Mediator 폴링(5초)과 별개 타이머다
 - 링이 넘치면 **앞부터 밀린다.** 밀렸다는 사실이 화면에 뜬다
 - 카드는 **다음 단계가 시작할 때** 갈린다. 단계가 끝날 때가 아니다 — 떠나
   있던 사람에게도 방금 끝난 것이 남아야 한다
-- 지난 작업은 `GET /v1/runs` 의 `assigned` 로 **이 노드 것만** 걸러 목록을
-  내고, 한 줄을 누르면 `verdict.checks` 와 **봉인된 트랜스크립트**를 보인다.
-  후자는 `GET /v1/runs/{id}/record` 의 tar 에서 꺼낸다
+- 지난 작업은 `GET /v1/runs` 를 받아 `assigned[].nodes[].node` 가 이 노드의
+  `node_id` 인 행만 화면에서 걸러 목록을 낸다. **Mediator 쪽 필터를 신설하지
+  않는다** — 응답이 이미 노드를 싣는다. `limit` 기본 100 이 함대 전체에
+  걸리므로 이 노드의 오래된 Run 은 목록에 안 들어올 수 있다. 한 줄을 누르면
+  `verdict.checks` 와 **봉인된 트랜스크립트**를 보인다 — 후자는
+  `GET /v1/runs/{id}/record` 의 tar 에서 꺼낸다
 
 **데이터 관리**: **DB 를 안 만진다.** 스키마 변경 0 · 새 Mediator 라우트 0 ·
 `node=` 필터 신설 0 — 응답이 이미 노드를 싣는다. 링 파일은 크기가 한 번
@@ -198,6 +248,11 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
   지난 것은 이미 Mediator 에 있던 기록을 읽는 것이다
 - 제어판의 인증 규칙 그대로다 — 루프백이면 안 걸고 밖이면 `/api/*` 에 Bearer
 
+**비기능 요구사항**: 이 기능은 `internal/enode` 에 링 파일을 붙인다 —
+`enodectl.exe` 의 심볼 상한(3.1.2)이 걸리는 실행파일과는 다르지만, 같은 차단
+목록의 **커버리지 하한 80%** 와 **스킵 0** 이 그 패키지에 그대로 걸린다
+(`constraints.md`). 유닛의 완료 조건에 그 재측정을 넣는다
+
 **수용 기준**: `scene-gates.md` CP6. 계약을 던져 놓고 제어판을 열면 **단계가
 끝나기 전에** 글자가 흐른다. 상한을 넘겨도 안 깨지고 앞부터 밀린다. 다음
 단계가 첫 글자를 쓸 때 갈린다. 이 노드가 한 Run 목록이 뜨고 하나를 누르면
@@ -211,14 +266,23 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 
 **목적**: 자원이 없을 때 죽지 않고 기다린다.
 
-**맥락**: `409`(후보는 있는데 전부 점유)가 지금 즉시 `FAILED` 다
-(`internal/match/match.go` `CodeAllBusy`). Run 이 종료하고 Record 가 봉인되며
-재시도가 호출자 몫이다. 보드가 하나뿐이면 두 번째 요청은 항상 죽는다.
+**맥락**: 후보는 있는데 전부 점유된 상황(`internal/match/match.go` 의
+`CodeAllBusy`)이 지금 즉시 `FAILED` 다. `CreateRejectedRun` 이 `runs` 에
+`FAILED` 한 줄과 `reject` 만 적고 Record 는 봉인하지 않아 그 Run 의
+`GET /v1/runs/{id}/record` 는 `409` 다. 재시도가 호출자 몫이다. 보드가
+하나뿐이면 두 번째 요청은 항상 죽는다.
 
 **기능 요구사항**:
 
 - **`QUEUED` 상태 추가**
-  - 매칭에서 점유 실패(`409`) -> `QUEUED`. 제출 응답은 `202 Accepted`
+  - 점유 실패 -> `QUEUED`. 제출 응답은 `202 Accepted`.
+    응답 코드 `409` 는 더 이상 이 뜻이 아니다 — 종료 전 `GET record` 와
+    이미 답한 물음에 남는다 (`protocol/mediator-api.md` §1 개정)
+  - **자리가 둘이다.** 매처가 거절하는 자리(`api.go:398~408`)와, 매칭은
+    됐는데 `leases.node_id` 기본키 충돌로 롤백되는 자리
+    (`api.go:457~463` `store.ErrNodeTaken`)다. 둘 다 `ALLOCATING -> QUEUED`
+    이고 (`INVARIANTS` §2), 뒤쪽은 지금 `runs` 행조차 안 만들므로
+    `GET /v1/runs` 에도 안 뜬다
   - 자원이 풀리면 매칭을 다시 하고, 되면 `RUNNING`
   - 코드는 `ALLOCATING` 을 저장하지 않는다 — `submit` 이 매칭 뒤 바로 `RUNNING` 을
     적는다(`api.go`). `INVARIANTS` §1.1 의 `RESOLVING` · `ALLOCATING` 은 그 한
@@ -229,8 +293,14 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 - **대기 상한 없음.** 빠져나가는 길은 `cancel` 뿐
 - **깨우기** — 임대가 지워지는 모든 지점 뒤에서 `store.WakeQueued` 를 부른다.
   `postResult` · `postCancel` · `Reap` · 재기동 감지 · 부분 반납 · drain 해제를 받은
-  광고 처리 (`decisions.md` 1절). 주기에 얹지 않고 지점에 건다
-- **매칭에서 draining 노드 제외** — `busy` 에 `DrainingNodes` 를 합친다
+  광고 처리 (`decisions.md` 1절). 주기에 얹지 않고 지점에 건다.
+  **부르는 요청의 트랜잭션 안에서 동기로 돈다** — `scene-gates.md` §3 의
+  CP2 가 「a 가 끝난 뒤 `runctl status <b>` -> `RUNNING`」을 요구하므로
+  비동기면 그 줄이 경쟁이 된다
+- **매칭에서 draining 노드 제외** — `busy` 에 `DrainingNodes` 를 합친다.
+  **`if !dry` 안에서 합친다** — `POST /v1/runs/dry-run` 은 `busy` 를 안 보듯
+  draining 도 안 본다 (`ADR-014` 결정 3 · `ADR-063` §6 · `decisions.md` 2절).
+  `api.go:389~395` 가 그 분기다
 
 **데이터 관리**:
 - `runs.state` 어휘가 하나 는다
@@ -282,8 +352,10 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 
 **수용 기준**: `scene-gates.md` CP3. drain 을 걸면 새 Run 이 그 노드로 배정되지
 않는다. `graceful` 로 걸면 도는 Run 이 끝까지 간다. `at-boundary` 로 걸면 다음
-단계 경계에서 임대가 풀린다. 풀린 노드는 drain 을 풀기 전까지 후보가 아니다.
-풀면 다시 후보가 되고 대기 Run 이 집는다
+단계 경계에서 임대가 풀리고, 놓인 Run 은 `FAILED` 이며 `verdict` 가
+`drain:<node_id>` 를 진다. 풀린 노드는 drain 을 풀기 전까지 후보가 아니다.
+풀면 다시 후보가 되고 대기 Run 이 집는다.
+drain 을 건 노드도 `runctl dry-run` 에는 여전히 후보로 나온다
 
 근거 `ADR-063`
 
@@ -297,9 +369,9 @@ REST 를 도구로 감싼다 — 새 의미가 0 개다」로 못 박았다. 이
 MCP 로도 접수하고, **현황판이 그리는 것과 같은 자료**를 도구로 낸다.
 
 **맥락**: 이 제품의 진단이 「MCP 가 발산한다」였다. 그 진단을 해 놓고
-**MCP 를 하나 만든다** — `N` 개를 없애려고 `1` 개를 만드는 것이다
-— 이 팩이 세운 자리다. 팩을 팔 때는 이월이었고 2026-09-05 에 범위로
-들어왔다 (`decisions.md` 5절).
+**MCP 를 하나 만든다** — `N` 개를 없애려고 `1` 개를 만드는 것이다.
+팩을 팔 때는 이월이었고 2026-09-05 에 범위로 들어왔다
+(`decisions.md` 5절).
 
 **기능 요구사항**:
 
@@ -337,7 +409,7 @@ MCP 로도 접수하고, **현황판이 그리는 것과 같은 자료**를 도�
 
 ```text
    3.1.1 중앙 현황판     GET /v1/runs · GET /v1/nodes (+draining · lease) · chosen · 화면
-   3.2.1 대기열          409 -> QUEUED · 202 · FIFO · 깨우기
+   3.2.1 대기열          점유 실패 -> QUEUED · 202 · FIFO · 깨우기
    3.2.2 drain           정책 파일 + 광고 경로 + 두 모드 + 해제
    3.1.2 호스트 제어판    enodectl serve + 프로세스 제어 + 현재 작업 + drain 토글
    3.3.1 Mediator MCP    runctl mcp — stdio 로 도구 여덟.  기존 REST 를 감싼다
@@ -345,12 +417,22 @@ MCP 로도 접수하고, **현황판이 그리는 것과 같은 자료**를 도�
 ```
 
 **앞의 넷이 `dhseo` 장면을 한 장면으로 만든다** — `scene-gates.md`.
+**그 넷의 공동 수용 기준이 `CP4` 다** — 1절 ① ~ ⑦ 을 끝까지 돌고, 현황판과
+제어판이 같은 사실을 보이며, **되찾은 보드에서 LED 가 새 패턴으로 깜빡인다.**
+`CP4` 가 빨가면 넷 중 어느 것도 완료가 아니다 — 개별 게이트가 초록이어도 그렇다.
 
 **3.3.1 과 3.1.3 은 그 장면 밖이다.** 장면에 안 나오므로 `CP4` 의 조건이
-아니고 자기 게이트를 따로 갖는다 — `CP5` 와 `CP6` 이다. 3.3.1 은 딛는 것이
-3.1.1 의 라우트뿐이라 CP1 뒤 아무 때나 돌고, 3.1.3 은 3.1.2 의 화면을 딛는다.
+아니고 자기 게이트를 따로 갖는다 — `CP5` 와 `CP6` 이다. 3.3.1 은 먼저 서는 것이
+3.1.1 의 라우트뿐이라 CP1 뒤 아무 때나 돌고, 3.1.3 은 3.1.2 의 화면 위에 선다.
 
-### 이월 — 이번에 만들지 않는다
+### 이월 — 범위 밖이라 안 한다
+
+```text
+   역할 주입              계약 문법이 늘어난다
+   우선순위               FIFO 만.  큐 순서에만 닿는다는 경계는 ADR-064 §2.2
+```
+
+### 이월 — 값이 없어서 밖에 있다. 값이 정해지면 범위가 열릴 수 있다
 
 ```text
    트랜스크립트 구독      MCP 의 구독 표현.  툴은 한 방에 답하는 물건이라
@@ -358,15 +440,33 @@ MCP 로도 접수하고, **현황판이 그리는 것과 같은 자료**를 도�
                         도는 동안의 출력 자체는 3.1.3 이 범위로 가져왔다
    stream-json 전환      하네스를 배치가 아니라 스트림으로 부르는 것.
                         claude.go 의 Argv 와 Decode 를 함께 바꿔야 한다
-   역할 주입              계약 문법이 늘어난다
-   우선순위               FIFO 만.  큐 순서에만 닿는다는 경계는 ADR-064 §2.2
+```
+
+앞 회차에서 이 칸이 두 번 열렸다 — MCP 와 트랜스크립트가 모두 뒤쪽 종류였다.
+
+### 이미 있는 방법을 그대로 쓴다
+
+새 표면이 이미 이 저장소에 선례가 있는 물음을 만나면 **선례를 그대로 쓴다.**
+값을 새로 고르지 않고, 다르게 하려면 근거를 적는다. 선례가 있는 물음은
+질문이 아니라 확인이다.
+
+```text
+   토큰 제시        Authorization: Bearer  (internal/runctl/client.go:64)
+   에러 본문        {"error":{"code",...}}  (internal/api 의 fail)
+   만료 필터        expires_at > now()      (internal/store/store.go:112)
+   플랫폼 분기      proc_unix.go · proc_windows.go 의 빌드 태그 쌍
+   상태 술어        runctl.Terminal — 종료는 SUCCEEDED · FAILED 둘뿐
 ```
 
 ---
 
 ## 5. 미정
 
-**없다.** 1판의 미정 16개는 `decisions.md` 1절과 2절이 닫았고, 이월된 것은
-4절과 `decisions.md` 4절에 있다. 게이트에서 새 미정이 생기면 그것은 **계약
-(서명 · 파일 · 응답 모양)에 걸리는 것**이어야 하고, 진행자가 `decisions.md`
+**하나다.** 도는 데몬의 `Capabilities{Caps, At}` 를 별도 프로세스인 제어판이
+어떻게 읽는가 (`ADR-068` · `canon.md` §1). 계약(어느 파일 · 어느 라우트 ·
+어느 모양)에 걸리는 물음이므로 진행자가 `decisions.md` 에 행을 더한다.
+
+1판의 미정은 `decisions.md` 1절과 2절이 닫았고, 이월된 것은 4절과
+`decisions.md` 4 · 5.4 · 6.4 절에 있다. 게이트에서 새 미정이 생기면 그것도
+같은 규칙을 따른다 — **계약에 걸리는 것**이어야 하고, 진행자가 `decisions.md`
 에 행을 더한다.
