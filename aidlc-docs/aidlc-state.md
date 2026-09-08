@@ -3,17 +3,20 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-08T05:36:09Z
-- **Current Stage**: INCEPTION - Reverse Engineering
+- **This Branch Start**: 2026-09-08T08:07:14Z (`v1-run-dhseo-cardnews`, 갈라진 지점 `1fe2145` — `v1-run-dhseo` 팁 `da73c53` 아님. 근거 `aidlc-docs/audit.md` 최초 항목)
+- **Current Stage**: INCEPTION - Application Design
+- **Last Completed**: Requirements Analysis
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
-- **Run Branch**: `v1-run-dhseo` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
+- **Run Branch**: `v1-run-dhseo-cardnews` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
+- **Execution Mode**: 무인터랙티브 원격 세션 — 게이트를 자기 승인으로 적응 (근거 `aidlc-docs/audit.md` 「실행 방식 적응」)
 
 ## Workspace State
 - **Existing Code**: Yes
 - **Programming Languages**: Go 1.26 (toolchain go1.26.6)
 - **Build System**: Go modules (`go.mod`, module `github.com/taeels/enode`). CI 는 GitHub Actions
 - **Project Structure**: 멀티 바이너리 모노레포 — `cmd/{mediator,enode,enodectl,runctl,iapadapter}` 실행파일 다섯 + `internal/*` 공용 패키지. 설계 정본은 서브모듈 `enode-design/`
-- **Reverse Engineering Needed**: Yes (브라운필드 · `aidlc-docs/inception/reverse-engineering/` 산출물 없음)
-- **Workspace Root**: /home/sunny/enode-fixup-project
+- **Reverse Engineering Needed**: No — `aidlc-docs/inception/reverse-engineering/` 산출물 아홉이 `1fe2145` 시점에 이미 있다. 다시 안 돈다
+- **Workspace Root**: 이 저장소의 뿌리
 
 ## Code Location Rules
 - **Application Code**: 저장소 뿌리 (`cmd/`, `internal/`). aidlc-docs/ 에는 안 들어온다
@@ -21,42 +24,51 @@
 - **Structure patterns**: See code-generation.md Critical Rules
 
 ## Requirements Pack (입력)
-이 회차는 요구 팩이 이미 있다. Requirements Analysis 가 이것을 입력으로 읽는다.
-- `requirements/enode-features.md` — 기능 일곱 (3판)
-- `requirements/decisions.md` — 결정표 (1~7절)
-- `requirements/scene-gates.md` — 장면 조각 게이트 CP0~CP7 (수용 기준)
+이 회차는 요구 팩이 이미 있다 — 기존 일곱 + 이 실행이 더한 여덟째.
+- `requirements/enode-features.md` — 기능 여덟 (4판)
+- `requirements/decisions.md` — 결정표 (1~7절 기존 · 8절 이번 회차)
+- `requirements/scene-gates.md` — 장면 조각 게이트 CP0~CP8
 - `requirements/canon.md` — enode-design 정본과의 연결
 - `requirements/constraints.md` — 제외 여덟 범주 · 구조 불변식
-- `design/README.md` + `design/exports/*.png` — 화면 아홉 장
+- `design/README.md` + `design/exports/*.png` — 화면 아홉 장 (기존 일곱 축만. 3.4 는 사전 디자인 없음 — 이 실행이 Application/Functional Design 에서 직접 낸다)
+
+## 이번 실행의 스코프
+
+기존 일곱 기능(3.1 ~ 3.3)은 **입력으로만 참조한다** — 이 실행은 그것을
+설계·구현하지 않는다(다른 유닛/세션이 병렬로 맡는다). 이 실행이 실제로
+Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
+온보딩 카드뉴스 + Guest Login 진입점 하나**뿐이다.
 
 ## Extension Configuration
-`decisions.md` §1 이 사용자 결정(2026-09-04)으로 이미 닫았다. Requirements Analysis Step 5.1 에서 재확인한다.
+`decisions.md` §1 이 사용자 결정(2026-09-04)으로 이미 닫았다. 8.3 이
+3.4 표면에도 적용됨을 재확인했다.
 
 | Extension | Enabled | Decided At |
 |---|---|---|
-| security-baseline | Yes | decisions.md §1 (사용자 결정 2026-09-04) |
+| security-baseline | Yes | decisions.md §1 (사용자 결정 2026-09-04) · §8.3 재확인 |
 | resiliency-baseline | No | decisions.md §1 |
 | property-based-testing | No | decisions.md §1 |
 
-취급: `decisions.md` §3 이 SECURITY 규칙마다 처리를 미리 적었다 — 새 표면에만 걸고 기존 코드 사실은 기록만 한다.
+취급: `decisions.md` §3 이 기존 표면, §8.3 이 3.4 표면의 SECURITY 규칙별
+처리를 적는다.
 
 ## Stage Progress
 
 ### 🔵 INCEPTION PHASE
 - [x] Workspace Detection — 2026-09-08T05:36:09Z
-- [ ] Reverse Engineering — IN PROGRESS
-- [ ] Requirements Analysis
-- [ ] User Stories — [EXECUTE/SKIP 는 Workflow Planning 이 정한다]
+- [x] Reverse Engineering — 1fe2145 시점에 이관·완료 (다시 안 돎)
+- [x] Requirements Analysis — `aidlc-docs/inception/requirements/requirements.md`
+- [ ] User Stories — EXECUTE (3.4 만. 신규 사용자 대면 기능이라 워크플로 기준 실행)
 - [ ] Workflow Planning
-- [ ] Application Design — [EXECUTE/SKIP]
-- [ ] Units Generation — [EXECUTE/SKIP]
+- [ ] Application Design — EXECUTE (3.4 의 신규 컴포넌트)
+- [ ] Units Generation — EXECUTE (단일 유닛 `cardnews-guest-login`)
 
-### 🟢 CONSTRUCTION PHASE
-- [ ] Functional Design (per-unit)
-- [ ] NFR Requirements (per-unit)
-- [ ] NFR Design (per-unit)
-- [ ] Infrastructure Design (per-unit)
-- [ ] Code Generation (per-unit)
+### 🟢 CONSTRUCTION PHASE (유닛 `cardnews-guest-login`)
+- [ ] Functional Design
+- [ ] NFR Requirements
+- [ ] NFR Design
+- [ ] Infrastructure Design — SKIP (신규 인프라 없음)
+- [ ] Code Generation
 - [ ] Build and Test
 
 ### 🟡 OPERATIONS PHASE
@@ -64,6 +76,6 @@
 
 ## Current Status
 - **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Reverse Engineering (진행 중)
-- **Next Stage**: Requirements Analysis
-- **Status**: 코드베이스 분석 중
+- **Current Stage**: Requirements Analysis 완료, User Stories 진행
+- **Next Stage**: Workflow Planning -> Application Design
+- **Status**: 여덟째 기능(3.4.1)의 설계를 이어간다
