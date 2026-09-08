@@ -66,13 +66,13 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 - [x] NFR Design — SKIP
 - [x] Infrastructure Design — SKIP
 - [x] Code Generation — 2026-09-08 승인 (design/enode-demo.pen 아트보드 여덟)
-- [ ] Build and Test — 검수 전부 통과 · 승인 대기 (exports/D*.png 여덟)
+- [x] Build and Test — 2026-09-08 승인 (검수 전부 통과 · exports/D*.png 여덟)
 
 ### 🟡 OPERATIONS PHASE
-- [ ] Operations — PLACEHOLDER
+- [x] Operations — PLACEHOLDER (실행할 것 없음)
 
 ## Current Status
-- **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: Build and Test — 검수 완료 · 승인 대기
-- **Next Stage**: Operations (자리만) → 회차 종료 · push · PR
-- **Status**: `aidlc-docs/construction/build-and-test/build-and-test-summary.md` 검토 대기. D4 Task Sub 줄바꿈 수정은 편집기 저장(Cmd+S) 뒤 .pen 커밋
+- **Lifecycle Phase**: 완료
+- **Current Stage**: v2 회차 종료
+- **Next Stage**: 없음. `v2-run-shin_pen_drawing` 을 push 하고 PR 을 연다 (사용자)
+- **Status**: 산출물 — design/enode-demo.pen (D1 · D2 · D3 · D3b · D3c · D3d · D4 · D5) · design/exports/D*.png 여덟 · aidlc-docs 요구 · 계획 · 화면 사양 · 검수 문서. D0 온보딩 카드는 다른 팀원 몫
