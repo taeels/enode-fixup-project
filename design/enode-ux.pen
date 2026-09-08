@@ -345,6 +345,41 @@
                       "fontWeight": "normal"
                     }
                   ]
+                },
+                {
+                  "type": "frame",
+                  "id": "d67bSs",
+                  "name": "View Switch Chip",
+                  "fill": "$surface-2",
+                  "cornerRadius": 4,
+                  "gap": 6,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "TLL37",
+                      "name": "Chip Icon",
+                      "width": 11,
+                      "height": 11,
+                      "icon": "box",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    },
+                    {
+                      "type": "text",
+                      "id": "jzLJR",
+                      "name": "Chip Label",
+                      "fill": "$text-secondary",
+                      "content": "3D 뷰",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
                 }
               ]
             }
@@ -520,33 +555,6 @@
                               "fontWeight": "normal"
                             }
                           ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "O9G5l",
-                          "name": "Legend ask",
-                          "gap": 5,
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "ellipse",
-                              "id": "CuwUa",
-                              "name": "Dot",
-                              "fill": "$state-queued",
-                              "width": 6,
-                              "height": 6
-                            },
-                            {
-                              "type": "text",
-                              "id": "orRZP",
-                              "name": "Label",
-                              "fill": "$text-dim",
-                              "content": "사람 대기",
-                              "fontFamily": "$font-body",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
                         }
                       ]
                     }
@@ -668,7 +676,7 @@
                           "fill": "#B98CFF22"
                         },
                         "X5UTW": {
-                          "content": "draining · 진행 중",
+                          "content": "draining",
                           "fill": "$state-drain"
                         },
                         "IgQwc": {
@@ -714,17 +722,17 @@
                       "name": "sonshin@mac:ws-d",
                       "descendants": {
                         "QcLJ4": {
-                          "fill": "$state-queued"
+                          "fill": "$state-leased"
                         },
                         "KWEXV": {
                           "content": "sonshin@mac:ws-d"
                         },
                         "rHXCv": {
-                          "fill": "#E2A33C22"
+                          "fill": "#4B9CFF22"
                         },
                         "X5UTW": {
-                          "content": "사람을 기다림",
-                          "fill": "$state-queued"
+                          "content": "임대 중",
+                          "fill": "$state-leased"
                         },
                         "IgQwc": {
                           "content": "2e5a7c11d840"
@@ -739,11 +747,11 @@
                           "content": "gerrit-12377-ps2"
                         },
                         "pH3Hh": {
-                          "fill": "$state-queued",
-                          "content": "기한 없음"
+                          "fill": "$state-leased",
+                          "content": "01:07 남음"
                         },
                         "NM7wO": {
-                          "content": "review.diff · 회차 1 · 물은 지 4분 · 답: dhseo@corp"
+                          "content": "review.diff · 회차 1 · 12:51:22 시작"
                         },
                         "MJDZ9": {
                           "content": "seen 12:59:44"
@@ -809,17 +817,17 @@
                       "name": "dhseo@nuc:board-02",
                       "descendants": {
                         "QcLJ4": {
-                          "fill": "$state-drain"
+                          "fill": "$state-idle"
                         },
                         "KWEXV": {
                           "content": "dhseo@nuc:board-02"
                         },
                         "rHXCv": {
-                          "fill": "#B98CFF22"
+                          "fill": "#3FBF8722"
                         },
                         "X5UTW": {
-                          "content": "draining · 대기 중",
-                          "fill": "$state-drain"
+                          "content": "임대 없음",
+                          "fill": "$state-idle"
                         },
                         "IgQwc": {
                           "content": "c81d33f70b6e"
@@ -838,7 +846,7 @@
                           "enabled": false
                         },
                         "NM7wO": {
-                          "content": "다 끝났다 · 소유자가 풀면 후보로 돌아온다",
+                          "content": "관측 시점에 임대가 없다",
                           "fill": "$text-dim"
                         },
                         "MJDZ9": {
@@ -988,7 +996,7 @@
                     {
                       "type": "frame",
                       "id": "TScxM",
-                      "name": "Filter SUCCEEDED",
+                      "name": "Filter SEALED",
                       "fill": "#00000000",
                       "cornerRadius": 4,
                       "stroke": "$border",
@@ -1105,13 +1113,13 @@
                       "width": "fill_container",
                       "descendants": {
                         "uaPNG": {
-                          "fill": "$state-queued"
+                          "fill": "$state-leased"
                         },
                         "G8C30f": {
                           "content": "gerrit-12377-ps2"
                         },
                         "gWXVu": {
-                          "content": "ws-d · review.diff · 사람의 답 대기"
+                          "content": "ws-d · review.diff · 12:51:22"
                         },
                         "sKA1x": {
                           "fill": "#4B9CFF22"
@@ -1264,44 +1272,6 @@
                 },
                 {
                   "type": "frame",
-                  "id": "JLSqJ",
-                  "name": "Ask Note",
-                  "width": "fill_container",
-                  "fill": "#E2A33C10",
-                  "cornerRadius": 6,
-                  "stroke": "#E2A33C33",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
-                  "gap": 8,
-                  "padding": 12,
-                  "children": [
-                    {
-                      "type": "icon",
-                      "id": "FeaiE",
-                      "name": "Note Icon",
-                      "width": 13,
-                      "height": 13,
-                      "icon": "info",
-                      "library": "lucide",
-                      "fill": "$state-queued"
-                    },
-                    {
-                      "type": "text",
-                      "id": "LGDZm",
-                      "name": "Note Text",
-                      "fill": "$text-secondary",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "gerrit-12377-ps2 는 사람의 답을 기다린다. 중앙은 답을 받지 않는다 — 그 기계에서 runctl answer gerrit-12377-ps2 3 --set verdict=approve 를 친다.",
-                      "lineHeight": 1.5,
-                      "fontFamily": "$font-body",
-                      "fontSize": 11,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
                   "id": "Sn0xb",
                   "name": "Pagination Slot",
                   "width": "fill_container",
@@ -1437,7 +1407,7 @@
       "name": "S3 호스트 제어판",
       "clip": true,
       "width": 1180,
-      "height": 1475,
+      "height": 920,
       "fill": "$bg",
       "layout": "vertical",
       "children": [
@@ -2153,23 +2123,33 @@
                       "fontWeight": "normal"
                     },
                     {
+                      "type": "frame",
+                      "id": "cfO9f",
+                      "name": "Lease Track",
+                      "width": "fill_container",
+                      "height": 6,
+                      "fill": "$surface-2",
+                      "cornerRadius": 3,
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "cornerRadius": 3,
+                          "id": "OwaVl",
+                          "name": "Lease Fill",
+                          "fill": "$state-leased",
+                          "width": 343,
+                          "height": 6
+                        }
+                      ]
+                    },
+                    {
                       "type": "text",
                       "id": "TK8wc",
                       "name": "Lease Track Caption",
                       "fill": "$text-dim",
-                      "content": "이 숫자는 하트비트 신선도다 — 노드가 말하면 다시 180초로 밀린다. 작업 진행이 아니다",
+                      "content": "임대 시간 — 4분 39초 중 2분 41초 남음",
                       "fontFamily": "$font-body",
                       "fontSize": 10,
-                      "fontWeight": "normal"
-                    },
-                    {
-                      "type": "text",
-                      "id": "ZkS4i",
-                      "name": "Stop Warning",
-                      "fill": "$state-stopped",
-                      "content": "정지 · 재시작은 이 Run 을 먼저 cancel 한 뒤 데몬을 끈다 — 기록에 cancelled by 가 남는다. Mediator 가 안 닿으면 확인 문구가 그 사실을 말하고 Run 은 임대 만료로 죽는다.",
-                      "fontFamily": "$font-body",
-                      "fontSize": 11,
                       "fontWeight": "normal"
                     },
                     {
@@ -2228,207 +2208,6 @@
                           "icon": "arrow-right",
                           "library": "lucide",
                           "fill": "$text-secondary"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "lOUQN",
-                  "name": "트랜스크립트",
-                  "width": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": "$radius",
-                  "stroke": "$border",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
-                  "layout": "vertical",
-                  "gap": 12,
-                  "padding": 18,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "U1iuPD",
-                      "name": "Caption",
-                      "fill": "$text-secondary",
-                      "content": "트랜스크립트 — 하네스가 뱉는 것과 데몬이 뱉는 것은 다른 물건이다",
-                      "fontFamily": "$font-body",
-                      "fontSize": 12,
-                      "fontWeight": "bold"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "G3rQF",
-                      "name": "Pair",
-                      "width": "fill_container",
-                      "gap": 12,
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "u0keU3",
-                          "name": "하네스 트랜스크립트 · 지금 뱉는 글자",
-                          "width": "fill_container",
-                          "fill": "$surface-2",
-                          "cornerRadius": 6,
-                          "layout": "vertical",
-                          "gap": 8,
-                          "padding": 12,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "CsMg8",
-                              "name": "Head",
-                              "fill": "$text-secondary",
-                              "content": "하네스 트랜스크립트 · 지금 뱉는 글자",
-                              "fontFamily": "$font-body",
-                              "fontSize": 11,
-                              "fontWeight": "bold"
-                            },
-                            {
-                              "type": "text",
-                              "id": "IMW42",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "12:58:19  CC  drivers/mmc/host/bcm2835-sdhost.o",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "kanXI",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "12:59:02  LD  vmlinux",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "eXRzI",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "13:00:11  OBJCOPY arch/arm64/boot/Image",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "tqeHL",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "13:00:33  warning: .init.text has no symbols",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "FqZ29",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "13:00:58  BUILD OK  vmlinux 41.2 MiB",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "v9hqFa",
-                              "name": "Note",
-                              "fill": "$text-dim",
-                              "content": "노드의 링 파일 512 KiB · 1초 폴링.  Mediator 를 안 거친다",
-                              "fontFamily": "$font-body",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "iybAJ",
-                          "name": "데몬 로그",
-                          "width": 380,
-                          "fill": "$surface-2",
-                          "cornerRadius": 6,
-                          "layout": "vertical",
-                          "gap": 8,
-                          "padding": 12,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "r7Byw",
-                              "name": "Head",
-                              "fill": "$text-secondary",
-                              "content": "데몬 로그",
-                              "fontFamily": "$font-body",
-                              "fontSize": 11,
-                              "fontWeight": "bold"
-                            },
-                            {
-                              "type": "text",
-                              "id": "Nb9os",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "12:57:44 advert sent caps=1",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "dfxf5",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "12:58:03 claimed gerrit-12345-ps3",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "lxfSs",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "12:58:03 harness=claude start",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "yX5QY",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "12:59:44 lease renewed 13:02:42",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "X39dt",
-                              "name": "Line",
-                              "fill": "$text-dim",
-                              "content": "13:00:00 advert sent caps=1",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "cP9C9",
-                              "name": "Note",
-                              "fill": "$text-dim",
-                              "content": "enodectl logs 가 읽는 것.  헤더의 로그 버튼이 이것이다",
-                              "fontFamily": "$font-body",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            }
-                          ]
                         }
                       ]
                     }
@@ -2644,251 +2423,6 @@
                       "width": "fill_container",
                       "content": "Run 을 죽이지 않는다. 정책은 광고와 별개로 남아 광고가 만료돼도 유지된다. 중앙 현황판에는 draining 배지로만 나타나고 거기서는 누를 수 없다.",
                       "lineHeight": 1.5,
-                      "fontFamily": "$font-body",
-                      "fontSize": 11,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "rp5s0",
-                  "name": "지난 작업",
-                  "width": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": "$radius",
-                  "stroke": "$border",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
-                  "layout": "vertical",
-                  "gap": 12,
-                  "padding": 18,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "VsVV8",
-                      "name": "Caption",
-                      "fill": "$text-secondary",
-                      "content": "지난 작업 — 이 노드가 한 것만",
-                      "fontFamily": "$font-body",
-                      "fontSize": 12,
-                      "fontWeight": "bold"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "QrZ2F",
-                      "name": "gerrit-12345-ps2",
-                      "width": "fill_container",
-                      "fill": "$surface-2",
-                      "cornerRadius": 6,
-                      "gap": 12,
-                      "padding": [
-                        10,
-                        12
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "e50dr",
-                          "name": "Text",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "gap": 3,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "kH7sX",
-                              "name": "Run Id",
-                              "fill": "$text-primary",
-                              "content": "gerrit-12345-ps2",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 13,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "BbB2U",
-                              "name": "Meta",
-                              "fill": "$text-dim",
-                              "content": "build.kernel · 11:42:08 완료 · 봉인됨",
-                              "fontFamily": "$font-body",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "ghTuw",
-                          "name": "Badge",
-                          "fill": "#FFFFFF10",
-                          "cornerRadius": 4,
-                          "padding": [
-                            3,
-                            8
-                          ],
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "RaniV",
-                              "name": "State",
-                              "fill": "$state-idle",
-                              "content": "SUCCEEDED",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "bold"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "SQ3oz",
-                      "name": "gerrit-12301-ps1",
-                      "width": "fill_container",
-                      "fill": "$surface-2",
-                      "cornerRadius": 6,
-                      "gap": 12,
-                      "padding": [
-                        10,
-                        12
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "ciXvc",
-                          "name": "Text",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "gap": 3,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "UGML0",
-                              "name": "Run Id",
-                              "fill": "$text-primary",
-                              "content": "gerrit-12301-ps1",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 13,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "VxG8g",
-                              "name": "Meta",
-                              "fill": "$text-dim",
-                              "content": "test.boot · 11:07:19 실패 · 봉인됨",
-                              "fontFamily": "$font-body",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "zpUX8",
-                          "name": "Badge",
-                          "fill": "#FFFFFF10",
-                          "cornerRadius": 4,
-                          "padding": [
-                            3,
-                            8
-                          ],
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "jAZo1",
-                              "name": "State",
-                              "fill": "$state-stopped",
-                              "content": "FAILED",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "bold"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "XMklJ",
-                      "name": "gerrit-12277-ps5",
-                      "width": "fill_container",
-                      "fill": "$surface-2",
-                      "cornerRadius": 6,
-                      "gap": 12,
-                      "padding": [
-                        10,
-                        12
-                      ],
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "W2uBJ6",
-                          "name": "Text",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "gap": 3,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "JoJTw",
-                              "name": "Run Id",
-                              "fill": "$text-primary",
-                              "content": "gerrit-12277-ps5",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 13,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "KeZY5",
-                              "name": "Meta",
-                              "fill": "$text-dim",
-                              "content": "review.diff · 10:23:44 완료 · 봉인됨",
-                              "fontFamily": "$font-body",
-                              "fontSize": 11,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "cpAm1",
-                          "name": "Badge",
-                          "fill": "#FFFFFF10",
-                          "cornerRadius": 4,
-                          "padding": [
-                            3,
-                            8
-                          ],
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "ZEj8t",
-                              "name": "State",
-                              "fill": "$state-idle",
-                              "content": "SUCCEEDED",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 11,
-                              "fontWeight": "bold"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "P6ME3",
-                      "name": "Footer",
-                      "fill": "$text-dim",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "하나를 누르면 결과(verdict.checks)와 봉인된 트랜스크립트가 열린다. 목록은 GET /v1/runs 를 자기 node_id 로 거른 것이고 봉인본은 GET /v1/runs/{id}/record 에서 푼다 (decisions.md 6.5).",
                       "fontFamily": "$font-body",
                       "fontSize": 11,
                       "fontWeight": "normal"
@@ -3220,6 +2754,41 @@
                   "fontFamily": "$font-mono",
                   "fontSize": 11,
                   "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "fZHp1",
+                  "name": "View Switch Chip",
+                  "fill": "$surface-2",
+                  "cornerRadius": 4,
+                  "gap": 6,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "P0wFjD",
+                      "name": "Chip Icon",
+                      "width": 11,
+                      "height": 11,
+                      "icon": "box",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    },
+                    {
+                      "type": "text",
+                      "id": "a0uhh",
+                      "name": "Chip Label",
+                      "fill": "$text-secondary",
+                      "content": "3D 뷰",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
                 },
                 {
                   "type": "icon",
@@ -7402,7 +6971,7 @@
                     {
                       "type": "frame",
                       "id": "UQKYQ",
-                      "name": "Filter SUCCEEDED",
+                      "name": "Filter SEALED",
                       "fill": "#00000000",
                       "cornerRadius": 4,
                       "stroke": "$border",
@@ -7418,7 +6987,7 @@
                           "id": "riqHr",
                           "name": "Filter Label",
                           "fill": "$text-dim",
-                          "content": "SUCCEEDED",
+                          "content": "SEALED",
                           "fontFamily": "$font-body",
                           "fontSize": 10,
                           "fontWeight": "normal"
@@ -7600,13 +7169,13 @@
                           "content": "gerrit-12188-ps4"
                         },
                         "gWXVu": {
-                          "content": "ws-b · 11:20:55 완료 · 봉인됨"
+                          "content": "ws-b · 11:20:55 봉인"
                         },
                         "sKA1x": {
                           "fill": "#3FBF8722"
                         },
                         "o58jJO": {
-                          "content": "SUCCEEDED",
+                          "content": "SEALED",
                           "fill": "$state-idle"
                         }
                       }
@@ -8175,19 +7744,19 @@
     },
     {
       "type": "frame",
-      "id": "E3PrTN",
-      "x": 2740,
-      "y": 0,
-      "name": "S3b 호스트 제어판 · drain 걸린 뒤",
+      "id": "WG8zm",
+      "x": 0,
+      "y": 4452,
+      "name": "S6 함대 3D 탑뷰",
       "clip": true,
-      "width": 1180,
-      "height": 920,
+      "width": 1440,
+      "height": 820,
       "fill": "$bg",
       "layout": "vertical",
       "children": [
         {
           "type": "frame",
-          "id": "XCzMa",
+          "id": "JPFSA",
           "name": "Top Bar",
           "width": "fill_container",
           "fill": "$surface",
@@ -8205,49 +7774,56 @@
           "children": [
             {
               "type": "frame",
-              "id": "hjTpG",
+              "id": "cb5si",
               "name": "Title Group",
               "gap": 12,
               "alignItems": "center",
               "children": [
                 {
                   "type": "text",
-                  "id": "wrTXz",
+                  "id": "doMrE",
                   "name": "Title",
                   "fill": "$text-primary",
-                  "content": "호스트 제어판",
+                  "content": "함대 3D 뷰",
                   "fontFamily": "$font-body",
                   "fontSize": 16,
                   "fontWeight": "600"
                 },
                 {
                   "type": "text",
-                  "id": "HF8gU",
+                  "id": "qlKs9",
                   "name": "Scope",
                   "fill": "$text-dim",
-                  "content": "thinkpad · enodectl serve · 127.0.0.1:PORT",
-                  "fontFamily": "$font-mono",
-                  "fontSize": 11,
+                  "content": "Mediator · 읽기 전용 · 위에서 본 모형",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
                   "fontWeight": "normal"
                 }
               ]
             },
             {
               "type": "frame",
-              "id": "J2SdMY",
-              "name": "Top Right",
-              "gap": 12,
+              "id": "I9SCp",
+              "name": "Observation Group",
+              "gap": 16,
               "alignItems": "center",
               "children": [
                 {
+                  "type": "text",
+                  "id": "gHorh",
+                  "name": "Observed At",
+                  "fill": "$text-secondary",
+                  "content": "observed_at 2026-08-31T13:00:00Z",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
                   "type": "frame",
-                  "id": "SkvSo",
-                  "name": "Binding Chip",
-                  "fill": "#3FBF8718",
+                  "id": "S9X4gU",
+                  "name": "Refresh Chip",
+                  "fill": "$surface-2",
                   "cornerRadius": 4,
-                  "stroke": "#3FBF8733",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
                   "gap": 6,
                   "padding": [
                     4,
@@ -8257,20 +7833,20 @@
                   "children": [
                     {
                       "type": "icon",
-                      "id": "hOVPT",
-                      "name": "Lock Icon",
+                      "id": "OCpEG",
+                      "name": "Refresh Icon",
                       "width": 11,
                       "height": 11,
-                      "icon": "lock",
+                      "icon": "refresh-cw",
                       "library": "lucide",
-                      "fill": "$state-idle"
+                      "fill": "$text-dim"
                     },
                     {
                       "type": "text",
-                      "id": "tqQQX",
-                      "name": "Binding Label",
-                      "fill": "$state-idle",
-                      "content": "127.0.0.1 전용 · 토큰 없음",
+                      "id": "Sx5iz",
+                      "name": "Refresh Label",
+                      "fill": "$text-secondary",
+                      "content": "마지막 갱신 3초 전",
                       "fontFamily": "$font-body",
                       "fontSize": 11,
                       "fontWeight": "normal"
@@ -8278,14 +7854,39 @@
                   ]
                 },
                 {
-                  "type": "text",
-                  "id": "nw3Fe",
-                  "name": "Refresh",
-                  "fill": "$text-dim",
-                  "content": "마지막 갱신 2초 전",
-                  "fontFamily": "$font-body",
-                  "fontSize": 11,
-                  "fontWeight": "normal"
+                  "type": "frame",
+                  "id": "vUq6g",
+                  "name": "View Switch Chip",
+                  "fill": "$surface-2",
+                  "cornerRadius": 4,
+                  "gap": 6,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "RP1ht",
+                      "name": "Chip Icon",
+                      "width": 11,
+                      "height": 11,
+                      "icon": "layout-grid",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Vwl78",
+                      "name": "Chip Label",
+                      "fill": "$text-secondary",
+                      "content": "격자 뷰",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
                 }
               ]
             }
@@ -8293,229 +7894,1742 @@
         },
         {
           "type": "frame",
-          "id": "XdH3o",
-          "name": "Body",
+          "id": "MZxBs",
+          "name": "Iso Plane",
           "width": "fill_container",
           "height": "fill_container",
+          "layout": "none",
           "children": [
             {
-              "type": "frame",
-              "id": "mehpd",
-              "name": "Node Rail",
-              "width": 280,
-              "height": "fill_container",
-              "fill": "$surface",
+              "type": "path",
+              "id": "YgDn9",
+              "x": 185,
+              "y": 95,
+              "name": "Floor",
+              "geometry": "M550 0l550 275-550 275-550-275z",
+              "viewBox": [
+                0,
+                0,
+                1100,
+                550
+              ],
+              "fill": "#14181D80",
+              "width": 1100,
+              "height": 550,
               "stroke": "$border",
-              "strokeWidth": {
-                "right": 1
-              },
-              "layout": "vertical",
-              "gap": 10,
-              "padding": 20,
+              "strokeWidth": 1
+            },
+            {
+              "type": "path",
+              "id": "FxCDu",
+              "x": 185,
+              "y": 95,
+              "name": "Floor Grid",
+              "opacity": 0.45,
+              "geometry": "M412.5 68.75l550 275m-275-275l-550 275m137.5-206.25l550 275m0-275l-550 275m-137.5-206.25l550 275m275-275l-550 275",
+              "viewBox": [
+                0,
+                0,
+                1100,
+                550
+              ],
+              "width": 1100,
+              "height": 550,
+              "stroke": "$border",
+              "strokeWidth": 1
+            },
+            {
+              "type": "frame",
+              "id": "k9vBiE",
+              "x": 560,
+              "y": 160,
+              "name": "Tile ws-a",
+              "width": 200,
+              "height": 148,
+              "layout": "none",
               "children": [
                 {
-                  "type": "text",
-                  "id": "kzPaG",
-                  "name": "Rail Title",
-                  "fill": "$text-dim",
-                  "content": "이 기계의 노드",
-                  "fontFamily": "$font-body",
-                  "fontSize": 11,
-                  "fontWeight": "600",
-                  "letterSpacing": 0.8
+                  "type": "path",
+                  "id": "jGrai",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Left",
+                  "geometry": "M0 50l100 50 0 14-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#151A20",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "oGuLL",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Right",
+                  "geometry": "M200 50l-100 50 0 14 100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#10151B",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "U1HkwW",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Top",
+                  "geometry": "M100 0l100 50-100 50-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#1B2027",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "$state-leased",
+                  "strokeWidth": 2.5,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#4B9CFF59",
+                    "blur": 28,
+                    "spread": 2
+                  }
                 },
                 {
                   "type": "frame",
-                  "id": "P491HS",
-                  "name": "Rail ws-a",
-                  "width": "fill_container",
-                  "fill": "$surface-2",
-                  "cornerRadius": 6,
-                  "stroke": "$border-strong",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
-                  "gap": 9,
-                  "padding": [
-                    10,
-                    12
-                  ],
+                  "id": "i5KJdb",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 200,
+                  "layout": "vertical",
+                  "gap": 3,
                   "alignItems": "center",
                   "children": [
                     {
-                      "type": "ellipse",
-                      "id": "dRYSx",
-                      "name": "Dot",
-                      "fill": "$state-leased",
-                      "width": 6,
-                      "height": 6
-                    },
-                    {
                       "type": "frame",
-                      "id": "shhDa",
-                      "name": "Text",
-                      "width": "fill_container",
-                      "layout": "vertical",
-                      "gap": 3,
+                      "id": "PXvpi",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
                       "children": [
                         {
+                          "type": "ellipse",
+                          "id": "NDjLS",
+                          "name": "Dot",
+                          "fill": "$state-leased",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
                           "type": "text",
-                          "id": "QZrry",
+                          "id": "lHjBd",
                           "name": "Name",
                           "fill": "$text-primary",
                           "content": "ws-a",
                           "fontFamily": "$font-mono",
-                          "fontSize": 12,
-                          "fontWeight": "normal"
-                        },
-                        {
-                          "type": "text",
-                          "id": "Lp4yf",
-                          "name": "Sub",
-                          "fill": "$text-dim",
-                          "content": "draining · 대기 중",
-                          "fontFamily": "$font-body",
-                          "fontSize": 10,
+                          "fontSize": 11,
                           "fontWeight": "normal"
                         }
                       ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "IHdJv",
-                  "name": "Rail ws-b",
-                  "width": "fill_container",
-                  "fill": "#00000000",
-                  "cornerRadius": 6,
-                  "stroke": "#00000000",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
-                  "gap": 9,
-                  "padding": [
-                    10,
-                    12
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "ellipse",
-                      "id": "Fi1tv",
-                      "name": "Dot",
-                      "fill": "$state-idle",
-                      "width": 6,
-                      "height": 6
                     },
                     {
-                      "type": "frame",
-                      "id": "UXcYG",
-                      "name": "Text",
-                      "width": "fill_container",
-                      "layout": "vertical",
-                      "gap": 3,
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "YSsQ6",
-                          "name": "Name",
-                          "fill": "$text-secondary",
-                          "content": "ws-b",
-                          "fontFamily": "$font-mono",
-                          "fontSize": 12,
-                          "fontWeight": "normal"
-                        },
-                        {
-                          "type": "text",
-                          "id": "FTXYZ",
-                          "name": "Sub",
-                          "fill": "$text-dim",
-                          "content": "유휴 · 광고 중",
-                          "fontFamily": "$font-body",
-                          "fontSize": 10,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "hznSM",
-                  "name": "Rail Note",
-                  "width": "fill_container",
-                  "fill": "#F0574B10",
-                  "cornerRadius": 6,
-                  "stroke": "#F0574B30",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
-                  "gap": 8,
-                  "padding": 11,
-                  "children": [
-                    {
                       "type": "text",
-                      "id": "My1AR",
-                      "name": "Rail Note Text",
-                      "fill": "$text-secondary",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "멈춘 노드는 이 화면에만 나온다. 중앙 현황판은 데몬이 멎어도 광고가 만료될 때까지 그 노드를 보이다가 조용히 지운다.",
-                      "lineHeight": 1.5,
+                      "id": "EgTNu",
+                      "name": "Line 2",
+                      "fill": "$state-leased",
+                      "content": "임대 중 · build.kernel",
                       "fontFamily": "$font-body",
                       "fontSize": 10,
                       "fontWeight": "normal"
                     }
                   ]
+                },
+                {
+                  "type": "path",
+                  "id": "M1V5pV",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Left",
+                  "geometry": "M120 62l18 9 0 42-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "bAmWM",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Right",
+                  "geometry": "M156 62l-18 9 0 42 18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "YS8mr",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Top",
+                  "geometry": "M138 53l18 9-18 9-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "gVdiv",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Stand",
+                  "geometry": "M62 98l12 6 0 4-12-6z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "mykZW",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Edge",
+                  "geometry": "M92 108l6-3 0-32-6 3z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "iLX6S",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Top",
+                  "geometry": "M44 52l48 24 6-3-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "SICog",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Frame",
+                  "geometry": "M44 84l48 24 0-32-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "VR5G7",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Screen",
+                  "geometry": "M48 82l40 20 0-24-40-20z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#4B9CFF2E",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#4B9CFF",
+                  "strokeWidth": 1
                 }
               ]
             },
             {
               "type": "frame",
-              "id": "U2ksF",
-              "name": "Detail",
-              "width": "fill_container",
-              "height": "fill_container",
-              "layout": "vertical",
-              "gap": 16,
-              "padding": 24,
+              "id": "MukA0",
+              "x": 710,
+              "y": 244,
+              "name": "Tile ws-b",
+              "width": 200,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "DEenU",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Left",
+                  "geometry": "M0 50l100 50 0 14-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#151A20",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "H3LfB",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Right",
+                  "geometry": "M200 50l-100 50 0 14 100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#10151B",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "w9S4z",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Top",
+                  "geometry": "M100 0l100 50-100 50-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#1B2027",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "$state-idle",
+                  "strokeWidth": 1.5
+                },
+                {
+                  "type": "frame",
+                  "id": "Z77Eut",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 200,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "aXE4l",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "HLbPt",
+                          "name": "Dot",
+                          "fill": "$state-idle",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "D6dzv",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "ws-b",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "JN3fC",
+                      "name": "Line 2",
+                      "fill": "$state-idle",
+                      "content": "임대 없음",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "bgWpw",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Left",
+                  "geometry": "M120 62l18 9 0 42-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "fMd1E",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Right",
+                  "geometry": "M156 62l-18 9 0 42 18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "gPHWn",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Top",
+                  "geometry": "M138 53l18 9-18 9-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "EJLKG",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Stand",
+                  "geometry": "M62 98l12 6 0 4-12-6z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "q8aa1q",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Edge",
+                  "geometry": "M92 108l6-3 0-32-6 3z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "SUBMH",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Top",
+                  "geometry": "M44 52l48 24 6-3-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "i0VMUa",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Frame",
+                  "geometry": "M44 84l48 24 0-32-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "C2vzQ",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Screen",
+                  "geometry": "M48 82l40 20 0-24-40-20z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#10151B",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#2A323C",
+                  "strokeWidth": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "XJzWi",
+              "x": 860,
+              "y": 328,
+              "name": "Tile ws-c",
+              "width": 200,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "C3qzy",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Left",
+                  "geometry": "M0 50l100 50 0 14-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#151A20",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "qtsqr",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Right",
+                  "geometry": "M200 50l-100 50 0 14 100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#10151B",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "Ra3el",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Top",
+                  "geometry": "M100 0l100 50-100 50-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#1B2027",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "$state-drain",
+                  "strokeWidth": 1.5
+                },
+                {
+                  "type": "frame",
+                  "id": "lGDMW",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 200,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "zCTnG",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "oWPZ0",
+                          "name": "Dot",
+                          "fill": "$state-drain",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "c35Fb",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "ws-c",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "jmJLf",
+                      "name": "Line 2",
+                      "fill": "$state-drain",
+                      "content": "draining · test.boot",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "f1aHLF",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Left",
+                  "geometry": "M120 62l18 9 0 42-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "lg1nd",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Right",
+                  "geometry": "M156 62l-18 9 0 42 18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "PV3Yz",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Top",
+                  "geometry": "M138 53l18 9-18 9-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "vZOk9",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Stand",
+                  "geometry": "M62 98l12 6 0 4-12-6z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "kFJ3X",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Edge",
+                  "geometry": "M92 108l6-3 0-32-6 3z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "FH9Qo",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Top",
+                  "geometry": "M44 52l48 24 6-3-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "o8P8LA",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Frame",
+                  "geometry": "M44 84l48 24 0-32-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "SOsz0",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Screen",
+                  "geometry": "M48 82l40 20 0-24-40-20z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#B98CFF2E",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#B98CFF",
+                  "strokeWidth": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "whYjh",
+              "x": 410,
+              "y": 244,
+              "name": "Tile ws-d",
+              "width": 200,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "xtPoG",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Left",
+                  "geometry": "M0 50l100 50 0 14-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#151A20",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "gDM2Q",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Right",
+                  "geometry": "M200 50l-100 50 0 14 100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#10151B",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "d2qch",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Top",
+                  "geometry": "M100 0l100 50-100 50-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#1B2027",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "$state-leased",
+                  "strokeWidth": 1.5
+                },
+                {
+                  "type": "frame",
+                  "id": "ckkVL",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 200,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "SYYBT",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "hPVFO",
+                          "name": "Dot",
+                          "fill": "$state-leased",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "AmDrd",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "ws-d",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "IabCS",
+                      "name": "Line 2",
+                      "fill": "$state-leased",
+                      "content": "임대 중 · review.diff",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "J7RCtn",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Left",
+                  "geometry": "M120 62l18 9 0 42-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "EApSo",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Right",
+                  "geometry": "M156 62l-18 9 0 42 18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "OV6Do",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Top",
+                  "geometry": "M138 53l18 9-18 9-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "h4G0j",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Stand",
+                  "geometry": "M62 98l12 6 0 4-12-6z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "MsytG",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Edge",
+                  "geometry": "M92 108l6-3 0-32-6 3z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "v82Uy",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Top",
+                  "geometry": "M44 52l48 24 6-3-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "z5mPf",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Frame",
+                  "geometry": "M44 84l48 24 0-32-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "dxWmQ",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Screen",
+                  "geometry": "M48 82l40 20 0-24-40-20z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#4B9CFF2E",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#4B9CFF",
+                  "strokeWidth": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "FVvb7",
+              "x": 560,
+              "y": 328,
+              "name": "Tile board-01",
+              "width": 200,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "KMT72",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Left",
+                  "geometry": "M0 50l100 50 0 14-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#151A20",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "fSlHa",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Right",
+                  "geometry": "M200 50l-100 50 0 14 100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#10151B",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "nj5nH",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Top",
+                  "geometry": "M100 0l100 50-100 50-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#1B2027",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "$state-expiring",
+                  "strokeWidth": 1.5
+                },
+                {
+                  "type": "frame",
+                  "id": "ikfmd",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 200,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "WlGpl",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "nzBm5",
+                          "name": "Dot",
+                          "fill": "$state-expiring",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "De40U",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "board-01",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "nIYPf",
+                      "name": "Line 2",
+                      "fill": "$state-expiring",
+                      "content": "만료 임박",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "dgWCU",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Chip Left",
+                  "geometry": "M64 90l36 18 0 10-36-18z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#171C23",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "JyDNs",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Chip Right",
+                  "geometry": "M136 90l-36 18 0 10 36-18z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#12171D",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "MNRtt",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Chip Top",
+                  "geometry": "M100 72l36 18-36 18-36-18z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#20262E",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "vRWSb",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Chip Inner",
+                  "geometry": "M100 80l20 10-20 10-20-10z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#00000000",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "$border-strong",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "ellipse",
+                  "id": "kajh3",
+                  "x": 86,
+                  "y": 82,
+                  "name": "LED",
+                  "fill": "#7A8698",
+                  "width": 6,
+                  "height": 3
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "KW1ah",
+              "x": 710,
+              "y": 412,
+              "name": "Tile board-02",
+              "width": 200,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "PqE5n",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Left",
+                  "geometry": "M0 50l100 50 0 14-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#151A20",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "EYSfd",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Right",
+                  "geometry": "M200 50l-100 50 0 14 100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#10151B",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "nRxFy",
+                  "x": 0,
+                  "y": 34,
+                  "name": "Face Top",
+                  "geometry": "M100 0l100 50-100 50-100-50z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    114
+                  ],
+                  "fill": "#1B2027",
+                  "width": 200,
+                  "height": 114,
+                  "stroke": "$state-idle",
+                  "strokeWidth": 1.5
+                },
+                {
+                  "type": "frame",
+                  "id": "hd9LD",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 200,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "cQkH6",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "UHVzq",
+                          "name": "Dot",
+                          "fill": "$state-idle",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "N1hEd",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "board-02",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "GaBN9",
+                      "name": "Line 2",
+                      "fill": "$state-idle",
+                      "content": "임대 없음",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "dV8FJ",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Chip Left",
+                  "geometry": "M64 90l36 18 0 10-36-18z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#171C23",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "Tt9Wh",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Chip Right",
+                  "geometry": "M136 90l-36 18 0 10 36-18z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#12171D",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "Ov2Ai",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Chip Top",
+                  "geometry": "M100 72l36 18-36 18-36-18z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#20262E",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "Byr5U",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Chip Inner",
+                  "geometry": "M100 80l20 10-20 10-20-10z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#00000000",
+                  "width": 200,
+                  "height": 148,
+                  "stroke": "$border-strong",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "ellipse",
+                  "id": "ldLhL",
+                  "x": 86,
+                  "y": 82,
+                  "name": "LED",
+                  "fill": "#3FBF87",
+                  "width": 6,
+                  "height": 3
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "a7uwMs",
+              "x": 24,
+              "y": 708,
+              "name": "Legend Row",
+              "width": 1392,
+              "justifyContent": "space_between",
+              "alignItems": "center",
               "children": [
                 {
                   "type": "frame",
-                  "id": "D4nh8",
-                  "name": "Node Header",
+                  "id": "kUGLO",
+                  "name": "Legend",
+                  "gap": 20,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "rdSRs",
+                      "name": "Legend 임대 없음",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "XYza0",
+                          "name": "Dot",
+                          "fill": "$state-idle",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "e1L7i",
+                          "name": "Label",
+                          "fill": "$text-secondary",
+                          "content": "임대 없음",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "XqtFP",
+                      "name": "Legend 임대 중",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "wphVG",
+                          "name": "Dot",
+                          "fill": "$state-leased",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "WgNku",
+                          "name": "Label",
+                          "fill": "$text-secondary",
+                          "content": "임대 중",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "s06J8",
+                      "name": "Legend draining",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "y4EkfS",
+                          "name": "Dot",
+                          "fill": "$state-drain",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "mgNaJ",
+                          "name": "Label",
+                          "fill": "$text-secondary",
+                          "content": "draining",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "V7Lur",
+                      "name": "Legend 만료 임박",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "AxJg2",
+                          "name": "Dot",
+                          "fill": "$state-expiring",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "YfmUy",
+                          "name": "Label",
+                          "fill": "$text-secondary",
+                          "content": "만료 임박",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "A9NybY",
+                  "name": "Hint",
+                  "fill": "$text-dim",
+                  "content": "GET /v1/nodes · 6 노드 · 노드 클릭 → 상세",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "rY4jl",
+              "x": 1046,
+              "y": 96,
+              "name": "Detail Panel",
+              "width": 360,
+              "fill": "$surface",
+              "cornerRadius": "$radius",
+              "stroke": "$border",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 14,
+              "padding": 18,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "kC1LX",
+                  "name": "Panel Header",
                   "width": "fill_container",
-                  "gap": 12,
                   "justifyContent": "space_between",
                   "alignItems": "center",
                   "children": [
                     {
                       "type": "frame",
-                      "id": "o8B5a7",
-                      "name": "Node Name",
-                      "gap": 10,
+                      "id": "FbdBt",
+                      "name": "Header Left",
+                      "gap": 8,
                       "alignItems": "center",
                       "children": [
                         {
                           "type": "ellipse",
-                          "id": "Jb28W",
+                          "id": "FUq4c",
                           "name": "Dot",
                           "fill": "$state-leased",
-                          "width": 9,
-                          "height": 9
+                          "width": 8,
+                          "height": 8
                         },
                         {
                           "type": "text",
-                          "id": "lyrpS",
-                          "name": "Label",
+                          "id": "VVKy8",
+                          "name": "Panel Title",
                           "fill": "$text-primary",
-                          "content": "taeels@thinkpad:ws-a",
-                          "fontFamily": "$font-body",
-                          "fontSize": 19,
+                          "content": "ws-a",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 13,
                           "fontWeight": "600"
                         },
                         {
                           "type": "frame",
-                          "id": "AIxMB",
-                          "name": "Status Chip",
+                          "id": "Kp2sP",
+                          "name": "Badge",
                           "fill": "#4B9CFF22",
                           "cornerRadius": 4,
                           "padding": [
@@ -8525,10 +9639,10 @@
                           "children": [
                             {
                               "type": "text",
-                              "id": "lXvG0",
-                              "name": "Status",
+                              "id": "ZCQ68",
+                              "name": "Badge Label",
                               "fill": "$state-leased",
-                              "content": "실행 중 · draining",
+                              "content": "임대 중",
                               "fontFamily": "$font-body",
                               "fontSize": 10,
                               "fontWeight": "600",
@@ -8539,680 +9653,1851 @@
                       ]
                     },
                     {
-                      "type": "frame",
-                      "id": "gSVrg",
-                      "name": "Process Actions",
-                      "gap": 8,
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "T8nmT",
-                          "name": "Btn 로그",
-                          "fill": "$surface-2",
-                          "cornerRadius": 6,
-                          "stroke": "$border-strong",
-                          "strokeWidth": 1,
-                          "strokeAlignment": "inner",
-                          "gap": 6,
-                          "padding": [
-                            8,
-                            14
-                          ],
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "KP9Hf",
-                              "name": "Btn Label",
-                              "fill": "$text-secondary",
-                              "content": "로그",
-                              "fontFamily": "$font-body",
-                              "fontSize": 12,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "R8TFjM",
-                          "name": "Btn 재시작",
-                          "fill": "$surface-2",
-                          "cornerRadius": 6,
-                          "stroke": "$border-strong",
-                          "strokeWidth": 1,
-                          "strokeAlignment": "inner",
-                          "gap": 6,
-                          "padding": [
-                            8,
-                            14
-                          ],
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "vbtRN",
-                              "name": "Btn Label",
-                              "fill": "$text-secondary",
-                              "content": "재시작",
-                              "fontFamily": "$font-body",
-                              "fontSize": 12,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "NRrx5",
-                          "name": "Btn 정지",
-                          "fill": "#F0574B18",
-                          "cornerRadius": 6,
-                          "stroke": "#F0574B40",
-                          "strokeWidth": 1,
-                          "strokeAlignment": "inner",
-                          "gap": 6,
-                          "padding": [
-                            8,
-                            14
-                          ],
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "YCi1g",
-                              "name": "Btn Label",
-                              "fill": "$state-stopped",
-                              "content": "정지",
-                              "fontFamily": "$font-body",
-                              "fontSize": 12,
-                              "fontWeight": "500"
-                            }
-                          ]
-                        }
-                      ]
+                      "type": "icon",
+                      "id": "jBSvt",
+                      "name": "Close",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "x",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
                     }
                   ]
                 },
                 {
                   "type": "frame",
-                  "id": "JWuGP",
-                  "name": "신원",
+                  "id": "KAJd1",
+                  "name": "KV Rows",
                   "width": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": "$radius",
-                  "stroke": "$border",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
                   "layout": "vertical",
-                  "gap": 12,
-                  "padding": 18,
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "yY6NX",
-                      "name": "Caption",
-                      "fill": "$text-dim",
-                      "content": "신원",
-                      "fontFamily": "$font-body",
-                      "fontSize": 10,
-                      "fontWeight": "600",
-                      "letterSpacing": 1
-                    },
-                    {
-                      "type": "frame",
-                      "id": "c1MMR",
-                      "name": "Identity Grid",
-                      "width": "fill_container",
-                      "gap": 32,
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "o04Fo",
-                          "name": "Field node_id",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "gap": 4,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "zJACf",
-                              "name": "Key",
-                              "fill": "$text-dim",
-                              "content": "node_id",
-                              "fontFamily": "$font-body",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "YzuHI",
-                              "name": "Value",
-                              "fill": "$text-primary",
-                              "textGrowth": "fixed-width",
-                              "width": "fill_container",
-                              "content": "a3f19c2b8e04",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 12,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "W8CsJu",
-                          "name": "Field instance",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "gap": 4,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "DyihC",
-                              "name": "Key",
-                              "fill": "$text-dim",
-                              "content": "instance",
-                              "fontFamily": "$font-body",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "RYCcx",
-                              "name": "Value",
-                              "fill": "$text-primary",
-                              "textGrowth": "fixed-width",
-                              "width": "fill_container",
-                              "content": "7d8f4c02",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 12,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "emCOe",
-                          "name": "Field principal",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "gap": 4,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "sYgzf",
-                              "name": "Key",
-                              "fill": "$text-dim",
-                              "content": "principal",
-                              "fontFamily": "$font-body",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "c7LXi",
-                              "name": "Value",
-                              "fill": "$text-primary",
-                              "textGrowth": "fixed-width",
-                              "width": "fill_container",
-                              "content": "taeels@corp",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 12,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "dSmwS",
-                          "name": "Field label",
-                          "width": "fill_container",
-                          "layout": "vertical",
-                          "gap": 4,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "YBMH6",
-                              "name": "Key",
-                              "fill": "$text-dim",
-                              "content": "label",
-                              "fontFamily": "$font-body",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "Y7BbY",
-                              "name": "Value",
-                              "fill": "$text-primary",
-                              "textGrowth": "fixed-width",
-                              "width": "fill_container",
-                              "content": "taeels@thinkpad:ws-a",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 12,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "Kb472",
-                      "name": "Identity Note",
-                      "fill": "$text-dim",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "principal 은 이 화면에만 있다. 중앙 현황판은 label 만 내보낸다 (ADR-065).",
-                      "lineHeight": 1.5,
-                      "fontFamily": "$font-body",
-                      "fontSize": 10,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "Mnpux",
-                  "name": "현재 작업",
-                  "width": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": "$radius",
-                  "stroke": "$border-strong",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
-                  "layout": "vertical",
-                  "gap": 12,
-                  "padding": 18,
+                  "gap": 9,
                   "children": [
                     {
                       "type": "frame",
-                      "id": "XAPVg",
-                      "name": "Work Header",
-                      "width": "fill_container",
-                      "justifyContent": "space_between",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "sbdAV",
-                          "name": "Caption",
-                          "fill": "$text-dim",
-                          "content": "현재 작업",
-                          "fontFamily": "$font-body",
-                          "fontSize": 10,
-                          "fontWeight": "600",
-                          "letterSpacing": 1
-                        },
-                        {
-                          "type": "text",
-                          "id": "C26xDB",
-                          "name": "Not After",
-                          "fill": "$text-dim",
-                          "content": "lease 없음",
-                          "fontFamily": "$font-mono",
-                          "fontSize": 10,
-                          "fontWeight": "normal"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "gZ7LY",
-                      "name": "Work Row",
-                      "width": "fill_container",
+                      "id": "U4QXWn",
+                      "name": "KV 노드 ID",
                       "gap": 12,
-                      "justifyContent": "space_between",
-                      "alignItems": "center",
                       "children": [
                         {
                           "type": "text",
-                          "id": "qZeil",
-                          "name": "Run Id",
-                          "fill": "$text-primary",
-                          "content": "임대 없음",
-                          "fontFamily": "$font-mono",
-                          "fontSize": 20,
+                          "id": "NtUXR",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "노드 ID",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
                           "fontWeight": "normal"
                         },
                         {
                           "type": "text",
-                          "id": "LSI8F",
-                          "x": 735,
-                          "y": 0,
-                          "name": "Remaining",
-                          "enabled": false,
-                          "fill": "$state-leased",
-                          "content": "02:41 남음",
+                          "id": "z2w2tp",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "a3f19c2b8e04",
                           "fontFamily": "$font-mono",
-                          "fontSize": 20,
-                          "fontWeight": "500"
+                          "fontSize": 11,
+                          "fontWeight": "normal"
                         }
                       ]
                     },
                     {
+                      "type": "frame",
+                      "id": "k8HhUG",
+                      "name": "KV 종류",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "NjpbE",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "종류",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "tu1kg",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "agent.reason · claude · linux/amd64",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "YeCP7",
+                      "name": "KV 임대",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "y3FnYR",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "임대",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "CPYXM",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "gerrit-12345-ps3 · 02:41 남음",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "RDS01",
+                      "name": "KV 작업",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "B7uCM",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "작업",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "GuLmQ",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "build.kernel · 회차 2 · 12:58:03 시작",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ewAWQ",
+                      "name": "KV 관측",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Pau55",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "관측",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "F3kbXL",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "seen 12:59:42 · expires 13:02:42",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "rectangle",
+                  "id": "NKH6D",
+                  "name": "Divider",
+                  "fill": "$border",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "vj24h",
+                  "name": "Open Link",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
                       "type": "text",
-                      "id": "esk7k",
-                      "name": "Step",
-                      "fill": "$text-secondary",
-                      "content": "drain 이 걸려 있고 도는 작업이 없다",
+                      "id": "FrcDL",
+                      "name": "Link Label",
+                      "fill": "$state-leased",
+                      "content": "호스트 제어판 열기",
                       "fontFamily": "$font-body",
                       "fontSize": 12,
                       "fontWeight": "normal"
                     },
                     {
+                      "type": "icon",
+                      "id": "C597nQ",
+                      "name": "Arrow",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$state-leased"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "NCouv",
+      "x": 0,
+      "y": 5392,
+      "name": "S7 Run 3D 뷰",
+      "clip": true,
+      "width": 1440,
+      "height": 620,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "DMFBj",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "fill": "$surface",
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "gap": 16,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "TsQeF",
+              "name": "Breadcrumb",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "CncKk",
+                  "name": "Back",
+                  "fill": "$text-dim",
+                  "content": "중앙 현황판",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "htOxw",
+                  "name": "Sep",
+                  "fill": "$text-dim",
+                  "content": "/",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "IrJ2d",
+                  "name": "Run Id",
+                  "fill": "$text-primary",
+                  "content": "gerrit-12345-ps3",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 14,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "OAgAu",
+                  "name": "Run Badge",
+                  "fill": "#4B9CFF22",
+                  "cornerRadius": 4,
+                  "padding": [
+                    3,
+                    8
+                  ],
+                  "children": [
+                    {
                       "type": "text",
-                      "id": "CX3rF",
-                      "x": 18,
-                      "y": 111,
-                      "name": "Lease Track Caption",
-                      "enabled": false,
-                      "fill": "$text-dim",
-                      "content": "이 숫자는 하트비트 신선도다 — 노드가 말하면 다시 180초로 밀린다. 작업 진행이 아니다",
+                      "id": "XgRcG",
+                      "name": "Run State",
+                      "fill": "$state-leased",
+                      "content": "RUNNING",
                       "fontFamily": "$font-body",
                       "fontSize": 10,
-                      "fontWeight": "normal"
+                      "fontWeight": "600",
+                      "letterSpacing": 0.6
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "miWDw",
+              "name": "Top Right",
+              "gap": 14,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "TLolr",
+                  "name": "Source",
+                  "fill": "$text-dim",
+                  "content": "GET /v1/runs/{id} · steps[] · 평면 투영",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "P0Ys76",
+                  "name": "View Switch Chip",
+                  "fill": "$surface-2",
+                  "cornerRadius": 4,
+                  "gap": 6,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "m9c6mn",
+                      "name": "Chip Icon",
+                      "width": 11,
+                      "height": 11,
+                      "icon": "git-branch",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
                     },
                     {
                       "type": "text",
-                      "id": "VsfYZ",
-                      "name": "Stop Warning",
-                      "fill": "$state-stopped",
-                      "content": "도는 Run 이 없으므로 정지가 취소할 것도 없다. 데몬만 멎는다.",
+                      "id": "dg6lT",
+                      "name": "Chip Label",
+                      "fill": "$text-secondary",
+                      "content": "그래프 뷰",
                       "fontFamily": "$font-body",
                       "fontSize": 11,
                       "fontWeight": "normal"
-                    },
-                    {
-                      "type": "frame",
-                      "id": "Zss3o",
-                      "name": "Transcript Link",
-                      "width": "fill_container",
-                      "fill": "$surface-2",
-                      "cornerRadius": 6,
-                      "stroke": "$border-strong",
-                      "strokeWidth": 1,
-                      "strokeAlignment": "inner",
-                      "gap": 8,
-                      "padding": [
-                        10,
-                        12
-                      ],
-                      "justifyContent": "space_between",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "frame",
-                          "id": "Ur491",
-                          "name": "Link Text",
-                          "layout": "vertical",
-                          "gap": 3,
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "lim4Y",
-                              "name": "Link Title",
-                              "fill": "$text-primary",
-                              "content": "트랜스크립트 — 하네스가 지금 뱉는 출력",
-                              "fontFamily": "$font-body",
-                              "fontSize": 12,
-                              "fontWeight": "normal"
-                            },
-                            {
-                              "type": "text",
-                              "id": "c4Pw9",
-                              "name": "Link Sub",
-                              "fill": "$text-dim",
-                              "content": "헤더의 「로그」는 데몬 로그다. 다른 물건이다",
-                              "fontFamily": "$font-body",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "icon",
-                          "id": "UEegZ",
-                          "name": "Arrow",
-                          "width": 14,
-                          "height": 14,
-                          "icon": "arrow-right",
-                          "library": "lucide",
-                          "fill": "$text-secondary"
-                        }
-                      ]
                     }
                   ]
                 },
                 {
-                  "type": "frame",
-                  "id": "KvHBO",
-                  "name": "자원 회수 · 활성",
-                  "width": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": "$radius",
-                  "stroke": "#B98CFF40",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
-                  "layout": "vertical",
-                  "gap": 12,
-                  "padding": 18,
-                  "children": [
-                    {
-                      "id": "R0W9G",
-                      "type": "ref",
-                      "ref": "pxDrainActive",
-                      "name": "C3 자원 회수 · 활성",
-                      "width": "fill_container"
-                    }
-                  ]
+                  "type": "icon",
+                  "id": "t4Ixc5",
+                  "name": "Close",
+                  "width": 14,
+                  "height": 14,
+                  "icon": "x",
+                  "library": "lucide",
+                  "fill": "$text-secondary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "g9Pl2O",
+          "name": "Iso Plane",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "none",
+          "children": [
+            {
+              "type": "path",
+              "id": "H2FMBt",
+              "x": 240,
+              "y": 85,
+              "name": "Floor",
+              "geometry": "M480 0l480 240-480 240-480-240z",
+              "viewBox": [
+                0,
+                0,
+                960,
+                480
+              ],
+              "fill": "#14181D80",
+              "width": 960,
+              "height": 480,
+              "stroke": "$border",
+              "strokeWidth": 1
+            },
+            {
+              "type": "path",
+              "id": "B0FVjC",
+              "x": 240,
+              "y": 85,
+              "name": "Floor Grid",
+              "opacity": 0.45,
+              "geometry": "M360 60l480 240m-240-240l-480 240m120-180l480 240m0-240l-480 240m-120-180l480 240m240-240l-480 240",
+              "viewBox": [
+                0,
+                0,
+                960,
+                480
+              ],
+              "width": 960,
+              "height": 480,
+              "stroke": "$border",
+              "strokeWidth": 1
+            },
+            {
+              "type": "path",
+              "id": "sPgCj",
+              "x": 0,
+              "y": 0,
+              "name": "Edge plan-build",
+              "geometry": "M510 211l140 76",
+              "viewBox": [
+                0,
+                0,
+                1440,
+                569
+              ],
+              "width": 1440,
+              "height": 569,
+              "stroke": "$state-leased",
+              "strokeWidth": 1.5
+            },
+            {
+              "type": "path",
+              "id": "nIU9U",
+              "x": 0,
+              "y": 0,
+              "name": "Edge build-boot",
+              "geometry": "M650 287l210 38",
+              "viewBox": [
+                0,
+                0,
+                1440,
+                569
+              ],
+              "width": 1440,
+              "height": 569,
+              "stroke": "$border-strong",
+              "strokeWidth": 1.5
+            },
+            {
+              "type": "path",
+              "id": "UjLa2",
+              "x": 0,
+              "y": 0,
+              "name": "Edge build-smoke",
+              "opacity": 0.5,
+              "geometry": "M650 287l70 190",
+              "viewBox": [
+                0,
+                0,
+                1440,
+                569
+              ],
+              "width": 1440,
+              "height": 569,
+              "stroke": "$border-strong",
+              "strokeWidth": 1.5
+            },
+            {
+              "type": "path",
+              "id": "GXCO4",
+              "x": 0,
+              "y": 0,
+              "name": "Edge boot-seal",
+              "geometry": "M860 325l70 114",
+              "viewBox": [
+                0,
+                0,
+                1440,
+                569
+              ],
+              "width": 1440,
+              "height": 569,
+              "stroke": "$border-strong",
+              "strokeWidth": 1.5
+            },
+            {
+              "type": "path",
+              "id": "X0ZLL8",
+              "x": 0,
+              "y": 0,
+              "name": "Edge smoke-seal",
+              "opacity": 0.5,
+              "geometry": "M720 477l210-38",
+              "viewBox": [
+                0,
+                0,
+                1440,
+                569
+              ],
+              "width": 1440,
+              "height": 569,
+              "stroke": "$border-strong",
+              "strokeWidth": 1.5
+            },
+            {
+              "type": "frame",
+              "id": "A7ri5H",
+              "x": 420,
+              "y": 136,
+              "name": "Step plan",
+              "width": 180,
+              "height": 132,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "ShreM",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Left",
+                  "geometry": "M0 45l90 45 0 12-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#151A20",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "vxiXz",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Right",
+                  "geometry": "M180 45l-90 45 0 12 90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#10151B",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "xCx9J",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Top",
+                  "geometry": "M90 0l90 45-90 45-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#1B2027",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "$state-idle",
+                  "strokeWidth": 1.5
                 },
                 {
                   "type": "frame",
-                  "id": "GGXZA",
-                  "name": "탐지 능력",
-                  "width": "fill_container",
-                  "fill": "$surface",
-                  "cornerRadius": "$radius",
-                  "stroke": "$border",
-                  "strokeWidth": 1,
-                  "strokeAlignment": "inner",
+                  "id": "pe03j",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 180,
                   "layout": "vertical",
-                  "gap": 12,
-                  "padding": 18,
+                  "gap": 3,
+                  "alignItems": "center",
                   "children": [
                     {
                       "type": "frame",
-                      "id": "yThkB",
-                      "name": "Cap Header",
-                      "width": "fill_container",
-                      "justifyContent": "space_between",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "Gqfyo",
-                          "name": "Caption",
-                          "fill": "$text-dim",
-                          "content": "탐지 능력",
-                          "fontFamily": "$font-body",
-                          "fontSize": 10,
-                          "fontWeight": "600",
-                          "letterSpacing": 1
-                        },
-                        {
-                          "type": "frame",
-                          "id": "Mxke8",
-                          "name": "ReadOnly Chip",
-                          "fill": "$surface-2",
-                          "cornerRadius": 4,
-                          "gap": 5,
-                          "padding": [
-                            3,
-                            8
-                          ],
-                          "alignItems": "center",
-                          "children": [
-                            {
-                              "type": "icon",
-                              "id": "PSEQJ",
-                              "name": "Eye Icon",
-                              "width": 11,
-                              "height": 11,
-                              "icon": "eye",
-                              "library": "lucide",
-                              "fill": "$text-dim"
-                            },
-                            {
-                              "type": "text",
-                              "id": "s19r9v",
-                              "name": "ReadOnly Label",
-                              "fill": "$text-dim",
-                              "content": "읽기 전용",
-                              "fontFamily": "$font-body",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "frame",
-                      "id": "ZPKBh",
-                      "name": "Cap Chips",
-                      "width": "fill_container",
+                      "id": "NGnrR",
+                      "name": "Line 1",
                       "gap": 6,
                       "alignItems": "center",
                       "children": [
                         {
-                          "type": "frame",
-                          "id": "iIQLh",
-                          "name": "Chip agent.reason",
-                          "fill": "$surface-2",
-                          "cornerRadius": 4,
-                          "padding": [
-                            4,
-                            8
-                          ],
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "tRWbA",
-                              "name": "Chip Label",
-                              "fill": "$text-secondary",
-                              "content": "agent.reason",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            }
-                          ]
+                          "type": "ellipse",
+                          "id": "NcCV0",
+                          "name": "Dot",
+                          "fill": "$state-idle",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "LZo2z",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "plan",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "FFPkM",
+                      "name": "Line 2",
+                      "fill": "$state-idle",
+                      "content": "DONE · ws-b 회차 1",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "S4UxL",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Left",
+                  "geometry": "M120 62l18 9 0 42-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "XTHXh",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Right",
+                  "geometry": "M156 62l-18 9 0 42 18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "KKYNc",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Top",
+                  "geometry": "M138 53l18 9-18 9-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "d5Byo",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Stand",
+                  "geometry": "M62 98l12 6 0 4-12-6z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "HgCQQ",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Edge",
+                  "geometry": "M92 108l6-3 0-32-6 3z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "Hx2Iy",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Top",
+                  "geometry": "M44 52l48 24 6-3-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "K7IyQi",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Frame",
+                  "geometry": "M44 84l48 24 0-32-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "D6r2O",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Screen",
+                  "geometry": "M48 82l40 20 0-24-40-20z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#10151B",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#2A323C",
+                  "strokeWidth": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "m8rKe",
+              "x": 560,
+              "y": 212,
+              "name": "Step build.kernel",
+              "width": 180,
+              "height": 132,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "rUjKk",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Left",
+                  "geometry": "M0 45l90 45 0 12-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#151A20",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "r3odTx",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Right",
+                  "geometry": "M180 45l-90 45 0 12 90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#10151B",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "RBKD9",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Top",
+                  "geometry": "M90 0l90 45-90 45-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#1B2027",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "$state-leased",
+                  "strokeWidth": 2.5,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#4B9CFF59",
+                    "blur": 28,
+                    "spread": 2
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "WxCNV",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 180,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "q4Jnx",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "iLJ7i",
+                          "name": "Dot",
+                          "fill": "$state-leased",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "StwHR",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "build.kernel",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "GdqNA",
+                      "name": "Line 2",
+                      "fill": "$state-leased",
+                      "content": "RUNNING · ws-a 회차 2",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "PnjcV",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Left",
+                  "geometry": "M120 62l18 9 0 42-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "NnmQZ",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Right",
+                  "geometry": "M156 62l-18 9 0 42 18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "gNvJy",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Tower Top",
+                  "geometry": "M138 53l18 9-18 9-18-9z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "unoOz",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Stand",
+                  "geometry": "M62 98l12 6 0 4-12-6z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "aOi2r",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Edge",
+                  "geometry": "M92 108l6-3 0-32-6 3z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#141920",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "U8JGh",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Top",
+                  "geometry": "M44 52l48 24 6-3-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#242B34",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "HDSCC",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Monitor Frame",
+                  "geometry": "M44 84l48 24 0-32-48-24z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#1A2028",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#0E1216",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "HXdkk",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Screen",
+                  "geometry": "M48 82l40 20 0-24-40-20z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#4B9CFF2E",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "#4B9CFF",
+                  "strokeWidth": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "SGC9G",
+              "x": 770,
+              "y": 250,
+              "name": "Step test.boot",
+              "width": 180,
+              "height": 132,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "VjFlN",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Left",
+                  "geometry": "M0 45l90 45 0 12-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#151A20",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "jqFXT",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Right",
+                  "geometry": "M180 45l-90 45 0 12 90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#10151B",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "iOZyJ",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Top",
+                  "geometry": "M90 0l90 45-90 45-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#1B2027",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "$state-queued",
+                  "strokeWidth": 1.5
+                },
+                {
+                  "type": "frame",
+                  "id": "tpgYp",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 180,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "B3AM9V",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "xJZBv",
+                          "name": "Dot",
+                          "fill": "$state-queued",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "G1EdfJ",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "test.boot",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "H0nlN",
+                      "name": "Line 2",
+                      "fill": "$text-secondary",
+                      "content": "PENDING · 노드 미배정",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "Izcdm",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Slot Marker",
+                  "geometry": "M100 62l44 22-44 22-44-22z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#00000000",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "$border-strong",
+                  "strokeWidth": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "qqrKh",
+              "x": 630,
+              "y": 402,
+              "name": "Step test.smoke",
+              "opacity": 0.55,
+              "width": 180,
+              "height": 132,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "N0JeKx",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Left",
+                  "geometry": "M0 45l90 45 0 12-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#151A20",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "E3JHf",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Right",
+                  "geometry": "M180 45l-90 45 0 12 90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#10151B",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "jMLo5",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Top",
+                  "geometry": "M90 0l90 45-90 45-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#1B2027",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "$state-expiring",
+                  "strokeWidth": 1.5
+                },
+                {
+                  "type": "frame",
+                  "id": "lsbPU",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 180,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "lNQ4Y",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "FRLQ8",
+                          "name": "Dot",
+                          "fill": "$state-expiring",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "sEFE5",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "test.smoke",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "pPrgl",
+                      "name": "Line 2",
+                      "fill": "$text-dim",
+                      "content": "SKIPPED · 선택되지 않았다",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "fYjcB",
+              "x": 840,
+              "y": 364,
+              "name": "Step seal",
+              "width": 180,
+              "height": 132,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "path",
+                  "id": "rJDbI",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Left",
+                  "geometry": "M0 45l90 45 0 12-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#151A20",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "Vc9In",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Right",
+                  "geometry": "M180 45l-90 45 0 12 90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#10151B",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "#10141A",
+                  "strokeWidth": 1
+                },
+                {
+                  "type": "path",
+                  "id": "j3pbFu",
+                  "x": 0,
+                  "y": 30,
+                  "name": "Face Top",
+                  "geometry": "M90 0l90 45-90 45-90-45z",
+                  "viewBox": [
+                    0,
+                    0,
+                    180,
+                    102
+                  ],
+                  "fill": "#1B2027",
+                  "width": 180,
+                  "height": 102,
+                  "stroke": "$state-queued",
+                  "strokeWidth": 1.5
+                },
+                {
+                  "type": "frame",
+                  "id": "wVZGT",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Label",
+                  "width": 180,
+                  "layout": "vertical",
+                  "gap": 3,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "kWjIr",
+                      "name": "Line 1",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "DK4as",
+                          "name": "Dot",
+                          "fill": "$state-queued",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "uldTo",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "seal",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "Y5eY7D",
+                      "name": "Line 2",
+                      "fill": "$text-secondary",
+                      "content": "PENDING · 노드 미배정",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "path",
+                  "id": "doRJt",
+                  "x": 0,
+                  "y": 0,
+                  "name": "Slot Marker",
+                  "geometry": "M100 62l44 22-44 22-44-22z",
+                  "viewBox": [
+                    0,
+                    0,
+                    200,
+                    148
+                  ],
+                  "fill": "#00000000",
+                  "width": 180,
+                  "height": 133,
+                  "stroke": "$border-strong",
+                  "strokeWidth": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "X9h2fV",
+              "x": 24,
+              "y": 520,
+              "name": "Legend Row",
+              "width": 1392,
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "iYQfk",
+                  "name": "Legend",
+                  "gap": 20,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "EXH4N",
+                      "name": "Legend 완료",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "FWaGO",
+                          "name": "Dot",
+                          "fill": "$state-idle",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "Hhj04",
+                          "name": "Label",
+                          "fill": "$text-secondary",
+                          "content": "완료",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "R9oqo",
+                      "name": "Legend 실행 중",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "h5ECZh",
+                          "name": "Dot",
+                          "fill": "$state-leased",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "T87dXx",
+                          "name": "Label",
+                          "fill": "$text-secondary",
+                          "content": "실행 중",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "a1RMSy",
+                      "name": "Legend 대기",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "DRxY1",
+                          "name": "Dot",
+                          "fill": "$state-queued",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "DHCPs",
+                          "name": "Label",
+                          "fill": "$text-secondary",
+                          "content": "대기",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "L1oHj",
+                      "name": "Legend 건너뜀",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "RhKcz",
+                          "name": "Dot",
+                          "fill": "$state-expiring",
+                          "width": 7,
+                          "height": 7
+                        },
+                        {
+                          "type": "text",
+                          "id": "pCbtX",
+                          "name": "Label",
+                          "fill": "$text-secondary",
+                          "content": "건너뜀",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "XqvLP",
+                  "name": "Hint",
+                  "fill": "$text-dim",
+                  "content": "5 단계 · needs[] 간선 · 단계 클릭 → 상세",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "D4yaX",
+              "x": 1060,
+              "y": 90,
+              "name": "Detail Panel",
+              "width": 350,
+              "fill": "$surface",
+              "cornerRadius": "$radius",
+              "stroke": "$border",
+              "strokeWidth": 1,
+              "layout": "vertical",
+              "gap": 14,
+              "padding": 18,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "UhaHU",
+                  "name": "Panel Header",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "U83QL",
+                      "name": "Header Left",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "EY0Rq",
+                          "name": "Dot",
+                          "fill": "$state-leased",
+                          "width": 8,
+                          "height": 8
+                        },
+                        {
+                          "type": "text",
+                          "id": "jTrzW",
+                          "name": "Panel Title",
+                          "fill": "$text-primary",
+                          "content": "build.kernel",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 13,
+                          "fontWeight": "600"
                         },
                         {
                           "type": "frame",
-                          "id": "fAssU",
-                          "name": "Chip harness=claude",
-                          "fill": "$surface-2",
+                          "id": "n6H6wN",
+                          "name": "Badge",
+                          "fill": "#4B9CFF22",
                           "cornerRadius": 4,
                           "padding": [
-                            4,
+                            3,
                             8
                           ],
                           "children": [
                             {
                               "type": "text",
-                              "id": "O3POP",
-                              "name": "Chip Label",
-                              "fill": "$text-secondary",
-                              "content": "harness=claude",
-                              "fontFamily": "$font-mono",
+                              "id": "mN9r3",
+                              "name": "Badge Label",
+                              "fill": "$state-leased",
+                              "content": "RUNNING",
+                              "fontFamily": "$font-body",
                               "fontSize": 10,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "h8K3M",
-                          "name": "Chip os=linux/amd64",
-                          "fill": "$surface-2",
-                          "cornerRadius": 4,
-                          "padding": [
-                            4,
-                            8
-                          ],
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "STRTi",
-                              "name": "Chip Label",
-                              "fill": "$text-secondary",
-                              "content": "os=linux/amd64",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "Evs6o",
-                          "name": "Chip repo=gerrit.corp/kernel/linux",
-                          "fill": "$surface-2",
-                          "cornerRadius": 4,
-                          "padding": [
-                            4,
-                            8
-                          ],
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "YzTVP",
-                              "name": "Chip Label",
-                              "fill": "$text-secondary",
-                              "content": "repo=gerrit.corp/kernel/linux",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "frame",
-                          "id": "GOOS6",
-                          "name": "Chip disk=182GiB",
-                          "fill": "$surface-2",
-                          "cornerRadius": 4,
-                          "padding": [
-                            4,
-                            8
-                          ],
-                          "children": [
-                            {
-                              "type": "text",
-                              "id": "D96JvX",
-                              "name": "Chip Label",
-                              "fill": "$text-secondary",
-                              "content": "disk=182GiB",
-                              "fontFamily": "$font-mono",
-                              "fontSize": 10,
-                              "fontWeight": "normal"
+                              "fontWeight": "600",
+                              "letterSpacing": 0.6
                             }
                           ]
                         }
                       ]
                     },
                     {
+                      "type": "icon",
+                      "id": "aInuu",
+                      "name": "Close",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "x",
+                      "library": "lucide",
+                      "fill": "$text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "FYVJq",
+                  "name": "KV Rows",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 9,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "S7sSHk",
+                      "name": "KV 노드",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "wwb4t",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "노드",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Rg09Q",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "ws-a · 임대 gerrit-12345-ps3",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "mrs5z",
+                      "name": "KV 회차",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "FhaDO",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "회차",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "l7w9N",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "2 · 12:58:03 시작",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "hAcJJ",
+                      "name": "KV needs",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "x59fA6",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "needs",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "e5kIT",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "plan (DONE)",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Vmc7o",
+                      "name": "KV 관측",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "I8dJLm",
+                          "name": "Key",
+                          "fill": "$text-dim",
+                          "textGrowth": "fixed-width",
+                          "width": 64,
+                          "content": "관측",
+                          "fontFamily": "$font-body",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "W2Cgd0",
+                          "name": "Value",
+                          "fill": "$text-secondary",
+                          "content": "seen 12:59:42 · expires 13:02:42",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "rectangle",
+                  "id": "ay7TC",
+                  "name": "Divider",
+                  "fill": "$border",
+                  "width": "fill_container",
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "m3ZqPV",
+                  "name": "Open Link",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
                       "type": "text",
-                      "id": "gzu1p",
-                      "name": "Cap Note",
-                      "fill": "$text-dim",
-                      "textGrowth": "fixed-width",
-                      "width": "fill_container",
-                      "content": "편집 자리를 만들지 않는다. 광고는 매번 전부이고 다음 광고가 덮으므로 여기서 고쳐도 다음 주기에 사라진다.",
-                      "lineHeight": 1.5,
+                      "id": "xrORA",
+                      "name": "Link Label",
+                      "fill": "$state-leased",
+                      "content": "트랜스크립트 열기",
                       "fontFamily": "$font-body",
-                      "fontSize": 11,
+                      "fontSize": 12,
                       "fontWeight": "normal"
+                    },
+                    {
+                      "type": "icon",
+                      "id": "W5Ly8G",
+                      "name": "Arrow",
+                      "width": 12,
+                      "height": 12,
+                      "icon": "arrow-right",
+                      "library": "lucide",
+                      "fill": "$state-leased"
                     }
                   ]
                 }
