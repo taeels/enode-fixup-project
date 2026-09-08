@@ -86,7 +86,7 @@
 <header>
   <h1>enode 운영 화면 초안</h1>
   <p class="lede">함대 전체를 보는 <b>중앙 현황판</b>과 자기 기계를 통제하는
-    <b>호스트 제어판</b>, 두 표면의 화면 여덟 장이다. 기획을 화면으로 옮긴 초안이고
+    <b>호스트 제어판</b>, 두 표면의 화면 아홉 장이다. 기획을 화면으로 옮긴 초안이고
     구현 사양이 아니다.</p>
   <div class="src">
     기획 &nbsp;<code>requirements/enode-features.md</code> §3.1.1 · §3.1.2<br>
@@ -229,6 +229,19 @@
     <li><b>기본 바인딩으로 띄우면 다른 기계에서 접속되지 않는다</b> — 헤더의 <code>127.0.0.1</code> 전용 칩</li>
     <li><b>drain 은 단계 도중에 끊지 않는다</b> — graceful 은 끝까지 두고, at-boundary 는 경계에서 닫는다</li>
     <li><b>principal 은 이 화면에만 있다</b> — 중앙은 <code>label</code> 만 낸다</li>
+    <li><b>임대 숫자를 진행 막대로 그리지 않는다</b> — <code>not_after</code> 는 하트비트마다 다시 밀린다. 작업 진행이 아니다</li>
+    <li><b>지난 작업이 이 화면에 있다</b> — 누르면 <code>verdict.checks</code> 와 봉인된 트랜스크립트가 열린다</li>
+  </ul>
+</section>
+
+<section>
+  <h2>S3b — 호스트 제어판 · drain 걸린 뒤</h2>
+  <figure><img src="exports/S3b-host-panel-draining.png" alt="drain 을 건 뒤의 호스트 제어판"></figure>
+  <ul class="proves">
+    <li class="cap" style="display:block">이 화면이 증명하는 것</li>
+    <li><b>「풀기」가 화면에 있다</b> — C3 가 여기 얹혀 있다. drain 은 소유자가 명시적으로 풀어야 후보로 돌아온다</li>
+    <li><b>걸 때 고른 모드가 그대로 보인다</b> — 배지가 <code>graceful</code> 을 진다</li>
+    <li><b>되찾았다는 사실을 화면이 말한다</b> — 「지금 도는 작업 없음」이 S1 의 「draining · 대기 중」과 같은 순간이다</li>
   </ul>
 </section>
 

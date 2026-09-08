@@ -520,6 +520,33 @@
                               "fontWeight": "normal"
                             }
                           ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "O9G5l",
+                          "name": "Legend ask",
+                          "gap": 5,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "CuwUa",
+                              "name": "Dot",
+                              "fill": "$state-queued",
+                              "width": 6,
+                              "height": 6
+                            },
+                            {
+                              "type": "text",
+                              "id": "orRZP",
+                              "name": "Label",
+                              "fill": "$text-dim",
+                              "content": "사람 대기",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
                         }
                       ]
                     }
@@ -641,7 +668,7 @@
                           "fill": "#B98CFF22"
                         },
                         "X5UTW": {
-                          "content": "draining",
+                          "content": "draining · 진행 중",
                           "fill": "$state-drain"
                         },
                         "IgQwc": {
@@ -687,17 +714,17 @@
                       "name": "sonshin@mac:ws-d",
                       "descendants": {
                         "QcLJ4": {
-                          "fill": "$state-leased"
+                          "fill": "$state-queued"
                         },
                         "KWEXV": {
                           "content": "sonshin@mac:ws-d"
                         },
                         "rHXCv": {
-                          "fill": "#4B9CFF22"
+                          "fill": "#E2A33C22"
                         },
                         "X5UTW": {
-                          "content": "임대 중",
-                          "fill": "$state-leased"
+                          "content": "사람을 기다림",
+                          "fill": "$state-queued"
                         },
                         "IgQwc": {
                           "content": "2e5a7c11d840"
@@ -712,11 +739,11 @@
                           "content": "gerrit-12377-ps2"
                         },
                         "pH3Hh": {
-                          "fill": "$state-leased",
-                          "content": "01:07 남음"
+                          "fill": "$state-queued",
+                          "content": "기한 없음"
                         },
                         "NM7wO": {
-                          "content": "review.diff · 회차 1 · 12:51:22 시작"
+                          "content": "review.diff · 회차 1 · 물은 지 4분 · 답: dhseo@corp"
                         },
                         "MJDZ9": {
                           "content": "seen 12:59:44"
@@ -782,17 +809,17 @@
                       "name": "dhseo@nuc:board-02",
                       "descendants": {
                         "QcLJ4": {
-                          "fill": "$state-idle"
+                          "fill": "$state-drain"
                         },
                         "KWEXV": {
                           "content": "dhseo@nuc:board-02"
                         },
                         "rHXCv": {
-                          "fill": "#3FBF8722"
+                          "fill": "#B98CFF22"
                         },
                         "X5UTW": {
-                          "content": "임대 없음",
-                          "fill": "$state-idle"
+                          "content": "draining · 대기 중",
+                          "fill": "$state-drain"
                         },
                         "IgQwc": {
                           "content": "c81d33f70b6e"
@@ -811,7 +838,7 @@
                           "enabled": false
                         },
                         "NM7wO": {
-                          "content": "관측 시점에 임대가 없다",
+                          "content": "다 끝났다 · 소유자가 풀면 후보로 돌아온다",
                           "fill": "$text-dim"
                         },
                         "MJDZ9": {
@@ -961,7 +988,7 @@
                     {
                       "type": "frame",
                       "id": "TScxM",
-                      "name": "Filter SEALED",
+                      "name": "Filter SUCCEEDED",
                       "fill": "#00000000",
                       "cornerRadius": 4,
                       "stroke": "$border",
@@ -1078,13 +1105,13 @@
                       "width": "fill_container",
                       "descendants": {
                         "uaPNG": {
-                          "fill": "$state-leased"
+                          "fill": "$state-queued"
                         },
                         "G8C30f": {
                           "content": "gerrit-12377-ps2"
                         },
                         "gWXVu": {
-                          "content": "ws-d · review.diff · 12:51:22"
+                          "content": "ws-d · review.diff · 사람의 답 대기"
                         },
                         "sKA1x": {
                           "fill": "#4B9CFF22"
@@ -1237,6 +1264,44 @@
                 },
                 {
                   "type": "frame",
+                  "id": "JLSqJ",
+                  "name": "Ask Note",
+                  "width": "fill_container",
+                  "fill": "#E2A33C10",
+                  "cornerRadius": 6,
+                  "stroke": "#E2A33C33",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "gap": 8,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "FeaiE",
+                      "name": "Note Icon",
+                      "width": 13,
+                      "height": 13,
+                      "icon": "info",
+                      "library": "lucide",
+                      "fill": "$state-queued"
+                    },
+                    {
+                      "type": "text",
+                      "id": "LGDZm",
+                      "name": "Note Text",
+                      "fill": "$text-secondary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "gerrit-12377-ps2 는 사람의 답을 기다린다. 중앙은 답을 받지 않는다 — 그 기계에서 runctl answer gerrit-12377-ps2 3 --set verdict=approve 를 친다.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
                   "id": "Sn0xb",
                   "name": "Pagination Slot",
                   "width": "fill_container",
@@ -1372,7 +1437,7 @@
       "name": "S3 호스트 제어판",
       "clip": true,
       "width": 1180,
-      "height": 920,
+      "height": 1215,
       "fill": "$bg",
       "layout": "vertical",
       "children": [
@@ -2088,33 +2153,23 @@
                       "fontWeight": "normal"
                     },
                     {
-                      "type": "frame",
-                      "id": "cfO9f",
-                      "name": "Lease Track",
-                      "width": "fill_container",
-                      "height": 6,
-                      "fill": "$surface-2",
-                      "cornerRadius": 3,
-                      "children": [
-                        {
-                          "type": "rectangle",
-                          "cornerRadius": 3,
-                          "id": "OwaVl",
-                          "name": "Lease Fill",
-                          "fill": "$state-leased",
-                          "width": 343,
-                          "height": 6
-                        }
-                      ]
-                    },
-                    {
                       "type": "text",
                       "id": "TK8wc",
                       "name": "Lease Track Caption",
                       "fill": "$text-dim",
-                      "content": "임대 시간 — 4분 39초 중 2분 41초 남음",
+                      "content": "이 숫자는 하트비트 신선도다 — 노드가 말하면 다시 180초로 밀린다. 작업 진행이 아니다",
                       "fontFamily": "$font-body",
                       "fontSize": 10,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZkS4i",
+                      "name": "Stop Warning",
+                      "fill": "$state-stopped",
+                      "content": "정지 · 재시작은 이 Run 을 먼저 cancel 한 뒤 데몬을 끈다 — 기록에 cancelled by 가 남는다. Mediator 가 안 닿으면 확인 문구가 그 사실을 말하고 Run 은 임대 만료로 죽는다.",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
                       "fontWeight": "normal"
                     },
                     {
@@ -2388,6 +2443,249 @@
                       "width": "fill_container",
                       "content": "Run 을 죽이지 않는다. 정책은 광고와 별개로 남아 광고가 만료돼도 유지된다. 중앙 현황판에는 draining 배지로만 나타나고 거기서는 누를 수 없다.",
                       "lineHeight": 1.5,
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "rp5s0",
+                  "name": "지난 작업",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$radius",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "VsVV8",
+                      "name": "Caption",
+                      "fill": "$text-secondary",
+                      "content": "지난 작업 — 이 노드가 한 것만",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "QrZ2F",
+                      "name": "gerrit-12345-ps2",
+                      "width": "fill_container",
+                      "fill": "$surface-2",
+                      "cornerRadius": 6,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "e50dr",
+                          "name": "Text",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "kH7sX",
+                              "name": "Run Id",
+                              "fill": "$text-primary",
+                              "content": "gerrit-12345-ps2",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "BbB2U",
+                              "name": "Meta",
+                              "fill": "$text-dim",
+                              "content": "build.kernel · 11:42:08 완료 · 봉인됨",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "ghTuw",
+                          "name": "Badge",
+                          "fill": "#FFFFFF10",
+                          "cornerRadius": 4,
+                          "padding": [
+                            3,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "RaniV",
+                              "name": "State",
+                              "fill": "$state-idle",
+                              "content": "SUCCEEDED",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "bold"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "SQ3oz",
+                      "name": "gerrit-12301-ps1",
+                      "width": "fill_container",
+                      "fill": "$surface-2",
+                      "cornerRadius": 6,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "ciXvc",
+                          "name": "Text",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "UGML0",
+                              "name": "Run Id",
+                              "fill": "$text-primary",
+                              "content": "gerrit-12301-ps1",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "VxG8g",
+                              "name": "Meta",
+                              "fill": "$text-dim",
+                              "content": "test.boot · 11:07:19 실패 · 봉인됨",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "zpUX8",
+                          "name": "Badge",
+                          "fill": "#FFFFFF10",
+                          "cornerRadius": 4,
+                          "padding": [
+                            3,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "jAZo1",
+                              "name": "State",
+                              "fill": "$state-stopped",
+                              "content": "FAILED",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "bold"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "XMklJ",
+                      "name": "gerrit-12277-ps5",
+                      "width": "fill_container",
+                      "fill": "$surface-2",
+                      "cornerRadius": 6,
+                      "gap": 12,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "W2uBJ6",
+                          "name": "Text",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "JoJTw",
+                              "name": "Run Id",
+                              "fill": "$text-primary",
+                              "content": "gerrit-12277-ps5",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "KeZY5",
+                              "name": "Meta",
+                              "fill": "$text-dim",
+                              "content": "review.diff · 10:23:44 완료 · 봉인됨",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "cpAm1",
+                          "name": "Badge",
+                          "fill": "#FFFFFF10",
+                          "cornerRadius": 4,
+                          "padding": [
+                            3,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "ZEj8t",
+                              "name": "State",
+                              "fill": "$state-idle",
+                              "content": "SUCCEEDED",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "bold"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "P6ME3",
+                      "name": "Footer",
+                      "fill": "$text-dim",
+                      "content": "하나를 누르면 결과(verdict.checks)와 봉인된 트랜스크립트가 열린다. 목록은 GET /v1/runs 를 자기 node_id 로 거른 것이고 봉인본은 GET /v1/runs/{id}/record 에서 푼다 (decisions.md 6.5).",
                       "fontFamily": "$font-body",
                       "fontSize": 11,
                       "fontWeight": "normal"
@@ -6901,7 +7199,7 @@
                     {
                       "type": "frame",
                       "id": "UQKYQ",
-                      "name": "Filter SEALED",
+                      "name": "Filter SUCCEEDED",
                       "fill": "#00000000",
                       "cornerRadius": 4,
                       "stroke": "$border",
@@ -6917,7 +7215,7 @@
                           "id": "riqHr",
                           "name": "Filter Label",
                           "fill": "$text-dim",
-                          "content": "SEALED",
+                          "content": "SUCCEEDED",
                           "fontFamily": "$font-body",
                           "fontSize": 10,
                           "fontWeight": "normal"
@@ -7099,13 +7397,13 @@
                           "content": "gerrit-12188-ps4"
                         },
                         "gWXVu": {
-                          "content": "ws-b · 11:20:55 봉인"
+                          "content": "ws-b · 11:20:55 완료 · 봉인됨"
                         },
                         "sKA1x": {
                           "fill": "#3FBF8722"
                         },
                         "o58jJO": {
-                          "content": "SEALED",
+                          "content": "SUCCEEDED",
                           "fill": "$state-idle"
                         }
                       }
@@ -7488,7 +7786,10 @@
               "name": "Mode Badge",
               "fill": "#B98CFF22",
               "cornerRadius": 4,
-              "padding": [3, 8],
+              "padding": [
+                3,
+                8
+              ],
               "children": [
                 {
                   "type": "text",
@@ -7517,7 +7818,10 @@
           "strokeAlignment": "inner",
           "layout": "vertical",
           "gap": 4,
-          "padding": [10, 12],
+          "padding": [
+            10,
+            12
+          ],
           "children": [
             {
               "type": "text",
@@ -7551,9 +7855,12 @@
           "stroke": "#00000000",
           "strokeWidth": 1,
           "strokeAlignment": "inner",
-          "justifyContent": "center",
           "gap": 6,
-          "padding": [8, 14],
+          "padding": [
+            8,
+            14
+          ],
+          "justifyContent": "center",
           "alignItems": "center",
           "children": [
             {
@@ -7573,8 +7880,6 @@
           "id": "pxDrainFooter",
           "name": "Footer Note",
           "fill": "$text-dim",
-          "textGrowth": "auto-height",
-          "width": "fill_container",
           "content": "푸는 순간 매칭 후보로 돌아온다 — 대기 중인 Run이 있으면 곧바로 배정될 수 있다. 걸 때 고른 모드(graceful · at-boundary)는 풀기 전까지 바뀌지 않는다.",
           "fontFamily": "$font-body",
           "fontSize": 10,
@@ -7590,8 +7895,11 @@
       "name": "C4 배지 · draining 진행 중",
       "reusable": true,
       "fill": "#00000000",
-      "padding": [3, 8],
       "cornerRadius": 4,
+      "padding": [
+        3,
+        8
+      ],
       "children": [
         {
           "type": "frame",
@@ -7599,7 +7907,10 @@
           "name": "Badge",
           "fill": "$state-drain",
           "cornerRadius": 4,
-          "padding": [3, 8],
+          "padding": [
+            3,
+            8
+          ],
           "children": [
             {
               "type": "text",
@@ -7624,19 +7935,25 @@
       "name": "C5 배지 · draining 대기 중(owner)",
       "reusable": true,
       "fill": "#00000000",
-      "padding": [3, 8],
       "cornerRadius": 4,
+      "padding": [
+        3,
+        8
+      ],
       "children": [
         {
           "type": "frame",
           "id": "pxBadgeDrainFreeFrame",
           "name": "Badge",
           "fill": "#B98CFF22",
+          "cornerRadius": 4,
           "stroke": "$state-drain",
           "strokeWidth": 1,
           "strokeAlignment": "inner",
-          "cornerRadius": 4,
-          "padding": [3, 8],
+          "padding": [
+            3,
+            8
+          ],
           "children": [
             {
               "type": "text",
@@ -7648,6 +7965,1055 @@
               "fontSize": 10,
               "fontWeight": "600",
               "letterSpacing": 0.6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "E3PrTN",
+      "x": 2740,
+      "y": 0,
+      "name": "S3b 호스트 제어판 · drain 걸린 뒤",
+      "clip": true,
+      "width": 1180,
+      "height": 920,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "XCzMa",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "fill": "$surface",
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "gap": 16,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "hjTpG",
+              "name": "Title Group",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "wrTXz",
+                  "name": "Title",
+                  "fill": "$text-primary",
+                  "content": "호스트 제어판",
+                  "fontFamily": "$font-body",
+                  "fontSize": 16,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "HF8gU",
+                  "name": "Scope",
+                  "fill": "$text-dim",
+                  "content": "thinkpad · enodectl serve · 127.0.0.1:PORT",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "J2SdMY",
+              "name": "Top Right",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "SkvSo",
+                  "name": "Binding Chip",
+                  "fill": "#3FBF8718",
+                  "cornerRadius": 4,
+                  "stroke": "#3FBF8733",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "gap": 6,
+                  "padding": [
+                    4,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "hOVPT",
+                      "name": "Lock Icon",
+                      "width": 11,
+                      "height": 11,
+                      "icon": "lock",
+                      "library": "lucide",
+                      "fill": "$state-idle"
+                    },
+                    {
+                      "type": "text",
+                      "id": "tqQQX",
+                      "name": "Binding Label",
+                      "fill": "$state-idle",
+                      "content": "127.0.0.1 전용 · 토큰 없음",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "nw3Fe",
+                  "name": "Refresh",
+                  "fill": "$text-dim",
+                  "content": "마지막 갱신 2초 전",
+                  "fontFamily": "$font-body",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "XdH3o",
+          "name": "Body",
+          "width": "fill_container",
+          "height": "fill_container",
+          "children": [
+            {
+              "type": "frame",
+              "id": "mehpd",
+              "name": "Node Rail",
+              "width": 280,
+              "height": "fill_container",
+              "fill": "$surface",
+              "stroke": "$border",
+              "strokeWidth": {
+                "right": 1
+              },
+              "layout": "vertical",
+              "gap": 10,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "kzPaG",
+                  "name": "Rail Title",
+                  "fill": "$text-dim",
+                  "content": "이 기계의 노드",
+                  "fontFamily": "$font-body",
+                  "fontSize": 11,
+                  "fontWeight": "600",
+                  "letterSpacing": 0.8
+                },
+                {
+                  "type": "frame",
+                  "id": "P491HS",
+                  "name": "Rail ws-a",
+                  "width": "fill_container",
+                  "fill": "$surface-2",
+                  "cornerRadius": 6,
+                  "stroke": "$border-strong",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "gap": 9,
+                  "padding": [
+                    10,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "dRYSx",
+                      "name": "Dot",
+                      "fill": "$state-leased",
+                      "width": 6,
+                      "height": 6
+                    },
+                    {
+                      "type": "frame",
+                      "id": "shhDa",
+                      "name": "Text",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "QZrry",
+                          "name": "Name",
+                          "fill": "$text-primary",
+                          "content": "ws-a",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Lp4yf",
+                          "name": "Sub",
+                          "fill": "$text-dim",
+                          "content": "draining · 대기 중",
+                          "fontFamily": "$font-body",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "IHdJv",
+                  "name": "Rail ws-b",
+                  "width": "fill_container",
+                  "fill": "#00000000",
+                  "cornerRadius": 6,
+                  "stroke": "#00000000",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "gap": 9,
+                  "padding": [
+                    10,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "Fi1tv",
+                      "name": "Dot",
+                      "fill": "$state-idle",
+                      "width": 6,
+                      "height": 6
+                    },
+                    {
+                      "type": "frame",
+                      "id": "UXcYG",
+                      "name": "Text",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 3,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "YSsQ6",
+                          "name": "Name",
+                          "fill": "$text-secondary",
+                          "content": "ws-b",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "FTXYZ",
+                          "name": "Sub",
+                          "fill": "$text-dim",
+                          "content": "유휴 · 광고 중",
+                          "fontFamily": "$font-body",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hznSM",
+                  "name": "Rail Note",
+                  "width": "fill_container",
+                  "fill": "#F0574B10",
+                  "cornerRadius": 6,
+                  "stroke": "#F0574B30",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "gap": 8,
+                  "padding": 11,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "My1AR",
+                      "name": "Rail Note Text",
+                      "fill": "$text-secondary",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "멈춘 노드는 이 화면에만 나온다. 중앙 현황판은 데몬이 멎어도 광고가 만료될 때까지 그 노드를 보이다가 조용히 지운다.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "U2ksF",
+              "name": "Detail",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 16,
+              "padding": 24,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "D4nh8",
+                  "name": "Node Header",
+                  "width": "fill_container",
+                  "gap": 12,
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "o8B5a7",
+                      "name": "Node Name",
+                      "gap": 10,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "ellipse",
+                          "id": "Jb28W",
+                          "name": "Dot",
+                          "fill": "$state-leased",
+                          "width": 9,
+                          "height": 9
+                        },
+                        {
+                          "type": "text",
+                          "id": "lyrpS",
+                          "name": "Label",
+                          "fill": "$text-primary",
+                          "content": "taeels@thinkpad:ws-a",
+                          "fontFamily": "$font-body",
+                          "fontSize": 19,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "AIxMB",
+                          "name": "Status Chip",
+                          "fill": "#4B9CFF22",
+                          "cornerRadius": 4,
+                          "padding": [
+                            3,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "lXvG0",
+                              "name": "Status",
+                              "fill": "$state-leased",
+                              "content": "실행 중 · draining",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "600",
+                              "letterSpacing": 0.6
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "gSVrg",
+                      "name": "Process Actions",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "T8nmT",
+                          "name": "Btn 로그",
+                          "fill": "$surface-2",
+                          "cornerRadius": 6,
+                          "stroke": "$border-strong",
+                          "strokeWidth": 1,
+                          "strokeAlignment": "inner",
+                          "gap": 6,
+                          "padding": [
+                            8,
+                            14
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "KP9Hf",
+                              "name": "Btn Label",
+                              "fill": "$text-secondary",
+                              "content": "로그",
+                              "fontFamily": "$font-body",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "R8TFjM",
+                          "name": "Btn 재시작",
+                          "fill": "$surface-2",
+                          "cornerRadius": 6,
+                          "stroke": "$border-strong",
+                          "strokeWidth": 1,
+                          "strokeAlignment": "inner",
+                          "gap": 6,
+                          "padding": [
+                            8,
+                            14
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "vbtRN",
+                              "name": "Btn Label",
+                              "fill": "$text-secondary",
+                              "content": "재시작",
+                              "fontFamily": "$font-body",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "NRrx5",
+                          "name": "Btn 정지",
+                          "fill": "#F0574B18",
+                          "cornerRadius": 6,
+                          "stroke": "#F0574B40",
+                          "strokeWidth": 1,
+                          "strokeAlignment": "inner",
+                          "gap": 6,
+                          "padding": [
+                            8,
+                            14
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "YCi1g",
+                              "name": "Btn Label",
+                              "fill": "$state-stopped",
+                              "content": "정지",
+                              "fontFamily": "$font-body",
+                              "fontSize": 12,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "JWuGP",
+                  "name": "신원",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$radius",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "yY6NX",
+                      "name": "Caption",
+                      "fill": "$text-dim",
+                      "content": "신원",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "600",
+                      "letterSpacing": 1
+                    },
+                    {
+                      "type": "frame",
+                      "id": "c1MMR",
+                      "name": "Identity Grid",
+                      "width": "fill_container",
+                      "gap": 32,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "o04Fo",
+                          "name": "Field node_id",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "zJACf",
+                              "name": "Key",
+                              "fill": "$text-dim",
+                              "content": "node_id",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "YzuHI",
+                              "name": "Value",
+                              "fill": "$text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "a3f19c2b8e04",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "W8CsJu",
+                          "name": "Field instance",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "DyihC",
+                              "name": "Key",
+                              "fill": "$text-dim",
+                              "content": "instance",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "RYCcx",
+                              "name": "Value",
+                              "fill": "$text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "7d8f4c02",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "emCOe",
+                          "name": "Field principal",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "sYgzf",
+                              "name": "Key",
+                              "fill": "$text-dim",
+                              "content": "principal",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "c7LXi",
+                              "name": "Value",
+                              "fill": "$text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "taeels@corp",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "dSmwS",
+                          "name": "Field label",
+                          "width": "fill_container",
+                          "layout": "vertical",
+                          "gap": 4,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "YBMH6",
+                              "name": "Key",
+                              "fill": "$text-dim",
+                              "content": "label",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Y7BbY",
+                              "name": "Value",
+                              "fill": "$text-primary",
+                              "textGrowth": "fixed-width",
+                              "width": "fill_container",
+                              "content": "taeels@thinkpad:ws-a",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "Kb472",
+                      "name": "Identity Note",
+                      "fill": "$text-dim",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "principal 은 이 화면에만 있다. 중앙 현황판은 label 만 내보낸다 (ADR-065).",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Mnpux",
+                  "name": "현재 작업",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$radius",
+                  "stroke": "$border-strong",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "XAPVg",
+                      "name": "Work Header",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "sbdAV",
+                          "name": "Caption",
+                          "fill": "$text-dim",
+                          "content": "현재 작업",
+                          "fontFamily": "$font-body",
+                          "fontSize": 10,
+                          "fontWeight": "600",
+                          "letterSpacing": 1
+                        },
+                        {
+                          "type": "text",
+                          "id": "C26xDB",
+                          "name": "Not After",
+                          "fill": "$text-dim",
+                          "content": "lease 없음",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "gZ7LY",
+                      "name": "Work Row",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "qZeil",
+                          "name": "Run Id",
+                          "fill": "$text-primary",
+                          "content": "임대 없음",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 20,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "LSI8F",
+                          "x": 735,
+                          "y": 0,
+                          "name": "Remaining",
+                          "enabled": false,
+                          "fill": "$state-leased",
+                          "content": "02:41 남음",
+                          "fontFamily": "$font-mono",
+                          "fontSize": 20,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "esk7k",
+                      "name": "Step",
+                      "fill": "$text-secondary",
+                      "content": "drain 이 걸려 있고 도는 작업이 없다",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "CX3rF",
+                      "x": 18,
+                      "y": 111,
+                      "name": "Lease Track Caption",
+                      "enabled": false,
+                      "fill": "$text-dim",
+                      "content": "이 숫자는 하트비트 신선도다 — 노드가 말하면 다시 180초로 밀린다. 작업 진행이 아니다",
+                      "fontFamily": "$font-body",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "VsfYZ",
+                      "name": "Stop Warning",
+                      "fill": "$state-stopped",
+                      "content": "도는 Run 이 없으므로 정지가 취소할 것도 없다. 데몬만 멎는다.",
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Zss3o",
+                      "name": "Transcript Link",
+                      "width": "fill_container",
+                      "fill": "$surface-2",
+                      "cornerRadius": 6,
+                      "stroke": "$border-strong",
+                      "strokeWidth": 1,
+                      "strokeAlignment": "inner",
+                      "gap": 8,
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Ur491",
+                          "name": "Link Text",
+                          "layout": "vertical",
+                          "gap": 3,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "lim4Y",
+                              "name": "Link Title",
+                              "fill": "$text-primary",
+                              "content": "트랜스크립트 — 하네스가 지금 뱉는 출력",
+                              "fontFamily": "$font-body",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "c4Pw9",
+                              "name": "Link Sub",
+                              "fill": "$text-dim",
+                              "content": "헤더의 「로그」는 데몬 로그다. 다른 물건이다",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon",
+                          "id": "UEegZ",
+                          "name": "Arrow",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "arrow-right",
+                          "library": "lucide",
+                          "fill": "$text-secondary"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "KvHBO",
+                  "name": "자원 회수 · 활성",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$radius",
+                  "stroke": "#B98CFF40",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "id": "R0W9G",
+                      "type": "ref",
+                      "ref": "pxDrainActive",
+                      "name": "C3 자원 회수 · 활성",
+                      "width": "fill_container"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "GGXZA",
+                  "name": "탐지 능력",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$radius",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "yThkB",
+                      "name": "Cap Header",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Gqfyo",
+                          "name": "Caption",
+                          "fill": "$text-dim",
+                          "content": "탐지 능력",
+                          "fontFamily": "$font-body",
+                          "fontSize": 10,
+                          "fontWeight": "600",
+                          "letterSpacing": 1
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Mxke8",
+                          "name": "ReadOnly Chip",
+                          "fill": "$surface-2",
+                          "cornerRadius": 4,
+                          "gap": 5,
+                          "padding": [
+                            3,
+                            8
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "PSEQJ",
+                              "name": "Eye Icon",
+                              "width": 11,
+                              "height": 11,
+                              "icon": "eye",
+                              "library": "lucide",
+                              "fill": "$text-dim"
+                            },
+                            {
+                              "type": "text",
+                              "id": "s19r9v",
+                              "name": "ReadOnly Label",
+                              "fill": "$text-dim",
+                              "content": "읽기 전용",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ZPKBh",
+                      "name": "Cap Chips",
+                      "width": "fill_container",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "iIQLh",
+                          "name": "Chip agent.reason",
+                          "fill": "$surface-2",
+                          "cornerRadius": 4,
+                          "padding": [
+                            4,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "tRWbA",
+                              "name": "Chip Label",
+                              "fill": "$text-secondary",
+                              "content": "agent.reason",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "fAssU",
+                          "name": "Chip harness=claude",
+                          "fill": "$surface-2",
+                          "cornerRadius": 4,
+                          "padding": [
+                            4,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "O3POP",
+                              "name": "Chip Label",
+                              "fill": "$text-secondary",
+                              "content": "harness=claude",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "h8K3M",
+                          "name": "Chip os=linux/amd64",
+                          "fill": "$surface-2",
+                          "cornerRadius": 4,
+                          "padding": [
+                            4,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "STRTi",
+                              "name": "Chip Label",
+                              "fill": "$text-secondary",
+                              "content": "os=linux/amd64",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Evs6o",
+                          "name": "Chip repo=gerrit.corp/kernel/linux",
+                          "fill": "$surface-2",
+                          "cornerRadius": 4,
+                          "padding": [
+                            4,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "YzTVP",
+                              "name": "Chip Label",
+                              "fill": "$text-secondary",
+                              "content": "repo=gerrit.corp/kernel/linux",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "GOOS6",
+                          "name": "Chip disk=182GiB",
+                          "fill": "$surface-2",
+                          "cornerRadius": 4,
+                          "padding": [
+                            4,
+                            8
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "D96JvX",
+                              "name": "Chip Label",
+                              "fill": "$text-secondary",
+                              "content": "disk=182GiB",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "gzu1p",
+                      "name": "Cap Note",
+                      "fill": "$text-dim",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "편집 자리를 만들지 않는다. 광고는 매번 전부이고 다음 광고가 덮으므로 여기서 고쳐도 다음 주기에 사라진다.",
+                      "lineHeight": 1.5,
+                      "fontFamily": "$font-body",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }
