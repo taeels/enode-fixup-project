@@ -69,18 +69,23 @@ Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
 계속한다.
 
 ### 🟢 CONSTRUCTION PHASE (유닛 `cardnews-guest-login`)
-- [ ] Functional Design
-- [ ] NFR Requirements
-- [ ] NFR Design
-- [ ] Infrastructure Design — SKIP (신규 인프라 없음)
-- [ ] Code Generation
-- [ ] Build and Test
+- [x] Functional Design — `aidlc-docs/construction/cardnews-guest-login/functional-design/*.md`
+- [x] NFR Requirements — `aidlc-docs/construction/cardnews-guest-login/nfr-requirements.md`
+- [x] NFR Design — `aidlc-docs/construction/cardnews-guest-login/nfr-design.md`
+- [x] Infrastructure Design — SKIP (신규 인프라 없음, `execution-plan.md` §2)
+- [x] Code Generation — `internal/api/ui/**`, `internal/api/api.go` 등록 줄 2개
+- [x] Build and Test — `aidlc-docs/construction/build-and-test/*.md`. CP8 을 실제 Mediator + PostgreSQL + Playwright/Chromium 으로 확인(18개 항목 전부 통과)
+
+유닛 브랜치 `unit/cardnews-guest-login` 을 `v1-run-dhseo-cardnews` 로
+병합했다(fast-forward 아님, merge commit). `scene-gates.md` CP8 초록.
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
 
 ## Current Status
-- **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Workflow Planning 완료
-- **Next Stage**: Application Design
-- **Status**: 여덟째 기능(3.4.1)의 설계를 이어간다
+- **Lifecycle Phase**: CONSTRUCTION 완료 (유닛 `cardnews-guest-login` 하나)
+- **Current Stage**: 유닛 병합 완료. `v1-run-dhseo-cardnews` 를 push 한다
+- **Next Stage**: (이 실행의 스코프 끝) — 3.1.x 등 나머지 축은 다른
+  세션/유닛이 이어받는다. `decisions.md` 8.5 의 파일 접점 참조
+- **Status**: 여덟째 기능(3.4.1) 전체(Requirements Analysis ~ Build and
+  Test)를 완료했다. 기존 일곱 기능은 이 실행의 스코프 밖으로 손대지 않았다

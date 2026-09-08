@@ -307,3 +307,39 @@ Build and Test)까지 계속한다. 지웠던 Construction 단계 작업 목록�
 **Context**: 사용자 개입. 스코프를 원래대로 — Construction 까지.
 
 ---
+
+## Construction 완료 — 유닛 cardnews-guest-login 병합
+**Timestamp**: 2026-09-08T09:10:00Z
+**User Input**: (사용자가 각 단계 승인을 요구 — 2026-09-08 대화에서
+"단계마다 물어보기" 선택. Code Generation 승인 "승인 후 진행", Build
+and Test 이후 DB/브라우저 확인을 먼저 시도하라는 지시, 그 결과를 본
+뒤 병합·push 승인 "병합 후 push")
+**AI Response**: `unit/cardnews-guest-login` 을 `v1-run-dhseo-cardnews`
+로 병합했다(merge commit, fast-forward 아님). Functional Design ·
+NFR Requirements/Design · Code Generation · Build and Test 를 전부
+마쳤고, CP8 을 이 세션에서 실제로 확인했다 — 처음에는 `docker` 데몬과
+브라우저가 없어 미확인으로 남겼으나, 이 환경에 네이티브 PostgreSQL 과
+Playwright/Chromium 이 미리 설치돼 있음을 발견해 실제 Mediator
+프로세스를 띄우고 headless 브라우저로 18개 확인 항목을 전부 통과시켰다
+(스크린샷 다섯 장을 사용자에게 전달). `aidlc-state.md` 를 갱신한다.
+**Context**: CONSTRUCTION 완료. 이 실행의 스코프(3.4.1) 끝.
+
+---
+
+## 이 실행의 마무리
+**Timestamp**: 2026-09-08T09:10:00Z
+**User Input**: (요약)
+**AI Response**: `v1-run-dhseo-cardnews` 를 `1fe2145`(Adding R/E, 대회
+데모 전환 이전)에서 갈라 Requirements Analysis 부터 Construction(Build
+and Test)까지 여덟째 기능(3.4.1 온보딩 카드뉴스 + Guest Login) 하나를
+완결했다. 기존 일곱 기능은 입력으로만 참조했고 코드를 손대지 않았다 —
+`internal/api/api.go` 의 diff 가 등록 줄 두 개뿐이라는 사실이 그
+회귀 없음을 코드 수준에서 보증한다. 새 패키지 `internal/api/ui` 가
+`decisions.md` 8.2 의 커버리지 하한 80%를 92.3%로 넘긴다. 남은 것 —
+`v1-run-dhseo-cardnews` 를 origin 에 push 하고, 나중에 3.1.x 등
+나머지 축을 맡을 세션/유닛이 `decisions.md` 8.5 의 파일 접점(패키지
+`internal/api/ui` 자체 · `api.go` 의 `GET /ui/` 등록 줄)을 참조해
+병합한다.
+**Context**: 실행 마무리. push 전 최종 기록.
+
+---
