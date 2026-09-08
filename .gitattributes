@@ -1,0 +1,4 @@
+# 이어 붙이는 AI-DLC 감사 로그는 회차 병합에서 양쪽 줄을 다 살린다.
+# 회차마다 aidlc-docs/<브랜치>/audit.md 로 갈리므로 보통은 안 부딪치지만,
+# 같은 경로를 두 손이 이어 붙이면 git 이 합치게 한다.
+aidlc-docs/**/audit.md merge=union

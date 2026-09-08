@@ -15,3 +15,22 @@
 것이다 — 사본을 두 벌로 두지 않는다.
 
 @.aidlc/aidlc-rules/aws-aidlc-rules/core-workflow.md
+
+---
+
+# AI-DLC 문서 루트 — 회차별 layering
+
+다중 사용자가 회차마다 브랜치를 따로 돌리므로, **AI-DLC 산출물 문서 루트는
+`aidlc-docs/<브랜치 이름>/`** 다 (예: `aidlc-docs/v1-run-dhseo/`). 상태 파일과
+감사 로그도 회차마다 그 아래 따로 둔다 — `aidlc-docs/<브랜치>/aidlc-state.md` ·
+`aidlc-docs/<브랜치>/audit.md`. **루트 `aidlc-docs/` 에 상태·감사·단계 문서를
+다시 쓰지 않는다** — 그러면 회차끼리 같은 파일을 두고 부딪친다.
+
+공용은 하나다 — Reverse Engineering 분석은 회차와 무관하게 참이라
+`aidlc-docs/inception/reverse-engineering/` 에 공용으로 둔다.
+
+`aidlc-state.md` 와 `design/*.pen` 은 통째로 다시 쓰거나 자동 병합할 수 없는
+파일이라 **진행자 한 사람이** 고친다 — 회차 브랜치를 병합한 뒤 진행자가 상태를
+정리하고, 시안은 회차마다 새 `.pen` 파일로 만든다. 이어 붙이는 `audit.md` 는
+`.gitattributes` 의 `merge=union` 으로 git 이 합친다. 이 layering 이
+`CONVENTIONS.md` 3.2 의 flat 충돌 모델(상태·감사 한 장씩)을 대신한다.
