@@ -145,3 +145,11 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: CONSTRUCTION - Functional Design (demo-pen). 승인 대기.
 
 ---
+
+## Functional Design — 변경 요청 (웹캠 패널)
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: "D0 좌하단 패널의 웹캠 뷰는 정사각형으로, 확대 축소가 가능한 인터랙티브한 창으로 구성하면 됨."
+**AI Response**: D0 는 타 팀원 몫이라 D2 (와 같은 틀의 D3 · D4 · D5) 의 좌 하단 웹캠 패널로 이해했다. 웹캠을 360 x 360 정사각형으로 바꾸고 확대(+) · 축소(-) · 맞춤 버튼 · 배율 표시 · 드래그/휠/더블클릭 제스처 · 확대 중 미니맵을 사양에 넣었다. 정사각형이 되며 좌 하단에 남는 폭 996 에는 S6 · S7 이 3D 위에 덮개로 띄우던 선택 상세 카드를 내려놓았다 (D2 는 노드 · D5 는 단계). 좌 상단 패널 높이는 620 -> 576. frontend-components.md 0 · 2.1 · 2.2 · 2.2b · 2.4 · 5 · 7 절과 business-logic-model.md F4 를 고쳤다.
+**Context**: CONSTRUCTION - Functional Design (demo-pen). 재승인 대기.
+
+---
