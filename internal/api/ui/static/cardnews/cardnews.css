@@ -80,6 +80,30 @@ body {
   margin: 0;
 }
 
+.card img {
+  width: 100%;
+  max-height: 45vh;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.card-image-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.card-image-row img {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-video video {
+  width: 100%;
+  max-height: 60vh;
+  border-radius: 12px;
+  background: #000;
+}
+
 .cardnews-footer {
   display: flex;
   align-items: center;

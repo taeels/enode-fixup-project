@@ -102,10 +102,36 @@
               "fill": "$text-secondary",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "혼자서는 다 감당할 수 없는 개발보드를, 팀이 필요할 때 나눠 씁니다.",
+              "content": "개별로 관리하는 개발보드를, 팀이 필요할 때 나눠 씁니다.",
               "fontFamily": "$font-body",
               "fontSize": 18,
               "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Iqg22",
+          "name": "Illustration",
+          "clip": true,
+          "width": "fill_container",
+          "height": 440,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "f7m8bn",
+              "name": "Illustration Image",
+              "width": 640,
+              "height": 380,
+              "fill": {
+                "type": "image",
+                "enabled": true,
+                "url": "assets-cardnews/card1.png",
+                "mode": "fill"
+              },
+              "cornerRadius": 16
             }
           ]
         },
@@ -126,6 +152,7 @@
               "type": "frame",
               "id": "PPtM4",
               "name": "Btn 이전",
+              "opacity": 0.4,
               "fill": "$surface-2",
               "cornerRadius": 6,
               "stroke": "$border-strong",
@@ -148,8 +175,7 @@
                   "fontSize": 12,
                   "fontWeight": "500"
                 }
-              ],
-              "opacity": 0.4
+              ]
             },
             {
               "type": "frame",
@@ -327,6 +353,32 @@
               "fontFamily": "$font-body",
               "fontSize": 18,
               "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "jDXGh",
+          "name": "Illustration",
+          "clip": true,
+          "width": "fill_container",
+          "height": 440,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Fv6uw",
+              "name": "Illustration Image",
+              "width": 640,
+              "height": 380,
+              "fill": {
+                "type": "image",
+                "enabled": true,
+                "url": "assets-cardnews/card2.png",
+                "mode": "fill"
+              },
+              "cornerRadius": 16
             }
           ]
         },
@@ -552,6 +604,32 @@
         },
         {
           "type": "frame",
+          "id": "n5RHN",
+          "name": "Illustration",
+          "clip": true,
+          "width": "fill_container",
+          "height": 440,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "wEkFU",
+              "name": "Illustration Image",
+              "width": 640,
+              "height": 380,
+              "fill": {
+                "type": "image",
+                "enabled": true,
+                "url": "assets-cardnews/card3.png",
+                "mode": "fill"
+              },
+              "cornerRadius": 16
+            }
+          ]
+        },
+        {
+          "type": "frame",
           "id": "lXt8h",
           "name": "Footer",
           "width": "fill_container",
@@ -772,6 +850,32 @@
         },
         {
           "type": "frame",
+          "id": "n64Jb",
+          "name": "Illustration",
+          "clip": true,
+          "width": "fill_container",
+          "height": 440,
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "JXHVp",
+              "name": "Illustration Image",
+              "width": 640,
+              "height": 380,
+              "fill": {
+                "type": "image",
+                "enabled": true,
+                "url": "assets-cardnews/card4.png",
+                "mode": "fill"
+              },
+              "cornerRadius": 16
+            }
+          ]
+        },
+        {
+          "type": "frame",
           "id": "tsVSI",
           "name": "Footer",
           "width": "fill_container",
@@ -965,5 +1069,5 @@
       "value": 10
     }
   },
-  "fileToken": null
+  "fileToken": "1af48107-e0a6-4955-9845-ff81251d0142"
 }
