@@ -34,3 +34,11 @@
 정리하고, 시안은 회차마다 새 `.pen` 파일로 만든다. 이어 붙이는 `audit.md` 는
 `.gitattributes` 의 `merge=union` 으로 git 이 합친다. 이 layering 이
 `CONVENTIONS.md` 3.2 의 flat 충돌 모델(상태·감사 한 장씩)을 대신한다.
+
+**Construction 은 담당별로 나눈다.** 여러 사람이 동시에 유닛을 맡으므로,
+Construction 산출물의 문서 루트는 담당 handle 로 **`aidlc-docs/<handle>/`** 다
+(예: `aidlc-docs/taeels/`). 각자 자기 유닛의 functional-design · nfr · code 요약과
+자기 `aidlc-state.md` · `audit.md` 를 거기 쓴다. 각자 **자기 브랜치 위에서 작업하고
+PR 로 `main` 에 병합**한다 — 그 유닛의 장면 게이트가 초록인 뒤에만. 배정과 handle 은
+`aidlc-docs/construction-roster.md`. 문서 루트는 언제나 그 산출물의 소유자 하나로
+갈린다 — Inception 회차는 회차(브랜치) 이름, Construction 은 담당 handle.

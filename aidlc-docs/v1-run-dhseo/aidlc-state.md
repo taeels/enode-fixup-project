@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-08T05:36:09Z
-- **Current Stage**: INCEPTION 완료 — Units Generation 승인(2026-09-08T10:22:05Z). 다음 CONSTRUCTION - Functional Design(유닛별). 진행 중: aidlc-docs layering + 전 회차 병합
+- **Current Stage**: INCEPTION 완료 · CONSTRUCTION 착수 — 담당 배정 `aidlc-docs/construction-roster.md`. layering + 전 회차 병합 완료(v2·cardnews → v1 → main · ea11bcf 푸시). 담당별 문서는 `aidlc-docs/<handle>/` · 각자 브랜치 → PR → main
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v1-run-dhseo` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 
@@ -76,7 +76,7 @@
 
 ## Current Status
 - **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Units Generation 승인 완료 (INCEPTION 완료 · 2026-09-08T10:22:05Z). aidlc-docs layering + 전 회차 병합(v2·cardnews → v1 → main) 진행 중
+- **Current Stage**: INCEPTION 완료 · CONSTRUCTION 착수. layering + 전 회차 병합 완료(v2·cardnews → v1 → main · ea11bcf · origin 푸시). 배정 roster 로 담당 넷(taeels·shin-son·runixs·nacl1119) · 담당별 `aidlc-docs/<handle>/` · 각자 브랜치 → PR → main
 - **Next Stage**: Functional Design (유닛별 · CONSTRUCTION) — Units Generation 완료 게이트 승인 뒤. obs 부터(토대 · 의존 없음) 착수 권장
 - **Status**: Application Design 승인됨(2026-09-08T08:51:01Z · Q1~Q5=A). Units Generation Part 1 답 확정 — **확정 여덟 유닛**: obs · queue · drain · ui · panel · transcript · mcp · demo-back. Q2=C 로 board-ui·demo-front 가 ui 한 유닛(실 함대 모드 S0~S2 + 공개 데모 모드 게스트·3D·모달·웹캠 · internal/api/ui 단독 소유)으로 합쳐져 접점 다섯→넷(store · api.go · panel · cmd/mediator/main.go). Q1=A(되묻기 표시 ui · 도구 mcp) · Q3=A(store 스키마 기능별 분산 · store 는 접점). 의존 그래프 토대 obs · CP10 은 W3. `unit-of-work-plan.md` §3.5 에 확정 분해 명시. **Part 2 완료** — 산출물 셋(unit-of-work · unit-of-work-dependency[파일 행렬·접점 넷] · unit-of-work-story-map[CP0~CP11·기능 12])을 `application-design/` 에 생성(emphasis-check 통과 · U+2605 0 · 계획 체크박스 [x]). 완료 게이트 승인 대기 → 승인 시 CONSTRUCTION(Functional Design 유닛별)
 - **pen 정합 검토(2026-09-08T09:23:41Z)**: Units Generation 전에 `v2-run-shin_pen_drawing` 의 `design/enode-demo.pen`(export D1~D5)을 팩과 대조. 정합 다수 · 어긋남 3 · 결손 2. 결정 반영 — Guest 이름은 팩 정본(shonsin pen 맞춤) · submitter 는 Guest 로그인 이름 자동(팩 `decisions §8.6` 신설 · `scene-gates` CP9 · `enode-features` 3.4.3·3.4.4 수정, emphasis-check 통과) · 온보딩 카드는 분해 밖. shonsin TODO 둘(게스트 이름 랜덤 2단어 · RUN 카드 submitter 표시). sandbox 표시(§8.5 미정)는 해당 유닛 FD. 워크트리 `/home/sunny/enode-wt-shin` (읽기용 · 정리 가능)

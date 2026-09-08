@@ -64,6 +64,16 @@ AI-DLC Units Generation 산출물이다. 여덟 유닛의 **의존 그래프**�
 딴다. 착수와 완료가 다른 유닛(ui·panel)은 착수는 이르게, 완료(게이트)는 대상
 병합 뒤에.
 
+`ui` 가 그 대표다 — 실 함대 모드(S0~S2 · CP1·CP2)는 obs 만 딛어 **W1 에 착수·완료**,
+데모 모드(새 작업 제출 · CP8·CP9·CP11)는 demo-back 의 제출 라우트를 딛어 **완료가 W3**.
+`ui` 와 `demo-back` 은 제출 라우트 계약(경로·payload)을 정하면 병렬로 짜고, CP9
+end-to-end 검증만 demo-back 병합 뒤다. `panel` 도 같다 — obs 로 착수, drain 으로 완료(CP4).
+
+**담당 배정과 handle 은 `aidlc-docs/construction-roster.md`** 가 진다 — W0 obs(taeels) ·
+W1 queue(shin-son)·mcp(taeels)·ui 실모드(runixs) · W2 drain(shin-son)·demo-back(runixs) ·
+W3 panel(shin-son)·ui 데모모드(runixs) · W4 transcript(shin-son) · card-news(nacl1119 ·
+construction 완료·계속 업데이트).
+
 ---
 
 ## 3. 파일 행렬 (팩 필수 · constraints 구조 불변식)

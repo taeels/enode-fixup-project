@@ -291,3 +291,11 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: INCEPTION 완료(Units Generation 승인). aidlc-docs layering + 병합 착수. Phase 1 커밋.
 
 ---
+
+## CONSTRUCTION 착수 — 담당 배정 · 담당별 문서 루트 · PR 정책
+**Timestamp**: 2026-09-08T10:56:58Z
+**User Input**: "문서에 업데이트 해줘. 박스 그림도 그려줘. 이렇게 진행 할 것이다. w0 obs 최태양 / w1 queue 손신, mcp 최태양, ui 김태완 / w2 drain 손신, demo-back 김태완 / w3 panel 손신, ui(데모모드) 김태완 / w4 transcript 손신. unit에 없는 card-news(이미 construction 완료되었는데 업데이트 계속 할 것) -> 문태호. 손신=shin-son, 문태호=nacl1119, 최태양=taeels, 김태완=runixs. construction 진행할때 aidlc-docs/taeels/ 형태로 구분해서 산출물 저장. 각자 브랜치 위에서 작업 정책 유지하되 브랜치에서 PR 날려 main merge."
+**AI Response**: layering + 전 회차 병합을 v1→main(ea11bcf)으로 마치고 origin 에 푸시한 뒤, CONSTRUCTION 착수 설정을 냈다 — (1) `aidlc-docs/construction-roster.md`(담당·handle 넷·웨이브 x 담당 x 유닛·박스 그래프·문서/브랜치/병합 정책·열린 미정) (2) 담당별 상태 씨앗 `aidlc-docs/{taeels,shin-son,runixs,nacl1119}/aidlc-state.md` (3) `unit-of-work-dependency.md` 에 ui 두 층(실 모드 W1·데모 모드 W3) 명시 + 담당 배정 (4) `CLAUDE.md` 에 Construction 담당별 문서 루트 `aidlc-docs/<handle>/` · 각자 브랜치 → PR → main 정책(문서 루트는 소유자 하나로 갈린다 — Inception 회차명 · Construction handle). 배정: W0 obs(taeels) · W1 queue(shin-son)·mcp(taeels)·ui 실모드(runixs) · W2 drain(shin-son)·demo-back(runixs) · W3 panel(shin-son)·ui 데모모드(runixs) · W4 transcript(shin-son) · card-news(nacl1119 완료·계속 업데이트). ui·demo-back 은 제출 라우트 계약으로 병렬, CP9 검증만 demo-back 병합 뒤. emphasis-check 통과. v1-run-dhseo·main 커밋·푸시.
+**Context**: CONSTRUCTION 착수. 담당 넷 · 담당별 문서 루트 · PR to main. 다음 — 각자 자기 브랜치에서 obs·queue·ui 실모드 Functional Design 착수.
+
+---
