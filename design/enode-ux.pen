@@ -1437,7 +1437,7 @@
       "name": "S3 호스트 제어판",
       "clip": true,
       "width": 1180,
-      "height": 1215,
+      "height": 1475,
       "fill": "$bg",
       "layout": "vertical",
       "children": [
@@ -2235,6 +2235,207 @@
                 },
                 {
                   "type": "frame",
+                  "id": "lOUQN",
+                  "name": "트랜스크립트",
+                  "width": "fill_container",
+                  "fill": "$surface",
+                  "cornerRadius": "$radius",
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "strokeAlignment": "inner",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "U1iuPD",
+                      "name": "Caption",
+                      "fill": "$text-secondary",
+                      "content": "트랜스크립트 — 하네스가 뱉는 것과 데몬이 뱉는 것은 다른 물건이다",
+                      "fontFamily": "$font-body",
+                      "fontSize": 12,
+                      "fontWeight": "bold"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "G3rQF",
+                      "name": "Pair",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "u0keU3",
+                          "name": "하네스 트랜스크립트 · 지금 뱉는 글자",
+                          "width": "fill_container",
+                          "fill": "$surface-2",
+                          "cornerRadius": 6,
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 12,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "CsMg8",
+                              "name": "Head",
+                              "fill": "$text-secondary",
+                              "content": "하네스 트랜스크립트 · 지금 뱉는 글자",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "bold"
+                            },
+                            {
+                              "type": "text",
+                              "id": "IMW42",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "12:58:19  CC  drivers/mmc/host/bcm2835-sdhost.o",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "kanXI",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "12:59:02  LD  vmlinux",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "eXRzI",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "13:00:11  OBJCOPY arch/arm64/boot/Image",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "tqeHL",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "13:00:33  warning: .init.text has no symbols",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "FqZ29",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "13:00:58  BUILD OK  vmlinux 41.2 MiB",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "v9hqFa",
+                              "name": "Note",
+                              "fill": "$text-dim",
+                              "content": "노드의 링 파일 512 KiB · 1초 폴링.  Mediator 를 안 거친다",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "iybAJ",
+                          "name": "데몬 로그",
+                          "width": 380,
+                          "fill": "$surface-2",
+                          "cornerRadius": 6,
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 12,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r7Byw",
+                              "name": "Head",
+                              "fill": "$text-secondary",
+                              "content": "데몬 로그",
+                              "fontFamily": "$font-body",
+                              "fontSize": 11,
+                              "fontWeight": "bold"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Nb9os",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "12:57:44 advert sent caps=1",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "dfxf5",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "12:58:03 claimed gerrit-12345-ps3",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "lxfSs",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "12:58:03 harness=claude start",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "yX5QY",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "12:59:44 lease renewed 13:02:42",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "X39dt",
+                              "name": "Line",
+                              "fill": "$text-dim",
+                              "content": "13:00:00 advert sent caps=1",
+                              "fontFamily": "$font-mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "cP9C9",
+                              "name": "Note",
+                              "fill": "$text-dim",
+                              "content": "enodectl logs 가 읽는 것.  헤더의 로그 버튼이 이것이다",
+                              "fontFamily": "$font-body",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
                   "id": "R5u2Nw",
                   "name": "자원 회수",
                   "width": "fill_container",
@@ -2685,6 +2886,8 @@
                       "id": "P6ME3",
                       "name": "Footer",
                       "fill": "$text-dim",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
                       "content": "하나를 누르면 결과(verdict.checks)와 봉인된 트랜스크립트가 열린다. 목록은 GET /v1/runs 를 자기 node_id 로 거른 것이고 봉인본은 GET /v1/runs/{id}/record 에서 푼다 (decisions.md 6.5).",
                       "fontFamily": "$font-body",
                       "fontSize": 11,
