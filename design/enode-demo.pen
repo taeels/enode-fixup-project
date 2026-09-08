@@ -10021,7 +10021,10 @@
                       "id": "Cp33f",
                       "name": "Task Sub",
                       "fill": "$text-dim",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
                       "content": "보드의 LED를 토글 하는 작업이에요.",
+                      "lineHeight": 1.45,
                       "fontFamily": "$font-body",
                       "fontSize": 12,
                       "fontWeight": "normal"
@@ -10102,7 +10105,10 @@
                       "id": "OMXA5",
                       "name": "Task Sub",
                       "fill": "$text-dim",
-                      "content": "보드의 사운드가 없어서, 다른 컴퓨터에서 사운드를 갖고와 재생합니다. 여러분의 아이디를 소리로 들어보세요!",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "보드의 사운드가 없어서, 다른 컴퓨터에서 사운드를 갖고와 재생합니다. \n여러분의 아이디를 소리로 들어보세요!",
+                      "lineHeight": 1.45,
                       "fontFamily": "$font-body",
                       "fontSize": 12,
                       "fontWeight": "normal"
