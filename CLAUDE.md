@@ -6,6 +6,9 @@
 커밋 규약이 거기 있다. AI-DLC 가 내는 모든 산출물과 커밋에 그대로 적용된다 —
 `aidlc-docs/` 아래 문서도 예외가 아니다.
 
+**AI-DLC 문서 루트는 `aidlc-docs/<브랜치 이름>/` 다** (`reverse-engineering/`
+만 예외 — 근거는 `aidlc-docs/README.md` §1).
+
 ---
 
 # AI-DLC 워크플로
