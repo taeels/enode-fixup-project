@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>enode</title>
+<link rel="stylesheet" href="/ui/cardnews/cardnews.css">
+</head>
+<body>
+<header class="cardnews-header">
+  <button type="button" data-testid="cardnews-close-button">닫기</button>
+  <span id="progress-text" aria-live="polite">1 / 4</span>
+</header>
+<main id="card-stage">
+  <article class="card" data-index="0">
+    <h2>enode 는 왜 필요할까요?</h2>
+    <p>혼자서는 다 감당할 수 없는 개발보드를, 팀이 필요할 때 나눠 씁니다.</p>
+  </article>
+  <article class="card" data-index="1">
+    <h2>갤럭시 S2 버그를, 오늘 고쳐야 한다면</h2>
+    <p>갤럭시 S26 이 나온 지금도 그 시절 버그는 그 시절 보드에서만
+      재현됩니다. 그런 보드는 대개 한 대, 한 자리뿐입니다.</p>
+  </article>
+  <article class="card" data-index="2">
+    <h2>옆 팀 보드가 비어 있다면</h2>
+    <p>여러 보드를 동시에 써야 하는 날, 지금 비어 있는 동료의 보드를
+      곧장 빌려 쓸 수 있다면 훨씬 빨리 끝납니다.</p>
+  </article>
+  <article class="card" data-index="3">
+    <h2>enode 가 그 다리를 놓습니다</h2>
+    <p>지금 함대가 무엇을 하고 있는지 살펴보세요.</p>
+  </article>
+</main>
+<footer class="cardnews-footer">
+  <button type="button" data-testid="cardnews-prev-button">이전</button>
+  <nav id="progress-dots">
+    <span class="dot" data-testid="cardnews-progress-dot-0"></span>
+    <span class="dot" data-testid="cardnews-progress-dot-1"></span>
+    <span class="dot" data-testid="cardnews-progress-dot-2"></span>
+    <span class="dot" data-testid="cardnews-progress-dot-3"></span>
+  </nav>
+  <button type="button" data-testid="cardnews-next-button">다음</button>
+</footer>
+<script src="/ui/shared/guest.js"></script>
+<script src="/ui/cardnews/cardnews.js"></script>
+</body>
+</html>
