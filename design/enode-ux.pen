@@ -11506,6 +11506,887 @@
           ]
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "CiMoj",
+      "x": 0,
+      "y": 6132,
+      "name": "카드뉴스 1 소개",
+      "clip": true,
+      "width": 1440,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "XAnKN",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "fill": "$surface",
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "gap": 16,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "87bgU",
+              "name": "Btn 닫기",
+              "fill": "$surface-2",
+              "cornerRadius": 6,
+              "stroke": "$border-strong",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "gap": 6,
+              "padding": [
+                8,
+                14
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "eFTr1",
+                  "name": "Btn Label",
+                  "fill": "$text-secondary",
+                  "content": "닫기",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "Ledas",
+              "name": "Progress",
+              "fill": "$text-dim",
+              "content": "1 / 4",
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Ae9QO",
+          "name": "Content",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": "$gap-md",
+          "padding": [
+            72,
+            140
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "hqWS2",
+              "name": "Title",
+              "fill": "$text-primary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "enode 는 왜 필요할까요?",
+              "fontFamily": "$font-body",
+              "fontSize": 34,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "yclgv",
+              "name": "Body",
+              "fill": "$text-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "혼자서는 다 감당할 수 없는 개발보드를, 팀이 필요할 때 나눠 씁니다.",
+              "fontFamily": "$font-body",
+              "fontSize": 18,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "HigV4",
+          "name": "Footer",
+          "width": "fill_container",
+          "gap": 24,
+          "padding": [
+            20,
+            24
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "5WtRB",
+              "name": "Btn 이전",
+              "fill": "$surface-2",
+              "cornerRadius": 6,
+              "stroke": "$border-strong",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "gap": 6,
+              "padding": [
+                8,
+                14
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "GBXEU",
+                  "name": "Btn Label",
+                  "fill": "$text-secondary",
+                  "content": "이전",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ],
+              "opacity": 0.4
+            },
+            {
+              "type": "frame",
+              "id": "3u9O2",
+              "name": "Progress Dots",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ellipse",
+                  "id": "MzHFd",
+                  "name": "Dot",
+                  "fill": "$state-leased",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "vbeHc",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "2EC7v",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "uydfo",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "QbB9H",
+              "name": "Btn 다음",
+              "fill": "$state-leased",
+              "cornerRadius": 7,
+              "gap": 8,
+              "padding": [
+                10,
+                20
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "OujfK",
+                  "name": "Btn Label",
+                  "fill": "#06121F",
+                  "content": "다음",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "zDxmp",
+      "x": 0,
+      "y": 7072,
+      "name": "카드뉴스 2 희소 보드",
+      "clip": true,
+      "width": 1440,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "dc3f2",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "fill": "$surface",
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "gap": 16,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "dWW0P",
+              "name": "Btn 닫기",
+              "fill": "$surface-2",
+              "cornerRadius": 6,
+              "stroke": "$border-strong",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "gap": 6,
+              "padding": [
+                8,
+                14
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Tuu2h",
+                  "name": "Btn Label",
+                  "fill": "$text-secondary",
+                  "content": "닫기",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "8lx1q",
+              "name": "Progress",
+              "fill": "$text-dim",
+              "content": "2 / 4",
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Exlyo",
+          "name": "Content",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": "$gap-md",
+          "padding": [
+            72,
+            140
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "SmDtc",
+              "name": "Title",
+              "fill": "$text-primary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "갤럭시 S2 버그를, 오늘 고쳐야 한다면",
+              "fontFamily": "$font-body",
+              "fontSize": 34,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "V5sFq",
+              "name": "Body",
+              "fill": "$text-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "갤럭시 S26 이 나온 지금도 그 시절 버그는 그 시절 보드에서만 재현됩니다. 그런 보드는 대개 한 대, 한 자리뿐입니다.",
+              "fontFamily": "$font-body",
+              "fontSize": 18,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Tddl5",
+          "name": "Footer",
+          "width": "fill_container",
+          "gap": 24,
+          "padding": [
+            20,
+            24
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "PtHkn",
+              "name": "Btn 이전",
+              "fill": "$surface-2",
+              "cornerRadius": 6,
+              "stroke": "$border-strong",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "gap": 6,
+              "padding": [
+                8,
+                14
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "slUdI",
+                  "name": "Btn Label",
+                  "fill": "$text-secondary",
+                  "content": "이전",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Vudpd",
+              "name": "Progress Dots",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ellipse",
+                  "id": "uuUsl",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "03Vgr",
+                  "name": "Dot",
+                  "fill": "$state-leased",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "ioWhM",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "qfiTM",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "XIjqW",
+              "name": "Btn 다음",
+              "fill": "$state-leased",
+              "cornerRadius": 7,
+              "gap": 8,
+              "padding": [
+                10,
+                20
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "DP6ZH",
+                  "name": "Btn Label",
+                  "fill": "#06121F",
+                  "content": "다음",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "ElZR3",
+      "x": 0,
+      "y": 8012,
+      "name": "카드뉴스 3 보드 공유",
+      "clip": true,
+      "width": 1440,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "sEDNz",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "fill": "$surface",
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "gap": 16,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Zd5K8",
+              "name": "Btn 닫기",
+              "fill": "$surface-2",
+              "cornerRadius": 6,
+              "stroke": "$border-strong",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "gap": 6,
+              "padding": [
+                8,
+                14
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "k2HD8",
+                  "name": "Btn Label",
+                  "fill": "$text-secondary",
+                  "content": "닫기",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "GHqZQ",
+              "name": "Progress",
+              "fill": "$text-dim",
+              "content": "3 / 4",
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "RqDub",
+          "name": "Content",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": "$gap-md",
+          "padding": [
+            72,
+            140
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "0QfYw",
+              "name": "Title",
+              "fill": "$text-primary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "옆 팀 보드가 비어 있다면",
+              "fontFamily": "$font-body",
+              "fontSize": 34,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "WFAEZ",
+              "name": "Body",
+              "fill": "$text-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "여러 보드를 동시에 써야 하는 날, 지금 비어 있는 동료의 보드를 곧장 빌려 쓸 수 있다면 훨씬 빨리 끝납니다.",
+              "fontFamily": "$font-body",
+              "fontSize": 18,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "THdOn",
+          "name": "Footer",
+          "width": "fill_container",
+          "gap": 24,
+          "padding": [
+            20,
+            24
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "YUJ6y",
+              "name": "Btn 이전",
+              "fill": "$surface-2",
+              "cornerRadius": 6,
+              "stroke": "$border-strong",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "gap": 6,
+              "padding": [
+                8,
+                14
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "LSdju",
+                  "name": "Btn Label",
+                  "fill": "$text-secondary",
+                  "content": "이전",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "oj6kf",
+              "name": "Progress Dots",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ellipse",
+                  "id": "erebc",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "g5cZx",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "qK5JZ",
+                  "name": "Dot",
+                  "fill": "$state-leased",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "414FN",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "6Y571",
+              "name": "Btn 다음",
+              "fill": "$state-leased",
+              "cornerRadius": 7,
+              "gap": 8,
+              "padding": [
+                10,
+                20
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "oo5ci",
+                  "name": "Btn Label",
+                  "fill": "#06121F",
+                  "content": "다음",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "fp3i0",
+      "x": 0,
+      "y": 8952,
+      "name": "카드뉴스 4 현황판 유도",
+      "clip": true,
+      "width": 1440,
+      "height": 820,
+      "fill": "$bg",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "vJXmk",
+          "name": "Top Bar",
+          "width": "fill_container",
+          "fill": "$surface",
+          "stroke": "$border",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "gap": 16,
+          "padding": [
+            16,
+            24
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "AIfRT",
+              "name": "Btn 닫기",
+              "fill": "$surface-2",
+              "cornerRadius": 6,
+              "stroke": "$border-strong",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "gap": 6,
+              "padding": [
+                8,
+                14
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "2ihVF",
+                  "name": "Btn Label",
+                  "fill": "$text-secondary",
+                  "content": "닫기",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "qBiQh",
+              "name": "Progress",
+              "fill": "$text-dim",
+              "content": "4 / 4",
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "3ia86",
+          "name": "Content",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": "$gap-md",
+          "padding": [
+            72,
+            140
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "3D50R",
+              "name": "Title",
+              "fill": "$text-primary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "enode 가 그 다리를 놓습니다",
+              "fontFamily": "$font-body",
+              "fontSize": 34,
+              "fontWeight": "600"
+            },
+            {
+              "type": "text",
+              "id": "b7T8N",
+              "name": "Body",
+              "fill": "$text-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "지금 함대가 무엇을 하고 있는지 살펴보세요.",
+              "fontFamily": "$font-body",
+              "fontSize": 18,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "dAG6v",
+          "name": "Footer",
+          "width": "fill_container",
+          "gap": 24,
+          "padding": [
+            20,
+            24
+          ],
+          "justifyContent": "center",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "17jVH",
+              "name": "Btn 이전",
+              "fill": "$surface-2",
+              "cornerRadius": 6,
+              "stroke": "$border-strong",
+              "strokeWidth": 1,
+              "strokeAlignment": "inner",
+              "gap": 6,
+              "padding": [
+                8,
+                14
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "F8oVs",
+                  "name": "Btn Label",
+                  "fill": "$text-secondary",
+                  "content": "이전",
+                  "fontFamily": "$font-body",
+                  "fontSize": 12,
+                  "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "2oQwX",
+              "name": "Progress Dots",
+              "gap": 8,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "ellipse",
+                  "id": "lspti",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "kkWIY",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "HcfEe",
+                  "name": "Dot",
+                  "fill": "$border-strong",
+                  "width": 7,
+                  "height": 7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "c8Nch",
+                  "name": "Dot",
+                  "fill": "$state-leased",
+                  "width": 7,
+                  "height": 7
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ZwYXi",
+              "name": "Btn 현황판 보기",
+              "fill": "$state-leased",
+              "cornerRadius": 7,
+              "gap": 8,
+              "padding": [
+                10,
+                20
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "rU93R",
+                  "name": "Btn Label",
+                  "fill": "#06121F",
+                  "content": "현황판 보기",
+                  "fontFamily": "$font-body",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
   "variables": {
