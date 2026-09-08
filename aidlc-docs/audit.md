@@ -170,3 +170,12 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: Functional Design (demo-pen) 완료. 다음은 Code Generation — Part 1 계획 · Part 2 시안 생성. pen.dev 편집기에 design/enode-ux.pen 이 열려 있음을 get_app_state 로 확인했다.
 
 ---
+
+## Code Generation Part 1 — 계획 · 승인 요청
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: (위 승인)
+**AI Response**: code-generation.md 와 pen-dev 스킬(schema · execute · components)을 로드했다. enode-ux.pen 을 execute 로 읽어 변수 · 컴포넌트 다섯 · S6(WG8zm) · S7(NCouv) 의 구조를 확인하고 스크린샷을 봤다. execute 가 filePath 로 편집기에 안 열린 파일도 다루는 것을 스크래치 사본으로 확인했다. 방법 — enode-ux.pen 을 파일째 복사해 enode-demo.pen 을 만들고 불필요한 화면 여덟을 지운 뒤 D1~D5 를 그린다. 계획 `aidlc-docs/construction/plans/demo-pen-code-generation-plan.md` 열두 단계.
+**AI Prompt**: "이 계획대로 Part 2 시안 생성을 시작해도 되는가?"
+**Context**: CONSTRUCTION - Code Generation Part 1 (demo-pen). 승인 대기.
+
+---

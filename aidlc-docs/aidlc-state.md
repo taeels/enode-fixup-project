@@ -75,4 +75,4 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Stage**: Code Generation (demo-pen) — Part 1 계획
 - **Next Stage**: Build and Test (시안 검수)
-- **Status**: 계획 파일 작성 중. pen.dev 편집기에 `design/enode-ux.pen` 열림 확인
+- **Status**: `aidlc-docs/construction/plans/demo-pen-code-generation-plan.md` 열두 단계 · 승인 대기. 방법은 enode-ux.pen 파일 복사 후 안에서 그리기
