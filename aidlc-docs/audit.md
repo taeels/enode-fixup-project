@@ -220,6 +220,14 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 
 ---
 
+## Code Generation Part 2 — 변경 요청 (D3 1/4 문구)
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: "D3 가이드 투어 1/4 웹캠\n실물이 여기 있다 -> 대여한 보드를 실시간으로 확인 가능해요\n\n데모용 보드와 컴퓨터의 소리를 들을 수 있어요.\n작업을 수행하고 웹캠을 확인하세요.\n\n수정"
+**AI Response**: D3 (1/4) 말풍선 제목을 「대여한 보드를 실시간으로 확인 가능해요」, 본문을 두 줄 「데모용 보드와 컴퓨터의 소리를 들을 수 있어요. / 작업을 수행하고 웹캠을 확인하세요.」 로 바꿨다. 아트보드 밖 투어 스텝 노트와 frontend-components.md 3절의 표도 같이 고쳤다.
+**Context**: CONSTRUCTION - Code Generation Part 2 (demo-pen). 승인 대기.
+
+---
+
 ## Code Generation Part 2 — 변경 요청 (투어 스텝 넷 전부 그리기)
 **Timestamp**: 2026-09-08T07:45:38Z
 **User Input**: "시안 중 D3 가이드투어 1/4 2/4 3/4 4/4 에 대한 그림은?"
