@@ -43,30 +43,36 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 | resiliency-baseline | No | Requirements Analysis (Q6: B) |
 | property-based-testing | Partial (이 회차 전부 N/A) | Requirements Analysis (Q7: B) |
 
+## Execution Plan Summary
+- **Total Stages**: 9 (Inception 7 + Construction 2 묶음)
+- **Stages to Execute**: Functional Design (화면 사양) · Code Generation (.pen 시안 생성) · Build and Test (시안 검수)
+- **Stages to Skip**: User Stories (페르소나 하나 · 요구가 이미 화면 단위) · Application Design (새 컴포넌트 없음) · Units Generation (파일 하나) · NFR Requirements / NFR Design / Infrastructure Design (대상 없음)
+- **Plan**: `aidlc-docs/inception/plans/execution-plan.md`
+
 ## Stage Progress
 
 ### 🔵 INCEPTION PHASE
 - [x] Workspace Detection — 2026-09-08T07:25:47Z (v2)
 - [x] Reverse Engineering — SKIPPED (v1 산출물 재사용, 1fe2145)
-- [ ] Requirements Analysis — 답변 반영 · requirements.md 생성 · 승인 대기
-- [ ] User Stories — [EXECUTE/SKIP 는 Workflow Planning 이 정한다]
-- [ ] Workflow Planning
-- [ ] Application Design — [EXECUTE/SKIP — 시안 회차라 SKIP 유력]
-- [ ] Units Generation — [EXECUTE/SKIP — 시안 1건이라 SKIP 유력]
+- [x] Requirements Analysis — 2026-09-08T07:45:38Z 승인
+- [x] User Stories — SKIP
+- [ ] Workflow Planning — 계획 생성 · 승인 대기
+- [x] Application Design — SKIP
+- [x] Units Generation — SKIP
 
 ### 🟢 CONSTRUCTION PHASE
-- [ ] Functional Design (per-unit) — [시안 회차라 SKIP 유력]
-- [ ] NFR Requirements (per-unit) — [SKIP 유력]
-- [ ] NFR Design (per-unit) — [SKIP 유력]
-- [ ] Infrastructure Design (per-unit) — [SKIP 유력]
-- [ ] Code Generation — 산출물을 .pen 시안으로 둔다
-- [ ] Build and Test — 시안 검수 절차로 대체할지 Workflow Planning 이 정한다
+- [ ] Functional Design — EXECUTE (아트보드 D1~D5 화면 사양)
+- [x] NFR Requirements — SKIP
+- [x] NFR Design — SKIP
+- [x] Infrastructure Design — SKIP
+- [ ] Code Generation — EXECUTE (design/enode-demo.pen)
+- [ ] Build and Test — EXECUTE (시안 검수로 대체)
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
 
 ## Current Status
 - **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Requirements Analysis (질문 파일 답변 대기)
-- **Next Stage**: Workflow Planning
-- **Status**: `aidlc-docs/inception/requirements/requirement-verification-questions.md` 답변 대기
+- **Current Stage**: Workflow Planning (승인 대기)
+- **Next Stage**: CONSTRUCTION - Functional Design
+- **Status**: `aidlc-docs/inception/plans/execution-plan.md` 검토 대기
