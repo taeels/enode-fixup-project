@@ -65,7 +65,7 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 - [x] NFR Requirements — SKIP
 - [x] NFR Design — SKIP
 - [x] Infrastructure Design — SKIP
-- [ ] Code Generation — IN PROGRESS · Part 1 계획 (design/enode-demo.pen)
+- [ ] Code Generation — Part 2 열두 단계 완료 · 편집기 저장과 승인 대기 (design/enode-demo.pen)
 - [ ] Build and Test — EXECUTE (시안 검수로 대체)
 
 ### 🟡 OPERATIONS PHASE
@@ -73,6 +73,6 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: Code Generation (demo-pen) — Part 1 계획
-- **Next Stage**: Build and Test (시안 검수)
-- **Status**: `aidlc-docs/construction/plans/demo-pen-code-generation-plan.md` 열두 단계 · 승인 대기. 방법은 enode-ux.pen 파일 복사 후 안에서 그리기
+- **Current Stage**: Code Generation (demo-pen) — Part 2 완료
+- **Next Stage**: Build and Test (시안 검수 · PNG 내보내기)
+- **Status**: 아트보드 D1~D5 생성 완료. pen.dev 편집기에서 저장(Cmd+S) 필요 — 저장 확인 뒤 커밋. 그 다음 사용자 승인

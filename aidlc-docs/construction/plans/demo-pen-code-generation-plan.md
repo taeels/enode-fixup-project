@@ -10,8 +10,9 @@
   (버튼 전수 · 배치 치수 · 전환 표 · 아트보드 밖 주석)
 - **규칙**: 같은 폴더의 `business-rules.md` R1~R7
 - **의존**: 없음. 코드 · API 를 안 건드린다
-- **도구**: pencil MCP `execute` 에 `filePath` 로 새 파일을 지정한다 (편집기에
-  열린 파일이 아니어도 동작함을 2026-09-08 에 확인). `.pen` 은 Read/Grep 하지 않는다
+- **도구**: pencil MCP `execute`. **`filePath` 는 편집기에 열린 문서가 있으면
+  무시된다** — 반드시 `enode-demo.pen` 을 편집기에서 연 뒤 실행한다 (2026-09-08
+  사고로 확인. audit.md). `.pen` 은 Read/Grep 하지 않는다
 
 ## 소재 (enode-ux.pen 에서 가져오는 것)
 
@@ -37,38 +38,38 @@
 
 ## 단계
 
-- [ ] Step 1. 파일 만들기 — `cp design/enode-ux.pen design/enode-demo.pen`.
+- [x] Step 1. 파일 만들기 (재실행. 편집기에 enode-demo.pen 을 연 뒤 삭제) — `cp design/enode-ux.pen design/enode-demo.pen`.
       S0 · S0b · S1 · S1b · S2 · S3 · S4 · S5 프레임 여덟을 지운다.
       남는 것: 컴포넌트 다섯 · S6 · S7. `git status` 로 `enode-ux.pen` 불변 확인
-- [ ] Step 2. D1 데모 진입 — 1920 x 1080 프레임. S0 의 카드 구성을 본떠 새로
+- [x] Step 2. D1 데모 진입 (CBJwz) — 1920 x 1080 프레임. S0 의 카드 구성을 본떠 새로
       그린다 (제목 · 설명 · Guest 로그인 버튼 · 각주). placeholder 로 시작해 끝나면 해제
-- [ ] Step 3. D2 본판 뼈대 — 1920 x 1080 프레임 · 상단바(제목 · observed_at ·
+- [x] Step 3. D2 본판 뼈대 (FN7dp · Top Bar N4ZUG · Fleet Panel FpjGV · Run Column YR3ns) — 1920 x 1080 프레임 · 상단바(제목 · observed_at ·
       마지막 갱신 · 뷰 전환 칩 격자/그래프/3D · 게스트 배지 user_4821) ·
       좌 패널 1380 x 960 · 우 열 460
-- [ ] Step 4. D2 좌 패널 — S6 Iso Plane 의 Floor · Floor Grid · Tile 여섯 ·
+- [x] Step 4. D2 좌 패널 (Iso Plane M0abdq) — S6 Iso Plane 의 Floor · Floor Grid · Tile 여섯 ·
       Legend Row · Detail Panel 을 복사해 1380 x 960 에 맞게 배치한다. 모형은 웹캠
       기본 자리(좌 하단 360 x 360)를 피한다. Detail Panel 은 우상단 덮개 카드
-- [ ] Step 5. D2 웹캠 창 — 360 x 360 떠 있는 창(좌 하단 · 안쪽 여백 24 · z 위).
+- [x] Step 5. D2 웹캠 창 (FFLsf) — 360 x 360 떠 있는 창(좌 하단 · 안쪽 여백 24 · z 위).
       헤더(웹캠 · LIVE 점) · 플레이스홀더 본문 · 우하단 컨트롤 [+][-][맞춤] · 배율
       1.0x · 우상단 크기 조절 손잡이
-- [ ] Step 6. D2 우 열 — 헤더 · [새 작업] · 필터 칩 다섯 · Run Row 인스턴스 여섯
+- [x] Step 6. D2 우 열 (Run Column YR3ns · Run Row 인스턴스 6) · D2 완료 — 헤더 · [새 작업] · 필터 칩 다섯 · Run Row 인스턴스 여섯
       (RUNNING 2 · QUEUED 2 · SUCCEEDED 1 · FAILED 1, run_id 는 led-toggle-* ·
       sound-play-*) · 안내 상자 · 페이지네이션 자리. D2 검증 · placeholder 해제
-- [ ] Step 7. D3 투어 — D2 를 Copy. 덮개(검정 72%) 를 우 열 포함 전체에 얹되 웹캠
+- [x] Step 7. D3 투어 (Sm65l · 노트 ivn2L · 사용자 요청으로 2/4 bnV1N · 3/4 JViqt · 4/4 Dfo8G 추가) — D2 를 Copy. 덮개(검정 72%) 를 우 열 포함 전체에 얹되 웹캠
       창 영역은 뚫는다(덮개를 네 조각으로). 말풍선(1 / 4 · 제목 · 본문 · 건너뛰기 ·
       다음). 아트보드 밖에 스텝 넷의 표 노트
-- [ ] Step 8. D4 모달 — D2 를 Copy. 덮개(검정 60%) · 가운데 카드 720 (제목 · 닫기 ·
+- [x] Step 8. D4 모달 (C9Suc · 모달 x3y0d) — D2 를 Copy. 덮개(검정 60%) · 가운데 카드 720 (제목 · 닫기 ·
       설명 · 버튼 둘 + 부제 · 각주)
-- [ ] Step 9. D5 run 뷰 — D2 를 Copy. 좌 패널 내용을 S7 Iso Plane(Floor · Grid ·
+- [x] Step 9. D5 run 뷰 (Db9Rf · Run Plane b9MUBp) — D2 를 Copy. 좌 패널 내용을 S7 Iso Plane(Floor · Grid ·
       Edge 5 · Step 5 · Legend · Detail Panel)으로 바꾼다. 헤더를 [<- 함대로] ·
       함대 / led-toggle-0417 · RUNNING 으로. 단계 이름을 plan · flash.led · verify
       셋으로 줄이고 flash.led 를 RUNNING · board-01 배정으로. 우 열의 첫 행을
       선택 상태로. 웹캠 창 그대로
-- [ ] Step 10. 아트보드 밖 주석 — frontend-components.md 7절의 다섯 줄 + 웹캠 큰
+- [x] Step 10. 아트보드 밖 주석 (o3yRYn · P80h6 · ivn2L) — frontend-components.md 7절의 다섯 줄 + 웹캠 큰
       상태 한 줄을 note 노드로. D0 순서 · 캐시 · S6/S7 복사 · 폴링 · 웹캠
-- [ ] Step 11. 정리 — 소재 S6 · S7 프레임 삭제. 모든 placeholder 해제.
+- [x] Step 11. 정리 (S6 · S7 삭제 · placeholder 0 · 모형 path 의 1px 클리핑은 원본과 같음) — 소재 S6 · S7 프레임 삭제. 모든 placeholder 해제.
       `Get` 으로 clipped 문제 0 확인. D1~D5 스크린샷으로 눈 검사
-- [ ] Step 12. 문서 — `aidlc-docs/construction/demo-pen/code/summary.md`
+- [x] Step 12. 문서 — `aidlc-docs/construction/demo-pen/code/summary.md`
       (만든 노드 · 소재 출처 · 사양 대비 버튼 전수 대조표)
 
 ## 사양 추적 (버튼 전수)

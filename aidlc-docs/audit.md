@@ -179,3 +179,43 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: CONSTRUCTION - Code Generation Part 1 (demo-pen). 승인 대기.
 
 ---
+
+## Code Generation Part 1 — 승인
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Response**: "승인 및 시작"
+**Status**: Approved
+**Context**: 계획 열두 단계 승인. Part 2 시안 생성 시작.
+
+---
+
+## Code Generation Part 2 — Step 1 · 사고와 정정
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: (없음)
+**AI Response**: `cp design/enode-ux.pen design/enode-demo.pen` 뒤 execute 에 filePath 로 enode-demo.pen 을 지정해 화면 여덟을 지웠는데, 삭제가 **편집기에 열린 enode-ux.pen 의 메모리 문서**에 적용됐다 — filePath 는 열린 문서가 있으면 무시된다 (스크래치 사본 검증은 내용이 같아 구분이 안 됐다). 디스크의 enode-ux.pen 은 md5 가 HEAD 와 같아 아직 안 바뀌었고, enode-demo.pen 도 원본과 같은 사본 그대로다. 정정 — 사용자에게 enode-ux.pen 을 저장하지 않고 닫고 enode-demo.pen 을 편집기에서 열어 달라고 요청한다. 저장이 이미 됐다면 `git checkout design/enode-ux.pen` 으로 되돌린다. 이후 모든 execute 는 열린 파일(enode-demo.pen)에만 건다. 계획 파일의 Step 1 [x] 는 되돌린다.
+**Context**: CONSTRUCTION - Code Generation Part 2 (demo-pen). Step 1 재실행 대기.
+
+---
+
+## Code Generation Part 2 — 열두 단계 완료
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: "1 했어. 2 했어 열었어." (enode-ux.pen 되돌리고 enode-demo.pen 을 편집기에서 엶)
+**AI Response**: 편집기 활성 문서가 enode-demo.pen 이고 enode-ux.pen 디스크 md5 가 HEAD 와 같음을 확인한 뒤 Step 1~12 를 실행했다. D1(CBJwz) · D2(FN7dp) · D3(Sm65l) · D4(C9Suc) · D5(Db9Rf) 다섯 아트보드와 노트 셋을 만들고 소재 S6 · S7 을 지웠다. Copy 의 descendants 를 이름 키로 준 것이 조용히 무시되어 D5 단계 이름이 원본대로 남은 것을 스크린샷 검수에서 잡아 id 로 고쳤다. 검수용 PNG 를 스크래치에 내보내 눈으로 확인했다. summary.md 를 냈다. **편집기의 변경이 아직 디스크에 저장되지 않았다** (enode-demo.pen md5 가 원본 사본과 같음) — 사용자에게 저장을 요청한다. 저장 확인 뒤 커밋한다.
+**Context**: CONSTRUCTION - Code Generation Part 2 (demo-pen). 저장 · 승인 대기.
+
+---
+
+## Code Generation Part 2 — 변경 요청 (D1 문구)
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: "D1 데모 진입 - Guest 로그인의 화면에서\n\nEnode 데모 현황판 -> 로그인 버튼을 클릭해주세요\n밑에 설명을 -> user_randomnumber 님 환영합니다!\n\n번호는 이 브라우저에만 남는다. 지우면 새번호를 받는다 mediator 토큰은 브라우저에 오지 않는다. -> 삭제"
+**AI Response**: D1 제목을 「로그인 버튼을 클릭해주세요」, 설명을 「user_4821 님 환영합니다!」(D2 배지와 같은 샘플 번호)로 바꾸고 구분선과 각주를 지웠다. 이 설명은 번호가 페이지를 열 때 배정된다는 뜻이므로 frontend-components.md 1절에 그렇게 적었다. 캐시 · 토큰 사실은 아트보드 밖 주석에 남아 있다.
+**Context**: CONSTRUCTION - Code Generation Part 2 (demo-pen). 저장 · 승인 대기.
+
+---
+
+## Code Generation Part 2 — 변경 요청 (투어 스텝 넷 전부 그리기)
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: "시안 중 D3 가이드투어 1/4 2/4 3/4 4/4 에 대한 그림은?"
+**AI Response**: 원안은 1/4 만 그리고 셋은 표로 두는 것이었으나 스텝마다 한 장으로 바꿨다. D3 를 세 번 복사해 덮개 네 조각 · 스포트라이트 링 · 말풍선 자리와 글만 바꿨다 — D3b(2/4 노드 현황판 = 좌 패널 전체) · D3c(3/4 현재 작업 목록 = 우 열) · D3d(4/4 새 작업 = 버튼, [시작하기]). 검수 PNG 를 내보내 확인하고 사용자에게 보냈다. frontend-components.md 3절 · summary.md · 계획 파일 Step 7 을 고쳤다.
+**Context**: CONSTRUCTION - Code Generation Part 2 (demo-pen). 저장 · 승인 대기.
+
+---
