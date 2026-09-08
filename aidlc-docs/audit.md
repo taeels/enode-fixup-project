@@ -56,3 +56,42 @@ Construction 은 유닛마다 unit/<유닛> 을 따서 병렬로 간다. 단계 
 **Context**: INCEPTION - Workspace Detection. 확장 결정은 요구 팩이 이미 닫음.
 
 ---
+
+## v2 회차 시작 — 초기 사용자 요청
+**Timestamp**: 2026-09-08T07:25:47Z
+**User Input**: "첫 방문때 온보딩 시나리오를 강제하자.
+- 보드를 enode를 써서 효율적으로 운용할 수 있다는 사실을 각인시킬 수 있음. (이 시스템이 왜 필요한지)
+  - 설명 방식을 애니메이션을 가미한 카드 나열로 한다.
+- 첫 방문 이후로는 나타나지 않음. 바로 데모용 mediator 현황판으로 이동.
+
+mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
+- Mediator 현황판을 데모용으로 개조한다. 그래서 \"Guest 로그인\" 버튼이 필요함. (지금은 Token 입력이 필요함) -> Guest 로그인하면 랜덤한 이름이 선택된다. (멍청한 어피치 등등 2단어)
+- 여기도 첫 방문한 경우 가이드투어 진행. 웹캠, 노드 현황판, 현재 작업 목록, \"새 작업\".
+- \"새 작업\" 을 누르면 화면을 덮는 모달 창에서 run을 제출할 수 있음.
+- 메인 함대 현황에 pen.dev에서 개발중인 3d 뷰를 적용
+- \"새 작업\"이 제출되면 화면은 \"작업 그래프\" 화면으로 넘어감
+- \"작업 그래프\" 에도 pen.dev에서 만든 3d 뷰를 적용함.
+- \"작업 그래프\" 화면이 run 목록을 가리지 않게 함.
+
+
+를 개발하고 싶고, AI-DLC 를 태울거야."
+**AI Response**: 새 요청을 새 회차로 받았다. 사용자 지시로 실행 브랜치 `v2-run-shin_pen_drawing` 을 `origin/v1-run-dhseo` (HEAD 1fe2145) 에서 땄다. 직전에 사용자가 pen.dev 시안을 새로 그리겠다고 했고 이 회차가 그 시안을 쓴다. AI-DLC 규칙(v1.0.1)과 공통 규칙 4종을 로드했다.
+**Context**: INCEPTION - Workspace Detection (v2 회차). 초기 요청 로그.
+
+---
+
+## Workspace Detection (v2 회차)
+**Timestamp**: 2026-09-08T07:25:47Z
+**User Input**: (위 초기 요청)
+**AI Response**: 브라운필드 재확인. `aidlc-docs/inception/reverse-engineering/` 에 산출물 8장이 있고 HEAD 커밋(1fe2145, Adding R/E)과 같은 시점이라 최신으로 판정 — Reverse Engineering 은 건너뛰고 산출물을 로드해서 Requirements Analysis 로 간다. v1 회차의 aidlc-state.md 가 RE 를 진행 중으로 적어 두었으나 산출물이 커밋으로 닫혔으므로 v2 상태 파일에서 완료로 정리했다. Workspace Root 를 이 기계 경로(/Users/sonsin/enode-fixup-project/enode-fixup-project)로 갱신했다.
+**Context**: INCEPTION - Workspace Detection (v2 회차). RE 스킵 판정.
+
+---
+
+## v2 회차 스코프 정정 — 사용자 입력
+**Timestamp**: 2026-09-08T07:25:47Z
+**User Input**: "나는 Pen.dev 하나 그리는 것만 하면 돼. 그거에 대해서 AI - DLC 진행해도 돼?"
+**AI Response**: 된다고 답했다. 이 회차의 산출물은 코드가 아니라 새 pen.dev 시안 1건이다. AI-DLC 는 적응형이므로 Requirements Analysis 와 Workflow Planning 을 돌고, 코드 전용 단계(NFR · 인프라 등)는 Workflow Planning 에서 스킵 후보로 올린다. 시안 생성은 Code Generation 단계의 산출물을 .pen 으로 두는 것으로 계획한다. aidlc-state.md 를 이 스코프로 다시 썼다.
+**Context**: INCEPTION - Workspace Detection (v2 회차). 스코프를 시안 1건으로 좁힘.
+
+---
