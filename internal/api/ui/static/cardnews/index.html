@@ -9,7 +9,7 @@
 <body>
 <header class="cardnews-header">
   <button type="button" data-testid="cardnews-close-button">닫기</button>
-  <span id="progress-text" aria-live="polite">1 / 4</span>
+  <span id="progress-text" aria-live="polite">1 / 5</span>
 </header>
 <main id="card-stage">
   <article class="card" data-index="0">
@@ -30,6 +30,18 @@
     <h2>enode 가 그 다리를 놓습니다</h2>
     <p>지금 함대가 무엇을 하고 있는지 살펴보세요.</p>
   </article>
+  <article class="card card-video" data-index="4">
+    <h2>enode, 이렇게 동작합니다</h2>
+    <video
+      src="/ui/cardnews/story2.mp4"
+      data-testid="cardnews-story-video"
+      autoplay
+      muted
+      loop
+      playsinline
+      controls
+    ></video>
+  </article>
 </main>
 <footer class="cardnews-footer">
   <button type="button" data-testid="cardnews-prev-button">이전</button>
@@ -38,6 +50,7 @@
     <span class="dot" data-testid="cardnews-progress-dot-1"></span>
     <span class="dot" data-testid="cardnews-progress-dot-2"></span>
     <span class="dot" data-testid="cardnews-progress-dot-3"></span>
+    <span class="dot" data-testid="cardnews-progress-dot-4"></span>
   </nav>
   <button type="button" data-testid="cardnews-next-button">다음</button>
 </footer>
