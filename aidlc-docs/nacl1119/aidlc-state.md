@@ -10,7 +10,10 @@
 - [x] card-news 초판 — CP8 (construction 완료 · 회차 `v1-run-dhseo-cardnews`)
   - 코드 `internal/api/ui/`(landing · guest · cardnews · demo 정적) · api.go `/ui/` 등록
   - 시안 `design/enode-cardnews.pen` · 완료본 문서 `aidlc-docs/v1-run-dhseo-cardnews/`
-  - [ ] 이후 업데이트는 여기(`aidlc-docs/nacl1119/`)에 쌓는다
+- [x] card-news 업데이트 2026-09-08 — CP8 재검증 초록. 상세는
+  `aidlc-docs/nacl1119/construction/card-news/update-2026-09-08.md`
+  - 카드 1~4 실사 일러스트, 카드 4 보드 사진 추가, 카드 5(영상) 신설
+  - [ ] 다음 업데이트는 이 파일에 새 항목으로 이어 쌓는다
 - [ ] panel 제어판 — CP4 · 의존 obs · drain
   - internal/proc 추출 · internal/panel · enodectl serve · cmd/enode panel · 경계 검사 테스트
   - **완료 조건에 조작 넷(status·start·stop·logs) + drain 걸기·모드·풀기 전부 나열**
