@@ -177,3 +177,84 @@ emphasis-check 와 glyphscan 통과. 계획의 체크박스 여덟을 전부 닫
 **Context**: CONSTRUCTION · obs 유닛 · NFR Requirements 완료 · 승인 대기
 
 ---
+## Code Generation (Part 1 계획 · Part 2 착수)
+**Timestamp**: 2026-09-08T15:12:00Z
+**User Input**: "이제 코드 작성해라. 병렬로 할 수 있는 것들은 병렬로 해라."
+**AI Response**: "이 지시가 둘을 겸한다 — 앞 단계(NFR Requirements)의 승인과
+Code Generation 착수다. NFR Requirements 는 산출물 둘을 낸 채 승인을 기다리고
+있었고, 다음 단계로 가라는 지시가 곧 그 승인이다. 상태 파일에 그렇게 적는다.
+
+Part 1 계획을 construction/plans/obs-code-generation-plan.md 에 냈다. 이 계획이
+NFR Design 의 자리를 지고 간다 — 회차 계획이 SKIP 이고 nfr-requirements 6절
+표시 5 가 「한도의 자료구조와 미들웨어를 어디에 거는가」를 이 단계에 넘겼다.
+값은 nfr-requirements 3.1 이 다 적었으므로 계획 5절이 어떻게만 정한다.
+
+병렬 지시를 파일 축으로 갈랐다 — 단계로 가르면 같은 파일을 둘이 열어 병렬이
+아니라 충돌이 된다. 세 갈래가 파일을 하나도 안 겹친다.
+  A  internal/store + internal/contract
+  B  internal/api + internal/config
+  C  internal/runctl
+A 와 B 사이에만 의존이 있고(B 가 A 의 시그니처를 부른다) 그 시그니처는
+domain-entities 8절이 이미 못 박아 두었으므로 계획 3절에 옮겨 고정하고 셋이
+동시에 그 계약 위에서 짰다. C 는 json.RawMessage 라 어느 쪽도 안 딛는다.
+
+계획이 정한 것 셋이 Functional Design 에 없던 자리다.
+  DrainPolicy 를 내보낸다   UpsertAdvert 의 반환은 이전 값이고 응답의 drain 은
+                           저장된 값이라 둘이 다르다. 시그니처를 안 넓히고 같은
+                           값을 얻는 길이 접는 함수를 순수하게 내보내는 것이다.
+                           응답이 저장된 값과 언제나 같다는 것을 같은 함수를
+                           쓰는 것으로 보장한다
+  RequireView 를 store 에   internal/api 의 커버리지 여유가 5.6 문장이고 store 는
+                           31.2 다. 정책 어휘 검사를 store 에 둔 것과 같은 수 ·
+                           같은 논거다
+  조건부 등록이 아니라 래퍼  라우트 표가 모드와 무관하게 같은 줄이고 감싸는 것만
+                           갈린다. CP0 의 「기존 열다섯 라우트가 그대로」가 데모
+                           모드에서도 참이 되고 ServeMux 중복 등록 패닉도 없다
+
+시험용 Postgres 를 scripts/testdb.sh 로 올렸다 (포트 55434 · enode_test)."
+**Context**: CONSTRUCTION · obs 유닛 · Code Generation Part 1 완료 · Part 2 병렬 착수
+
+---
+## Code Generation (Part 2 · 실행과 검증)
+**Timestamp**: 2026-09-09T00:20:00Z
+**User Input**: (앞 항목의 지시로 계속 — 새 입력 없음)
+**AI Response**: "세 갈래를 병렬로 짓고 합쳐서 쟀다. 파일이 하나도 안 겹쳤고
+합칠 때 충돌이 0 이었다 — 가르는 축을 단계가 아니라 파일로 잡은 값이다.
+
+CP0 이 전부 초록이다. 16개 패키지가 다 통과했고 커버리지 미달이 0 이다.
+병목이던 internal/api 가 81.4% 에서 82.9% 로 올라 여유가 5.6 에서 13.6 문장이
+됐다 — 새 문장 70 중 안 덮인 것이 여섯이고 전부 503 query failed 분기다.
+전체는 5600/6396 = 87.6%. 심볼 상한 둘은 안 움직였다 (net/http 6 · crypto/tls 1).
+스킵이 0 이고 glyphscan 과 gofmt 가 깨끗하다. probe.lock 은 커버리지 실행이
+바꾼 것을 되돌렸다.
+
+CP1 을 실 Mediator 로 쟀다 — 전용 DB 를 파고 합성 함대 넷을 세웠다.
+scene-gates 3절의 curl 두 줄이 둘 다 초록이다. 노드 넷이 나오고, 임대된 노드에
+lease 가 있고, draining 노드가 graceful 을 내고, Run 상태 셋이 최신순으로 나온다.
+submitter 키가 모든 행에 있고 거절된 Run 의 assigned 가 [] 다 — 앞은 CP9 지분이고
+뒤는 CP2 재료다.
+
+재다 한 번 잘못 읽었고 그것을 산출물에 적었다. not_after 의 최초 발급은
+TTLSeconds(3600)이고 하트비트 갱신은 RenewSeconds x NotAfterFactor(180)라 공식이
+다르다. 둘을 비교하면 시각이 앞당겨진 것처럼 보인다. 갱신끼리 비교하니 하트비트마다
++3.0초로 앞으로 갔다. 기존 동작이고 이 유닛이 바꾼 것이 아니다 — 게이트를 집행하는
+사람이 같은 자리를 밟을 수 있어 code-summary 3.2 에 적었다.
+
+NFR 의 재는 자리 셋도 다 쟀다. 데모 인스턴스에 400 요청을 던져 200 이 263 ·
+429 가 137 이고 429 마다 Retry-After: 1 이 실렸다. 같은 400 을 실 함대 인스턴스에
+던지니 429 가 0 이다 — 「무인증 경로에만」이 그 둘째 줄로 섰다. runs 5만 행에
+EXPLAIN 을 걸어 ?work= 없는 목록이 Index Scan Backward using runs_created_idx 를
+타는 것을 봤다 — Seq Scan 도 Sort 도 없다. ?work= 는 기존 runs_work_idx 그대로다.
+Cache-Control: no-store 가 읽기 셋 셋 다에 실린다.
+
+SECURITY-03 을 실행으로 확인했다 — 어휘 밖 정책을 접을 때 로그가 node 만 찍고
+원문의 등장 횟수가 0 이다. 데모 스위치도 확인했다: ENODE_DEMO_MODE=1 에서 읽기
+셋 셋이 무인증 200 이고 POST /v1/runs · POST /v1/nodes · GET /v1/asks 는 401
+그대로이며, 기본값에서는 읽기 셋도 401 이라 실 함대가 무변경이다.
+
+CP1 이 통째로 초록인 것은 아니다. 화면 다섯이 ui 몫이고 넷째 상태 QUEUED 는
+queue(W1)가 만든다. 그리고 위 측정은 합성 함대라 실 데몬 함대의 재측정은
+게이트 집행자의 몫이다 — 그 한계를 code-summary 3.2 가 적는다."
+**Context**: CONSTRUCTION · obs 유닛 · Code Generation 완료 · CP0 초록 · CP1 부분 측정
+
+---

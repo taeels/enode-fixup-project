@@ -85,24 +85,86 @@ func (s *Store) Migrate(ctx context.Context) error {
 
 // ── 노드 광고 ────────────────────────────────────────────────────────────
 
-// UpsertAdvert 는 광고를 통째로 교체한다.
+// 광고가 나를 수 있는 drain 정책의 어휘다 (ADR-063 §6).
+// 이 셋 밖은 값이 아니라 오해이고, DrainPolicy 가 "" 로 접는다.
+const (
+	DrainNone       = ""
+	DrainGraceful   = "graceful"
+	DrainAtBoundary = "at-boundary"
+)
+
+// DrainPolicy 는 광고가 실어 온 정책 값을 어휘 안으로 접는다.
+//
+// 순수 함수이고 로그를 안 남긴다 — 부르는 자리가 둘이기 때문이다.
+// UpsertAdvert 가 저장 전에 부르고, 응답에 「저장된 값」을 실어야 하는
+// internal/api 도 같은 함수를 부른다. 두 자리가 같은 함수를 쓰는 것이
+// 「응답의 drain 은 언제나 DB 에 앉은 값과 같다」를 보장하는 방법이다.
+// 시그니처를 넓혀 저장된 값을 함께 돌려주는 길보다 이쪽이 싸다 —
+// UpsertAdvert 의 반환은 이전 값이라 자리가 이미 차 있다.
+//
+// 로그는 UpsertAdvert 만 남긴다. 둘 다 남기면 광고 하나에 경고가 두 줄
+// 찍히고, 그러면 기록이 사실보다 커진다.
+func DrainPolicy(v string) string {
+	switch v {
+	case DrainNone, DrainGraceful, DrainAtBoundary:
+		return v
+	}
+	return DrainNone
+}
+
+// UpsertAdvert 는 광고를 통째로 교체하고 이전 drain 정책을 돌려준다.
+//
 // 델타를 받지 않는 것이 ADR-012 이고, 그래서 capability 를 빼고 보내는 것이
 // 곧 "지금은 못 한다" 가 된다 (ADR-017 결정 3). 병합하면 그 뜻이 사라진다.
-func (s *Store) UpsertAdvert(ctx context.Context, a contract.Advert, principal string, ttl time.Duration) error {
+// 정책도 같은 규칙이다 — policy 키가 없는 광고는 "안 걸려 있다" 이지
+// "변경 없음" 이 아니다.
+//
+// 이전 값을 돌려주는 이유는 obs 가 쓰지 않는다. WakeQueued 를 부르는 지점
+// 여섯 중 하나가 「drain 해제를 받은 광고 처리」인데, 덮어쓰기만 하면 해제를
+// 본 사람이 아무도 없다. W0 이 버릴 값을 세워 두는 것이고, 그래야 drain 이
+// 이 파일을 다시 열지 않는다.
+//
+// 어휘 검사가 핸들러가 아니라 여기 있는 이유는 둘이다 — 이 열에 쓰는 자리가
+// 하나뿐이라 그 자리에 붙이면 앞으로 생길 다른 쓰기도 함께 걸리고,
+// 어휘 밖 문자열이 앉으면 queue 의 DrainingNodes 가 그 노드를 매칭 후보에서
+// 조용히 뺀다. 증상은 「능력은 있는데 계속 QUEUED」이고 원인은 눈으로만 보인다.
+// 400 을 내지 않는 이유는 광고가 하트비트를 겸하기 때문이다 (ADR-016) —
+// 정책 값 하나로 광고 전체를 거절하면 노드가 함대에서 사라진다.
+func (s *Store) UpsertAdvert(ctx context.Context, a contract.Advert, principal string, ttl time.Duration) (prevDrain string, err error) {
 	caps, err := json.Marshal(a.Capabilities)
 	if err != nil {
-		return err
+		return "", err
 	}
-	_, err = s.pool.Exec(ctx, `
-		INSERT INTO nodes (node_id, label, principal, capabilities, expires_at, seen_at, instance)
-		VALUES ($1,$2,$3,$4, now() + $5::interval, now(), $6)
+	drain := DrainPolicy(a.Policy.Drain)
+	if drain != a.Policy.Drain {
+		// 값 원문을 안 찍는다 (SECURITY-03) — 광고 본문은 밖에서 온 것이고
+		// 로그는 그것을 그대로 담는 자리가 아니다. 어느 노드가 무엇을 겪었는지는
+		// node 하나로 충분히 찾아진다.
+		s.log().Warn("unknown drain policy folded to none", "node", a.NodeID)
+	}
+	// coalesce 가 서브쿼리 밖이라는 것이 이 문장의 전부다.
+	//
+	// (SELECT coalesce(draining,'') FROM old) 로 안쪽에 넣으면 old 가 0행일 때
+	// 여전히 SQL NULL 이 나온다 — coalesce 는 행이 있을 때의 열 값만 접는다.
+	// 그리고 old 가 0행인 것은 사고가 아니라 「이 노드의 첫 광고」다.
+	// 그러니 안쪽에 넣으면 노드가 함대에 처음 들어오는 경로가 통째로 죽는다.
+	//
+	// RETURNING OLD.* 는 PostgreSQL 18 부터다. 여기는 17 이라 CTE 로 받는다.
+	// CTE 는 문장 시작 시점의 스냅숏을 보므로 같은 문장의 INSERT 가 쓴 값이
+	// 아니라 그 앞의 값이 나온다 — 그것이 필요한 값이다.
+	err = s.pool.QueryRow(ctx, `
+		WITH old AS (SELECT draining FROM nodes WHERE node_id = $1)
+		INSERT INTO nodes (node_id, label, principal, capabilities, expires_at, seen_at, instance, draining)
+		VALUES ($1,$2,$3,$4, now() + $5::interval, now(), $6, $7)
 		ON CONFLICT (node_id) DO UPDATE SET
 			label = EXCLUDED.label, principal = EXCLUDED.principal,
 			capabilities = EXCLUDED.capabilities,
 			expires_at = EXCLUDED.expires_at, seen_at = now(),
-			instance = EXCLUDED.instance`,
-		a.NodeID, a.Label, principal, caps, ttl.String(), nullable(a.Instance))
-	return err
+			instance = EXCLUDED.instance, draining = EXCLUDED.draining
+		RETURNING coalesce((SELECT draining FROM old), '')`,
+		a.NodeID, a.Label, principal, caps, ttl.String(), nullable(a.Instance), drain).
+		Scan(&prevDrain)
+	return prevDrain, err
 }
 
 // LiveAdverts 는 만료되지 않은 광고를 돌려준다.
@@ -140,6 +202,11 @@ type Run struct {
 	Reject    *match.Reject
 	Verdict   *Verdict
 	CreatedAt time.Time
+	// Submitter 는 제출자의 표시 라벨이다 — 게스트 로그인 이름이 여기 앉는다.
+	//
+	// 권한이 아니다. Principal 과 같은 성격의 자기 신고이고(ADR-015 §1),
+	// 그래서 RunFilter 에 이 열의 필터가 없다. 실 함대의 Run 은 언제나 "" 다.
+	Submitter string
 }
 
 type Assigned struct {
@@ -257,10 +324,10 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 	// Work 의 키를 여기서 박는다 (ADR-023 §6.5.2) — 계약에 id 가 없으면
 	// (system, change_id) 에서 유도한다. Run 을 넘어 사는 유일한 식별자다.
 	if _, err := tx.Exec(ctx,
-		`INSERT INTO runs (run_id, state, principal, contract, assigned, work_id)
-		 VALUES ($1,$2,$3,$4,$5,$6)`,
+		`INSERT INTO runs (run_id, state, principal, contract, assigned, work_id, submitter)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
 		r.RunID, r.State, r.Principal, contractJSON, assignedJSON,
-		nullable(r.Contract.Work.Key())); err != nil {
+		nullable(r.Contract.Work.Key()), r.Submitter); err != nil {
 		return err
 	}
 	for _, g := range grants {
@@ -329,6 +396,13 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 // CreateRejectedRun 은 매칭이 거절된 Run 을 기록한다.
 // 거절도 남긴다 — ADR-005 가 "실패 원인이 Record 에 있다" 고 했고,
 // 왜 안 돌았는지가 어디에도 없으면 껍데기가 다시 제출할지를 못 정한다.
+//
+// submitter 도 여기 든다. 정상 경로에만 더하면 거절된 Run 의 제출자 이름이
+// 영원히 비고, 데모에서 가장 흔한 실패가 「보드가 꺼져 있어 422」다 —
+// 목록에서 이름 없이 뜨는 행이 바로 그 행이 된다.
+//
+// assigned 는 여전히 INSERT 목록에 없다. 그것이 의도다 — 열이 SQL NULL 로
+// 남아야 읽기 쪽의 coalesce 가 [] 로 접는다.
 func (s *Store) CreateRejectedRun(ctx context.Context, r Run) error {
 	contractJSON, err := json.Marshal(r.Contract)
 	if err != nil {
@@ -339,9 +413,9 @@ func (s *Store) CreateRejectedRun(ctx context.Context, r Run) error {
 		return err
 	}
 	_, err = s.pool.Exec(ctx,
-		`INSERT INTO runs (run_id, state, principal, contract, reject, ended_at)
-		 VALUES ($1,$2,$3,$4,$5, now())`,
-		r.RunID, StateFailed, r.Principal, contractJSON, rejectJSON)
+		`INSERT INTO runs (run_id, state, principal, contract, reject, ended_at, submitter)
+		 VALUES ($1,$2,$3,$4,$5, now(), $6)`,
+		r.RunID, StateFailed, r.Principal, contractJSON, rejectJSON, r.Submitter)
 	return err
 }
 

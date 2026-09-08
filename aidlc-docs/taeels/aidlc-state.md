@@ -6,7 +6,7 @@
 
 ## 유닛
 
-- [ ] obs 관측 API — CP1 · 의존 없음(토대). **먼저 병합돼야 W1(queue·mcp·ui)이 선다**
+- [x] obs 관측 API — CP1 · 의존 없음(토대). **먼저 병합돼야 W1(queue·mcp·ui)이 선다**
   - GET /v1/nodes · GET /v1/runs · getRun 확장(requires·as·chosen) · store 읽기 ·
     submitter 컬럼 · runctl Client.Nodes·Runs
 - [ ] mcp — CP5 (+CP7 도구 asks.list·run.answer) · 의존 obs
@@ -28,7 +28,8 @@
                           1차 검토(하류 담당별) 7절 · 2차 검토(정합·정본·코드·게이트) 8절
                           실행으로 확정된 치명 둘을 고쳤다 — UpsertAdvert CTE 의 0행
                           NULL · coalesce 가 못 접는 jsonb null
-   NFR Requirements       산출물 둘을 냈다 — 승인을 기다린다
+   NFR Requirements       승인 2026-09-08 (사용자가 「이제 코드 작성해라」로
+                          다음 단계를 지시했고 그것이 이 단계의 승인을 겸한다)
                           construction/obs/nfr-requirements/ (nfr-requirements ·
                           tech-stack-decisions) · 계획 construction/plans/
                           obs-nfr-requirements-plan.md
@@ -41,11 +42,19 @@
                             3=A  읽기 셋 셋에 Cache-Control: no-store
                           SECURITY 열다섯을 판정했다 — 조건부 둘(08 · 12)이
                           데모 무인증이라는 같은 사실에서 나온다
-   NFR Design             회차 계획은 SKIP.  답 1=B 가 「어떻게」를 남긴다 —
-                          값은 nfr-requirements 3절에 다 있으므로 Code Generation
-                          계획이 지고 갈 수 있다.  따로 열지는 진행자가 정한다
+   NFR Design             건너뛴다 (회차 계획 SKIP).  답 1=B 가 남긴 「어떻게」는
+                          Code Generation 계획 5절이 졌다 — 자료구조(토큰 버킷
+                          하나)와 거는 자리(read 래퍼).  값은 nfr-requirements 3절
    Infrastructure Design  건너뛴다 (배포·인프라 변경 없음 · constraints §6)
-   Code Generation        대기
+   Code Generation        완료 2026-09-09.  계획 construction/plans/
+                          obs-code-generation-plan.md · 요약 construction/obs/code/
+                          code-summary.md
+                          병렬 세 갈래를 파일 축으로 갈랐다 (겹치는 파일 0) —
+                          A store+contract · B api+config · C runctl
+                          CP0 전부 초록 · 커버리지 16개 패키지 미달 0 ·
+                          internal/api 가 81.4% -> 82.9% 로 하한에서 멀어졌다
+                          CP1 은 합성 함대로 부분 측정 — curl 두 줄이 초록이나
+                          실 데몬 함대의 재측정은 게이트 집행자의 몫이다
 ```
 
 **앞 판이 회차 계획과 어긋나 있었다** — 이 표가 NFR Requirements 와 NFR Design 을
@@ -57,7 +66,7 @@ SKIP 줄을 고칠지는 진행자의 것이다** — 계획 7절의 표시 ①.
 
 ## 다음
 
-**obs NFR Requirements 승인 뒤 Code Generation** (토대라 먼저 병합돼야 나머지
+**obs 의 단계가 다 돌았다. 남은 것은 병합이다** (토대라 먼저 병합돼야 나머지
 웨이브가 선다). 접점 `internal/store` · `internal/api/api.go` 는 진행자 직렬 병합.
 **행렬 밖 파일이 넷으로 늘었다** — `internal/store/observe.go` ·
 `internal/store/schema.sql` · `internal/contract/advert.go` ·
