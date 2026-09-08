@@ -33,22 +33,22 @@
 - v1 요구 팩 (`requirements/*.md`) — 값의 정본. 시안이 값을 지어내지 않도록 참조만 한다
 
 ## Extension Configuration
-v1 은 `decisions.md` §1 로 닫았다 (security 켬 · 나머지 끔). v2 는 산출물이
-시안뿐이라 코드 확장의 적용 대상이 없다 — Requirements Analysis Step 5.1 의
-질문 파일에서 재확인한다.
+v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사용자 답).
+이 회차는 코드가 없어 PBT Partial 의 강제 규칙(PBT-02 · 03 · 07 · 08 · 09)도
+전부 적용 표면이 없다 — 단계 요약에서 N/A 로 적는다.
 
 | Extension | Enabled | Decided At |
 |---|---|---|
-| security-baseline | 재확인 중 | requirement-verification-questions.md Q5 |
-| resiliency-baseline | 재확인 중 | requirement-verification-questions.md Q6 |
-| property-based-testing | 재확인 중 | requirement-verification-questions.md Q7 |
+| security-baseline | No | Requirements Analysis (Q5: B) |
+| resiliency-baseline | No | Requirements Analysis (Q6: B) |
+| property-based-testing | Partial (이 회차 전부 N/A) | Requirements Analysis (Q7: B) |
 
 ## Stage Progress
 
 ### 🔵 INCEPTION PHASE
 - [x] Workspace Detection — 2026-09-08T07:25:47Z (v2)
 - [x] Reverse Engineering — SKIPPED (v1 산출물 재사용, 1fe2145)
-- [ ] Requirements Analysis — IN PROGRESS (질문 파일 답변 대기)
+- [ ] Requirements Analysis — 답변 반영 · requirements.md 생성 · 승인 대기
 - [ ] User Stories — [EXECUTE/SKIP 는 Workflow Planning 이 정한다]
 - [ ] Workflow Planning
 - [ ] Application Design — [EXECUTE/SKIP — 시안 회차라 SKIP 유력]

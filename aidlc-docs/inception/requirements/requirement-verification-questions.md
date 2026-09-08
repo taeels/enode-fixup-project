@@ -13,7 +13,7 @@ B) 기존 `design/enode-ux.pen` 에 아트보드를 이어 붙인다
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ## Question 2
 아트보드 구성 제안. 요청을 장면 여섯으로 나눴다.
@@ -34,7 +34,7 @@ B) 온보딩 카드를 카드별 개별 아트보드로 나눈다 (D0 이 4~5장
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: X 온보딩 카드는 다른 팀원이 만든다. D1부터 D5 까지 진행
 
 ## Question 3
 가이드투어 첫 항목이 "웹캠"이다. 기존 화면 아홉 장에는 웹캠이 없다.
@@ -48,7 +48,7 @@ C) 자리만 잡는 플레이스홀더로 그린다 (무엇을 비출지는 나�
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ## Question 4
 함대 현황과 작업 그래프에 얹을 3D 뷰의 스타일은?
@@ -59,7 +59,7 @@ B) 데모용으로 새 스타일을 만든다
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ## Question 5 — Security Extensions
 Should security extension rules be enforced for this project?
@@ -71,7 +71,7 @@ B) No — skip all SECURITY rules (이 회차 한정. 코드 회차가 다시 �
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: B
 
 ## Question 6 — Resiliency Extensions
 Should the resiliency baseline be applied to this project?
@@ -83,7 +83,7 @@ B) No — skip the resiliency baseline
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: B
 
 ## Question 7 — Property-Based Testing Extension
 Should property-based testing (PBT) rules be enforced for this project?
@@ -97,4 +97,4 @@ C) No — skip all PBT rules
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: B
