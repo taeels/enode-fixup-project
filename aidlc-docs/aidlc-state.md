@@ -61,7 +61,12 @@ Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
 - [x] User Stories — `aidlc-docs/inception/user-stories/{stories,personas}.md` (3.4 만)
 - [x] Workflow Planning — `aidlc-docs/inception/plans/execution-plan.md`
 - [x] Application Design — `aidlc-docs/inception/application-design/{components,component-methods,services,component-dependency,application-design}.md`
-- [ ] Units Generation — EXECUTE (단일 유닛 `cardnews-guest-login`)
+- [x] Units Generation — `aidlc-docs/inception/application-design/{unit-of-work,unit-of-work-dependency,unit-of-work-story-map}.md` (단일 유닛 `cardnews-guest-login`)
+
+**사용자 지시(2026-09-08T08:36:00Z)가 한 번 Units Generation 까지로
+좁혔다가, 이어진 지시(2026-09-08T08:38:00Z)가 Construction 까지 계속하는
+것으로 되돌렸다** — `audit.md` 「사용자 개입」 항목 참조. Construction 을
+계속한다.
 
 ### 🟢 CONSTRUCTION PHASE (유닛 `cardnews-guest-login`)
 - [ ] Functional Design

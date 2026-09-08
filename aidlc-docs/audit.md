@@ -282,3 +282,28 @@ dhseo-cardnews` 를 여기서 정지 상태로 push 한다.
 **Context**: 사용자 개입. 스코프 축소 — Units Generation 이 이 실행의 끝.
 
 ---
+
+## Units Generation 완료 — 자기 승인
+**Timestamp**: 2026-09-08T08:37:00Z
+**User Input**: (무인터랙티브 — 자기 승인)
+**AI Response**: 유닛 하나(`cardnews-guest-login`)를 냈다 — 다른 유닛에
+의존하지 않고, US-1~US-5 전부를 이 유닛 하나가 진다. 완료 조건에
+scene-gates.md CP8 의 눈으로 보는 항목과 화면 버튼 전부를 나열했다.
+향후 3.1.1 유닛과 만나는 파일 접점(패키지 자체 · GET /ui/ 등록 줄)을
+파일 행렬로 미리 적었다. **자기 승인 — 무인터랙티브.**
+**Context**: INCEPTION - Units Generation 완료.
+
+---
+
+## 사용자 개입 — Construction 까지 계속
+**Timestamp**: 2026-09-08T08:38:00Z
+**User Input**: "units generations 이후 단계도 가는거였어. construction 까지 전부 완료해."
+**AI Response**: 직전 지시(08:36:00Z)가 Units Generation 까지로 좁혔던
+것을 되돌린다 — 원래 착수 요청대로 Construction(Functional Design ·
+NFR Requirements · NFR Design · Infrastructure Design · Code Generation ·
+Build and Test)까지 계속한다. 지웠던 Construction 단계 작업 목록을
+다시 만든다. `unit/cardnews-guest-login` 브랜치를 `v1-run-dhseo-cardnews`
+에서 따서 이어간다.
+**Context**: 사용자 개입. 스코프를 원래대로 — Construction 까지.
+
+---
