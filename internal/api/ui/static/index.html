@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>enode</title>
+<link rel="stylesheet" href="/ui/landing.css">
+</head>
+<body>
+<header class="topbar">
+  <span class="wordmark">enode</span>
+</header>
+<main class="landing-panels">
+  <section class="panel panel-admin" id="admin-login">
+    <h2>관리자용</h2>
+    <p>Mediator 토큰으로 로그인합니다.</p>
+    <input
+      type="text"
+      disabled
+      placeholder="Mediator 토큰 (준비 중)"
+      data-testid="landing-admin-token-input">
+  </section>
+  <section class="panel panel-guest" id="guest-entry">
+    <h2>둘러보러 오셨나요?</h2>
+    <p>Guest 로 들어가면 enode 가 왜 필요한지 카드로 먼저 보여드립니다.</p>
+    <button type="button" data-testid="landing-guest-login-button">
+      Guest 로 둘러보기
+    </button>
+  </section>
+</main>
+<script src="/ui/shared/guest.js"></script>
+<script src="/ui/landing.js"></script>
+</body>
+</html>

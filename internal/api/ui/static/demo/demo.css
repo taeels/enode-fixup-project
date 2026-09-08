@@ -1,0 +1,49 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1b1f24;
+  --bg: #f5f6f8;
+  --accent: #2f6feb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+header {
+  padding: 1.5rem;
+}
+
+main {
+  max-width: 640px;
+  margin: 4rem auto;
+  padding: 0 1.5rem;
+  text-align: center;
+}
+
+.placeholder-notice {
+  font-size: 1.1rem;
+  color: #5b6572;
+}
+
+#guest-badge {
+  font-size: 0.95rem;
+  color: #5b6572;
+}
+
+a[data-testid="demo-replay-cardnews-link"] {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 0.95rem;
+}

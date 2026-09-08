@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/taeels/enode/internal/api/ui"
 	"github.com/taeels/enode/internal/config"
 	"github.com/taeels/enode/internal/contract"
 	"github.com/taeels/enode/internal/match"
@@ -73,6 +74,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/log", s.auth(s.putLog))
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/blob/{name}", s.auth(s.putBlob))
 	mux.HandleFunc("GET /v1/runs/{run}/blob/{name}", s.auth(s.getBlob))
+	// GET /ui/ 는 무인증이다 — enode-features.md §3.4.1(온보딩 카드뉴스 +
+	// Guest Login)과 §3.1.1(중앙 현황판)이 공유하는 정적 파일 표면이다.
+	// internal/api/ui 는 internal/store 를 참조하지 않는다(구조 불변식).
+	mux.Handle("/ui/", ui.Handler())
 	return mux
 }
 
