@@ -212,6 +212,14 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 
 ---
 
+## Code Generation Part 2 — 변경 요청 (D2 안내 상자 문구)
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: "D2 QUEUEDLS RUN은 어느 모형에도 안 얹힌다. 대기가 보이는 자리는 이 목록뿐이다\n\n-> QUEUED 상태인 RUN은 목록에만 보입니다 !\n\n로 수정"
+**AI Response**: 우 열 안내 상자 문구를 「QUEUED 상태인 RUN 은 목록에만 보입니다!」 로 바꿨다. D2 와 그 복사본(D3 넷 · D4 · D5) 의 같은 텍스트 노드를 모두 찾아 고쳤다. frontend-components.md 2.3 절 반영.
+**Context**: CONSTRUCTION - Code Generation Part 2 (demo-pen). 승인 대기.
+
+---
+
 ## Code Generation Part 2 — 변경 요청 (투어 스텝 넷 전부 그리기)
 **Timestamp**: 2026-09-08T07:45:38Z
 **User Input**: "시안 중 D3 가이드투어 1/4 2/4 3/4 4/4 에 대한 그림은?"
