@@ -222,3 +222,72 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: INCEPTION - Application Design 완료·승인. 다음 Units Generation (새 세션). 세션 종료.
 
 ---
+
+## Units Generation — 세션 재개 (착수 준비)
+**Timestamp**: 2026-09-08T09:03:56Z
+**User Input**: "다음으로 이어간다."
+**AI Response**: 세션을 재개했다. `aidlc-state.md` 로 착수 지점을 확인 — Application Design 승인됨, 다음은 Units Generation. 규칙 상세(`inception/units-generation.md`)와 선행 맥락을 로드했다 — 응용 설계 다섯(components · component-methods · services · component-dependency · application-design) · 실행 계획 · 팩 다섯(enode-features · scene-gates · constraints · decisions 참조 · canon 참조) · 질문 형식 가이드 · 기존 계획 문서 형식. Units Generation Part 1(계획) 문서 작성 직전에 사용자가 pen 정합 검토를 지시하여 계획 작성을 보류했다.
+**Context**: INCEPTION - Units Generation 착수 준비. 계획 작성은 pen 검토 뒤로 보류.
+
+---
+
+## Units Generation 전 — pen 정합 검토 지시
+**Timestamp**: 2026-09-08T09:10:14Z
+**User Input**: "v2-run-shin_pen_drawing 에서 우리가 오늘 추가한 요구사항에 대한 장면을 그려두었다. unit generation 하기 전에 먼저 req 팩이 이 pen 파일과 정합하는지 검토해. 장면은 해당 브랜치의 design/enode-demo.pen 에 있다. 필요하면 해당 브랜치를 워크트리로 풀어서 봐라."
+**User Input (후속)**: "mcp 로 봐도 되고 cli 로 봐도 된다. mcp는 vscode가 켜져있어야 해서."
+**AI Response**: `origin/v2-run-shin_pen_drawing` 을 워크트리 `/home/sunny/enode-wt-shin` 로 풀었다(HEAD c81782d "D4 사운드 부제..."). pencil MCP 는 VSCode 앱이 열려 있어야 하는데 안 열려 있어 `read_skill`·`get_app_state` 가 전부 실패 — CLI 경로로 전환해 그 브랜치가 내보낸 데모 시안 PNG 여덟 장(D1 게스트로그인 · D2 3D 함대 · D3~D3d 가이드투어 4스텝 · D4 새작업 모달 · D5 3D 작업그래프)을 읽어 요구 팩과 대조했다. (.pen 자체는 암호화·VSCode 필요라 못 열었고 검토는 export PNG 기준이다.) 정합 확인 — QUEUED 목록전용 · 고정 시나리오 둘 allow-list · 작업그래프가 run 목록 안 가림 · 웹캠 좌하단 floating resize · observed_at+마지막갱신 · Guest 로그인(토큰입력 아님) · 3D S6/S7 · 가이드투어 4스텝. 어긋남 — (1) Guest 이름이 pen 은 user_4821, 팩은 랜덤 2단어(멍청한 어피치) (2) 제출자(submitter) 이름이 RUN 카드/상세 어디에도 안 뜸(3.4.4·CP9 위반) (3) 새작업 모달에 제출자 이름 칸 없음(scene-gates §5.3 CP9). 결손 — (4) 온보딩 카드 시퀀스(왜 enode, 3.4.1) export 에 없음 (5) sandbox 강조(3.4.2 셋 중 하나) 노드 카드에 표시 자리 없음(§8.5 미정 연동). 비고 — 목업 노드가 rpi/mac 대신 개발함대 6노드 · S6/S7 vs D 이름 표류 · design/README(shin) 미갱신. pen·팩 어느 쪽도 단독 수정하지 않고(design 은 진행자/shonsin 영역 · 팩 변경은 계약/범위 결정) 결정 세 개를 사용자에게 올린다.
+**Context**: INCEPTION - Units Generation 전 pen 정합 검토. 어긋남 3 · 결손 2 · 비고 3. 해결 방향 사용자 결정 대기.
+
+---
+
+## pen 정합 검토 — 해결 결정 · 팩 수정
+**Timestamp**: 2026-09-08T09:23:41Z
+**User Input**: (AskUserQuestion 답) "Guest 이름 형식=pen 을 팩에 맞춤 · 제출자 이름 흐름=Guest 로그인 이름 자동 사용 · 온보딩 카드 시퀀스=이건 지금 별도 브랜치에서 작업 하고 있어. 그리고 pen에 있어야 하는 내용도 아님."
+**AI Response**: 세 결정을 반영했다. (1) Guest 이름 — 팩(랜덤 2단어)이 정본, pen(user_4821)을 shonsin 이 맞춘다. 팩 무변경. (2) 제출자 이름 — Guest 로그인 이름을 자동으로 submitter 로 쓴다(모달 이름 칸 없음). 이 결정이 팩의 CP9 문구를 틀리게 만들어 최소 수정했다 — `decisions.md §8.6` 신설(출처 결정 기록) · `scene-gates.md` §5.2 CP9 「필수」→「Guest 로그인 이름」 · §5.3 CP9 「제출자 이름 칸」→「이름 칸 없음(제출자는 Guest 로그인 이름)」 · §5.4 CP9 「이름 입력」 제거 · `enode-features.md` 3.4.3 「제출자 이름 필수」→「Guest 로그인 이름(자동)」 · 3.4.4 「submitter 표시 필드(Q3/A · Guest 로그인 이름)」. RUN 카드에 이름 표시는 pen 결손이라 shonsin 이 더한다. (3) 온보딩 카드 — pen 에 있을 내용 아님·별도 브랜치 작업 중이라 결손에서 제외. 검증: emphasis-check exit 0(위반 0) · U+2605 0 · diff 3파일 19+/5- 로 최소. 남은 열린 항목 — sandbox 표시(§8.5 미정, 출처는 FD)는 노드 카드 표시 자리를 그 유닛 FD 에서 더한다. design/ 은 안 건드림(진행자·shonsin 영역). pen 은 shonsin TODO 둘 — 게스트 이름 랜덤 2단어화 · RUN 카드 submitter 표시. 이제 Units Generation Part 1(계획)로 진행한다.
+**Context**: INCEPTION - pen 정합 검토 종결. 팩 3파일 수정(계약 정합). 다음 Units Generation Part 1.
+
+---
+
+## Units Generation Part 1 — 계획 산출 · 질의응답
+**Timestamp**: 2026-09-08T09:23:41Z
+**AI Response**: `plans/unit-of-work-plan.md` 를 냈다 — 제안 분해 아홉(obs·queue·drain·board-ui·panel·transcript·mcp·demo-front·demo-back) · 의존 그래프(토대 obs · 웨이브 넷 · CP10 은 W3) · 파일 행렬(접점 다섯 진행자 직렬) · 스토리 맵(CP0~CP11 · 기능 12 배정) · 결정 질문 셋(`[Answer]:`). 되묻기 접기·온보딩 카드 분해 밖 반영.
+**Context**: INCEPTION - Units Generation Part 1 계획 산출. 답 대기.
+
+---
+
+## Units Generation Part 1 — 질의응답 (board-ui·panel·obs · 데모 Mediator · UI 분할)
+**Timestamp**: 2026-09-08T09:59:17Z
+**User Input**: "질문이다. board-ui와 panel 설명좀 해줘"
+**User Input**: "데모용 mediator 설계 (run을 낼 수 있는) 를 기존 mediator req pack 과 합칠 수 있나? 합치지 않으면 문제되는게 있는지?"
+**User Input**: "중앙현황판과 demo-front를 분리해서 이해하고 있는가? 내가 요청하는 것은 기존의 중앙 현황판을 업그레이드해서 demo front 의 모습으로 만들고 싶었던 것이다. 네 말을 이해해보면 개념상으로 read only인 board-ui를 개념상 하나의 인스턴스로 두고 그 위에 얇은 runctl wrapper인 demo-front를 넣겠다는 것이다. 유닛으로 분리한다는 권장은, 두개가 코드상 분리가 되고 렌더링할때 합칠 수 있다는 의미임? 그래서 병렬로 개발해도 문제가 없다는 것?"
+**User Input**: "C로 적어서 줄게. 아직 답변 다 안했다. obs가 뭐냐?"
+**AI Response**: board-ui(중앙 현황판 · 정적 · 읽기전용 · Mediator embed)와 panel(호스트 제어판 · net/http 서버 · 조작 · 심볼 상한으로 위임·proc 분리)의 차이를 설명했다. 데모 Mediator 는 별도 코드가 아니라 기존 Mediator + demo.go 핸들러(store·match 공유)라 코드·요구는 이미 합쳐졌고, 분리는 실행 인스턴스뿐이며 그건 SECURITY-08 가둠 #1(일회용)이라 유지해야 함을 설명. **중요 정정** — board-ui 와 demo-front 를 별개로 이해했던 것을 바로잡음: 데모 대시보드는 기존 현황판을 업그레이드한 한 표면이고, 실 board vs 데모 board 는 가짜 이음매라 2분할하면 internal/api/ui 를 둘이 같이 고쳐 충돌(가짜 병렬)이다. 진짜 병렬 축은 UI(하나) ∥ demo-back(서버). obs 는 관측 API(GET /v1/nodes·runs · getRun 확장 · store 읽기 · runctl Client.Nodes·Runs)로 세 표면이 딛는 토대(CP1)임을 설명. Q2 권장을 A→C 로 수정 안내.
+**Context**: INCEPTION - Units Generation Part 1 질의응답. 개념 정정(현황판=데모 업그레이드 한 표면). Q2 방향 C 로 수렴.
+
+---
+
+## Units Generation Part 1 — 답 확정 · 분석
+**Timestamp**: 2026-09-08T09:59:17Z
+**User Input**: "답변완료." (`unit-of-work-plan.md` 4절 기입 — Q1: A · Q2: C · Q3: A)
+**AI Response**: 답을 분석했다(Step 7) — 모호·모순·결합 없음. 셋 다 단일 선택이고 질의응답의 수렴(Q2=C 현황판 UI 한 유닛)과 일치. 후속 질문 불필요(Step 8 미발동). Q2=C 가 제안 아홉을 여덟으로 확정 — board-ui·demo-front 를 ui 한 유닛(실 함대 모드 + 공개 데모 모드 · internal/api/ui 단독 소유)으로 합치고 demo-back(서버측 allow-list)만 분리. Q1=A(되묻기 표시 ui · 도구 mcp) · Q3=A(store 스키마 기능별 분산). 접점 다섯→넷(internal/api/ui 단독 소유). 확정 여덟 = obs·queue·drain·ui·panel·transcript·mcp·demo-back. `unit-of-work-plan.md` §3.5 에 확정 분해를 명시했다(emphasis-check exit 0). Part 2(생성) 승인 게이트로 간다.
+**Context**: INCEPTION - Units Generation Part 1 답 확정·분석. 확정 여덟 유닛. Part 2 생성 승인 대기.
+
+---
+
+## Units Generation Part 2 — 생성 (산출물 셋)
+**Timestamp**: 2026-09-08T10:06:11Z
+**User Input**: "진행. part2 바로 생성해."
+**AI Response**: Part 2(생성) 승인. 확정 여덟 유닛으로 산출물 셋을 `aidlc-docs/inception/application-design/` 에 생성했다 — `unit-of-work.md`(여덟 유닛 정의·책임·겉면·완료 조건 · 새 패키지 넷 배정 · 열린 미정 둘) · `unit-of-work-dependency.md`(의존 행렬 + 병렬 웨이브 W0~W4 + **파일 행렬** + 접점 넷 진행자 직렬 + 임포트 금지 넷·경계 검사·심볼 상한 + 병합 순서) · `unit-of-work-story-map.md`(CP0~CP11 배정 · 기능 12 매핑 누락 0 · 화면 조작 나열 · 완결 정본 CP10). 검증: emphasis-check 세 파일 exit 0 · U+2605 0 · 코드펜스 짝(18·14·8). `unit-of-work-plan.md` 체크박스 전부 [x]. 되묻기 접기(ui 표시·mcp 도구) · 온보딩 카드 분해 밖 · sandbox 표시 자리(출처 FD) · Capabilities 읽기(panel FD 전 진행자) 반영. 완료 게이트(2-옵션)를 연다.
+**Context**: INCEPTION - Units Generation Part 2 완료. 산출물 셋 생성. 완료 게이트 승인 대기 → CONSTRUCTION.
+
+---
+
+## Units Generation — 승인 (완료 게이트 통과) · aidlc-docs layering 지시
+**Timestamp**: 2026-09-08T10:22:05Z
+**User Input**: "승인. 이제 다중사용자 협업을 위한 aidlc-docs layer 작업좀 해줘. 아까 물어보니까 이렇게 하라던데. 일단 지금 작업물 승인기록을 남겨 커밋하고, 이 브랜치 layering 작업해서 커밋 하나 남기고, 남은 브랜치들도 모두 병합하면서 layering 적용을 부탁해. 아래는 검토의견이다. (aidlc-docs layering) — 문서는 사람이 아니라 회차(브랜치) 이름으로 나눈다 — aidlc-docs/v2-run-shin_pen_drawing/ 처럼. RE 분석만 공용으로 두고, aidlc-state.md·audit.md는 회차마다 따로 가진다. / CLAUDE.md에 'AI-DLC 문서 루트는 aidlc-docs/<브랜치 이름>/' 한 줄 + .gitattributes에 audit.md merge=union — 전자는 모델이 루트에 다시 쓰는 걸 막고, 후자는 이어 붙이는 로그를 git이 알아서 합치게 한다. / aidlc-state.md와 design/*.pen은 진행자 한 사람만 고친다 — 통째로 다시 쓰거나 합칠 수 없는 파일이라 병합 뒤에 진행자가 정리하고, 시안은 회차마다 새 파일로 만든다."
+**User Input (후속)**: "아 하기전에 fetch 먼저 하고."
+**User Input (후속)**: "unit generation 되었으니. v1으로 병합을 했다면 main으로 병합까지 해줘."
+**AI Response**: Units Generation 을 승인으로 표시했다(INCEPTION 완료). aidlc-docs layering + 전 회차 병합 작업에 착수한다 — 로컬 작업(push 없음). fetch --all 완료. 발견한 위상: 완전한 회차 셋(v1-run-dhseo 이 회차 · v2-run-shin_pen_drawing 데모 pen · v1-run-dhseo-cardnews 온보딩 카드뉴스+게스트 로그인 코드) + unit/cardnews-guest-login(이미 cardnews 로 병합) + design-fix_ver1(이미 main). RE 는 세 회차 동일(1fe2145)이라 공용 안전. 계획 — Phase1 이 커밋(승인+현재 작업) · Phase2 v1 layering 커밋 · Phase3 v2·cardnews 병합(layering 적용) · Phase4 v1→main. 팩(requirements/)은 v1(대회 데모 전환)이 정본 — v2 는 팩 무변경, cardnews 팩 편집은 v1 을 유지하고 cardnews 회차 layered 문서에 보존. 시안 pen 은 회차마다 새 파일(enode-demo·enode-cardnews 신규 = clean) · 공용 enode-ux.pen 은 진행자가 v1 유지.
+**Context**: INCEPTION 완료(Units Generation 승인). aidlc-docs layering + 병합 착수. Phase 1 커밋.
+
+---

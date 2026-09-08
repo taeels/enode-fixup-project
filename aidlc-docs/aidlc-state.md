@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-08T05:36:09Z
-- **Current Stage**: INCEPTION - Units Generation (다음 세션 착수 지점)
+- **Current Stage**: INCEPTION 완료 — Units Generation 승인(2026-09-08T10:22:05Z). 다음 CONSTRUCTION - Functional Design(유닛별). 진행 중: aidlc-docs layering + 전 회차 병합
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v1-run-dhseo` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 
@@ -56,7 +56,7 @@
 - [x] Workflow Planning — 2026-09-08T08:15:29Z (실행 계획 승인 · 원안 유지)
 - [ ] User Stories — SKIP (팩·scene-gates 가 여정·수용기준 CP0~CP11 로 진다)
 - [x] Application Design — 2026-09-08T08:51:01Z (승인 · Q1~Q5=A · 산출물 다섯)
-- [ ] Units Generation — EXECUTE (파일 행렬 + 유닛 의존 그래프 필수 — constraints 구조 불변식) · 다음 세션 착수 지점
+- [x] Units Generation — EXECUTE · 완료·승인 2026-09-08T10:22:05Z (Part 1 답 Q1=A·Q2=C·Q3=A · Part 2 산출물 셋 · 확정 여덟 유닛)
 
 ### 🟢 CONSTRUCTION PHASE
 - [ ] Functional Design (per-unit) — EXECUTE (팩이 넘긴 결정: 정책 파일 · at-boundary · 링 파일 · allow-list · sandbox 출처 · Capabilities 읽기)
@@ -76,9 +76,10 @@
 
 ## Current Status
 - **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Units Generation (다음 세션 착수 지점 · 아직 미착수)
-- **Next Stage**: Functional Design (유닛별 · CONSTRUCTION · Units Generation 뒤)
-- **Status**: Application Design 승인됨(2026-09-08T08:51:01Z · Q1~Q5=A). 산출물 다섯이 `aidlc-docs/inception/application-design/` 에 있다 — components · component-methods · services · component-dependency · application-design(통합). 표기 규약 통과. 사용자가 **다음 단계를 새 세션에서 진행**하겠다고 명시 — 이 세션은 Units Generation 을 착수하지 않고 종료
+- **Current Stage**: Units Generation 승인 완료 (INCEPTION 완료 · 2026-09-08T10:22:05Z). aidlc-docs layering + 전 회차 병합(v2·cardnews → v1 → main) 진행 중
+- **Next Stage**: Functional Design (유닛별 · CONSTRUCTION) — Units Generation 완료 게이트 승인 뒤. obs 부터(토대 · 의존 없음) 착수 권장
+- **Status**: Application Design 승인됨(2026-09-08T08:51:01Z · Q1~Q5=A). Units Generation Part 1 답 확정 — **확정 여덟 유닛**: obs · queue · drain · ui · panel · transcript · mcp · demo-back. Q2=C 로 board-ui·demo-front 가 ui 한 유닛(실 함대 모드 S0~S2 + 공개 데모 모드 게스트·3D·모달·웹캠 · internal/api/ui 단독 소유)으로 합쳐져 접점 다섯→넷(store · api.go · panel · cmd/mediator/main.go). Q1=A(되묻기 표시 ui · 도구 mcp) · Q3=A(store 스키마 기능별 분산 · store 는 접점). 의존 그래프 토대 obs · CP10 은 W3. `unit-of-work-plan.md` §3.5 에 확정 분해 명시. **Part 2 완료** — 산출물 셋(unit-of-work · unit-of-work-dependency[파일 행렬·접점 넷] · unit-of-work-story-map[CP0~CP11·기능 12])을 `application-design/` 에 생성(emphasis-check 통과 · U+2605 0 · 계획 체크박스 [x]). 완료 게이트 승인 대기 → 승인 시 CONSTRUCTION(Functional Design 유닛별)
+- **pen 정합 검토(2026-09-08T09:23:41Z)**: Units Generation 전에 `v2-run-shin_pen_drawing` 의 `design/enode-demo.pen`(export D1~D5)을 팩과 대조. 정합 다수 · 어긋남 3 · 결손 2. 결정 반영 — Guest 이름은 팩 정본(shonsin pen 맞춤) · submitter 는 Guest 로그인 이름 자동(팩 `decisions §8.6` 신설 · `scene-gates` CP9 · `enode-features` 3.4.3·3.4.4 수정, emphasis-check 통과) · 온보딩 카드는 분해 밖. shonsin TODO 둘(게스트 이름 랜덤 2단어 · RUN 카드 submitter 표시). sandbox 표시(§8.5 미정)는 해당 유닛 FD. 워크트리 `/home/sunny/enode-wt-shin` (읽기용 · 정리 가능)
 - **세션 핸드오프**: 다음 세션은 **Units Generation 부터**. `inception/units-generation.md` 규칙 로드 → 선행 맥락(팩 다섯 · RE 아홉 · `application-design/` 다섯 · `execution-plan.md`) → **파일 행렬(필수) + 유닛 의존 그래프** 산출(`constraints` 구조 불변식). 병합 순서·병렬 착수가 그 그래프에 걸린다(CONVENTIONS 3.1). 커밋 미실행 — 산출물은 워킹트리에만 있다(사용자 지시 시 커밋·푸시)
 - **설계 요약**: 새 패키지 넷(internal/panel · internal/api/ui · internal/mcp · internal/proc[Q1]) · 새 핸들러 셋(api/nodes·runs·demo) · 만지는 기존 여섯 · QUEUED 추가 · WakeQueued(ctx,tx)([]string,error)[Q4] · Client.Nodes·Runs 원문 반환[Q2·Q3] · 데모 제출 api 핸들러[Q5]. 임포트 금지 넷 · 심볼 상한 링크 그래프 설계에 박음
 - **판정 요약**: SKIP — User Stories · NFR Requirements · NFR Design · Infrastructure Design. EXECUTE — Application Design · Units Generation · Functional Design(유닛별) · Code Generation(유닛별) · Build and Test
