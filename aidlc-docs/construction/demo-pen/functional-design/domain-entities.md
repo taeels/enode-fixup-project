@@ -28,7 +28,7 @@ Mediator 의 스키마와 API 를 안 건드린다.
    TaskPreset      LED_TOGGLE · SOUND_PLAY
                    각각 미리 적힌 계약 하나에 대응한다.  계약 본문은 코드 회차가
                    정한다 — 시안은 버튼 이름과 부제만 갖는다
-   ViewMode        fleet (D2) · run (D5)     좌 상단 패널이 무엇을 보이나
+   ViewMode        fleet (D2) · run (D5)     좌 패널이 무엇을 보이나
 ```
 
 ## 3. 관계

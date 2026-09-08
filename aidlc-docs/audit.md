@@ -153,3 +153,11 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: CONSTRUCTION - Functional Design (demo-pen). 재승인 대기.
 
 ---
+
+## Functional Design — 변경 요청 둘째 (선택 상세 제거 · 웹캠 떠 있는 창)
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: "선택 상세는 비우고, 저기까지 함대뷰, D5 run 뷰로 채우면돼, 즉 웹캠이 커지고 작아지고 할 수 있으니까."
+**AI Response**: 선택 상세 패널을 뺐다. 좌 열은 3D 패널 하나(1380 x 960)가 다 쓰고 D2 함대 뷰 · D5 run 뷰가 바닥까지 이어진다. 웹캠은 그 위에 떠 있는 정사각형 창(기본 360, 모서리 손잡이로 200~720 조절)이 됐다. 상세는 S6 · S7 처럼 3D 패널 우상단 덮개 카드로 되돌렸다. frontend-components.md 0 · 2.1 · 2.2 · 2.4 · 5 · 7 절과 business-logic-model.md F4 를 고쳤다.
+**Context**: CONSTRUCTION - Functional Design (demo-pen). 재승인 대기.
+
+---
