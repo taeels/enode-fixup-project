@@ -61,11 +61,11 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 - [x] Units Generation — SKIP
 
 ### 🟢 CONSTRUCTION PHASE
-- [ ] Functional Design — 산출물 넷 생성 · 승인 대기 (demo-pen)
+- [x] Functional Design — 2026-09-08 승인 (demo-pen. 변경 요청 둘 반영)
 - [x] NFR Requirements — SKIP
 - [x] NFR Design — SKIP
 - [x] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (design/enode-demo.pen)
+- [ ] Code Generation — IN PROGRESS · Part 1 계획 (design/enode-demo.pen)
 - [ ] Build and Test — EXECUTE (시안 검수로 대체)
 
 ### 🟡 OPERATIONS PHASE
@@ -73,6 +73,6 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: Functional Design (demo-pen)
-- **Next Stage**: Code Generation (demo-pen)
-- **Status**: `aidlc-docs/construction/plans/demo-pen-functional-design-plan.md` 질문 답변 대기. Code Generation 전제 — pen.dev 편집기에 파일을 열어 두어야 pencil MCP 가 동작한다
+- **Current Stage**: Code Generation (demo-pen) — Part 1 계획
+- **Next Stage**: Build and Test (시안 검수)
+- **Status**: 계획 파일 작성 중. pen.dev 편집기에 `design/enode-ux.pen` 열림 확인

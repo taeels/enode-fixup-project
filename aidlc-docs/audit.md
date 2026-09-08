@@ -161,3 +161,12 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: CONSTRUCTION - Functional Design (demo-pen). 재승인 대기.
 
 ---
+
+## Functional Design — 승인
+**Timestamp**: 2026-09-08T07:45:38Z
+**AI Prompt**: "Continue to Next Stage — 화면 사양 승인하고 Code Generation(pen.dev 시안 그리기)으로 진행"
+**User Response**: "승인 및 진행"
+**Status**: Approved
+**Context**: Functional Design (demo-pen) 완료. 다음은 Code Generation — Part 1 계획 · Part 2 시안 생성. pen.dev 편집기에 design/enode-ux.pen 이 열려 있음을 get_app_state 로 확인했다.
+
+---

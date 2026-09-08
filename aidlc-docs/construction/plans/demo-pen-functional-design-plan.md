@@ -32,7 +32,7 @@ Code Generation 이 `design/enode-demo.pen` 으로 그린다.
   - `aidlc-docs/construction/demo-pen/functional-design/domain-entities.md`
   - `aidlc-docs/construction/demo-pen/functional-design/business-rules.md`
   - `aidlc-docs/construction/demo-pen/functional-design/business-logic-model.md`
-- [ ] 6. 승인 받고 커밋
+- [x] 6. 승인 받고 커밋 (2026-09-08 "승인 및 진행")
 
 ## Code Generation 의 전제 (지금 알려둔다)
 
