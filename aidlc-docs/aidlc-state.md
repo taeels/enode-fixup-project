@@ -44,8 +44,8 @@
 
 ### 🔵 INCEPTION PHASE
 - [x] Workspace Detection — 2026-09-08T05:36:09Z
-- [ ] Reverse Engineering — IN PROGRESS
-- [ ] Requirements Analysis
+- [x] Reverse Engineering — 2026-09-08T07:17:58Z (검증 통과 · 커밋 1fe2145)
+- [x] Requirements Analysis — 2026-09-08T07:50:41Z (승인 · 대회 데모 전환)
 - [ ] User Stories — [EXECUTE/SKIP 는 Workflow Planning 이 정한다]
 - [ ] Workflow Planning
 - [ ] Application Design — [EXECUTE/SKIP]
@@ -62,8 +62,16 @@
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
 
+## Reverse Engineering Status
+- [x] Reverse Engineering - Completed on 2026-09-08T07:17:58Z
+- **Artifacts Location**: aidlc-docs/inception/reverse-engineering/
+- **검증**: emphasis-check 통과 · 장식 문자 없음 · Mermaid 유효 · 라우트 15개 원본 일치
+
 ## Current Status
 - **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Reverse Engineering (진행 중)
-- **Next Stage**: Requirements Analysis
-- **Status**: 코드베이스 분석 중
+- **Current Stage**: Requirements Analysis (승인 완료 2026-09-08)
+- **Next Stage**: Workflow Planning
+- **Status**: 세션 종료 · 다음 세션 재개점 = Workflow Planning. requirements.md · decisions §8 · enode-features §1.5·§3.4·§4 · scene-gates §5 · constraints 갱신·커밋·푸시 완료
+- **다음 세션에서 정할 것**: Workflow Planning 에서 User Stories SKIP 확정(팩·scene-gates 가 여정·수용기준을 CP8~CP11 로 진다) · Application Design EXECUTE · Units Generation EXECUTE(파일 행렬 + 유닛 의존 그래프 필수 — constraints 구조 불변식)
+- **열린 미정 둘**: (1) `enode-features §5` — 제어판이 도는 데몬 `Capabilities{Caps,At}` 를 어떻게 읽나(`ADR-068`). 진행자가 `decisions.md` 에 행 더할 자리 · 아직 안 닫음. (2) sandbox 표시 출처 — Functional Design 에서 있는 값 읽기(`decisions §8.5`)
+- **병렬 사실**: v1-run-dhseo 에 다른 손이 붙는다 — 사용자가 RE 를 공유용으로 커밋(1fe2145)·푸시, shonsin 이 S6·S7 3D 탑뷰 시안(cc04508, design/enode-ux.pen)을 붙였다. design/ 은 진행자·shonsin 이 관리하고 유닛 브랜치는 안 건드린다. 루트 `시연시나리오변경.md` 는 팀 노트(untracked, 커밋 안 함) — 내용은 팩에 반영됨
