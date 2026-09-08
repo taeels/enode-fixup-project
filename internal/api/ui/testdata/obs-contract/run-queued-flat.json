@@ -1,0 +1,13 @@
+{
+  "run_id": "run-queued",
+  "state": "QUEUED",
+  "requires": [
+    {
+      "as": "worker",
+      "capability": "agent.reason",
+      "harness": "claude",
+      "os": "linux/amd64",
+      "board": "demo-board"
+    }
+  ]
+}

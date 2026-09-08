@@ -1,0 +1,441 @@
+# AI-DLC 감사 기록 — runixs
+
+## Codex v1 설정과 기존 Construction 맥락 복원
+
+**Timestamp**: 2026-09-08T11:07:02Z
+
+**User Input**:
+
+```text
+codex용 v1 aidlc 셋업해줘. 그리고 현재 이 repo에 진행중이던 aidlc를 이어갈껀데, 내 역할은 runixs 이거야. aidlc-docs/ 에보면 있을거야.
+```
+
+**AI Response**: 기존 v1.0.1 규칙을 읽는 Codex 진입점 `AGENTS.md` 와 체크아웃
+전용 `local/aidlc-context.md` 를 설정했다. 담당은 runixs, 문서 루트는
+`aidlc-docs/runixs/`, 유닛은 ui · demo-back 으로 복원했다. detached HEAD
+`c010841` 에서 `unit/runixs-ui` 브랜치를 만들었다. README 에 재개 방법을 적고
+담당 상태에 확인 결과와 기존 확장 선택을 기록했다.
+
+**Context**: 설정과 맥락 복원이다. 개발 단계 완료나 승인으로 기록하지 않는다.
+체크아웃에서 obs 목록 API 와 queue 구현이 없음을 확인했다. ui 실 모드 FD 는
+obs 병합 뒤, demo-back 은 queue 병합 뒤이며 선행 게이트 통과는 미확인이다.
+cardnews 회차가 낸 정적 UI 와 기존 `/ui/` 마운트는 후속 FD 의 입력으로 남긴다.
+
+---
+
+## 설정 검증
+
+**Timestamp**: 2026-09-08T11:08:51Z
+
+**AI Response**: `enode-design` 을 저장소에 고정된
+`29c89cd39f14c3edb4042fcee57bcc04d91bfb06` 리비전으로 초기화했다. 설정과 재개에
+필요한 파일 21개의 존재, VERSION 1.0.1, runixs 로컬 설정, AGENTS.md 크기와
+override 부재를 확인했다. 변경 문서의 펜스·공백·표기 검사와
+`enode-design/scripts/emphasis-check.py`, `git diff --check` 가 통과했다.
+`local/aidlc-context.md` 가 기존 `/local/` ignore 규칙에 들어가는 것도 확인했다.
+
+**Context**: 설정·문서만 검증했다. 제품 코드는 변경하지 않았고 CP0·CP1·CP2 등
+장면 게이트는 실행하지 않았다. 커밋·푸시·PR 은 실행하지 않았다.
+
+---
+
+## obs 의미 설명 — 대화 기록 보완
+
+**Timestamp**: 2026-09-08T14:16:04Z (기록 시각)
+
+**User Input**:
+
+```text
+obs가 뭐야?
+```
+
+**AI Response**: obs 는 taeels 가 담당하는 관측 API 유닛이며, 노드·Run 목록과
+Run 상세 확장으로 runixs 의 UI 가 표시할 실제 데이터를 제공한다고 설명했다.
+
+---
+
+## obs 전달 전 준비 범위와 결합 안정성 검토
+
+**Timestamp**: 2026-09-08T14:16:04Z
+
+**User Input — 중단된 요청**:
+
+```text
+내가 obs 전달 전에 미리 할 수 있는 일은 없을까??
+```
+
+**User Input — 이어진 요청**:
+
+```text
+내가 obs 전달 전에 미리 할 수 있는 일은 없을까?? 합쳤을 떄의 결합안정성을 해치는 일일까?
+```
+
+**AI Response**: API 정본·유닛 의존표·기존 정적 UI 를 검토했다. 화면 상태 설계,
+소비 API 계약과 테스트 데이터 정리, 통합 검증 항목 준비는 선행 구현 없이도
+가능하다. UI 를 미리 구현하려면 사전 작업 범위를 계획에 명시하고, 담당 파일
+안에서 정본 계약을 소비하도록 구성하며 실제 obs 응답으로 검증해야 한다.
+특히 draining 의 문자열 의미, lease 의 관측 의미, submitter 추가 요구와
+sandbox 출처 미정을 임의로 추측하면 결합 시 동작이 어긋날 수 있다.
+
+**Context**: 기술 검토와 제안이다. 사용자가 선행 구현이나 게이트 변경을 승인한
+것으로 기록하지 않는다. 기존 obs 이후 W1 착수 규칙과 실제 CP1·CP2 검증 조건은
+유지한다. UI·obs·공유 접점 코드는 수정하지 않았다.
+
+---
+
+## 사전 준비 승인과 실행
+
+**Timestamp**: 2026-09-08T14:24:58Z (계획 기록 시각)
+
+**User Input**:
+
+```text
+aidlc 스킬이 codex에 안잡히는데 괜찮은건가??? 일단 너가 말한대로 진행해줘. 혹시 세션을 다시 열어야 되면 그렇게할게
+```
+
+**AI Response**: 별도 aidlc 스킬을 설치한 방식이 아니라 AGENTS.md 로 저장소의
+v1.0.1 규칙을 읽는 방식임을 설명했다. 현재 세션에서 규칙을 직접 읽어 적용하므로
+사전 준비를 위해 재시작할 필요가 없다고 안내했다. 사용자 승인 범위는 앞서
+제안한 UI 설계 초안·API 계약표·샘플 응답·통합 검증 항목으로 기록했다.
+
+**Context**: 담당별 계획에 사전 준비 범위를 추가했다. 정식 FD 완료나 코드 생성,
+공용 착수·병합 게이트 변경으로 해석하지 않았다. 확장 선택은 상속했고
+resiliency-baseline·property-based-testing 은 기존 비활성 결정을 유지했다.
+
+---
+
+## 사전 준비 산출물과 검증 결과
+
+**Timestamp**: 2026-09-08T14:30:56Z
+
+**AI Response**: `construction/ui/preparation/` 에 읽기 안내, UI 설계 초안,
+API 계약표, 샘플 사용 안내, 통합 검증 항목을 작성했다. 테스트 입력은
+`internal/api/ui/testdata/obs-contract/` 에 합성 응답 17개와 manifest 1개로 작성했다.
+중첩 attrs 예시와 기존 평탄 직렬화의 불일치를 발견해 D1 으로 기록했고,
+lease 부재·verdict·submitter·chosen·sandbox·UI 모드 경계를 D2~D7 로 남겼다.
+
+**검증**: JSON 구문과 manifest 대응, 노드·임대·Run 연결, created_at 정렬,
+QUEUED 의 요구 능력을 가진 노드가 점유 중인지, requires 후보 의미 일치,
+분기 의존·chosen 값, ASKED 와 만료 시각, 오류 HTTP 코드가 일관적인지 검사했다.
+Markdown 링크·공백·펜스와 emphasis-check, git diff --check 가 통과했다.
+
+**미실행**: `go test -count=1 -cover ./internal/api/ui` 는 go 명령을 찾을 수 없어
+실행되지 않았다. 표준 설치·캐시 위치에도 Go 바이너리가 없었다. Go 커버리지와
+실제 CP 게이트는 통과로 기록하지 않는다. 제품의 추적된 소스 코드는 변경하지
+않았으며 테스트 입력은 기존 embed static 경로 밖이다.
+
+**다음**: obs 반영 뒤 실제 응답을 D1~D5 와 대조하고 정식 ui FD 를 완성한다.
+D6·D7 은 해당 FD 에서 닫는다. 준비 상태와 남은 검증은 담당 state 에 반영했다.
+
+---
+
+## 다음 진행 — 상세 설계와 로컬 도구 준비
+
+**Timestamp**: 2026-09-08T14:44:17Z
+
+**User Input**:
+
+```text
+다음 진행해줘
+```
+
+**AI Response**: 현재 진행 상태와 선행 코드를 다시 확인했다. origin을 fetch하자
+main에 배정 문서 5개를 바꾼 `81b526c`가 있어 `git merge --ff-only origin/main`으로
+반영했다. 담당의 기존 미커밋 변경은 보존했다. 최신 roster의 ui 패키지는
+runixs(ui)·nacl1119(card-news) 공유다. obs와 queue 구현은 여전히 없어 실제
+연동·게이트를 완료로 기록하지 않았다.
+
+**산출물**: `construction/ui/functional-design/`에 업무 흐름·표시 규칙·자료 모델·
+화면 구성 네 문서를 작성했다. `construction/plans/ui-functional-design-plan.md`와
+`ui-code-generation-plan.md`에 검토 대상·파일별 8단계 순서를 남겼다. 사전 독립
+표시 구현(1~3)과 obs 뒤 어댑터·랜딩·통합 검증(4~8)을 구분한 제안이다.
+전체 ui 유닛·W3 데모 설계 완료나 코드 생성 승인으로 기록하지 않는다.
+
+**결정안과 근거**: design README·pen 변수/프레임·S1/S2 export를 읽었고
+frontend-design 스킬을 기존 시안 검토에 적용했다. sandbox는 명시적
+capabilities[].attrs.sandbox의 능력별 광고 값을 읽고 없으면 미제공으로 표시한다.
+기존 Cancel의 verdict.checks[].note, VERIFYING/CLAIMED, 노드가 아닌 Run에
+연결되는 ASKED 의미를 설계에 반영했다. `/ui/`의 기존 관리자 폼을 활성화해
+인증 성공 후 `/ui/fleet/`으로 이동하는 결정안으로 CP1 진입 조건을 보존했다.
+공유 랜딩 접점은 통합 단계로 남기고 기존 Go 마운트를 재사용한다.
+
+**도구와 검증**: 공식 go.dev 다운로드 메타데이터로 go1.26.6 darwin/arm64
+아카이브의 크기(64772321 bytes)와 SHA256
+`2dc95ce4675829f2df0e86b28bcef3283635902062a5f0580ca659bf570f3204`를 대조한 뒤
+`local/toolchains/go1.26.6/go/`에 설치했다. 전역 PATH나 go.mod는 바꾸지 않았다.
+`GOTOOLCHAIN=local ./local/toolchains/go1.26.6/go/bin/go test -count=1 -cover ./internal/api/ui`
+실행이 성공했고 coverage는 92.3% statements다. 이전 Go 부재를 해결한 기존
+UI 기준선이며, 새 JS 동작·브라우저·실제 obs·CP 게이트를 검증한 결과는 아니다.
+
+**Context**: 제품 런타임 소스·공용 상태·design/*.pen은 수정하지 않았다. 지금
+제시한 설계/코드 계획에 대한 사용자의 명시적 승인 응답은 아직 없다.
+
+---
+
+## W1 설계·코드 생성 계획 검토 요청
+
+**Timestamp**: 2026-09-08T14:44:17Z
+
+**Approval Prompt**: 이 설계와 전체 구현 계획을 승인하고, obs 전달 전 독립 화면
+구현부터 진행할까요?
+
+**대상**: `construction/plans/ui-functional-design-plan.md` Q1 및
+`construction/plans/ui-code-generation-plan.md` 전체 8단계. 승인 후 1~3 실행을
+제안하며 4~8은 obs 실제 응답 대조 조건을 유지한다.
+
+**요청 근거**: 저장소 v1 규칙의 `construction/functional-design.md` Step 8과
+`construction/code-generation.md` Part 1 Step 7은 설계와 코드 생성 계획의 명시적
+승인을 요구한다. 후자의 원문은 “Do not proceed until the user explicitly approves
+the unit code generation plan”이다. 현재 사용자의 “다음 진행해줘”는 새 계획을
+보기 전의 요청이므로 승인 완료로 기록하지 않는다.
+
+**Approval Status**: 대기. 사용자 응답 없음.
+
+---
+
+## 상세 설계 산출물 검증
+
+**Timestamp**: 2026-09-08T14:45:57Z (검증 완료 후 기록 시각)
+
+**검증 결과**: 담당 문서와 Codex 진입점/README 총 16개 Markdown의 상대 링크·
+펜스·공백·emphasis-check, 기존 합성 JSON 18개의 구문, git diff --check가 통과했다.
+FD 네 문서가 존재하며 추적된 internal/·cmd/ 런타임 소스와 design/ 파일의 변경이
+없음을 확인했다. 이 결과는 문서·입력 검증이며 미구현 화면의 기능 검증이 아니다.
+
+---
+
+## 팀원 데모 pen과 현재 계획의 타깃 확인
+
+**Timestamp**: 2026-09-08T14:51:03Z
+
+**User Input**:
+
+```text
+너 그 demo-pen 우리 팀원이 그려놓은 것도 디자인에 반영했어??? 이번에 계획한건 그 타겟이 아닌가?
+```
+
+**AI Response**: 직전 8단계는 enode-ux.pen 기반 W1 실 함대 부분 계획이고,
+팀원의 enode-demo.pen D1~D5를 구현 대상으로 직접 반영하지 않았다고 밝혔다.
+runixs의 최종 범위에는 그 데모 화면이 포함되며, 백엔드 의존으로 디자인 준비까지
+미룰 필요는 없다고 정리했다. enode-demo.pen의 프레임·문구·변수와 D2/D5 export를
+읽고 requirements/decisions §8, features §3.4, 최신 roster와 대조했다.
+
+**산출물**: `construction/ui/functional-design/design-targets.md`에 D1 게스트,
+D2 함대 3D, D3의 네 투어 화면, D4 모달, D5 작업 3D, 웹캠·submitter를 현재 계획과
+연결했다. 기존 FD·두 계획·담당 state에 부분 계획이라는 설명과 대조 링크를 추가했다.
+데모 레이아웃/조작은 사전 준비 가능하고 실제 상태·제출·방송은 서비스 연결 뒤
+검증한다는 차이를 기록했다. 원본 pen과 제품 코드는 변경하지 않았다.
+
+**Approval Status**: 이 질문은 계획 승인·W1 취소로 해석하지 않는다. 데모 FD와
+데모 코드 생성 계획을 완료했다고 기록하지 않으며 기존 승인 상태는 대기다.
+
+---
+
+## 3d-view 워크트리 재사용 검토
+
+**Timestamp**: 2026-09-08T15:00:06Z
+
+**User Input**:
+
+```text
+그리고 이거 진행하기 전에 /Users/runixs/orca/workspaces/enode-fixup-project/3d-view 워크트리에서 3d view를 좀 더 디테일하게 만든 코드가 있는데 그것도 확인해서 반영할지 확인해줘
+```
+
+**AI Response**: orca-cli 스킬과 설치된 CLI의 전체 가이드를 읽고 지정 워크트리를
+확인했다. 실제 브랜치는 unit/ux-runtime, HEAD는 8985694다. 현재 작업과 공통
+조상은 06215ff이며 소스는 3D 외에 API·큐·호스트 제어·요구 변경을 포함한다.
+app.js·model.js·CSS·테스트·기존 실행 기록을 읽고 SVG 등각 표현과 그래프 탐색
+기능을 선별 재사용하는 방안을 권고했다. 최종 화면 기준은 팀원의 demo pen이다.
+
+**직접 검증**: Node v24.1.0 모델 테스트 3개 통과. 로컬 Go 1.26.6 UI 패키지
+테스트 통과, 100.0% statements(정적 Handler). 실행 중인 로컬 서비스의 app.js가
+검토한 파일과 같음을 확인했다. Orca 별도 탭에서 노드 6개·20단계/18 DONE/2 SKIPPED,
+Fit·100%·125% 확대, 갱신 후 스크롤 유지와 2D/3D별 위치 복원을 확인했다.
+Run 그래프에서 목록이 없어지는 차이도 직접 확인했다. 계약 형태·만료 우선순위·
+누락 의존의 모델 탐침 결과와 인증/폴링 코드 검토 결과는 보고서에 구분해 남겼다.
+
+**산출물**: `construction/ui/functional-design/3d-view-reuse-review.md`에 출처·
+선별 범위·수정 조건·검증 한계를 기록했다. 디자인 타깃·화면 설계·FD 계획·담당
+state와 코드 계획 1~3을 보완했다. 신규 scene.mjs에서 SVG를 분리하고 기존
+모델·뷰를 재사용하는 제안이며, 소스 UI 전체나 backend를 가져오는 계획은 아니다.
+
+**보존/상태**: 원본 워크트리 소스·.omc·터미널·실행 서비스는 변경하지 않았다.
+검토 탭은 닫았다. Run 제출/취소/답변·노드 제어는 실행하지 않았다. 현재 체크아웃도
+문서만 보완했고 코드 복사·cherry-pick·merge는 하지 않았다. 이전 계획 승인 대기를
+이번 검토 요청으로 승인 완료 처리하지 않는다.
+
+---
+
+## AI-DLC 현재 단계 확인
+
+**Timestamp**: 2026-09-08T15:15:28Z
+
+**User Input**:
+
+```text
+aidlc 과정대로 하고 있는거지?? 지금 어느 단계인지 말해봐
+```
+
+**AI Response**: 담당 state·설계 계획·코드 계획·승인 로그와 승인된 실행 계획을
+대조했다. 현재 공식 단계는 CONSTRUCTION의 ui Functional Design 보완·검토다.
+W1 설계 검토안과 demo pen 범위 대조·3d-view 재사용 검토가 있으며, 데모 전체
+FD와 설계 승인은 아직 없다. 미리 작성한 코드 계획은 초안이며 공식 Code
+Generation 진입이나 제품 구현 완료가 아니다. 기존 코드 테스트·브라우저 검증도
+재사용을 위한 사전 검증으로, 신규 기능의 Build and Test/CP 통과와 구분했다.
+
+**기록 보완**: state의 현재 단계와 코드 계획의 상태를 위 구분으로 명확히 했다.
+다음 순서는 데모 pen·3D 재사용 범위를 포함한 FD 보완/리뷰, 설계 승인, 코드 계획
+승인 후 코드 생성, 실제 연동을 포함한 Build and Test다. 기존 실행 계획의
+NFR Requirements·NFR Design·Infrastructure Design SKIP 선택을 유지한다.
+사용자의 상태 질문을 단계 승인으로 기록하지 않았다.
+
+---
+
+## runixs 담당 작업과 팀 리드 역할 확인
+
+**Timestamp**: 2026-09-08T15:19:27Z
+
+**User Input**:
+
+```text
+너가 말한 순서는 우리 과제를 리드하는 최태양님이 해야하는게 아니고 내가 해야하는 일이 맞아???
+```
+
+**AI Response**: construction-roster §2·§5·§6, CLAUDE의 담당별 Construction 규칙,
+유닛 의존/파일 행렬과 실행 계획의 열린 미정을 확인했다. ui·demo-back의 상세 설계·
+코드·검증은 runixs 담당이며, 문서·코드는 에이전트가 작성하는 흐름이라고 설명했다.
+사용자가 설명한 리드 최태양님의 공용 결정·접점 조율과, taeels에 배정된 obs·mcp
+구현을 구분했다. 담당 유닛의 계획 검토가 팀 전체 설계나 공용 계약 승인은 아니다.
+
+**보완**: sandbox 표시 출처는 roster §6에 따라 진행자와 닫아야 하는 결정안임을
+state와 FD 검토 질문에 명확히 했다. 기존 제안을 확정된 공용 결정으로 올리지
+않았으며 요구 팩·공용 상태·타 담당 문서는 수정하지 않았다. 이 질문도 단계 승인으로
+기록하지 않는다.
+
+---
+
+## 담당 범위 구체화
+
+**Timestamp**: 2026-09-08T15:42:32Z
+
+**User Input**:
+
+```text
+내 범위를 구체화하자
+```
+
+**AI Response**: 배정표·유닛 정의·요구 팩·팀원 demo pen·3d-view 검토를 바탕으로
+`construction/runixs-scope.md`를 작성했다. 실 함대 UI, 공개 데모 UI, demo-back을
+작업 8개·파일 접점·완료 조건으로 구체화했다. obs·queue·진행자와의 책임을 나누고,
+기존 W1 8단계가 전체 데모 계획은 아님을 FD 계획·state에 연결했다.
+
+**Context**: 문서 연결 작업 중 다음 obs 병합 확인 요청을 받아 같은 작업을 이어갔다.
+기존 팀 배정·공용 상태·pen 원본을 바꾸거나 범위 구체화를 단계 승인으로 기록하지 않았다.
+
+---
+
+## obs 병합 확인 · rebase · 계약 인수
+
+**Timestamp**: 2026-09-08T15:42:32Z
+
+**User Input**:
+
+```text
+obs작업이 완료 되었대. origin/main 확인해서 obs 브랜치 내용이 머지되었으면 그쪽으로 rebase해서 작업 이어가자
+```
+
+**AI Response**: fetch 후 origin/main의 PR #4 병합 `0a159a4`와 obs 브랜치
+`ccc8073` 포함을 확인했다. 담당 미커밋 작업만 stash에 보관하고 `git rebase
+origin/main` 후 복원했다. 충돌 없이 HEAD가 81b526c에서 0a159a4로 이동했다.
+385개 기존 변경/미추적 파일 중 384개는 해시 동일, README는 로컬 추가와 upstream
+수정 공존을 확인한 뒤 임시 stash를 제거했다. 설계 gitlink 29c89cd는 유지했다.
+
+**계약 반영**: 중첩 requires.attrs, lease:null, 목록 Verdict/submitter,
+필수 chosen, requires 읽기 실패의 200+warnings, Config.Demo의 공개 읽기 셋,
+429/Retry-After/no-store를 담당 FD·계약표·계획에 반영했다. submitter 저장·컨텍스트
+접점은 obs 구현을 재사용하도록 범위를 좁혔다. 샘플은 잘못된 후보를 오류 입력으로
+바꾸고 429·부분 응답을 추가했다. 전부 합성이며 실제 함대 캡처로 표시하지 않았다.
+
+**검증**: 기존 관측 테스트 API 17개·store 21개가 전용 임시 PostgreSQL 16에서
+실패·스킵 없이 통과했다. scripts/testdb.sh의 지정 DSN 경로를 사용했고 DB는 종료했다.
+UI/config/runctl 테스트 통과, 단독 커버리지 92.3%/81.8%/50.5%다. runctl의 80% 하한
+통과나 전체 CP0 통과로 기록하지 않는다. 전체 빌드는 최초 로컬 Go 배포본의 자체
+테스트 탐색 때문에 실패했으며, ignored local/toolchains/go.mod로 분리 후 통과했다.
+루트 go.mod·제품 코드는 수정하지 않았다.
+
+**현재 단계**: CONSTRUCTION → ui Functional Design 보완·검토를 유지한다.
+obs 전달 대기는 해제됐다. 데모 전체 FD·제출 계약을 이어가며 queue·실제 장면·
+sandbox 진행자 확인은 남아 있다. 담당 범위 요청을 마무리하면서 인수 결과를
+`construction/ui/preparation/obs-integration-review.md`와 state에 연결했다.
+
+---
+
+## UI·demo-back 상세 설계 재개와 전체 계획 검토
+
+**Timestamp**: 2026-09-08T15:58:58Z
+
+**User Input**:
+
+```text
+AI-DLC를 이어가 보자.
+```
+
+**AI Response**: 현재 브랜치·담당 state·규칙을 확인하고 Functional Design을
+이어갔다. 팀원 demo-pen 화면 사양과 요구 팩, 기존 Guest·obs·submit·example
+코드를 대조했다. UI 네 문서에 D1~D5, 네 단계 투어, 두 시나리오 요청 버튼,
+웹캠 resize/zoom/pan/fit·미니맵·플레이어 조작과 모드별 공용 표시를 보완했다.
+
+**demo-back**: 세 FD 문서와 공동 submission-contract를 작성했다.
+POST /v1/demo/runs의 scenario_id·submitter·request_id, 엄격한 입력 검증,
+같은 의도의 동일 Run 식별, 미확인 응답의 같은 요청 재시도를 설계했다.
+기존 서버 토큰·submitterKey·submit·DB 저장을 재사용하고 공개 쓰기 버킷은
+읽기와 분리한 2 req/s·burst 4로 제안했다. 새 DB 스키마·미디어 중계는 없다.
+
+**계획**: 기존 W1 8단계를 전체 UI 11단계로 대체하고 demo-back 7단계를 별도로
+작성했다. construction/design-review.md에 설계·파일·검증·공용 입력을 연결했다.
+이번 작업은 상세 설계와 검토 가능한 코드 계획 작성이며 코드 생성 실행은 아니다.
+
+**비동기 확인 질문**:
+
+```text
+진행자와 정해진 데모 연결 정보가 있으면 알려주세요: ① LED·음원 시나리오 파일 경로 ② 웹캠 방송 공급자·주소 ③ sandbox를 capabilities[].attrs.sandbox에서 표시하기로 합의했는지. 아직 정해지지 않은 항목은 ‘미정’이라고 해도 됩니다.
+```
+
+**질문 상태**: 현재 회신 없음. generic example 셋만 확인했고 실제 LED/음원
+픽스처·방송 입력·sandbox 진행자 확인을 수령했다고 기록하지 않았다. 공통 UI
+구현과 실제 연결의 선행 조건을 분리했다. 외부 담당에게 메시지를 보내지 않았다.
+
+**검증**: 이름 길이/형식 경계·UUID v4·정규 요청의 결정적 ID와 필드 변경 시
+분리를 검산했다. 담당 문서 25개의 링크·코드 블록·공백, 표기와 git diff --check를
+확인했다. 런타임 변경이 없어 기존 앱/DB 테스트를 재실행하지 않았다.
+기존 제품 코드·pen·공용 상태·다른 담당 기록은 수정하지 않았다.
+
+**제시할 검토 질문**:
+
+```text
+이 설계와 구현 순서로, 준비된 UI 코드부터 생성할까요?
+```
+
+**검토 상태**: 미응답. 저장소 AI-DLC construction/code-generation.md의 계획
+명시적 승인 규칙에 따른 최종 검토다. 이번 재개 요청을 새로 작성한 결과의
+소급 승인으로 처리하지 않는다. 통합 리뷰 §4가 현재 단일 질문이며 이전 W1 Q1을
+중복으로 묻지 않는다. 승인 뒤 실제 입력이 준비된 단계부터 실행한다.
+
+---
+
+## 담당 설계·코드 생성 계획 승인
+
+**Timestamp**: 2026-09-08T20:11:36Z
+
+**User Input**:
+
+```text
+응 시작해
+```
+
+**AI Response**: 직전 통합 리뷰와 UI 11단계·demo-back 7단계 순서의 승인으로
+기록하고 Code Generation을 시작한다. 먼저 공용 UI 모델·SVG·관측 클라이언트를
+구현한다. queue·시나리오·방송·sandbox 공용 확인은 해당 연결 단계의 조건으로
+유지하며, 같은 승인을 다시 요청하지 않는다.
+
+---

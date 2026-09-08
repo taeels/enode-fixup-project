@@ -1,0 +1,158 @@
+{
+  "fixture_clock": "2026-09-08T12:00:00Z",
+  "origin": "synthetic",
+  "implementation_base": "0a159a4",
+  "design_base": "29c89cd",
+  "contract_status": "obs wire contract verified by source and existing tests; synthetic UI inputs, queue integration pending",
+  "cases": [
+    {
+      "file": "nodes-empty.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": []
+    },
+    {
+      "file": "nodes-states.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": []
+    },
+    {
+      "file": "nodes-lease-omitted.json",
+      "http_status": 200,
+      "kind": "invalid-response",
+      "open_contracts": [],
+      "expected": "Reject as an observation contract mismatch."
+    },
+    {
+      "file": "runs-empty.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": []
+    },
+    {
+      "file": "runs-states.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": [],
+      "note": "Mixed synthetic states; QUEUED creation and promotion are not implemented on this base."
+    },
+    {
+      "file": "run-queued-nested.json",
+      "http_status": 200,
+      "kind": "future-queue-response",
+      "open_contracts": [],
+      "expected": "Use nested attrs; actual QUEUED lifecycle requires the queue unit."
+    },
+    {
+      "file": "run-queued-flat.json",
+      "http_status": 200,
+      "kind": "invalid-response",
+      "open_contracts": [],
+      "expected": "Reject as an observation contract mismatch."
+    },
+    {
+      "file": "run-branch.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": []
+    },
+    {
+      "file": "run-drain.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": []
+    },
+    {
+      "file": "run-asked.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": []
+    },
+    {
+      "file": "run-chosen-unreachable.json",
+      "http_status": 200,
+      "kind": "defensive-display-example",
+      "open_contracts": []
+    },
+    {
+      "file": "asks-empty.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": []
+    },
+    {
+      "file": "asks-pending.json",
+      "http_status": 200,
+      "kind": "response-example",
+      "open_contracts": []
+    },
+    {
+      "file": "error-401.json",
+      "http_status": 401,
+      "kind": "error-response",
+      "open_contracts": []
+    },
+    {
+      "file": "error-404.json",
+      "http_status": 404,
+      "kind": "error-response",
+      "open_contracts": []
+    },
+    {
+      "file": "error-503.json",
+      "http_status": 503,
+      "kind": "error-response",
+      "open_contracts": []
+    },
+    {
+      "file": "nodes-invalid-draining.json",
+      "http_status": 200,
+      "kind": "invalid-response",
+      "open_contracts": []
+    },
+    {
+      "file": "run-requires-unavailable.json",
+      "http_status": 200,
+      "kind": "partial-response",
+      "open_contracts": []
+    },
+    {
+      "file": "error-429.json",
+      "http_status": 429,
+      "kind": "error-response",
+      "open_contracts": [],
+      "headers": {
+        "Retry-After": "1"
+      }
+    }
+  ],
+  "polling": {
+    "interval_ms": 5000,
+    "failure_threshold": 3,
+    "sequence": [
+      {
+        "at_ms": 0,
+        "result": "success"
+      },
+      {
+        "at_ms": 5000,
+        "result": "failure"
+      },
+      {
+        "at_ms": 10000,
+        "result": "failure"
+      },
+      {
+        "at_ms": 15000,
+        "result": "failure",
+        "expected": "S1b; freeze affected countdowns"
+      },
+      {
+        "at_ms": 20000,
+        "result": "success",
+        "expected": "recover using a newly timestamped response"
+      }
+    ]
+  }
+}

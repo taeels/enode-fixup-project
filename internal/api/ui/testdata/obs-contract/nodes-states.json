@@ -1,0 +1,123 @@
+{
+  "observed_at": "2026-09-08T12:00:00Z",
+  "nodes": [
+    {
+      "node_id": "node-01",
+      "label": "fixture-node-01",
+      "instance": "fixture-instance-node-01",
+      "capabilities": [
+        {
+          "capability": "agent.reason",
+          "attrs": {
+            "harness": "claude",
+            "os": "linux/amd64"
+          }
+        }
+      ],
+      "seen_at": "2026-09-08T11:59:50Z",
+      "expires_at": "2026-09-08T12:02:50Z",
+      "lease": null,
+      "draining": ""
+    },
+    {
+      "node_id": "node-02",
+      "label": "fixture-node-02",
+      "instance": "fixture-instance-node-02",
+      "capabilities": [
+        {
+          "capability": "agent.reason",
+          "attrs": {
+            "harness": "claude",
+            "os": "linux/amd64",
+            "board": "demo-board"
+          }
+        }
+      ],
+      "seen_at": "2026-09-08T11:59:50Z",
+      "expires_at": "2026-09-08T12:02:50Z",
+      "lease": {
+        "run_id": "run-branch",
+        "not_after": "2026-09-08T12:01:00Z"
+      },
+      "draining": ""
+    },
+    {
+      "node_id": "node-03",
+      "label": "fixture-node-03",
+      "instance": "fixture-instance-node-03",
+      "capabilities": [
+        {
+          "capability": "agent.reason",
+          "attrs": {
+            "harness": "claude",
+            "os": "linux/amd64"
+          }
+        }
+      ],
+      "seen_at": "2026-09-08T11:59:50Z",
+      "expires_at": "2026-09-08T12:02:50Z",
+      "lease": {
+        "run_id": "run-drain",
+        "not_after": "2026-09-08T12:01:00Z"
+      },
+      "draining": "graceful"
+    },
+    {
+      "node_id": "node-04",
+      "label": "fixture-node-04",
+      "instance": "fixture-instance-node-04",
+      "capabilities": [
+        {
+          "capability": "agent.reason",
+          "attrs": {
+            "harness": "claude",
+            "os": "linux/amd64"
+          }
+        }
+      ],
+      "seen_at": "2026-09-08T11:59:50Z",
+      "expires_at": "2026-09-08T12:02:50Z",
+      "lease": null,
+      "draining": "at-boundary"
+    },
+    {
+      "node_id": "node-05",
+      "label": "fixture-node-05",
+      "instance": "fixture-instance-node-05",
+      "capabilities": [
+        {
+          "capability": "agent.reason",
+          "attrs": {
+            "harness": "claude",
+            "os": "linux/amd64"
+          }
+        }
+      ],
+      "seen_at": "2026-09-08T11:57:20Z",
+      "expires_at": "2026-09-08T12:00:20Z",
+      "lease": null,
+      "draining": ""
+    },
+    {
+      "node_id": "node-06",
+      "label": "fixture-node-06",
+      "instance": "fixture-instance-node-06",
+      "capabilities": [
+        {
+          "capability": "agent.reason",
+          "attrs": {
+            "harness": "claude",
+            "os": "linux/amd64"
+          }
+        }
+      ],
+      "seen_at": "2026-09-08T11:59:50Z",
+      "expires_at": "2026-09-08T12:02:50Z",
+      "lease": {
+        "run_id": "run-asked",
+        "not_after": "2026-09-08T11:59:30Z"
+      },
+      "draining": ""
+    }
+  ]
+}

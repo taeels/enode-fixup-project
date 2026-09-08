@@ -1,0 +1,137 @@
+{
+  "observed_at": "2026-09-08T12:00:00Z",
+  "runs": [
+    {
+      "run_id": "run-queued",
+      "state": "QUEUED",
+      "verdict": null,
+      "work_id": "work-run-queued",
+      "created_at": "2026-09-08T11:59:00Z",
+      "ended_at": null,
+      "assigned": [],
+      "submitter": "guest-bright-otter"
+    },
+    {
+      "run_id": "run-branch",
+      "state": "RUNNING",
+      "verdict": null,
+      "work_id": "work-run-branch",
+      "created_at": "2026-09-08T11:58:00Z",
+      "ended_at": null,
+      "assigned": [
+        {
+          "as": "worker",
+          "nodes": [
+            {
+              "node": "node-02",
+              "label": "fixture-node-02"
+            }
+          ]
+        }
+      ],
+      "submitter": "guest-bright-otter"
+    },
+    {
+      "run_id": "run-drain",
+      "state": "RUNNING",
+      "verdict": null,
+      "work_id": "work-run-drain",
+      "created_at": "2026-09-08T11:57:00Z",
+      "ended_at": null,
+      "assigned": [
+        {
+          "as": "worker",
+          "nodes": [
+            {
+              "node": "node-03",
+              "label": "fixture-node-03"
+            }
+          ]
+        }
+      ],
+      "submitter": "guest-bright-otter"
+    },
+    {
+      "run_id": "run-asked",
+      "state": "RUNNING",
+      "verdict": null,
+      "work_id": "work-run-asked",
+      "created_at": "2026-09-08T11:56:00Z",
+      "ended_at": null,
+      "assigned": [
+        {
+          "as": "worker",
+          "nodes": [
+            {
+              "node": "node-06",
+              "label": "fixture-node-06"
+            }
+          ]
+        }
+      ],
+      "submitter": "guest-bright-otter"
+    },
+    {
+      "run_id": "run-succeeded",
+      "state": "SUCCEEDED",
+      "verdict": {
+        "state": "SUCCEEDED",
+        "checks": [
+          {
+            "step": "work",
+            "what": "exit_code",
+            "want": 0,
+            "got": 0,
+            "ok": true
+          }
+        ]
+      },
+      "work_id": "work-run-succeeded",
+      "created_at": "2026-09-08T11:55:00Z",
+      "ended_at": "2026-09-08T11:57:00Z",
+      "assigned": [
+        {
+          "as": "worker",
+          "nodes": [
+            {
+              "node": "node-01",
+              "label": "fixture-node-01"
+            }
+          ]
+        }
+      ],
+      "submitter": "guest-bright-otter"
+    },
+    {
+      "run_id": "run-failed",
+      "state": "FAILED",
+      "verdict": {
+        "state": "FAILED",
+        "checks": [
+          {
+            "step": "work",
+            "what": "exit_code",
+            "want": 0,
+            "got": 1,
+            "ok": false
+          }
+        ]
+      },
+      "work_id": "work-run-failed",
+      "created_at": "2026-09-08T11:54:00Z",
+      "ended_at": "2026-09-08T11:56:00Z",
+      "assigned": [
+        {
+          "as": "worker",
+          "nodes": [
+            {
+              "node": "node-01",
+              "label": "fixture-node-01"
+            }
+          ]
+        }
+      ],
+      "submitter": "guest-bright-otter"
+    }
+  ]
+}

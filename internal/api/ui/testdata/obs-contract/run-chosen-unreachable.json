@@ -1,0 +1,47 @@
+{
+  "run_id": "run-unreachable",
+  "state": "FAILED",
+  "requires": [
+    {
+      "as": "worker",
+      "capability": "agent.reason",
+      "attrs": {
+        "harness": "claude",
+        "os": "linux/amd64"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "seq": 1,
+      "id": "select",
+      "state": "DONE",
+      "uses": "worker",
+      "needs": [],
+      "chosen": false,
+      "ended_at": "2026-09-08T11:58:05Z"
+    },
+    {
+      "seq": 2,
+      "id": "unselected-parent",
+      "state": "SKIPPED",
+      "uses": "worker",
+      "needs": [
+        "select"
+      ],
+      "chosen": false,
+      "ended_at": "2026-09-08T11:58:05Z"
+    },
+    {
+      "seq": 3,
+      "id": "selected",
+      "state": "SKIPPED",
+      "uses": "worker",
+      "needs": [
+        "unselected-parent"
+      ],
+      "chosen": true,
+      "ended_at": "2026-09-08T11:58:06Z"
+    }
+  ]
+}

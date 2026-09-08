@@ -1,0 +1,6 @@
+{
+  "error": {
+    "code": 429,
+    "reason": "rate limited"
+  }
+}
