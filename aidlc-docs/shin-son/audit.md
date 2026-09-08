@@ -1,0 +1,83 @@
+# AI-DLC Audit Log — shin-son (손신)
+
+Construction 담당 shin-son 의 감사 로그다. 유닛 queue · drain · panel · transcript 의
+사용자 입력과 결정을 시간순으로 기록한다. 사용자 원문은 요약하지 않고 그대로 싣는다.
+타임스탬프는 `date -u +%Y-%m-%dT%H:%M:%SZ` (ISO 8601 UTC).
+
+---
+
+## Session Continuity — 착수 요청
+**Timestamp**: 2026-09-08T13:53:27Z
+**User Input**: "main 최신으로 당겨, 그리고 branch 새로 따서, 이제 내가 할당받은 (shin-son) 부분 작업 시작할거야."
+**AI Response**: `main` 을 origin 에서 fast-forward 로 당겼다(팁 `c010841` CONSTRUCTION 착수 커밋). 유닛 브랜치 `unit/queue` 를 `main` 에서 땄다(CONVENTIONS 3.1 · 첫 유닛이 queue 라서). 담당 상태 `aidlc-docs/shin-son/aidlc-state.md` · 배정 `construction-roster.md` · CLAUDE.md 의 담당별 문서 루트 규약을 읽고, AI-DLC 규칙(core-workflow · common 다섯 · construction/functional-design · 확장 opt-in 셋)을 로드했다. 켜진 확장 security-baseline 은 `decisions.md` §3 의 취급표를 따른다.
+**Context**: CONSTRUCTION 착수. 담당 shin-son 의 첫 유닛 queue.
+
+---
+
+## Session Continuity — 맥락 로드 · 발견
+**Timestamp**: 2026-09-08T13:53:27Z
+**User Input**: (없음 — 위 요청의 후속)
+**AI Response**: 읽은 것 — 유닛 정본 `unit-of-work.md` §2 queue · `unit-of-work-dependency.md`(파일 행렬 · 접점 넷) · `unit-of-work-story-map.md`(CP2) · 요구 팩(`enode-features.md` 3.2.1 · `decisions.md` §1·§2·§7 · `scene-gates.md` CP2 · `constraints.md`) · 정본(`ADR-064` · `INVARIANTS` §1·§2 · `mediator-api.md` §1·§2 · `ADR-063` §2.1·§4·§6) · 코드(`internal/store` 의 CreateRun·CreateRejectedRun·BusyNodes·Cancel·SettleIfDone·Reap·FailRestarted·ReportStep·applyRelease·UpsertAdvert · `internal/api/api.go` submit·postResult·postCancel·postNodes · `cmd/mediator/main.go` · `schema.sql`). 정본은 서브모듈 `enode-design` 이 비어 있어 `git submodule update --init` 으로 채웠다(코드 변경 아님).
+
+발견 셋.
+1. **선행 obs(taeels · W0)가 아직 main 에 없다** — `internal/api/nodes.go`·`runs.go` 없음, 원격에 obs 브랜치 없음. Functional Design 은 obs 코드를 안 딛으므로 지금 하고, Code Generation 의 접점 파일(`internal/store/store.go` · `internal/api/api.go` · `cmd/mediator/main.go`)은 obs 병합 뒤 rebase 해서 만진다.
+2. **`nodes.draining` 열이 아직 없다** — 유닛 정본은 「열은 이미 있음」이라 적었으나 `schema.sql` 과 Go 코드 어디에도 없다. 주인을 정해야 한다(계획 파일 질문 1).
+3. **로컬에 Postgres · docker 가 없다** — `internal/store` 의 DB 테스트가 하드 실패하고 `internal/api` 는 건너뛴다(CP0 주석 그대로). Code Generation 전에 `scripts/testdb.sh` 를 돌릴 환경이 필요하다.
+
+`runctl` 은 2xx 를 성공으로 보므로(`internal/runctl/client.go:70`) 202 에 손댈 것이 없다 — ADR-064 §2 그대로. 파일 행렬 밖을 안 만진다.
+**Context**: CONSTRUCTION - queue - Functional Design 준비.
+
+---
+
+## Functional Design — queue · 계획 · 질문 셋
+**Timestamp**: 2026-09-08T13:53:27Z
+**User Input**: (없음 — 계획 파일을 낸다)
+**AI Response**: `aidlc-docs/shin-son/construction/plans/queue-functional-design-plan.md` 를 냈다. 산출물 계획(체크박스) · 설계 초안 · 물음 없이 정한 것과 근거 · 계약에 걸리는 질문 셋([Answer]: 태그). 질문을 셋으로 제한한 근거는 이 저장소의 착수 지침(`v1-run-dhseo/audit.md` 최초 항목 — 「계약(함수 서명 · 파일 경로 · 응답 모양)에 걸리는 것만, 단계마다 셋까지」)이다. 답을 받으면 FD 산출물 셋(business-logic-model · business-rules · domain-entities)을 `aidlc-docs/shin-son/construction/queue/functional-design/` 에 낸다.
+**Context**: CONSTRUCTION - queue - Functional Design (Step 2~4 완료 · Step 5 답 대기).
+
+---
+
+## Session Continuity — 코드 최신화 (obs 병합 반영)
+**Timestamp**: 2026-09-08T16:15:25Z
+**User Input**: "미안, 지금 코드 다시 최신화 해줄래? obs 마무리 되었을거야."
+**AI Response**: origin 을 당겼다 — `main` 이 `c010841` 에서 `0a159a4`(PR #4 `unit/obs` 병합)로 여덟 커밋 앞섰다. 미커밋 문서 셋을 stash 로 지키고 `main` 을 fast-forward 한 뒤 `unit/queue` 를 그 위로 rebase 하고 stash 를 되돌렸다(충돌 없음). `go build ./...` · `go vet` 통과.
+
+같이 들어온 것 넷. (1) **재배정** `81b526c` — shin-son 은 queue · drain, panel · transcript 는 nacl1119 로. 담당 상태 파일이 그 판으로 바뀌었고 내 진행 절이 그 위에 얹혔다. (2) **obs 가 `nodes.draining` 열을 더했다** — 어휘 셋과 `store.DrainPolicy`, `UpsertAdvert` 가 이전 drain 값을 돌려준다(해제 지점용). 계획의 질문 1 이 닫혀 질문은 둘이 됐다. (3) `runs.submitter` · `Run.Submitter` · `runView.Requires`(ADR-069) — QUEUED 가 무엇을 기다리는지는 obs 의 상세가 낸다. (4) `docs/testdb-setup.md` — Docker 없이 Postgres 17 을 까는 안내. 이 기계에는 docker 도 brew 도 없어 Code Generation 전에 깔아야 한다.
+
+계획 파일 §0 · §3.4(drain 해제 지점을 queue 가 postNodes 에서 이전 값으로 잡는다) · §3.6 줄 번호 · §5 를 고쳤다.
+**Context**: CONSTRUCTION - queue - Functional Design (답 대기 유지).
+
+---
+
+## Functional Design — queue · 질문 답 (일부)
+**Timestamp**: 2026-09-08T17:27:35Z
+**User Input**: "Q1 다시 설명해/
+Q2 A"
+**AI Response**: Q2(QUEUED Run 의 steps 행 시점) 답 A — 승격 때 만든다 — 를 계획 파일에 적었다. Q1(CreateQueuedRun 서명)은 채팅에서 다시 풀어 설명하고 답을 기다린다.
+**Context**: CONSTRUCTION - queue - Functional Design (Step 5 · 답 수집 중).
+
+---
+
+## Functional Design — queue · 답 수집 완료 · 산출물 생성
+**Timestamp**: 2026-09-08T17:32:59Z
+**User Input**: "A"
+**AI Response**: Q1(CreateQueuedRun 서명) 답 A — store 가 자기 tx 를 열고 잠금·INSERT·첫 훑기를 진다 — 를 계획 파일에 적었다. 모호한 답 없음. FD 산출물 셋을 `aidlc-docs/shin-son/construction/queue/functional-design/` 에 냈다 — business-logic-model.md(제출 두 자리 · CreateQueuedRun · wakeQueuedIn/promoteIn · 지점 여섯+기동 표 · 예외 흐름 · 닿는 파일) · business-rules.md(상태 · 정산 보호 · 응답 · 순서·동시성 · 보안 확장 취급 · 안 하는 것) · domain-entities.md(QUEUED 행 모양 · 어휘 · Store 겉면 넷과 정본 대비 · applyRelease 반환 · 파일 행렬). 코드를 읽다 잡은 것 하나 — SettleIfDone 이 단계 0 인 Run 을 SUCCEEDED 로 닫을 수 있어 RUNNING 만 정산하는 보호를 규칙으로 뒀다. 이 유닛이 정본에서 벗어나는 것 하나 — CreateQueuedRun 겉면(근거는 domain-entities §3). 계획 체크박스 갱신. 완료 메시지(2-옵션)를 내고 승인을 기다린다.
+**Context**: CONSTRUCTION - queue - Functional Design (Step 6·7 완료 · Step 8 승인 대기).
+
+---
+
+## Functional Design — queue · 검토 질문
+**Timestamp**: 2026-09-08T17:34:35Z
+**User Input**: "정본에서 벗어났다는건, U0 obs 설계에서 벗어난거야?"
+**AI Response**: 아니다. 벗어난 것은 `unit-of-work.md` §2(Units Generation 산출물)의 queue 겉면 스케치 한 줄 — `CreateQueuedRun` 서명 — 이고 Q1 답 A 의 결과다. 설계 정본(`INVARIANTS` · `ADR-064` · `mediator-api`)과 obs 의 접점(`nodes.draining` · `DrainPolicy` · `UpsertAdvert` 반환 · `Run.Submitter` · `runView.Requires`)은 무변경. 완료 메시지의 「정본」이라는 말이 느슨했다고 정정했다.
+**Context**: CONSTRUCTION - queue - Functional Design (승인 대기 중 검토 문답).
+
+---
+
+## Functional Design — queue · 승인
+**Timestamp**: 2026-09-08T17:37:00Z
+**User Input**: "승인할게."
+**AI Response**: Functional Design 승인을 기록했다. 상태 파일의 queue FD 를 완료로 표시하고, 이 단계의 산출물(계획 · FD 셋 · 상태 · 감사)을 `unit/queue` 에 커밋한다(CONVENTIONS 3.3 「단계 승인마다」). 다음은 NFR Requirements — `construction/nfr-requirements.md` 를 읽고 실행 여부를 판단한다.
+**Context**: CONSTRUCTION - queue - Functional Design 승인 (Step 9).
+
+---
