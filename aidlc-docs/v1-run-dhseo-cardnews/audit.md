@@ -415,3 +415,13 @@ Guest Login 클릭시 카드뉴스 경로 · 끝까지 넘기면 데모+DOM 무�
 사용자 승인 대기.
 
 ---
+
+## Build and Test 게이트 승인
+**Timestamp**: 2026-09-08T10:56:45Z
+**User Input**: "승인"
+**AI Response**: Build and Test 재검증을 승인받았다. `v1-run-dhseo-cardnews`
+를 origin 에 push 한다. 남은 항목(DB 회귀 미재실행)은
+`build-and-test-summary.md` 에 명시된 대로 병합 전 CI 몫으로 남긴다.
+**Context**: CONSTRUCTION 재실행 게이트 통과. push 진행.
+
+---
