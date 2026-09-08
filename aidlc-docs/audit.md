@@ -236,6 +236,29 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 
 ---
 
+## Code Generation — 승인
+**Timestamp**: 2026-09-08T07:45:38Z
+**AI Prompt**: "Continue to Next Stage — 시안 승인하고 Build & Test 로 진행"
+**User Response**: "승인, Build & Test 진행해"
+**Status**: Approved
+**Context**: Code Generation (demo-pen) 완료. design/enode-demo.pen 아트보드 여덟. 다음은 Build and Test (시안 검수).
+
+---
+
+## Build and Test Stage
+**Timestamp**: 2026-09-08T07:45:38Z
+**Build Status**: Success — enode-demo.pen 아트보드 여덟 · exports/D*.png 여덟 (2x). enode-ux.pen md5 = HEAD
+**Test Status**: Pass — 단위 검사(placeholder 0 · problems 0 · 버튼 전수 none missing · 장식 문자 0 · 나쁜 enum 0) · 통합 검사(복사본 우 열 6/6 · 웹캠 자리 7/7 · 전환 표 · D5 run 목록 비가림). D4 Task Sub 의 partially clipped 1 건을 fixed-width 로 고쳐 0
+**Files Generated**:
+- build-instructions.md
+- unit-test-instructions.md
+- integration-test-instructions.md
+- performance-test-instructions.md (해당 없음)
+- build-and-test-summary.md
+**Context**: CONSTRUCTION - Build and Test. 승인 대기. D4 수정이 편집기에만 있어 사용자 저장 뒤 .pen 을 커밋한다.
+
+---
+
 ## Code Generation Part 2 — 변경 요청 (투어 스텝 넷 전부 그리기)
 **Timestamp**: 2026-09-08T07:45:38Z
 **User Input**: "시안 중 D3 가이드투어 1/4 2/4 3/4 4/4 에 대한 그림은?"
