@@ -36,6 +36,9 @@ type Server struct {
 	records *record.Store
 	cfg     config.Config
 	log     *slog.Logger
+	// rl 은 데모 모드의 읽기 셋에 걸리는 전역 한도다 (ratelimit.go).
+	// 모드와 무관하게 세운다 — 안 걸리는 모드에서는 아무도 안 부른다.
+	rl *bucket
 }
 
 func New(st *store.Store, cfg config.Config, log *slog.Logger) *Server {
@@ -44,7 +47,8 @@ func New(st *store.Store, cfg config.Config, log *slog.Logger) *Server {
 	// 껍데기(cmd/mediator)에 맡기지 않고 New 가 하는 이유는 하나다 —
 	// HTTP 표면을 세우는 곳이면 어디서든 잊을 수가 없어야 한다.
 	st.AnswerPath = answerPath
-	return &Server{st: st, records: st.Records, cfg: cfg, log: log}
+	return &Server{st: st, records: st.Records, cfg: cfg, log: log,
+		rl: newBucket(rateLimitPerSecond, rateLimitBurst)}
 }
 
 // needRecords 는 Record 저장소 없이 호출된 경우를 막는다.
@@ -59,12 +63,36 @@ func (s *Server) needRecords(w http.ResponseWriter) bool {
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	// read 는 읽기 셋 셋이 모드에 따라 무엇에 감싸이는가다.
+	//
+	// 조건부 등록이 아니라 조건부 래퍼인 것이 이 모양의 값이다 — 라우트
+	// 표의 개수와 패턴이 모드와 무관하게 같으므로 "기존 열다섯 라우트가
+	// 그대로" 라는 회귀가 데모 모드에서도 참이고, 셋이 늘 같은 자리에
+	// 있으므로 ServeMux 의 중복 등록 패닉도 생길 자리가 없다.
+	//
+	// 데모 인스턴스가 무인증으로 여는 것은 이 읽기 셋뿐이다. 쓰기는
+	// 잠긴 채이고 GET /v1/asks 도 잠긴 채다 — 확정이 반쪽이라 무인증으로
+	// 낼 값이 아니다.
+	//
+	// 이것은 ADR-065 2절을 벗어난다. 그 절이 "인증은 다른 Mediator 표면과
+	// 같은 Bearer 토큰을 쓴다" 로 못 박았고, 벗어나는 근거(데모에는 토큰
+	// 입력 화면 자체가 없다)는 같은 팩 안에 있다. 준수라고 적지 않고
+	// 벗어남으로 적는다 — 정본을 개정할지 예외로 둘지는 진행자의 것이다.
+	// 되돌리는 값은 이 래퍼 하나와 설정 스위치 하나다.
+	read := func(h http.HandlerFunc) http.HandlerFunc {
+		if s.cfg.Demo {
+			return s.limit(h) // 무인증 + 한도
+		}
+		return s.auth(h) // 실 함대는 오늘 그대로
+	}
 	mux.HandleFunc("POST /v1/nodes", s.auth(s.postNodes))
+	mux.HandleFunc("GET /v1/nodes", read(s.getNodes))
+	mux.HandleFunc("GET /v1/runs", read(s.getRuns))
 	mux.HandleFunc("POST /v1/nodes/{id}/claim", s.auth(s.postClaim))
 	mux.HandleFunc("POST /v1/runs/{run}/steps/{seq}/result", s.auth(s.postResult))
 	mux.HandleFunc("POST /v1/runs", s.auth(s.postRuns))
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
-	mux.HandleFunc("GET /v1/runs/{id}", s.auth(s.getRun))
+	mux.HandleFunc("GET /v1/runs/{id}", read(s.getRun))
 	mux.HandleFunc("GET /v1/capabilities", s.auth(s.getCapabilities))
 	mux.HandleFunc("GET /v1/asks", s.auth(s.getAsks))
 	mux.HandleFunc("POST "+answerRoute, s.auth(s.postAnswer))
@@ -132,6 +160,25 @@ func principal(r *http.Request) string {
 	return v
 }
 
+// submitterKey 는 제출자 표시 라벨이 실리는 자리다.
+//
+// principal 과 성격이 같은 자기 신고이고 권한이 아니다 — 거르는 값으로
+// 쓰지 않는다. 다른 것은 출처다: principal 은 헤더에서 오고 이것은
+// 데모의 게스트 로그인 이름에서 온다.
+//
+// 이 유닛은 문만 연다. 값을 넣는 것은 데모 제출 라우트(demo-back)이고
+// 그쪽이 자기 핸들러에서 이 키로 컨텍스트에 이름을 넣는다. 같은 패키지라
+// 새 표면이 필요 없다. 그러면 그쪽은 submit() 본문을 한 줄도 안 고치므로
+// 같은 함수를 두 유닛이 동시에 고치는 자리가 안 생긴다.
+//
+// 실 함대는 아무도 안 넣으므로 언제나 "" 다 — 그래도 키는 나간다.
+const submitterKey ctxKey = 2
+
+func submitter(r *http.Request) string {
+	v, _ := r.Context().Value(submitterKey).(string)
+	return v
+}
+
 // ── 응답 ─────────────────────────────────────────────────────────────────
 
 type errBody struct {
@@ -166,6 +213,20 @@ type runView struct {
 	// Warnings 는 받았지만 뜻대로 안 돌 것이다 (ADR-061 §2).
 	// 제출을 막지 않는다 — 계약 저자가 읽고 고칠 자리다.
 	Warnings []string `json:"warnings,omitempty"`
+	// Requires 는 이 Run 이 무엇을 기다리는가다 (ADR-069 §4).
+	//
+	// getRun 에서만 채운다. view() 안에서 채우면 제출 응답 셋이 함께
+	// 넓어지고, 계약을 푸는 비용이 제출 경로에 붙는다. 목록에는 안 싣는다.
+	//
+	// omitempty 인 것은 기존 표면의 글자를 안 바꾸려는 것이다 — 아니면
+	// 제출 응답 셋에 "requires": null 이 새로 생긴다. getRun 에서는 계약이
+	// 언제나 요구를 갖고(비면 Validate 가 접수에서 막는다) 그래서 키가
+	// 언제나 선다. 이 키가 없다는 것은 곧 계약 읽기 실패이고, 그 사실은
+	// 같은 응답의 warnings 에 한 줄로 실린다.
+	//
+	// 계약 전문을 싣지 않는다. 전문은 낸 쪽이 갖고 봉인본에 남는다 —
+	// requires 만 예외인 이유는 그것이 배정의 입력이라 성격이 다르기 때문이다.
+	Requires []store.RequireView `json:"requires,omitempty"`
 }
 
 // view 는 Run 하나를 밖에서 읽는 형태로 만든다.
@@ -194,6 +255,18 @@ type advertResponse struct {
 	// 광고는 만료됐는데 claim 은 롱폴이라 계속 돌아서 기존 Run 은 멀쩡하고
 	// 새 Run 만 422 를 받는다. 아무도 경고하지 않는다.
 	RenewSeconds int `json:"renew_seconds"`
+	// Drain 은 중앙이 받아 적은 정책이다 (ADR-063 §6). 통보이지 판정이 아니다.
+	//
+	// 언제나 싣는다 — omitempty 가 아니다. 생략하면 "drain 이 풀렸다" 와
+	// "이 필드를 모르는 중앙이다" 가 한 글자가 되고, 이 값을 받아 Worker 에
+	// 넘기는 쪽(drain 유닛)이 그 둘을 갈라야 한다. 통보는 값이 비어도 통보다.
+	//
+	// 요청 본문의 policy 는 반대로 omitzero 다 — 안 걸린 노드는 그 키를
+	// 안 보낸다. 비대칭이지만 방향이 다른 규칙이라 그것이 옳다.
+	//
+	// 이름이 자리마다 다른 것도 정본이다 — 본문은 policy.drain,
+	// 여기는 drain, GET /v1/nodes 는 draining.
+	Drain string `json:"drain"`
 }
 
 func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +283,13 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 	// 그 주기를 응답으로 내려보낸다 — 노드가 자기 플래그로 정하면
 	// 이 계산과 어긋날 수 있다 (ADR-028).
 	ttl := time.Duration(s.cfg.Lease.RenewSeconds*s.cfg.Lease.NotAfterFactor) * time.Second
-	if err := s.st.UpsertAdvert(r.Context(), a, principal(r), ttl); err != nil {
+	// 첫 반환은 이 광고가 덮어쓰기 전의 draining 값이다. obs 는 그것을 안 쓴다.
+	//
+	// 그래도 store 가 그 값을 내는 이유는 queue 의 깨우기 지점 여섯 중
+	// 하나가 "drain 해제를 받은 광고 처리" 이기 때문이다 — 덮어쓰기만 하면
+	// 해제를 본 사람이 아무도 없다. 버릴 값을 이 유닛이 미리 세워 두는
+	// 것이고, 그래야 drain 유닛이 저장소 접점을 다시 안 연다.
+	if _, err := s.st.UpsertAdvert(r.Context(), a, principal(r), ttl); err != nil {
 		s.log.Error("cannot store advertisement", "node", a.NodeID, "err", err)
 		fail(w, 503, "store failed")
 		return
@@ -244,7 +323,11 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "renew failed")
 		return
 	}
-	write(w, 200, advertResponse{Leases: leases, RenewSeconds: s.cfg.Lease.RenewSeconds})
+	// DrainPolicy 를 여기서 다시 부르는 것이 저장된 값과 응답이 언제나
+	// 같다는 보장이다 — 접는 함수가 하나이므로 두 값이 갈릴 자리가 없다.
+	// 로그는 store 쪽에서만 남는다. 두 번 남으면 기록이 갈린다.
+	write(w, 200, advertResponse{Leases: leases, RenewSeconds: s.cfg.Lease.RenewSeconds,
+		Drain: store.DrainPolicy(a.Policy.Drain)})
 }
 
 // ── POST /v1/nodes/{id}/claim — 유일한 비멱등 지점 ────────────────────
@@ -404,7 +487,8 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 	if rej != nil {
 		if !dry {
 			// 거절도 기록한다 — 왜 안 돌았는지가 없으면 껍데기가 재시도를 못 정한다.
-			run := store.Run{RunID: c.RunID, Principal: principal(r), Contract: c, Reject: rej}
+			run := store.Run{RunID: c.RunID, Principal: principal(r), Contract: c,
+				Reject: rej, Submitter: submitter(r)}
 			if err := s.st.CreateRejectedRun(ctx, run); err != nil {
 				s.log.Error("cannot record rejection", "run", c.RunID, "err", err)
 			}
@@ -426,7 +510,8 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 			rej := &match.Reject{Code: match.CodeNoCandidate,
 				Reason: fmt.Sprintf("requires exceeds the width limit: %d nodes, limit %d", len(nodes), max)}
 			if !dry {
-				run := store.Run{RunID: c.RunID, Principal: principal(r), Contract: c, Reject: rej}
+				run := store.Run{RunID: c.RunID, Principal: principal(r), Contract: c,
+					Reject: rej, Submitter: submitter(r)}
 				if err := s.st.CreateRejectedRun(ctx, run); err != nil {
 					s.log.Error("cannot record rejection", "run", c.RunID, "err", err)
 				}
@@ -457,7 +542,7 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 
 	run := store.Run{
 		RunID: c.RunID, State: store.StateRunning, Principal: principal(r),
-		Contract: c, Assigned: label(assign, adverts),
+		Contract: c, Assigned: label(assign, adverts), Submitter: submitter(r),
 	}
 	err = s.st.CreateRun(ctx, run, grants, c.Steps)
 	switch {
@@ -494,7 +579,23 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "query failed")
 		return
 	}
-	write(w, 200, s.view(r.Context(), run))
+	v := s.view(r.Context(), run)
+	// 계약을 못 읽어도 Run 상태는 준다 — 오늘 Steps 실패가 조회를 안 막는
+	// 것과 같은 규칙이다. 다만 빠졌다는 것을 응답에 적는다: omitempty 와
+	// 이 갈래를 함께 두면 200 에서 "기다리는 것이 없다" 와 "계약을 못
+	// 읽었다" 가 한 글자가 되고, 화면은 조용히 빈 칸을 그리며 원인은 서버
+	// 로그에만 남는다. warnings 가 이미 있으므로 새 필드도 새 라우트도
+	// 아니고 한 줄이다. 로그는 그대로 남긴다.
+	if c, cerr := s.st.LiveContract(r.Context(), run.RunID); cerr == nil {
+		v.Requires = store.RequiresOf(c)
+	} else {
+		s.log.Error("cannot query contract", "run", run.RunID, "err", cerr)
+		v.Warnings = append(v.Warnings, "the contract could not be read; requires is omitted")
+	}
+	// 폴링 루프의 둘째 홉이다 — 카드를 눌러 단계를 보는 자리가 캐시에
+	// 앉으면 함대가 멈춘 것처럼 보인다.
+	noStore(w)
+	write(w, 200, v)
 }
 
 // ── GET /v1/asks — 인박스 ────────────────────────────────────────────────

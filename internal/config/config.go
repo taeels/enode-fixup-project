@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -19,6 +20,24 @@ type Config struct {
 	Contract  Contract  `yaml:"contract"`
 	Notify    Notify    `yaml:"notify"`
 	Lease     Lease     `yaml:"lease"`
+
+	// Demo 는 이 Mediator 가 일회용 데모 인스턴스인가다.
+	//
+	// 참이면 읽기 셋(GET /v1/nodes · GET /v1/runs · GET /v1/runs/{id})이
+	// 무인증으로 열리고 그 셋에만 요청 한도가 걸린다. 데모 화면에는
+	// 토큰 입력 자리가 없고(게스트 로그인이 그 자리를 대신한다) 브라우저에
+	// 실 토큰을 박는 것이 가둠의 셋째를 깨기 때문이다. 쓰기는 잠긴 채다.
+	//
+	// 기본값이 거짓이라 실 함대는 오늘 그대로다.
+	//
+	// decisions.md 3절의 "internal/config 를 보안 이유로 고치지 말 것" 은
+	// 이 필드를 막지 않는다. 그 문장이 막은 것은 TLS 설정을 여기에 싣는
+	// 일이고, 이것은 decisions.md 8절이 범위로 들인 데모 모드의 스위치다.
+	// 이유가 다르므로 같은 파일이어도 같은 결정이 아니다.
+	//
+	// 이 필드는 접점이다 — 데모 쓰기 라우트를 여는 demo-back 이 같은
+	// 스위치를 읽는다. 담당이 갈리므로 진행자의 직렬 병합 대상이다.
+	Demo bool `yaml:"demo"`
 }
 
 type Database struct {
@@ -115,7 +134,21 @@ func Load(flagPath string) (Config, error) {
 	if v := os.Getenv("ENODE_MEDIATOR_TOKEN"); v != "" {
 		c.Token = v
 	}
+	// 데모 인스턴스는 컨테이너 하나로 뜬다 — 설정 파일을 굽지 않고
+	// 환경변수 하나로 켠다. 비밀 둘과 같은 통로에 두는 이유는 그것뿐이고,
+	// 값 자체는 비밀이 아니다.
+	if v := os.Getenv("ENODE_DEMO_MODE"); v != "" {
+		c.Demo = truthy(v)
+	}
 	return c, nil
+}
+
+// truthy 는 환경변수 하나를 불리언으로 읽는다.
+//
+// 참으로 읽는 값을 셋으로 못 박는다. 안 맞으면 거짓이다 — 오타 하나로
+// 데모 인스턴스가 되는 것보다 안 켜지는 쪽이 낫다.
+func truthy(v string) bool {
+	return strings.EqualFold(v, "1") || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes")
 }
 
 // Paths 는 설정 파일을 찾아볼 자리를 순서대로 돌려준다.

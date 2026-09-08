@@ -142,3 +142,28 @@ ALTER TABLE steps ADD COLUMN IF NOT EXISTS envelope_key text;
 -- loop 이 구간을 되돌릴 때도 남는다: "골랐었다" 는 그 회차의 기록이 아니라
 -- 이 Run 에서 그 자리가 목표였다는 사실이다.
 ALTER TABLE steps ADD COLUMN IF NOT EXISTS chosen boolean NOT NULL DEFAULT false;
+
+-- 노드 소유자가 건 drain 정책의 복사본 (ADR-063 §6).
+--
+-- 정본은 노드의 정책 파일이고 이 열은 최근 광고에 실려 온 것이다.
+-- 어휘는 셋 — "" (안 걸림) · graceful (새 임대만 막음) · at-boundary (경계에서 닫음).
+--
+-- CHECK 를 안 건다. steps.state 와 같은 이유다 — 어휘가 늘 때 마이그레이션을
+-- 강요하지 않는다. 대신 애플리케이션이 검사한다 (store.DrainPolicy).
+-- 그 둘은 다른 것이다: 앞은 스키마의 경직을 피하는 결정이고,
+-- 뒤는 어휘 밖 문자열이 들어와 그 노드가 매칭 후보에서 조용히 빠지는 것을 막는다.
+ALTER TABLE nodes ADD COLUMN IF NOT EXISTS draining text NOT NULL DEFAULT '';
+
+-- 제출자 표시 라벨. 게스트 로그인 이름이 그대로 실린다.
+--
+-- 권한이 아니라 자기 신고다 (ADR-015 §1) — principal 과 같은 성격이고,
+-- 그래서 거르는 값으로 쓰지 않는다. 실 함대의 Run 은 빈 문자열이다.
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS submitter text NOT NULL DEFAULT '';
+
+-- 정렬 열 단독 인덱스.
+--
+-- 오늘 있는 것은 runs_work_idx (work_id, created_at) 하나뿐이라
+-- ?work= 없는 기본 목록과 ?since= 가 그것을 못 탄다. 둘 다 created_at 으로
+-- 좁히거나 정렬하는데 선행 열이 work_id 이기 때문이다.
+-- limit 상한이 1000 이므로 함대가 자라면 그 정렬 비용이 보인다.
+CREATE INDEX IF NOT EXISTS runs_created_idx ON runs (created_at);

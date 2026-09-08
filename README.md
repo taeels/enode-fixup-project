@@ -34,16 +34,24 @@ git log --oneline HEAD..upstream/main
 
 ```bash
 git submodule update --init      # enode-design/ 을 받는다
-eval "$(scripts/testdb.sh)"      # docker 로 Postgres 하나
+eval "$(scripts/testdb.sh)"      # 시험용 Postgres 하나
 go test ./...
 ```
+
+**`scripts/testdb.sh` 는 Docker 로 띄우되, 이미 잡힌
+`ENODE_TEST_DATABASE_URL` 이 있으면 그것을 그대로 되돌려 준다.** Docker 를 못
+까는 기계는 Postgres 를 직접 깔고 그 DSN 을 셸에 박으면 된다 — 위 명령은 그대로
+선다. 까는 절차는 `docs/testdb-setup.md` 에 WSL2 와 macOS 로 나눠 적었다.
 
 **서브모듈을 안 받으면 `enode-design/` 이 빈 디렉터리다** — 1절이 「이긴다」고
 한 `INVARIANTS.md` 가 통째로 없다.
 
-**`ENODE_TEST_DATABASE_URL` 이 없으면 DB 테스트가 `t.Skip` 한다.** 초록인데
-안 돈 것이 가장 나쁘므로 CI 에 스킵을 잡는 스텝이 따로 있고, 면제 목록은
-`.ci-allowed-skips` 다 — 그 파일 머리말이 지금 비어 있는 이유를 적는다.
+**`ENODE_TEST_DATABASE_URL` 이 없으면 DB 테스트가 안 돈다. 다만 안 도는
+방식이 갈린다** — `internal/api` 는 `t.Skip` 이고 `internal/store` ·
+`cmd/mediator` 는 `t.Fatal` 이다. 뒤쪽은 재현하지 못하는 실패를 남기느니
+그 자리에서 죽는 쪽을 골랐다. 초록인데 안 돈 것이 가장 나쁘므로 CI 에 스킵을
+잡는 스텝이 따로 있고, 면제 목록은 `.ci-allowed-skips` 다 — 그 파일 머리말이
+지금 비어 있는 이유를 적는다.
 
 **실행파일은 각자 다른 사람을 위한 것이다.** 명령 목록의 정본은 이 문서가
 아니라 각 도구의 usage 다.

@@ -4,8 +4,30 @@
 #   eval "$(scripts/testdb.sh)" && go test ./...
 set -euo pipefail
 
+# 이미 잡혀 있으면 그것이 이긴다 — 그대로 되돌려 준다.
+#
+# 대회장에서 Docker 설치가 병목이라 각자 기계에 Postgres 를 직접 깐다
+# (docs/testdb-setup.md). 그 기계에는 Docker 가 없으므로 아래를 돌 수 없는데,
+# CP0 의 첫 줄은 네 기계에서 같은 글자여야 한다. 이 갈래가 그것을 지킨다 —
+# 깐 방식이 무엇이든 eval "$(scripts/testdb.sh)" 하나로 선다.
+if [ -n "${ENODE_TEST_DATABASE_URL:-}" ]; then
+  echo "export ENODE_TEST_DATABASE_URL='${ENODE_TEST_DATABASE_URL}'"
+  exit 0
+fi
+
 NAME=enode-test-pg
 PORT=${ENODE_TEST_PG_PORT:-55434}
+
+# Docker 가 없으면 조용히 넘어가지 않는다.
+#
+# 여기서 빈 출력을 내면 eval 이 아무것도 안 하고, 테스트는 URL 이 없는 채로
+# 돌아 internal/store 가 t.Fatal 로 죽는다. 원인은 "DB 를 못 만들었다" 인데
+# 메시지가 그 말을 안 한다. 그래서 stderr 로 이유와 갈 곳을 적고 실패한다.
+if ! command -v docker >/dev/null 2>&1; then
+  echo "testdb: docker is not installed and ENODE_TEST_DATABASE_URL is unset" >&2
+  echo "testdb: install PostgreSQL 17 locally instead - see docs/testdb-setup.md" >&2
+  exit 1
+fi
 
 # 단위 테스트는 자기 데이터베이스를 쓴다
 # 같은 DB 를 손으로 띄운 enode 와 공유하면, 그 enode 가 계속 광고해서
