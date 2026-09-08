@@ -595,7 +595,7 @@
                   "id": "wYudh",
                   "name": "Title",
                   "fill": "$text-primary",
-                  "content": "enode 데모 현황판",
+                  "content": "로그인 버튼을 클릭해주세요",
                   "fontFamily": "$font-body",
                   "fontSize": 22,
                   "fontWeight": "600"
@@ -604,13 +604,13 @@
                   "type": "text",
                   "id": "s3XDI",
                   "name": "Subtitle",
-                  "fill": "$text-secondary",
+                  "fill": "$text-primary",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "토큰 없이 들어간다. 이 브라우저에 user_<번호> 를 배정하고 그 번호로 사람을 가른다. 실물 보드 함대에 작업을 보낼 수 있다.",
+                  "content": "user_4821 님 환영합니다!",
                   "lineHeight": 1.55,
                   "fontFamily": "$font-body",
-                  "fontSize": 13,
+                  "fontSize": 14,
                   "fontWeight": "normal"
                 }
               ]
@@ -649,46 +649,6 @@
                   "fontFamily": "$font-body",
                   "fontSize": 14,
                   "fontWeight": "600"
-                }
-              ]
-            },
-            {
-              "type": "rectangle",
-              "id": "EvTQJ",
-              "name": "Divider",
-              "fill": "$border",
-              "width": "fill_container",
-              "height": 1
-            },
-            {
-              "type": "frame",
-              "id": "kr9q7",
-              "name": "Storage Note",
-              "width": "fill_container",
-              "gap": 8,
-              "children": [
-                {
-                  "type": "icon",
-                  "id": "ErdjA",
-                  "name": "Cookie Icon",
-                  "width": 13,
-                  "height": 13,
-                  "icon": "cookie",
-                  "library": "lucide",
-                  "fill": "$text-dim"
-                },
-                {
-                  "type": "text",
-                  "id": "s5iOe",
-                  "name": "Storage Text",
-                  "fill": "$text-dim",
-                  "textGrowth": "fixed-width",
-                  "width": "fill_container",
-                  "content": "번호는 이 브라우저에만 남는다. 지우면 새 번호를 받는다. Mediator 토큰은 브라우저에 오지 않는다.",
-                  "lineHeight": 1.5,
-                  "fontFamily": "$font-body",
-                  "fontSize": 11,
-                  "fontWeight": "normal"
                 }
               ]
             }
@@ -3660,7 +3620,7 @@
                       "fill": "$text-secondary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "QUEUED 인 Run 은 어느 모형에도 안 얹힌다. 대기가 보이는 자리는 이 목록뿐이다.",
+                      "content": "QUEUED 상태인 RUN 은 목록에만 보입니다!",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-body",
                       "fontSize": 11,
@@ -6661,7 +6621,7 @@
                       "fill": "$text-secondary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "QUEUED 인 Run 은 어느 모형에도 안 얹힌다. 대기가 보이는 자리는 이 목록뿐이다.",
+                      "content": "QUEUED 상태인 RUN 은 목록에만 보입니다!",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-body",
                       "fontSize": 11,
@@ -6809,7 +6769,7 @@
               "id": "ylJIH",
               "name": "Tour Title",
               "fill": "$text-primary",
-              "content": "실물이 여기 있다",
+              "content": "대여한 보드를 실시간으로 확인 가능해요",
               "fontFamily": "$font-body",
               "fontSize": 17,
               "fontWeight": "600"
@@ -6821,7 +6781,7 @@
               "fill": "$text-secondary",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "화면의 노드는 저 선반의 보드다. 작업이 가면 LED 가 켜진다.",
+              "content": "데모용 보드의 LED와 컴퓨터의 소리를 들을 수 있어요.\n작업을 수행하고 웹캠을 확인하세요.",
               "lineHeight": 1.55,
               "fontFamily": "$font-body",
               "fontSize": 13,
@@ -6905,7 +6865,7 @@
       "name": "Note D3 투어 스텝",
       "width": 520,
       "height": 300,
-      "content": "D3 가이드투어 — 첫 방문에만. 스포트라이트는 대상만 뚫는다.\n\n1/4  웹캠           실물이 여기 있다     화면의 노드는 저 선반의 보드다. 작업이 가면 LED 가 켜진다\n2/4  노드 현황판     누가 놀고 있나       모형의 화면이 켜진 것이 일하는 노드다. 꺼진 것은 놀고 있다\n3/4  현재 작업 목록  기다리는 작업        노드가 다 차면 여기서 QUEUED 로 기다린다\n4/4  새 작업         직접 보내 보자       버튼 하나로 보드에 작업을 보낸다. 결과는 웹캠으로 본다\n\n4/4 의 [다음] 은 [시작하기] 다. 건너뛰기 · 시작하기 모두 D2 로. tour_done 은 브라우저 캐시."
+      "content": "D3 가이드투어 — 첫 방문에만. 스포트라이트는 대상만 뚫는다.\n\n1/4  웹캠           대여한 보드를 실시간으로 확인 가능해요   데모용 보드와 컴퓨터의 소리를 들을 수 있어요. 작업을 수행하고 웹캠을 확인하세요\n2/4  노드 현황판     누가 놀고 있나       모형의 화면이 켜진 것이 일하는 노드다. 꺼진 것은 놀고 있다\n3/4  현재 작업 목록  기다리는 작업        노드가 다 차면 여기서 QUEUED 로 기다린다\n4/4  새 작업         직접 보내 보자       버튼 하나로 보드에 작업을 보낸다. 결과는 웹캠으로 본다\n\n4/4 의 [다음] 은 [시작하기] 다. 건너뛰기 · 시작하기 모두 D2 로. tour_done 은 브라우저 캐시."
     },
     {
       "type": "frame",
@@ -9871,7 +9831,7 @@
                       "fill": "$text-secondary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "QUEUED 인 Run 은 어느 모형에도 안 얹힌다. 대기가 보이는 자리는 이 목록뿐이다.",
+                      "content": "QUEUED 상태인 RUN 은 목록에만 보입니다!",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-body",
                       "fontSize": 11,
@@ -9993,7 +9953,7 @@
               "fill": "$text-secondary",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "보드 함대에 보낼 작업을 고른다. 계약은 데모가 미리 적어 두었다.",
+              "content": "다른 사람의 보드에 일을 시켜보세요!",
               "lineHeight": 1.5,
               "fontFamily": "$font-body",
               "fontSize": 13,
@@ -10061,7 +10021,7 @@
                       "id": "Cp33f",
                       "name": "Task Sub",
                       "fill": "$text-dim",
-                      "content": "보드의 LED 를 켜고 끈다. 웹캠으로 확인",
+                      "content": "보드의 LED를 토글 하는 작업이에요.",
                       "fontFamily": "$font-body",
                       "fontSize": 12,
                       "fontWeight": "normal"
@@ -10142,7 +10102,7 @@
                       "id": "OMXA5",
                       "name": "Task Sub",
                       "fill": "$text-dim",
-                      "content": "보드의 스피커로 소리를 낸다",
+                      "content": "보드의 사운드가 없어서, 다른 컴퓨터에서 사운드를 갖고와 재생합니다. 여러분의 아이디를 소리로 들어보세요!",
                       "fontFamily": "$font-body",
                       "fontSize": 12,
                       "fontWeight": "normal"
@@ -10168,7 +10128,7 @@
               "fill": "$text-dim",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "제출하면 이 run 의 3D 뷰로 넘어간다. 노드가 다 차 있으면 QUEUED 로 기다린다.",
+              "content": "노드가 다 차있으면, QUEUED 상태로 들어갑니다.",
               "lineHeight": 1.5,
               "fontFamily": "$font-body",
               "fontSize": 11,
@@ -12350,7 +12310,7 @@
                       "fill": "$text-secondary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "QUEUED 인 Run 은 어느 모형에도 안 얹힌다. 대기가 보이는 자리는 이 목록뿐이다.",
+                      "content": "QUEUED 상태인 RUN 은 목록에만 보입니다!",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-body",
                       "fontSize": 11,
@@ -15371,7 +15331,7 @@
                       "fill": "$text-secondary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "QUEUED 인 Run 은 어느 모형에도 안 얹힌다. 대기가 보이는 자리는 이 목록뿐이다.",
+                      "content": "QUEUED 상태인 RUN 은 목록에만 보입니다!",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-body",
                       "fontSize": 11,
@@ -15520,7 +15480,7 @@
               "id": "UNOei",
               "name": "Tour Title",
               "fill": "$text-primary",
-              "content": "누가 놀고 있나",
+              "content": "전체 노드를 확인할 수 있어요.",
               "fontFamily": "$font-body",
               "fontSize": 17,
               "fontWeight": "600"
@@ -15532,7 +15492,7 @@
               "fill": "$text-secondary",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "모형의 화면이 켜진 것이 일하는 노드다. 꺼진 것은 놀고 있다.",
+              "content": "꺼진 자원은 불이 들어오지 않아요!",
               "lineHeight": 1.55,
               "fontFamily": "$font-body",
               "fontSize": 13,
@@ -18572,7 +18532,7 @@
                       "fill": "$text-secondary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "QUEUED 인 Run 은 어느 모형에도 안 얹힌다. 대기가 보이는 자리는 이 목록뿐이다.",
+                      "content": "QUEUED 상태인 RUN 은 목록에만 보입니다!",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-body",
                       "fontSize": 11,
@@ -18720,7 +18680,7 @@
               "id": "tNPSd",
               "name": "Tour Title",
               "fill": "$text-primary",
-              "content": "기다리는 작업",
+              "content": "작업 목록이에요",
               "fontFamily": "$font-body",
               "fontSize": 17,
               "fontWeight": "600"
@@ -18732,7 +18692,7 @@
               "fill": "$text-secondary",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "노드가 다 차면 여기서 QUEUED 로 기다린다.",
+              "content": "여러분의 작업이 여기에 추가 됩니다!",
               "lineHeight": 1.55,
               "fontFamily": "$font-body",
               "fontSize": 13,
@@ -21772,7 +21732,7 @@
                       "fill": "$text-secondary",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "QUEUED 인 Run 은 어느 모형에도 안 얹힌다. 대기가 보이는 자리는 이 목록뿐이다.",
+                      "content": "QUEUED 상태인 RUN 은 목록에만 보입니다!",
                       "lineHeight": 1.5,
                       "fontFamily": "$font-body",
                       "fontSize": 11,
@@ -21920,7 +21880,7 @@
               "id": "kxIfY",
               "name": "Tour Title",
               "fill": "$text-primary",
-              "content": "직접 보내 보자",
+              "content": "직접 일을 시켜보세요!",
               "fontFamily": "$font-body",
               "fontSize": 17,
               "fontWeight": "600"
@@ -21932,7 +21892,7 @@
               "fill": "$text-secondary",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "버튼 하나로 보드에 작업을 보낸다. 결과는 웹캠으로 본다.",
+              "content": "버튼 하나로 보드에 작업을 보낼 수 있어요. 웹캠으로 결과를 확인해보세요!",
               "lineHeight": 1.55,
               "fontFamily": "$font-body",
               "fontSize": 13,
