@@ -120,3 +120,20 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: INCEPTION - Workflow Planning. 승인 대기.
 
 ---
+
+## Workflow Planning — 승인
+**Timestamp**: 2026-09-08T07:45:38Z
+**AI Prompt**: "Ready to proceed with this plan? — Approve & Continue: 계획 승인하고 Functional Design으로 진행"
+**User Response**: "승인, Functional Design 진행해" (그 사이 사용자가 execution-plan.md 의 mermaid 를 보여 달라 해서 .mmd 와 PNG 로 렌더링해 보냈다)
+**Status**: Approved
+**Context**: Workflow plan created with 3 stages to execute (Functional Design · Code Generation · Build and Test), 6 skipped.
+
+---
+
+## Functional Design — 계획과 질문
+**Timestamp**: 2026-09-08T07:45:38Z
+**User Input**: (위 승인)
+**AI Response**: functional-design.md 규칙을 로드했다. 유닛은 `demo-pen` 하나. 근거로 requirements.md · design/README.md · S0/S1/S2 export · contract.go(Contract 필드 · 내장 예시 agent/command/multi) · POST /v1/runs 응답을 읽었다. 계획 파일 `aidlc-docs/construction/plans/demo-pen-functional-design-plan.md` 에 여섯 질문을 넣었다 — 모달 폼 모양 · 게스트 이름 시점 · D2 배치 · D5 배치 · 투어 표현 · 아트보드 폭. pencil MCP 는 pen.dev 편집기에 파일이 열려 있어야 동작한다는 것을 확인했고 Code Generation 전제로 적었다.
+**Context**: CONSTRUCTION - Functional Design (demo-pen). 질문 답변 대기.
+
+---

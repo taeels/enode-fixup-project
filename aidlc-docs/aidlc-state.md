@@ -56,12 +56,12 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 - [x] Reverse Engineering — SKIPPED (v1 산출물 재사용, 1fe2145)
 - [x] Requirements Analysis — 2026-09-08T07:45:38Z 승인
 - [x] User Stories — SKIP
-- [ ] Workflow Planning — 계획 생성 · 승인 대기
+- [x] Workflow Planning — 2026-09-08T07:45:38Z 승인
 - [x] Application Design — SKIP
 - [x] Units Generation — SKIP
 
 ### 🟢 CONSTRUCTION PHASE
-- [ ] Functional Design — EXECUTE (아트보드 D1~D5 화면 사양)
+- [ ] Functional Design — IN PROGRESS (demo-pen. 계획 파일 질문 답변 대기)
 - [x] NFR Requirements — SKIP
 - [x] NFR Design — SKIP
 - [x] Infrastructure Design — SKIP
@@ -72,7 +72,7 @@ v2 는 Requirements Analysis 질문 파일(Q5~Q7)로 닫았다 (2026-09-08 사�
 - [ ] Operations — PLACEHOLDER
 
 ## Current Status
-- **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Workflow Planning (승인 대기)
-- **Next Stage**: CONSTRUCTION - Functional Design
-- **Status**: `aidlc-docs/inception/plans/execution-plan.md` 검토 대기
+- **Lifecycle Phase**: CONSTRUCTION
+- **Current Stage**: Functional Design (demo-pen)
+- **Next Stage**: Code Generation (demo-pen)
+- **Status**: `aidlc-docs/construction/plans/demo-pen-functional-design-plan.md` 질문 답변 대기. Code Generation 전제 — pen.dev 편집기에 파일을 열어 두어야 pencil MCP 가 동작한다
