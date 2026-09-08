@@ -255,3 +255,30 @@ Infrastructure Design 스킵(새 인프라 없음)을 근거와 함께 정했다
 **Context**: INCEPTION - Workflow Planning 완료.
 
 ---
+
+## Application Design 완료 — 자기 승인
+**Timestamp**: 2026-09-08T08:35:00Z
+**User Input**: (무인터랙티브 — 자기 승인)
+**AI Response**: 컴포넌트 다섯(UIHandler · LandingPage · CardNewsScreen ·
+DemoPlaceholder · GuestIdentity), 서비스 하나(StaticAssetService — 의도적
+으로 GuestSessionService 를 안 둔다), 의존 그래프(Go 쪽 한 방향 임포트,
+브라우저 쪽 전체 페이지 이동으로만 연결)를 냈다. 3.1.1 축과의 파일 접점을
+`decisions.md` 8.5 를 가리켜 확정했다. **자기 승인 — 무인터랙티브.**
+Units Generation 으로 넘어간다.
+**Context**: INCEPTION - Application Design 완료.
+
+---
+
+## 사용자 개입 — Units Generation 까지만 진행
+**Timestamp**: 2026-09-08T08:36:00Z
+**User Input**: "units generations 까지만 진행해야해."
+**AI Response**: 원래 착수 요청은 Code Generation 까지 이어가라고 했으나,
+이 지시가 그것을 좁힌다 — Units Generation 을 끝으로 멈춘다. Construction
+(Functional Design · NFR · Infrastructure Design · Code Generation · Build
+and Test)에 들어가지 않는다 — 유닛 브랜치(`unit/cardnews-guest-login`)도
+만들지 않고 코드도 한 줄도 쓰지 않는다. 남은 작업 목록에서 Construction
+단계 태스크를 전부 지운다. Units Generation 산출물을 낸 뒤 `v1-run-
+dhseo-cardnews` 를 여기서 정지 상태로 push 한다.
+**Context**: 사용자 개입. 스코프 축소 — Units Generation 이 이 실행의 끝.
+
+---

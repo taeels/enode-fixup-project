@@ -60,7 +60,7 @@ Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
 - [x] Requirements Analysis — `aidlc-docs/inception/requirements/requirements.md`
 - [x] User Stories — `aidlc-docs/inception/user-stories/{stories,personas}.md` (3.4 만)
 - [x] Workflow Planning — `aidlc-docs/inception/plans/execution-plan.md`
-- [ ] Application Design — EXECUTE (3.4 의 신규 컴포넌트)
+- [x] Application Design — `aidlc-docs/inception/application-design/{components,component-methods,services,component-dependency,application-design}.md`
 - [ ] Units Generation — EXECUTE (단일 유닛 `cardnews-guest-login`)
 
 ### 🟢 CONSTRUCTION PHASE (유닛 `cardnews-guest-login`)
