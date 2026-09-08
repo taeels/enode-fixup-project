@@ -1,0 +1,77 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1b1f24;
+  --bg: #f5f6f8;
+  --panel-bg: #ffffff;
+  --border: #d7dbe0;
+  --accent: #2f6feb;
+  --accent-fg: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.topbar {
+  padding: 1rem 1.5rem;
+}
+
+.wordmark {
+  font-weight: 600;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+}
+
+.landing-panels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  max-width: 960px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+}
+
+.panel {
+  flex: 1 1 320px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+.panel input[type="text"] {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.panel-guest button {
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.panel-guest button:hover {
+  filter: brightness(1.05);
+}
