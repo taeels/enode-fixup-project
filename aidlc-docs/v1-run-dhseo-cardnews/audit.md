@@ -343,3 +343,75 @@ and Test)까지 여덟째 기능(3.4.1 온보딩 카드뉴스 + Guest Login) 하
 **Context**: 실행 마무리. push 전 최종 기록.
 
 ---
+
+## 로컬 세션 인계 — pen.dev 동기화 및 그 이후 추가 작업
+**Timestamp**: 2026-09-08T18:00:00Z (근사 — 이 구간은 사후 일괄 기록)
+**User Input**: (요약 — 실제 원문은 이 세션의 대화 기록에 있다) 원격
+세션의 핸드오프 문서를 로컬 Claude Code 세션에 붙여넣어 이어감.
+pen.dev(Pencil VS Code 브리지)로 카드뉴스 넉 장에 실제 캐릭터 사진
+일러스트를 넣어달라는 요청, 5번째 페이지로 story2.mp4 영상을 실제
+코드에 새 카드로 넣어달라는 요청, 카드 4에 보드 사진을 하나 더
+넣어달라는 요청, 카드 1·4·5 문구 수정 요청, 그리고 AI-DLC 문서 루트를
+회차(브랜치) 이름으로 가르는 저장소 정책 수립 요청이 차례로 있었다.
+**AI Response**: `design/enode-cardnews.pen` 카드 1~4 에 실사 크롭
+이미지(`design/assets-cardnews/card1~4.png`, `card4-board.png`)를
+이미지 fill 로 넣었다(AI 재생성이 아니라 사용자가 준 실제 사진 그대로
+— 캐릭터를 그대로 베끼라는 지시에 따름). 실제 코드
+(`internal/api/ui/static/cardnews/`)에도 같은 이미지와 5번째
+영상 카드(`story2.mp4`, `go:embed` 포함)를 추가하고, `cardnews.js` 가
+카드 개수를 DOM 에서 동적으로 세는 구조라 진행 표시·다음/이전·
+"현황판 보기" 전환 로직은 그대로 맞았다. `frontend-components.md` 를
+다섯 장 기준으로 갱신했다. `CLAUDE.md`·`CONVENTIONS.md`·
+`aidlc-docs/README.md`·`.gitattributes` 에 "AI-DLC 문서 루트는
+`aidlc-docs/<브랜치 이름>/`" 정책을 세우고, 이번 회차(현재 브랜치)가
+영향을 준 `aidlc-docs/{inception(RE 제외),construction,aidlc-state.md,
+audit.md}` 를 `aidlc-docs/v1-run-dhseo-cardnews/` 아래로 옮겼다(RE 는
+회차를 안 가리는 공용 자리로 남김). 매 단계 `go build/vet/test` 와
+실제 브라우저 확인(임시 미들웨어 없는 `internal/api/ui` 프리뷰
+서버)을 거쳤다. 커밋 여러 건으로 나눠 `v1-run-dhseo-cardnews` 에
+push 했다(PR #2 에 자동 반영).
+**Context**: 로컬 세션. 이 구간의 상세 결정(예: 참고 이미지 캐릭터
+저작권 확인, story1/story2 영상 프레임 캡처)은 이 세션의 대화 기록이
+1차 사료다 — 여기는 결과 요약이다.
+
+---
+
+## AI-DLC 재실행 요청 — Construction 뒷부분만
+**Timestamp**: 2026-09-08T10:44:00Z
+**User Input**: "ai-dlc 한번 더 돌면서 필요한 업데이트 진행. gate
+있는 곳은 멈춰서 확인해." 이어서 "ai dlc를 한바퀴 더 돌려야할까?" 에
+AI 가 "Inception 전체는 과하고, NFR 문서 갱신 → Build and Test 문서
+갱신 → CP8 재검증만 좁혀서 돌자" 고 제안했고, 사용자가 "진행." 으로
+승인했다.
+**AI Response**: 전체 Inception 재실행 없이 Construction 뒷부분만
+가볍게 돈다 — 새 컴포넌트·API 가 안 생겼으므로 Requirements/User
+Stories/Application Design/Units Generation 은 다시 안 돈다.
+NFR Requirements 의 "성능" 항목을 갱신했다(카드 1~4 일러스트 · 카드 5
+영상으로 "파일 크기가 수 KB 대" 라는 원래 전제가 깨졌음을 명시).
+NFR Design 은 변경 불필요로 판단(새 자산이 전부 동일 출처라
+`default-src 'self'` 가 그대로 커버). 사용자가 "승인" 으로 이
+단계를 통과시켰다. 다음은 Build and Test 문서 갱신.
+**Context**: CONSTRUCTION 재실행. 게이트마다 멈춰 확인받는다(사용자
+명시 지시).
+
+---
+
+## Build and Test 재검증 완료
+**Timestamp**: 2026-09-08T10:55:37Z
+**User Input**: (없음 — 이전 "진행." 승인에 이어 자동 진행)
+**AI Response**: `build-and-test-summary.md` 에 오늘 재검증 결과 절을
+더했다(원래 검증은 그대로 두고, gofmt 는 저장소 전체의 환경 요인으로
+실패한다는 사실 · DB 회귀는 이 로컬 환경에 PostgreSQL 이 없어 재실행
+못 했다는 사실을 정직하게 남김). `integration-test-instructions.md`
+에 CP8 재검증 절을 더했다 — `scene-gates.md` CP8 자신이 "함대·
+Mediator 토큰 불필요, standalone 바이너리만 있으면 된다" 고 명시하는
+것을 근거로, `internal/api/ui.Handler()` 만 올린 임시 standalone
+바이너리 + 실제 브라우저로 여섯 확인 항목(사생활 창 · 버튼 분리 ·
+Guest Login 클릭시 카드뉴스 경로 · 끝까지 넘기면 데모+DOM 무잔존 ·
+재방문 생략 · onboarded 삭제 후 재노출)을 전부 다시 통과시켰다.
+`aidlc-state.md` 를 갱신했다. 임시 바이너리(`cmd/uipreview`)와
+`.claude/launch.json` 은 검증 뒤 삭제했다(커밋 대상 아님).
+**Context**: CONSTRUCTION 재실행 마무리. Build and Test 게이트 —
+사용자 승인 대기.
+
+---

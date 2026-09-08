@@ -80,3 +80,37 @@ CP8 의 눈으로 보는 항목(`scene-gates.md` §2.1)을 실제 브라우저 �
 확인된다 — 관리자 로그인 자체가 아직 구현되지 않았으므로(placeholder)
 "기존과 동일하게 동작"은 "아직 아무 동작도 없다"는 뜻이고, 그 상태를
 이 유닛이 바꾸지 않았다.
+
+## 재검증 (로컬 세션, 2026-09-08, 일러스트 · 영상 카드 추가 뒤)
+
+병합 뒤에 카드 1~4 에 실제 사진 일러스트를, 카드 4 에 보드 사진을
+하나 더, 새 5번째 카드로 `story2.mp4` 영상을 더했다. 이 로컬
+환경에는 PostgreSQL 도 Playwright 도 없다 — 대신 `scene-gates.md`
+CP8 자신이 "함대도 Mediator 토큰도 필요 없다. 정적 파일 서버
+(mediator 나 **standalone 바이너리**)만 띄우면 된다" 고 명시하므로,
+`internal/api/ui.Handler()` 만 올린 standalone 바이너리 + 실제
+브라우저(Claude Code 의 Browser 도구)로 §3 CP8 절차를 그대로 다시
+돌렸다.
+
+```text
+   사생활 창 상태     localStorage.clear() 로 재현.  랜딩 재확인
+   버튼 분리          Guest Login 카드와 관리자 토큰 카드가 시각적으로
+                     분리된 두 섹션으로 보인다
+   첫 방문            Guest Login 클릭 -> /ui/cardnews/ 로 이동, 1/5 부터 시작
+   카드 넘김          다섯 장 전부 이동 확인.  카드 1~4 는 일러스트,
+                     카드 4 는 사진 둘(폰 + 보드), 카드 5 는 영상
+                     (story2.mp4, 자동재생 · 음소거 · 반복)
+   마지막 카드        버튼 라벨이 "현황판 보기" 로 바뀐다(더 이상
+                     카드 4 가 아니라 카드 5 에서)
+   종료              /ui/demo/ 로 이동.  document.querySelectorAll(".card")
+                     가 0, #card-stage 가 없음 — DOM 무잔존 확인
+   재방문             같은 컨텍스트에서 Guest Login 을 다시 누르면
+                     카드뉴스 없이 곧장 /ui/demo/ 로 간다
+   재노출             localStorage.removeItem("enode.guest.onboarded")
+                     뒤 다시 누르면 카드가 다시 뜬다(다섯 장 전부 DOM 에)
+```
+
+여섯 항목 전부 통과했다. 이번 재검증은 CP8 의 화면 항목만 다시 본다
+— 보안 헤더 · 관리자 흐름 회귀는 위 최초 검증(18개 확인)에서 이미
+닫혔고 이번 변경이 그 경로를 건드리지 않았으므로 다시 돌 이유가
+없다.

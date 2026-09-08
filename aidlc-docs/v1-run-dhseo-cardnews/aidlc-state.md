@@ -79,13 +79,26 @@ Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
 유닛 브랜치 `unit/cardnews-guest-login` 을 `v1-run-dhseo-cardnews` 로
 병합했다(fast-forward 아님, merge commit). `scene-gates.md` CP8 초록.
 
+**병합 뒤 콘텐츠 추가 및 재검증 (2026-09-08, 로컬 세션)** — 병합된
+유닛 위에 카드 1~4 실사 일러스트, 카드 4 보드 사진 추가, 카드
+5(`story2.mp4` 영상) 신설, 문구 일부 수정을 더했다. 새 컴포넌트·API 가
+없어 Inception 을 다시 안 돌고 Construction 뒷부분만 다시 돌았다 —
+NFR Requirements 의 "성능" 항목 갱신(파일 크기 전제가 깨짐, 게이트
+승인받음), Build and Test 재검증(CP8 여섯 항목을 standalone
+`internal/api/ui` 바이너리로 다시 확인, 전부 통과. `internal/api`
+DB 회귀는 이 로컬 환경에 PostgreSQL 이 없어 재실행 못 함 — 병합 전
+CI 에서 닫아야 한다). `audit.md` 「AI-DLC 재실행 요청」 항목 참조.
+
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
 
 ## Current Status
-- **Lifecycle Phase**: CONSTRUCTION 완료 (유닛 `cardnews-guest-login` 하나)
-- **Current Stage**: 유닛 병합 완료. `v1-run-dhseo-cardnews` 를 push 한다
-- **Next Stage**: (이 실행의 스코프 끝) — 3.1.x 등 나머지 축은 다른
-  세션/유닛이 이어받는다. `decisions.md` 8.5 의 파일 접점 참조
+- **Lifecycle Phase**: CONSTRUCTION 완료 + 병합 뒤 콘텐츠 추가분 재검증 완료
+- **Current Stage**: NFR Requirements 갱신(승인됨) · Build and Test
+  재검증(CP8 여섯 항목 통과) 끝. `v1-run-dhseo-cardnews` 를 push 한다
+- **Next Stage**: `internal/api` DB 회귀를 CI 또는 PostgreSQL 이 있는
+  환경에서 한 번 더 확인하는 것이 남았다. 그 외 3.1.x 등 나머지 축은
+  다른 세션/유닛이 이어받는다. `decisions.md` 8.5 의 파일 접점 참조
 - **Status**: 여덟째 기능(3.4.1) 전체(Requirements Analysis ~ Build and
-  Test)를 완료했다. 기존 일곱 기능은 이 실행의 스코프 밖으로 손대지 않았다
+  Test)를 완료했고, 병합 뒤 추가된 콘텐츠도 게이트를 다시 통과했다.
+  기존 일곱 기능은 이 실행의 스코프 밖으로 손대지 않았다
