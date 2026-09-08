@@ -141,3 +141,84 @@ mediator 현황판을 대중에게 공개되는 demo page로 전환한다.
 **Context**: INCEPTION - Requirements Analysis 완료·승인. 다음 Workflow Planning. 세션 종료.
 
 ---
+
+## Workflow Planning — 착수 · 실행 계획 산출
+**Timestamp**: 2026-09-08T07:55:01Z
+**User Input**: "다음으로 진행"
+**AI Response**: 세션 재개. 규칙 상세(`inception/workflow-planning.md` · `common/question-format-guide.md`)와 선행 맥락(requirements.md · 팩 다섯 · RE 아홉)을 로드했다. 브라운필드 상세 분석을 수행했다 — 전환 유형(아키텍처 전환 아님 · 기능 확장) · 변경 영향(사용자대면 예 · 데이터 최소 QUEUED+submitter · API 신규 라우트 + 기존 15 보존) · 컴포넌트 관계 그래프 · 위험 High · 다중 모듈 조율(임계 경로 = 관측 API). 단계 판정: SKIP = User Stories(팩·scene-gates 가 여정·수용기준 CP0~CP11) · NFR Requirements(팩이 값으로 닫음 · security-baseline 은 단계마다 집행) · NFR Design(패턴 규정 · how 는 FD) · Infrastructure Design(새 인프라 0 · constraints §6). EXECUTE = Application Design · Units Generation(파일 행렬 + 의존 그래프 필수) · Functional Design(유닛별) · Code Generation(유닛별) · Build and Test. `aidlc-docs/inception/plans/execution-plan.md` 를 냈고 `aidlc-state.md` 를 Step 8 대로 갱신했다. 열린 미정 둘(Capabilities 읽기 계약 · sandbox 출처)은 해당 유닛 FD 전 진행자가 decisions 에 닫는다.
+**Context**: INCEPTION - Workflow Planning. 실행 계획 산출 완료.
+
+---
+
+## Workflow Planning — 승인 프롬프트 (게이트)
+**Timestamp**: 2026-09-08T07:55:01Z
+**AI Prompt**: "실행 계획을 검토해 주세요. Request Changes · Add Skipped Stages(User Stories · NFR Requirements · NFR Design · Infrastructure Design) · Approve & Continue to Application Design 중에서 고르세요."
+**User Response**: [대기 중]
+**Status**: 승인 대기
+**Context**: INCEPTION - Workflow Planning 완료 게이트. 확장 준수 — security-baseline(Enabled) 차단 소견 없음(이 단계는 코드 미산출 · SECURITY 세부는 N/A) · resiliency-baseline·property-based-testing(Disabled) 스킵.
+
+---
+
+## Workflow Planning — NFR Requirements 재검토 요청
+**Timestamp**: 2026-09-08T07:55:01Z
+**User Input**: "nfr req만 한번 더 보자."
+**AI Response**: `construction/nfr-requirements.md` 규칙 상세를 로드해 재검토했다. 구조적 사실을 짚었다 — NFR Requirements 는 유닛별 Construction 단계이고 전제가 「Functional Design 완료」라 지금(Units Generation 전) 돌릴 수 없다. 지금 정하는 것은 유닛 루프에서 이 패스를 켜느냐다. 여덟 카테고리를 팩과 대조했다 — 확장성·성능·가용성·기술스택·신뢰성은 팩이 값으로 닫거나 constraints §6 이 제외(폴링 5초 · limit-only · HA 제외 · 새 Go 의존 0 · resiliency off). 남는 값은 보안(데모 공개 쓰기 새 표면 · SECURITY-08)과 사용성이나 둘 다 decisions §8·§3 · design 화면 · scene-gates §2.1 이 이미 닫았다. security-baseline(Enabled·차단성)은 SKIP 이어도 단계마다 집행된다. 타깃 옵션(데모 공개 쓰기 표면 유닛에만 EXECUTE)을 권장으로 제시하고 사용자의 범위 결정을 대기한다.
+**Context**: INCEPTION - Workflow Planning. NFR Requirements 범위 재검토 · 사용자 결정 대기. (아직 execution-plan 판정 안 바꿈)
+
+---
+
+## Workflow Planning — NFR Requirements 결정 (C · SKIP 유지)
+**Timestamp**: 2026-09-08T07:55:01Z
+**User Input**: "C"
+**AI Response**: 옵션 C 선택 — NFR Requirements 를 SKIP 으로 유지한다(원안). 근거: 여덟 카테고리 중 여섯은 팩이 값으로 닫거나 constraints §6 이 제외했고, 값이 남은 보안은 decisions §8·§3 이 닫았으며 security-baseline(Enabled·차단성)이 단계마다 집행된다. execution-plan.md·aidlc-state.md 판정 변경 없음(이미 SKIP). Workflow Planning 최종 승인 게이트로 복귀한다.
+**Context**: INCEPTION - Workflow Planning. NFR Requirements SKIP 확정. 계획 원안 유지 · 최종 승인 대기.
+
+---
+
+## Workflow Planning — 승인 (게이트 통과)
+**Timestamp**: 2026-09-08T08:15:29Z
+**User Input**: "승인한다. application design 으로 넘어가자."
+**AI Response**: Workflow Planning 을 승인으로 표시했다. `execution-plan.md` 원안 그대로 — SKIP 넷(User Stories · NFR Requirements · NFR Design · Infrastructure Design) · EXECUTE 다섯(Application Design · Units Generation · Functional Design 유닛별 · Code Generation 유닛별 · Build and Test). Application Design 단계에 착수한다.
+**Context**: INCEPTION - Workflow Planning 완료·승인. 다음 Application Design.
+
+---
+
+## Application Design — 착수 · 설계 계획 산출 (질문 포함)
+**Timestamp**: 2026-09-08T08:15:29Z
+**AI Response**: 규칙 상세(`inception/application-design.md`)와 선행 맥락(팩 다섯 · RE 아홉 · `design/README.md`)을 로드했다. 이 단계가 정하는 것을 실행 계획(165~170)대로 좁혔다 — 새 패키지 셋(`internal/panel` · `internal/api/ui` · `internal/mcp`)의 겉면과 메서드 · MCP 도구 열 디스패치 · `store.WakeQueued` 시그니처와 여섯 호출 지점 · `QUEUED` 전이 · 데모 표면. 팩이 값으로 닫은 것과 진행자/FD 로 이월한 계약(Capabilities 읽기 · sandbox 출처)은 안 건드린다. `aidlc-docs/inception/plans/application-design-plan.md` 를 산출물 체크리스트 · 제안 설계 요약 · 결정 질문 다섯(`[Answer]:` 태그)으로 냈다.
+**Context**: INCEPTION - Application Design. 설계 계획 산출 · 사용자 입력 대기 (Step 6·7).
+
+---
+
+## Application Design — 답 수집·분석 · 산출물 생성 (Step 7·8·10)
+**Timestamp**: 2026-09-08T08:29:49Z
+**User Input**: "답했다." (`application-design-plan.md` 4절에 기입 — Q1: A · Q2: A · Q3: A · Q4: A · Q5: A · 노트 없음)
+**AI Response**: 다섯 답을 분석했다 (Step 8) — 모호·모순·결합 없음. 전부 단일 선택 권장안이고 3절 제안 설계와 일치(Q5 의 A 는 서버측 데모 핸들러 자리 · 정적 자산은 3.1 이 이미 api/ui 로 둔 그대로). 후속 질문 불필요(Step 9 미발동). 산출물 다섯을 `aidlc-docs/inception/application-design/` 에 생성했다 — `components.md`(패키지 넷 panel·api/ui·mcp·proc + 핸들러 셋 + 기존 여섯) · `component-methods.md`(Config·Server·New·시그니처 · WakeQueued(ctx,tx)([]string,error) · Client.Nodes·Runs 원문 반환 · MCP 도구 열) · `services.md`(관측·QUEUED·WakeQueued 여섯 지점·drain·트랜스크립트·되묻기·MCP·데모 오케스트레이션) · `component-dependency.md`(의존 행렬 · 금지 넷 · 심볼 상한 링크 그래프 · 데이터 흐름) · `application-design.md`(통합본). 표기 규약 검사 통과 — emphasis-check 다섯 PASS · U+2605 0 · 장식 문자 0. 계획 체크박스 전부 [x].
+**Context**: INCEPTION - Application Design. 산출물 다섯 생성 완료. 열린 미정 둘(Capabilities 읽기 계약 · sandbox 출처)은 겉면에 자리만 두고 해당 유닛 FD 전 닫힘.
+
+---
+
+## Application Design — 승인 프롬프트 (게이트)
+**Timestamp**: 2026-09-08T08:29:49Z
+**AI Prompt**: "Application Design 산출물 다섯을 검토해 주세요 (`aidlc-docs/inception/application-design/`). Request Changes · Approve & Continue to Units Generation 중에서 고르세요. (다음 단계 Units Generation 은 EXECUTE 예정 — 스킵 상태 아님)"
+**User Response**: (승인 — 아래 별도 항목)
+**Status**: 승인됨
+**Context**: INCEPTION - Application Design 완료 게이트. 확장 준수 — security-baseline(Enabled) 차단 소견 없음(설계 문서만 산출 · 보안 태세 설계에 박음 SECURITY-08·12 · 객체 수준 권한 등 코드 세부는 N/A) · resiliency-baseline·property-based-testing(Disabled) 스킵.
+
+---
+
+## Application Design — 검토 질문 (데모 Mediator 읽기 전용?)
+**Timestamp**: 2026-09-08T08:51:01Z
+**User Input**: "데모용 mediator 구현체가 왜 읽기 전용이지? run을 낼 수 있는데" / "그러니까 runctl 표면을 mediator 현황판에 임시로 integration 하는 것이지."
+**AI Response**: 셋을 갈라 답했다 — (1) 실제 중앙 현황판만 읽기 전용(UX 태세 · enode-features 3.1.1) (2) 데모 대시보드는 「새 작업」으로 쓴다 (3) 데모 Mediator 는 일회용·격리 인스턴스지 읽기 전용이 아니다. 데모 제출은 internal/runctl 클라이언트 통합이 아니라 internal/api/demo.go 서버측 핸들러가 Mediator 내부 submit(store/match)을 공유하는 것 — allow-list 로 좁히고 토큰을 서버측 주입한다(Q5). components.md 의 오해 표현("읽기 전용 화면과 대회 데모 표면" 나열)을 정정하고 명시 불릿을 더했다. emphasis-check 재통과. 설계 자체는 무변경.
+**Context**: INCEPTION - Application Design 승인 게이트. 검토 질문 · 표현 정정.
+
+---
+
+## Application Design — 승인 (게이트 통과 · 세션 종료)
+**Timestamp**: 2026-09-08T08:51:01Z
+**User Input**: "그래. 고칠 내용이 없다면 이대로 승인하겠다. 다만 다음 단계는 새로운 세션에서 진행한다."
+**AI Response**: Application Design 을 승인으로 표시했다. 산출물 다섯(components · component-methods · services · component-dependency · application-design) 확정. 결정 Q1~Q5=A. 사용자가 다음 단계를 새 세션에서 진행하겠다고 명시 — Units Generation 을 이 세션에서 착수하지 않는다. aidlc-state.md 에 세션 핸드오프를 남겼다(다음 세션 착수 지점 = Units Generation · 파일 행렬 + 유닛 의존 그래프 필수). 커밋은 사용자 지시가 없어 하지 않았다 — 산출물은 워킹트리에 있다.
+**Context**: INCEPTION - Application Design 완료·승인. 다음 Units Generation (새 세션). 세션 종료.
+
+---
