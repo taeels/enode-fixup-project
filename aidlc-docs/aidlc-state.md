@@ -58,7 +58,7 @@ Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
 - [x] Workspace Detection — 2026-09-08T05:36:09Z
 - [x] Reverse Engineering — 1fe2145 시점에 이관·완료 (다시 안 돎)
 - [x] Requirements Analysis — `aidlc-docs/inception/requirements/requirements.md`
-- [ ] User Stories — EXECUTE (3.4 만. 신규 사용자 대면 기능이라 워크플로 기준 실행)
+- [x] User Stories — `aidlc-docs/inception/user-stories/{stories,personas}.md` (3.4 만)
 - [ ] Workflow Planning
 - [ ] Application Design — EXECUTE (3.4 의 신규 컴포넌트)
 - [ ] Units Generation — EXECUTE (단일 유닛 `cardnews-guest-login`)
@@ -76,6 +76,6 @@ Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
 
 ## Current Status
 - **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Requirements Analysis 완료, User Stories 진행
+- **Current Stage**: User Stories 완료
 - **Next Stage**: Workflow Planning -> Application Design
 - **Status**: 여덟째 기능(3.4.1)의 설계를 이어간다
