@@ -21,24 +21,43 @@
 ## 단계 진행 — obs
 
 ```text
-   Functional Design      2차 병렬 검토(축 넷)를 반영했다 — 승인을 기다린다
+   Functional Design      승인 2026-09-08T14:15:57Z (사용자가 다음 단계를 지시)
                           construction/obs/functional-design/ (domain-entities ·
                           business-logic-model · business-rules)
                           답 다섯 C·A·A·A·A 는 계획 2절 · 파장은 6절
                           1차 검토(하류 담당별) 7절 · 2차 검토(정합·정본·코드·게이트) 8절
                           실행으로 확정된 치명 둘을 고쳤다 — UpsertAdvert CTE 의 0행
                           NULL · coalesce 가 못 접는 jsonb null
-   NFR Requirements       대기
-   NFR Design             대기
+   NFR Requirements       산출물 둘을 냈다 — 승인을 기다린다
+                          construction/obs/nfr-requirements/ (nfr-requirements ·
+                          tech-stack-decisions) · 계획 construction/plans/
+                          obs-nfr-requirements-plan.md
+                          회차 계획은 이 단계를 SKIP 으로 승인받았고 사용자가
+                          다시 들였다.  옮겨 적기가 아닌 자리 셋이 물음 셋이었다.
+                          답 B·B·A — 셋 다 obs 안으로 들어왔다
+                            1=B  무인증 읽기 셋에 요청 한도.  전역 · 초당 120 ·
+                                 버스트 240 · 429 + Retry-After.  직접 짠다(의존 0)
+                            2=B  runs_created_idx (created_at) 를 schema.sql 에
+                            3=A  읽기 셋 셋에 Cache-Control: no-store
+                          SECURITY 열다섯을 판정했다 — 조건부 둘(08 · 12)이
+                          데모 무인증이라는 같은 사실에서 나온다
+   NFR Design             회차 계획은 SKIP.  답 1=B 가 「어떻게」를 남긴다 —
+                          값은 nfr-requirements 3절에 다 있으므로 Code Generation
+                          계획이 지고 갈 수 있다.  따로 열지는 진행자가 정한다
    Infrastructure Design  건너뛴다 (배포·인프라 변경 없음 · constraints §6)
    Code Generation        대기
 ```
+
+**앞 판이 회차 계획과 어긋나 있었다** — 이 표가 NFR Requirements 와 NFR Design 을
+「대기」로 적었는데 `aidlc-docs/v1-run-dhseo/inception/plans/execution-plan.md` 는
+둘 다 **SKIP** 이다. 담당 문서는 여기서 정리했다. **회차 계획과 회차 상태 파일의
+SKIP 줄을 고칠지는 진행자의 것이다** — 계획 7절의 표시 ①.
 
 브랜치 `unit/obs`. 감사 로그는 `aidlc-docs/taeels/audit.md`.
 
 ## 다음
 
-**obs Functional Design 승인 뒤 NFR Requirements** (토대라 먼저 병합돼야 나머지
+**obs NFR Requirements 승인 뒤 Code Generation** (토대라 먼저 병합돼야 나머지
 웨이브가 선다). 접점 `internal/store` · `internal/api/api.go` 는 진행자 직렬 병합.
 **행렬 밖 파일이 넷으로 늘었다** — `internal/store/observe.go` ·
 `internal/store/schema.sql` · `internal/contract/advert.go` ·
@@ -54,3 +73,13 @@ CP1 전체는 화면 다섯이 ui 몫이고 ui 는 obs 병합 뒤에 착수하�
 2절의 인증 줄을 벗어난다(사용자가 A 유지 · 어긋남 기록) · 무인증 `GET /v1/nodes` 가
 `label` 로 노드 소유자의 이메일 로컬파트와 호스트명을 낸다 · `submitter` 가
 `enode-design` 에 0건이라 정본 개정의 주인이 없다.
+
+**NFR Requirements 가 여섯을 더 남겼다** — `nfr-requirements.md` §6. 무거운 셋:
+`429` 가 정본 코드 표(`mediator-api.md` 1.2 의 여덟)에 없다(다섯째 표시다) ·
+SECURITY-11 의 첫 판정이 이 유닛에서 나므로 demo-back(W2)과 ui 가 그 표를 이어
+써야 한다 · 전역 한도의 대가로 한 클라이언트가 나머지를 굶길 수 있다(IP 로 나누면
+NAT 뒤의 관객 전체가 막혀 CP10 을 직접 깨므로 이쪽을 수락했다).
+
+**답 셋이 만지는 파일을 넓혔다** — `internal/api` 에 한도 파일 하나가 신규로 생기고
+`schema.sql` 의 변경이 셋이 된다(ALTER 둘 + `CREATE INDEX` 하나). 둘 다 이미
+접점이므로 행렬이 넓어지지는 않는다.

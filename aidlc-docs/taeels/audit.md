@@ -94,3 +94,86 @@ draining 시연 절차, crypto/tls 상한과 probe.lock, 커버리지 실측(328
 **Context**: CONSTRUCTION · obs 유닛 · Functional Design 2차 검토 반영 · 승인 대기
 
 ---
+## Functional Design — obs · 승인
+**Timestamp**: 2026-09-08T14:15:57Z
+**User Input**: "nfr requirements 시작"
+**AI Response**: "다음 단계를 지시한 것을 Functional Design 의 Continue to Next Stage
+로 읽었다. 산출물 셋(domain-entities · business-logic-model · business-rules)과
+계획을 승인으로 닫고 상태 파일에 적었다."
+**Context**: CONSTRUCTION · obs 유닛 · Functional Design 승인
+
+---
+
+## NFR Requirements — obs · 계획 (Part 1)
+**Timestamp**: 2026-09-08T14:15:57Z
+**User Input**: "nfr requirements 시작"
+**AI Response**: "이 단계는 회차 실행 계획에서 SKIP 이었다 — 근거는 「팩이 값으로
+닫았다」였다. 사용자 지시로 다시 들였고 그 사실을 계획 0절에 적었다. 담당 상태
+파일이 이미 회차 계획과 어긋나 있었다는 것도 함께 적었다 — taeels/aidlc-state.md
+는 NFR Requirements 와 NFR Design 을 대기로, 회차 계획은 둘 다 SKIP 으로 적었다.
+
+옮겨 적기가 아닌 자리 셋을 찾아 그대로 물음 셋으로 냈다. ① SECURITY-11 의 요청
+한도 — 팩 3절이 처리를 미리 적은 SECURITY 규칙은 다섯(01·03·07·08·12)이고 11 이
+그 목록에 없는데, Functional Design 의 답 4=A 로 읽기 셋이 무인증 공개 표면이
+되면서 차단성 확장의 그 규칙이 처음 걸린다. ② GET /v1/runs 의 정렬 인덱스 —
+runs 표의 인덱스가 runs_work_idx 하나이고 ?work= 없는 목록이 그것을 못 탄다.
+Functional Design 이 「안 붙인다」의 근거로 든 mediator-api.md 문장은 API 표면을
+그은 것이지 DB 인덱스를 금한 것이 아니다. ③ 캐시 헤더의 주인 — business-rules 2.4
+가 헤더로 한다고 적고 누가 붙이는지를 안 정했다.
+
+착수 전에 실측한 것 열둘을 계획 1절에 적었다 — 요청 한도 코드 0건, CORS 없음이자
+동일 출처라 필요도 없음(화면과 읽기 셋이 같은 프로세스·같은 포트), ReadHeaderTimeout
+10초만 걸린 http.Server, 옵션 없는 pgxpool, 접근 로그 없음, leases.node_id 가
+PRIMARY KEY 라 LEFT JOIN 이 행을 안 불림, go.mod 에 golang.org/x/time 없음.
+
+물음에 안 올린 권장값 다섯도 근거와 함께 적었다 — 동시 시청자 30 내외 · 서버 재시도
+없음 · 접근 로그 없음 · 가용성 수치 목표 없음 · 응답 본문 상한 없음. 사용자 규칙
+「단계마다 셋까지」를 지켜 물음을 셋으로 묶었다.
+
+계획을 aidlc-docs/taeels/construction/plans/obs-nfr-requirements-plan.md 에 냈고
+emphasis-check 와 glyphscan 이 둘 다 통과했다."
+**Context**: CONSTRUCTION · obs 유닛 · NFR Requirements Part 1 (계획) · 답 대기
+
+---
+## NFR Requirements — obs · 물음 셋의 답과 산출물
+**Timestamp**: 2026-09-08T14:15:57Z
+**User Input**: "B, B, A"
+**User Input (물음 1)**: B — obs 가 무인증 읽기 셋에 요청 한도를 붙인다
+**User Input (물음 2)**: B — obs 가 runs_created_idx 를 schema.sql 에 더한다
+**User Input (물음 3)**: A — obs 가 Cache-Control: no-store 를 싣는다
+**AI Response**: "셋 다 obs 안으로 들어왔다. 답에 모순이나 모호가 없어 확인 물음
+파일을 안 냈다. 산출물 둘을 construction/obs/nfr-requirements/ 에 냈다 —
+nfr-requirements.md · tech-stack-decisions.md.
+
+답 1=B 의 값을 이 단계가 정했다. NFR Design 이 SKIP 이라 값이 여기 없으면
+Code Generation 이 짐작하기 때문이다. 전역 한도 하나 · 초당 120 · 버스트 240 ·
+넘으면 429 + Retry-After: 1. 유도는 시청자 30 이 5초마다 다섯을 부르는 것
+(nodes 1 + runs 1 + 두 홉 getRun 3) = 30 rps 정상이고 한도는 그 4배다.
+IP 로 안 나눈다 — 대회장 관객이 한 NAT 뒤에 있어 출발지로 나누면 관객 전체가
+한 클라이언트로 묶여 정상 폴링이 막히고 그것이 CP10 을 직접 깬다. 그 대신 전역
+한도의 대가(한 클라이언트가 나머지를 굶길 수 있다)를 3.2 에 적고 수락했다.
+직접 짠다 — golang.org/x/time/rate 가 go.mod 에 없고 팩이 새 의존 0 을 못 박았다.
+
+답 2=B 는 Go 문장이 0 이고 schema.sql 한 줄이다. btree 가 역방향으로도 훑으므로
+created_at DESC 정렬이 그대로 인덱스를 탄다. ?since= 도 같은 인덱스를 탄다.
+
+답 3=A 는 읽기 셋 셋 전부다 — getRun 도 두 홉으로 폴링에 들어간다. 응답 헤더가
+늘 뿐 본문의 글자는 안 바뀌므로 mcp 의 글자 일치(CP5)와 부딪치지 않는다.
+
+SECURITY 열다섯을 obs 표면에 하나씩 대고 판정했다. 팩 3절이 처리를 미리 적은
+것은 다섯뿐이라 나머지 열의 판정을 새로 냈다. 조건부가 둘이고(SECURITY-08 ·
+SECURITY-12) 같은 하나의 사실에서 나온다 — 데모 읽기 셋의 무인증이 ADR-065
+2절을 벗어난다. 둘 다 준수로 칠하지 않았다.
+
+실측으로 확인한 것 둘을 근거로 썼다 — go list -deps ./cmd/enodectl 에
+internal/api 가 없어서 한도 파일이 심볼 상한 둘을 못 움직인다(0건) ·
+leases.node_id 가 PRIMARY KEY 라 GET /v1/nodes 의 LEFT JOIN 이 행을 안 불린다.
+
+정본을 넓히는 자리 하나를 찾았다 — 429 가 mediator-api.md 1.2 의 코드 표
+여덟(400·401·404·409·410·413·422·503)에 없다. Functional Design 이 이미 넷을
+표시로 남겼고 이것이 다섯째다.
+
+emphasis-check 와 glyphscan 통과. 계획의 체크박스 여덟을 전부 닫았다."
+**Context**: CONSTRUCTION · obs 유닛 · NFR Requirements 완료 · 승인 대기
+
+---
