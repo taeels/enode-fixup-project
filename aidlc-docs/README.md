@@ -13,38 +13,35 @@ Engineering** 부터 돈다. 그 산출물이 `inception/reverse-engineering/` �
 ## 1. 문서는 사람이 아니라 회차(브랜치) 이름으로 나뉜다 (2026-09-08 부터)
 
 `CLAUDE.md` 의 "AI-DLC 문서 루트는 `aidlc-docs/<브랜치 이름>/`" 규칙이
-정본이다 — **새 회차부터** 적용한다. 요약하면 이렇다.
+정본이다. 요약하면 이렇다.
 
 ```text
    aidlc-docs/
    ├── inception/
    │   └── reverse-engineering/     공용.  회차를 안 가린다 (아래 §1.1)
-   ├── <브랜치 이름>/                새 회차부터.  예: v2-run-<이름>
+   ├── v1-run-dhseo-cardnews/       현재 작업 브랜치.  이 회차가 쓴 전부
    │   ├── inception/
    │   │   ├── plans/
    │   │   ├── requirements/
    │   │   ├── user-stories/
    │   │   └── application-design/
    │   ├── construction/
-   │   │   ├── plans/
    │   │   ├── <유닛>/
    │   │   │   ├── functional-design/
    │   │   │   ├── nfr-requirements/
-   │   │   │   ├── nfr-design/
-   │   │   │   ├── infrastructure-design/
-   │   │   │   └── code/
+   │   │   │   └── nfr-design/
    │   │   └── build-and-test/
-   │   ├── operations/
    │   ├── aidlc-state.md           이 회차의 단계 진행.  진행자만 고친다
    │   └── audit.md                 이 회차의 사용자 입력과 결정의 기록
-   └── <다른 브랜치 이름>/           그다음 회차가 여기 새로 쌓는다
+   └── <다음 브랜치 이름>/           다음 회차가 여기 새로 쌓는다
 ```
 
-**이번 회차(`v1-run-dhseo-cardnews`)의 기존 산출물은 옮기지 않았다** —
-`inception/` · `construction/` · `aidlc-state.md` · `audit.md` 가 지금도
-평평한 자리에 있다. 이미 착지한 산출물을 규칙이 바뀌었다고 소급해서
-옮기면, 그 옮김 자체가 이번 회차의 스코프 밖 diff 가 된다. 이 규칙은
-**다음에 새로 여는 회차**부터 적용된다.
+**이번 회차(`v1-run-dhseo-cardnews`)에서 영향이 있었던 산출물은 전부
+`aidlc-docs/v1-run-dhseo-cardnews/` 아래로 옮겼다** — `inception/`
+(reverse-engineering 제외) · `construction/` · `aidlc-state.md` ·
+`audit.md`. 옮기면서 그 안의 상호 참조 경로도 새 자리에 맞게 고쳤다
+(`audit.md` 자신의 과거 항목은 append-only 라 안 고친다 — 그 시점에는
+그 경로가 실제로 맞았다).
 
 **애플리케이션 코드는 여기 안 들어온다.** 저장소 뿌리에 들어간다.
 

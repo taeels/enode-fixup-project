@@ -476,8 +476,8 @@ Functional Design 이 낸다.
                                   구성 · 로그인 흐름이 이 표면에 없다
 ```
 
-세부 검증 근거는 유닛의 NFR 산출물(`aidlc-docs/construction/
-cardnews-guest-login/nfr-requirements.md`)에 있다.
+세부 검증 근거는 유닛의 NFR 산출물(`aidlc-docs/v1-run-dhseo-cardnews/
+construction/cardnews-guest-login/nfr-requirements.md`)에 있다.
 
 ## 8.4 안 하는 것 — 이 결정이 안 넓히는 자리
 

@@ -1,7 +1,7 @@
 # Component Methods — 3.4 온보딩 카드뉴스 + Guest Login
 
 상세 비즈니스 규칙(카드 넘김 조건 등)은 Functional Design
-(`aidlc-docs/construction/cardnews-guest-login/functional-design/`)이 낸다.
+(`aidlc-docs/v1-run-dhseo-cardnews/construction/cardnews-guest-login/functional-design/`)이 낸다.
 여기는 메서드/함수 서명과 입출력 타입까지만 정한다.
 
 ## C-1 UIHandler (Go)

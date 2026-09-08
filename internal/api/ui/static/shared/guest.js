@@ -1,7 +1,7 @@
 // guest.js 는 랜딩 · 카드뉴스 · 데모 세 화면이 공유하는 유일한 코드다.
 // 클라이언트 로컬 저장소만 읽고 쓴다 — 네트워크 호출을 하지 않는다.
-// (aidlc-docs/construction/cardnews-guest-login/functional-design/
-// business-rules.md BR-5, BR-6)
+// (aidlc-docs/v1-run-dhseo-cardnews/construction/cardnews-guest-login/
+// functional-design/business-rules.md BR-5, BR-6)
 
 var guest = (function () {
   var ONBOARDED_KEY = "enode.guest.onboarded";

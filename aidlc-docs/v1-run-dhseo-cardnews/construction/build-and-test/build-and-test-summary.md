@@ -42,6 +42,6 @@
 ## 다음 단계
 
 이 문서로 유닛 `cardnews-guest-login` 의 Construction 이 끝난다.
-남은 것은 `v1-run-dhseo-cardnews` 로의 병합과 `aidlc-state.md` ·
+남은 것은 `v1-run-dhseo-cardnews` 로의 병합과 `aidlc-docs/v1-run-dhseo-cardnews/aidlc-state.md` ·
 `audit.md` 갱신(진행자 역할, `CONVENTIONS.md` 3.2 — 이 파일들은 유닛
 브랜치가 안 싣는다)이다.

@@ -1,7 +1,7 @@
 # User Stories — 3.4 온보딩 카드뉴스 + Guest Login
 
 전부 유닛 `cardnews-guest-login` 이 맡는다. 기존 일곱 기능의 스토리는
-이 실행의 스코프 밖이라 여기 없다(`aidlc-docs/inception/requirements/
+이 실행의 스코프 밖이라 여기 없다(`aidlc-docs/v1-run-dhseo-cardnews/inception/requirements/
 requirements.md` §2.1).
 
 ## US-1 랜딩에서 Guest 로 들어간다

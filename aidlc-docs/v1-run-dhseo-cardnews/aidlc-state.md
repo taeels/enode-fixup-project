@@ -3,12 +3,12 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-08T05:36:09Z
-- **This Branch Start**: 2026-09-08T08:07:14Z (`v1-run-dhseo-cardnews`, 갈라진 지점 `1fe2145` — `v1-run-dhseo` 팁 `da73c53` 아님. 근거 `aidlc-docs/audit.md` 최초 항목)
+- **This Branch Start**: 2026-09-08T08:07:14Z (`v1-run-dhseo-cardnews`, 갈라진 지점 `1fe2145` — `v1-run-dhseo` 팁 `da73c53` 아님. 근거 `aidlc-docs/v1-run-dhseo-cardnews/audit.md` 최초 항목)
 - **Current Stage**: INCEPTION - Application Design
 - **Last Completed**: Requirements Analysis
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v1-run-dhseo-cardnews` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
-- **Execution Mode**: 무인터랙티브 원격 세션 — 게이트를 자기 승인으로 적응 (근거 `aidlc-docs/audit.md` 「실행 방식 적응」)
+- **Execution Mode**: 무인터랙티브 원격 세션 — 게이트를 자기 승인으로 적응 (근거 `aidlc-docs/v1-run-dhseo-cardnews/audit.md` 「실행 방식 적응」)
 
 ## Workspace State
 - **Existing Code**: Yes
@@ -57,11 +57,11 @@ Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
 ### 🔵 INCEPTION PHASE
 - [x] Workspace Detection — 2026-09-08T05:36:09Z
 - [x] Reverse Engineering — 1fe2145 시점에 이관·완료 (다시 안 돎)
-- [x] Requirements Analysis — `aidlc-docs/inception/requirements/requirements.md`
-- [x] User Stories — `aidlc-docs/inception/user-stories/{stories,personas}.md` (3.4 만)
-- [x] Workflow Planning — `aidlc-docs/inception/plans/execution-plan.md`
-- [x] Application Design — `aidlc-docs/inception/application-design/{components,component-methods,services,component-dependency,application-design}.md`
-- [x] Units Generation — `aidlc-docs/inception/application-design/{unit-of-work,unit-of-work-dependency,unit-of-work-story-map}.md` (단일 유닛 `cardnews-guest-login`)
+- [x] Requirements Analysis — `aidlc-docs/v1-run-dhseo-cardnews/inception/requirements/requirements.md`
+- [x] User Stories — `aidlc-docs/v1-run-dhseo-cardnews/inception/user-stories/{stories,personas}.md` (3.4 만)
+- [x] Workflow Planning — `aidlc-docs/v1-run-dhseo-cardnews/inception/plans/execution-plan.md`
+- [x] Application Design — `aidlc-docs/v1-run-dhseo-cardnews/inception/application-design/{components,component-methods,services,component-dependency,application-design}.md`
+- [x] Units Generation — `aidlc-docs/v1-run-dhseo-cardnews/inception/application-design/{unit-of-work,unit-of-work-dependency,unit-of-work-story-map}.md` (단일 유닛 `cardnews-guest-login`)
 
 **사용자 지시(2026-09-08T08:36:00Z)가 한 번 Units Generation 까지로
 좁혔다가, 이어진 지시(2026-09-08T08:38:00Z)가 Construction 까지 계속하는
@@ -69,12 +69,12 @@ Application Design 부터 Code Generation 까지 끝내는 것은 **3.4.1
 계속한다.
 
 ### 🟢 CONSTRUCTION PHASE (유닛 `cardnews-guest-login`)
-- [x] Functional Design — `aidlc-docs/construction/cardnews-guest-login/functional-design/*.md`
-- [x] NFR Requirements — `aidlc-docs/construction/cardnews-guest-login/nfr-requirements.md`
-- [x] NFR Design — `aidlc-docs/construction/cardnews-guest-login/nfr-design.md`
+- [x] Functional Design — `aidlc-docs/v1-run-dhseo-cardnews/construction/cardnews-guest-login/functional-design/*.md`
+- [x] NFR Requirements — `aidlc-docs/v1-run-dhseo-cardnews/construction/cardnews-guest-login/nfr-requirements.md`
+- [x] NFR Design — `aidlc-docs/v1-run-dhseo-cardnews/construction/cardnews-guest-login/nfr-design.md`
 - [x] Infrastructure Design — SKIP (신규 인프라 없음, `execution-plan.md` §2)
 - [x] Code Generation — `internal/api/ui/**`, `internal/api/api.go` 등록 줄 2개
-- [x] Build and Test — `aidlc-docs/construction/build-and-test/*.md`. CP8 을 실제 Mediator + PostgreSQL + Playwright/Chromium 으로 확인(18개 항목 전부 통과)
+- [x] Build and Test — `aidlc-docs/v1-run-dhseo-cardnews/construction/build-and-test/*.md`. CP8 을 실제 Mediator + PostgreSQL + Playwright/Chromium 으로 확인(18개 항목 전부 통과)
 
 유닛 브랜치 `unit/cardnews-guest-login` 을 `v1-run-dhseo-cardnews` 로
 병합했다(fast-forward 아님, merge commit). `scene-gates.md` CP8 초록.

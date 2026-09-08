@@ -4,7 +4,7 @@
 
 이 실행은 무인터랙티브 원격 세션이다. `requirement-verification-questions.md`
 를 별도로 내고 사람의 `[Answer]:` 를 기다리는 대신, 이 문서 안에 질문과
-스스로 낸 답을 함께 적는다(`aidlc-docs/audit.md` 의 「실행 방식 적응」 항목
+스스로 낸 답을 함께 적는다(`aidlc-docs/v1-run-dhseo-cardnews/audit.md` 의 「실행 방식 적응」 항목
 참조). 계약에 걸리는 결정은 `requirements/decisions.md` 에 근거와 함께
 남겼다 — 이 문서는 그것을 다시 베끼지 않고 가리킨다.
 
