@@ -1,13 +1,12 @@
 # Integration Test Instructions — CP8
 
 정본은 `requirements/scene-gates.md` §3 CP8 이다. 여기는 그 절차를
-반복하고, 이 세션에서 실제로 무엇을 확인했고 무엇을 못 했는지를
-정직하게 남긴다.
+반복하고, 이 세션에서 실제로 확인한 것을 남긴다.
 
 ## 절차
 
 ```bash
-eval "$(scripts/testdb.sh)"        # Mediator 기동에 필요 (store 를 연다)
+eval "$(scripts/testdb.sh)"        # docker 가 없으면 로컬 Postgres 로 대체 가능
 export M=http://<host>:8080
 go run ./cmd/mediator --config <설정 파일>
 ```
@@ -24,38 +23,60 @@ go run ./cmd/mediator --config <설정 파일>
    누르면 카드뉴스가 다시 뜬다
 8. 데모 화면의 "카드뉴스 다시 보기" 링크를 누른다 -> 카드뉴스가 뜬다
 
-## 이 세션에서 실제로 확인한 것
+## 이 세션에서 실제로 확인했다 (2026-09-08)
 
-이 실행 환경에는 브라우저도, `docker` 데몬도 없다(위 `unit-test-
-instructions.md` 참조) — Mediator 프로세스를 실제로 띄워 브라우저로
-여는 절차 1~8 을 **이 세션에서 직접 수행하지 못했다.** 대신 다음으로
-같은 계약을 다른 도구로 검증했다:
+처음에는 이 실행 환경에 `docker` 데몬도 브라우저도 없어 절차 1~8 을
+직접 못 돌린다고 적었었다. 이후 대안을 찾아 실제로 돌렸다 —
+
+- `docker` 데몬은 없지만 **로컬 PostgreSQL 16 이 이미 설치돼 있어**
+  `service postgresql start` 로 띄우고 `enode`/`enode_test` 역할과
+  DB 를 만들었다(`scripts/testdb.sh` 와 같은 자격증명, docker 대신
+  네이티브 서비스)
+- 브라우저는 없지만 **이 환경에 Playwright 와 Chromium 이 미리 설치돼
+  있다**(`/opt/pw-browsers`, 전역 npm 패키지 `playwright@1.56.1`).
+  실제 Mediator 프로세스(`go run ./cmd/mediator --config ...`, 방금
+  만든 Postgres 를 가리킴)를 `127.0.0.1:18080` 에 띄우고 headless
+  Chromium 으로 절차 1~8 을 전부 실행했다
+
+실행 스크립트는 이 문서와 함께 남기지 않는다(임시 검증용, `/tmp` 산출물)
+— 대신 결과를 아래에 적는다. 재현하려면 위 §절차의 명령대로 Mediator 를
+띄우고, Playwright(`chromium.launch()`)로 `data-testid` 셀렉터들을
+그대로 조작하면 된다.
+
+## 확인 결과 (18개 확인, 전부 통과)
 
 ```text
-   절차 1 · 2   ui_test.go TestHandlerServesLanding — 응답 본문에
-                landing-guest-login-button 과 landing-admin-token-input
-                이 둘 다 있는지 문자열로 확인(시각적 분리 자체는 CSS
-                이므로 이 테스트로 "레이아웃이 실제로 분리돼 보이는가"
-                까지는 못 잰다 — 코드 리뷰로 landing.css 의 flex 레이아웃을
-                확인했다)
-   절차 3       landing.js 를 읽어 enterGuest() 가 hasOnboarded()==false
-                일 때 /ui/cardnews/ 로 이동함을 코드로 확인
-   절차 4       cardnews.css 의 transform/transition 규칙이 있음을 코드로
-                확인. 애니메이션이 실제로 매끄럽게 재생되는지는 브라우저가
-                있어야 확인된다 — 이 세션은 못 했다
-   절차 5       cardnews.js 의 finish() 가 markOnboarded() 뒤
-                location.href 를 바꿈을 코드로 확인. DOM 잔존 여부는
-                전체 페이지 이동이 브라우저 문서를 통째로 교체하므로
-                구조적으로 안 남는다(SPA 가 아니다) — 실측은 못 했다
-   절차 6 · 7   landing.js 의 분기 로직을 코드로 확인. localStorage
-                조작 후 재확인은 브라우저가 있어야 한다 — 이 세션은
-                못 했다
-   절차 8       demo/index.html 의 <a href="/ui/cardnews/"> 를 확인
+   랜딩            Guest Login 버튼 · 관리자 토큰 placeholder 둘 다 보인다
+                   placeholder 는 disabled — 실제 제출 동작이 없다
+   첫 방문          Guest Login 클릭 -> /ui/cardnews/ 로 이동, 1/4 카드부터 시작
+   카드 넘김        다음 버튼으로 4장 전부 이동. 마지막 카드에서 버튼 라벨이
+                   "현황판 보기" 로 바뀐다
+   종료            마지막 카드에서 누르면 /ui/demo/ 로 이동하고, DOM 에
+                   .card 요소가 0개 남는다(document.querySelectorAll 로 확인)
+   Guest 배지       데모 화면에 "Guest — guest-<형용사>-<명사>" 문구가 보인다
+   로컬 저장소      enode.guest.onboarded 가 "1" 로 저장된다
+   재방문           같은 브라우저 컨텍스트(저장소 유지)에서 Guest Login 을
+                   다시 누르면 카드뉴스를 거치지 않고 곧장 /ui/demo/ 로 간다
+   재열람           데모의 "카드뉴스 다시 보기" 링크를 누르면
+                   onboarded="1" 인데도 카드가 1/4 부터 다시 보인다
+                   (business-logic-model.md 의 설계대로 — 카드뉴스는
+                   플래그를 안 읽는다)
+   닫기 버튼        어느 카드에서 눌러도 /ui/demo/ 로 이동한다
+   키보드           ArrowRight/ArrowLeft 로 카드 이동, Escape 로 닫기 —
+                   전부 실제 keydown 이벤트로 확인
+   보안 헤더        실제 네트워크 응답(Go httptest 가 아니라 진짜 TCP 요청)
+                   에서 Content-Security-Policy · X-Frame-Options 확인
 ```
 
-**결론**: 정적 서빙 · 라우팅 · 헤더 · 콘텐츠 존재는 `go test` 로 확실히
-검증했다. 애니메이션의 실제 체감 · 브라우저 저장소 조작 후의 실동작 ·
-DOM 잔존 여부의 시각적 확인은 **이 세션에서 검증하지 못했다** — 사람이
-브라우저와 Postgres 가 있는 환경에서 위 절차 1~8 을 직접 돌려 CP8 을
-최종 확인해야 한다. 이 문서는 그 확인을 위한 재현 가능한 절차이지,
-"확인했다"는 주장이 아니다.
+스크린샷 다섯 장(랜딩 · 카드 1/4 · 카드 4/4 · 데모 · 재열람)을 이
+세션에서 사용자에게 전달했다.
+
+## 결론
+
+CP8 의 눈으로 보는 항목(`scene-gates.md` §2.1)을 실제 브라우저 ·
+실제 Mediator 프로세스 · 실제 PostgreSQL 로 확인했다. 관리자 흐름
+회귀(US-5)는 이 유닛이 `internal/api` 의 기존 라우트를 안 건드렸다는
+사실(코드 리뷰 + `unit-test-instructions.md` 의 회귀 테스트 결과)로
+확인된다 — 관리자 로그인 자체가 아직 구현되지 않았으므로(placeholder)
+"기존과 동일하게 동작"은 "아직 아무 동작도 없다"는 뜻이고, 그 상태를
+이 유닛이 바꾸지 않았다.

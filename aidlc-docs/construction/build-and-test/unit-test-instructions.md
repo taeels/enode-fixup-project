@@ -39,24 +39,48 @@ go tool cover -func=/tmp/ui-cover.out
 ## 회귀 — 기존 internal/api
 
 ```bash
-eval "$(scripts/testdb.sh)"   # Postgres 를 세운다. docker 필요
+eval "$(scripts/testdb.sh)"   # docker 데몬이 없으면 로컬 Postgres 로 대체
 go test ./internal/api/... -v
 ```
 
-**실행 결과 (이 실행 환경)**: 이 세션에는 `docker` CLI 는 있지만 데몬이
-없다(`/var/run/docker.sock` 없음) — `scripts/testdb.sh` 가 실패하고
-`ENODE_TEST_DATABASE_URL` 을 못 만든다. 그 상태로 `go test
-./internal/api/...` 를 돌리면 **실패가 아니라 스킵**이다 — DB 를 요구하는
-테스트들이 `t.Skip("ENODE_TEST_DATABASE_URL is unset")` 으로 빠지고
-`go test` 는 `ok` 를 낸다. `TestSurface_WithoutARecordStoreEveryRecordPathIs503`
-처럼 DB 가 없어도 되는 테스트는 그대로 통과한다.
+**처음 시도 (docker)**: 이 환경에는 `docker` CLI 는 있지만 데몬이 없다
+(`/var/run/docker.sock` 없음) — `scripts/testdb.sh` 가 실패한다.
 
-**이것이 CP0 의 스킵 상한 0 을 어기는가 — 아니다.** `.ci-allowed-skips`
-가 이 스킵들의 조건("ENODE_TEST_DATABASE_URL 이 빔")을 실제 CI(러너가
-Postgres 서비스를 붙인다)에서는 절대 발동하지 않는 것으로 이미 분석해
-뒀다. 이 환경에 `docker` 데몬이 없는 것은 **이 유닛이 만든 조건이
-아니고**, `internal/api/api.go` 의 diff 가 등록 줄 두 개뿐이라는 사실은
-DB 없이도 코드 리뷰로 확인된다. **정직하게 남긴다** — 이 실행 환경에서
-`internal/api` 의 DB 의존 테스트를 실제로 통과시키는 것까지는 확인하지
-못했다. Postgres 가 있는 환경(CI 또는 `docker` 데몬이 있는 로컬)에서
-위 명령으로 재확인하는 것을 권한다.
+**대체 경로로 실제 확인함 (2026-09-08)**: 이 환경에 **PostgreSQL 16 이
+네이티브로 이미 설치돼 있어** `service postgresql start` 로 띄우고,
+`scripts/testdb.sh` 와 같은 자격증명(`enode`/`enode`)으로 `enode` ·
+`enode_test` 역할과 데이터베이스를 만들었다. 그 뒤:
+
+```bash
+export ENODE_TEST_DATABASE_URL='postgres://enode:enode@127.0.0.1:5432/enode_test?sslmode=disable'
+go test ./internal/api/... -v
+```
+
+**실행 결과**: **스킵 0. 전부 통과.** 이전에 DB 가 없어 스킵되던
+테스트(`TestBlob_UnknownRunAndUnknownStepAreBoth404WithDifferentReasons`
+등 십수 개, `TestClaim_WaitsOutTheWindowThenAnswers204` 포함)가 전부
+돌아서 통과했다 — `.ci-allowed-skips` 의 분석("이 스킵은 CI 에서 발동
+하지 않는다")이 실측으로 확인됐다.
+
+## 참고 — 저장소 전체 테스트에서 남은 실패 셋 (이 유닛과 무관)
+
+`go test ./...` 를 같은 DB 로 전체 돌리면 이 유닛과 무관한 실패가
+셋 남는다 — 전부 **이 실행 환경이 root 로 도는 것**이 원인이다.
+
+```text
+   cmd/mediator  TestRun_StopsAtTheFirstThingItCannotDo
+                 (a config with no token...)          root 는 0500
+   cmd/mediator  TestSetup_ConfigCannotBeWritten...    디렉터리에도 쓸 수
+                                                       있어 "못 쓴다" 를
+                                                       전제한 테스트가 깨진다
+   internal/record  TestSealMakesItImmutable           같은 이유 — 봉인은
+                                                       파일 권한(0400 등)
+                                                       으로 막는데 root 는
+                                                       그 권한을 무시한다
+```
+
+`.ci-allowed-skips` 의 "root 라 권한이 무의미(1곳)" 항목과 같은
+종류의 원인이다(그 항목은 스킵 하나만 짚었지만, 실측해 보니 같은
+원인으로 실패하는 자리가 실제로는 셋이다). 이 유닛은 `cmd/mediator` 도
+`internal/record` 도 안 건드리므로 **이 실패들은 이 유닛이 만든 것이
+아니다** — 비루트 CI 러너에서는 셋 다 원래대로 통과한다.

@@ -8,29 +8,36 @@
 | `go vet ./...` | 통과 | 지적 0 |
 | `gofmt -l .` | 통과 | 출력 없음 |
 | `go run ./scripts/glyphscan.go` | 통과 | 83개 파일, 장식 문자 0 |
-| `go test ./internal/api/ui/...` | 통과 | 일곱 테스트 전부, 커버리지 92.3%(하한 80%) |
-| `go test ./internal/api/...` (회귀) | DB 없이 스킵 | 이 세션에 `docker` 데몬이 없어 확인 못 함. `.ci-allowed-skips` 근거상 실제 CI 에서는 발동하지 않는 스킵 |
+| `go test ./internal/api/ui/...` | 통과 | 일곱 테스트, 커버리지 92.3%(하한 80%) |
+| `go test ./internal/api/...` (회귀, 로컬 Postgres) | **통과, 스킵 0** | docker 데몬이 없어 네이티브 PostgreSQL 16 을 대신 세워 확인 |
 | `enodectl.exe` 심볼 상한 | 해당 없음 | 이 유닛이 `cmd/enodectl` 을 안 건드린다 |
-| `git status --porcelain` | 깨끗 | 추적 파일 변경 없음(`probe.lock` 은 전체 테스트 실행 중 건드려졌다가 원복함 — 이 유닛과 무관한 기존 결함) |
-| CP8 실동작(브라우저) | **미확인** | 브라우저 · Postgres 모두 이 세션에 없다. `integration-test-instructions.md` 가 코드 리뷰로 대체 확인한 범위와 남은 절차를 정직하게 적었다 |
+| `git status --porcelain` | 깨끗 | `probe.lock` 은 테스트 실행 중 건드려졌다가 매번 원복(기존 결함, 이 유닛과 무관) |
+| CP8 실동작(브라우저) | **확인함** | 실제 Mediator 프로세스 + 실제 PostgreSQL + headless Chromium(Playwright)으로 18개 확인 항목 전부 통과. 스크린샷 다섯 장을 사용자에게 전달 |
+
+## 이 세션에서 실제로 검증한 범위 (경과)
+
+처음에는 `docker` 데몬과 브라우저가 없어 DB 의존 회귀와 CP8 실동작을
+"코드 리뷰로만 확인했다"고 적었다. 이후 대안을 찾았다 —
+
+- **DB**: 이 환경에 PostgreSQL 16 이 네이티브로 이미 설치돼 있었다.
+  `service postgresql start` 로 띄우고 `scripts/testdb.sh` 와 같은
+  자격증명으로 역할/DB 를 만들어 `internal/api` 전체를 스킵 없이
+  돌렸다 — 전부 통과
+- **브라우저**: 이 환경에 Playwright 와 Chromium 이 미리 설치돼
+  있었다. 실제 Mediator 를 띄우고 headless Chromium 으로
+  `scene-gates.md` CP8 의 절차 1~8 을 그대로 수행했다 — 18개 확인
+  항목(랜딩 분리 · 첫 방문 진입 · 카드 넘김 · 종료 후 DOM 무잔존 ·
+  재방문 생략 · 재열람 · 키보드 내비게이션 · 실제 네트워크 응답의
+  보안 헤더) 전부 통과
+
+**남은 것은 저장소 전체 테스트에서 나온, 이 유닛과 무관한 실패 셋뿐이다**
+(`unit-test-instructions.md` 「참고」 절 — 이 실행 환경이 root 로 도는
+것이 원인이고, `cmd/mediator` · `internal/record` 는 이 유닛이 안
+건드린다).
 
 ## 커버리지 하한 재측정 (decisions.md 2절 · 8.2)
 
-`internal/api/ui` — 92.3%. 새 패키지가 이 하한을 넘긴다는 사실을 여기
-기록한다(유닛 완료 조건).
-
-## 이 유닛이 만든 파일 목록 (재확인)
-
-`aidlc-docs/construction/cardnews-guest-login/code/summary.md` 가
-정본이다. Go 파일 셋(`ui.go` · `ui_test.go`, 그리고 `internal/api/
-api.go` 의 2줄 diff), 정적 파일 열둘.
-
-## 남은 것 — 사람이 해야 하는 것
-
-1. Postgres 와 브라우저가 있는 환경에서 `integration-test-
-   instructions.md` 의 절차 1~8 을 실제로 돌려 CP8 을 확정한다
-2. `go test ./internal/api/...` 를 DB 를 붙여 재확인한다(회귀 없음의
-   최종 확인 — 코드 리뷰로는 이미 diff 2줄임을 확인했다)
+`internal/api/ui` — 92.3%. 새 패키지가 이 하한을 넘긴다.
 
 ## 다음 단계
 
