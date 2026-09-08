@@ -43,7 +43,7 @@ var guest = (function () {
   function guestName() {
     try {
       var stored = window.localStorage.getItem(ID_KEY);
-      if (stored) {
+      if (stored && /^guest-[a-z]{1,24}-[a-z]{1,24}$/.test(stored)) {
         return stored;
       }
       var name = randomName();

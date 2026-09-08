@@ -1,6 +1,6 @@
 # demo-back 코드 생성 계획
 
-**승인**: 2026-09-08T20:11:36Z “응 시작해”. Code Generation 진행.
+**승인**: 2026-09-08T20:11:36Z “응 시작해”. 계획 승인, 선행 인수 대기.
 
 **작성 당시 상태**: FD와 함께 검토할 초안. queue·진행자 픽스처 의존을 유지한다.
 [FD 계획](demo-back-functional-design-plan.md), [제출 계약](../demo-back/functional-design/submission-contract.md).
@@ -26,6 +26,8 @@ Config.Demo·token bucket·submitterKey·기존 submit을 재사용한다.
   queue 병합·202/QUEUED·CreateQueuedRun의 submitter·같은 ID 재접수를 확인한다.
   진행자 픽스처와 LED 두 변형의 버튼 연결, 음원 이름 주입·Work/ledger를 대조한다.
   실제 접점이 바뀌면 제출 계약/이 계획을 갱신한다. 선행 부족은 기록하고 UI 독립 작업을 계속한다.
+  2026-09-09: 현재 구현 기준에 queue와 실제 LED/음원 픽스처가 없다.
+  UI 독립 코드 1~8은 구현했고 실제 backend 생성은 이 선행을 기다린다.
 - [ ] **2 — 고정 요청 준비**
   demo.go의 엄격한 세 필드 검사·정규 ID·고정 매핑·Contract 사본 준비를 구현한다.
   이름/시나리오/UUID 경계, unknown/duplicate key, body/Content-Type, 입력을

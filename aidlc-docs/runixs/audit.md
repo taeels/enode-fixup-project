@@ -439,3 +439,55 @@ POST /v1/demo/runs의 scenario_id·submitter·request_id, 엄격한 입력 검�
 유지하며, 같은 승인을 다시 요청하지 않는다.
 
 ---
+
+## 승인된 UI 코드 생성과 독립 검증
+
+**Timestamp**: 2026-09-08T20:41:21Z
+
+**직전 사용자 입력**: 위의 “응 시작해” 승인을 계속 적용했다. 새로운 승인을
+요청하거나 외부 입력 수령으로 해석하지 않았다.
+
+**AI Response**: 승인된 ui 코드 계획 1~8을 구현했다. 공용 관측 모델·클라이언트,
+2D/3D 함대/Run 그래프와 상세, 실 함대 세션 진입, D1 Guest·D2/D5 공개 화면,
+투어·동일 의도 재시도 모달·웹캠 표시 조작을 작성했다. demo pen export와
+3d-view@8985694의 선별 재사용 기준을 따랐다. 원본 워크트리·pen·API·store·
+queue·config·DB 스키마는 수정하지 않았다.
+
+**검증**: Node 42 통과, UI Go 98.4%. 전용 PostgreSQL 16.14 DB와 CI 스텁/정리한
+PATH에서 전체 Go 표준 커버리지 실행 1,090 통과·0 스킵, 16 패키지 모두 80% 이상.
+vet/build/표기/Windows enodectl·net/http 심볼 6개/govulncheck 통과.
+초기 크로스 컴파일러 탐지 테스트 실패와 저장소 내부 Go 툴체인 스캔 문제는
+검증 환경을 정리해 해결했다. 테스트가 만든 probe.lock PID 변경만 원복했다.
+
+**브라우저**: 실제 api.Handler와 별도 DB에 등록한 광고 3개·예제 Run을 소비해
+S0의 401/정상 진입·새 탭 세션 경계·logout·obs 갱신·그래프를 확인했다.
+기존 Guest/cardnews 분기, 4단계 투어·선택/포커스 복원, 모달 차단/닫기/실제 404,
+테스트 전송의 503 재시도·202 선택과 가짜 행 방지, 웹캠 크기·배율·이동·Fit,
+390px iframe viewport를 검증했다. 시간 동결의 자원 간 간섭과 긴 그래프 Fit
+하한 문제를 추가 수정·검증했다. 실제 하드웨어 실행·방송이라고 기록하지 않았다.
+
+**남은 선행**: 현재 구현 기준의 queue 부재, 진행자 LED/음원 픽스처·이름 주입
+필드·방송 주소·sandbox 합의 미수령. demo-back은 승인된 계획 1의 선행 인수에서
+대기한다. UI 9·10 공동 장면, 전체 Code Generation 완료 리뷰·이후 commit/PR
+게이트는 유지한다. 코드/검증 요약은 construction/ui/code/ 아래에 작성했다.
+공용 상태·다른 담당 기록은 수정하지 않았고 팀원에게 메시지를 보내지 않았다.
+
+---
+
+## 독립 UI 구현 커밋 요청
+
+**Timestamp**: 2026-09-08T23:28:22Z
+
+**User Input**:
+
+```text
+runixs92@gmail.com으로 커밋해줘
+```
+
+**AI Response**: 현재 독립 UI 코드와 runixs 담당 문서를 `unit/runixs-ui`에
+커밋한다. 기존 이름 Taewan Kim을 유지하고 작성자·커미터 이메일을
+`runixs92@gmail.com`으로 명시한다. 작업과 무관한 untracked 파일은 보존한다.
+직전 검증 결과와 보류된 외부 선행을 유지한다. 이 요청을 실제 데모 연결·
+공동 게이트 완료나 원격 push·PR 병합 승인으로 확대하지 않는다.
+
+---

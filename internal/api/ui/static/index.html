@@ -1,34 +1,27 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>enode</title>
-<link rel="stylesheet" href="/ui/landing.css">
-</head>
+<!doctype html><html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>enode · 접속</title><link rel="stylesheet" href="/ui/landing.css"></head>
 <body>
-<header class="topbar">
-  <span class="wordmark">enode</span>
-</header>
+<header class="topbar"><a class="wordmark" href="/ui/" data-testid="landing-home-link">enode</a><span>분산된 자원, 하나의 실행 흐름</span></header>
 <main class="landing-panels">
-  <section class="panel panel-admin" id="admin-login">
-    <h2>관리자용</h2>
-    <p>Mediator 토큰으로 로그인합니다.</p>
-    <input
-      type="text"
-      disabled
-      placeholder="Mediator 토큰 (준비 중)"
-      data-testid="landing-admin-token-input">
-  </section>
-  <section class="panel panel-guest" id="guest-entry">
-    <h2>둘러보러 오셨나요?</h2>
-    <p>Guest 로 들어가면 enode 가 왜 필요한지 카드로 먼저 보여드립니다.</p>
-    <button type="button" data-testid="landing-guest-login-button">
-      Guest 로 둘러보기
-    </button>
-  </section>
-</main>
-<script src="/ui/shared/guest.js"></script>
-<script src="/ui/landing.js"></script>
-</body>
-</html>
+<section class="panel panel-guest" id="guest-entry">
+<p class="eyebrow">ENODE DEMO</p><h1>실행되는 연결을<br>직접 만나보세요.</h1>
+<p>작업이 함대의 노드로 이어지는 과정을 살펴보고,<br>LED와 음원 시나리오를 체험해 보세요.</p>
+<div class="guest-name"><span>오늘의 Guest 이름</span><strong id="landing-guest-name"></strong></div>
+<button type="button" data-testid="landing-guest-login-button">Guest로 시작하기 →</button>
+<a class="mode-link" href="#fleet" data-testid="landing-admin-mode-button">실 함대 접속</a>
+</section>
+<section class="panel panel-admin" id="admin-login" hidden>
+<p class="eyebrow">FLEET OBSERVATION</p><h1>실 함대 접속</h1><p>Mediator 토큰으로 함대와 작업을 조회합니다.</p>
+<form data-testid="landing-admin-form">
+<label for="admin-token">Mediator 토큰</label>
+<input id="admin-token" type="password" autocomplete="off" spellcheck="false" required data-testid="landing-admin-token-input" placeholder="토큰을 입력하세요">
+<p id="login-status" role="status"></p>
+<button type="submit" data-testid="landing-admin-login-button">함대 조회</button>
+<button type="button" data-testid="landing-admin-retry-button" hidden>다시 조회</button>
+</form>
+<p class="storage-note">토큰은 현재 탭의 세션에만 보관합니다.</p>
+<a class="mode-link" href="#demo" data-testid="landing-guest-mode-button">Guest로 둘러보기</a>
+</section></main>
+<footer>enode · observe the fleet, follow the work</footer>
+<script src="/ui/shared/guest.js"></script><script src="/ui/landing.js"></script><script type="module" src="/ui/fleet/login.mjs"></script>
+</body></html>
