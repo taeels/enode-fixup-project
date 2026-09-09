@@ -1,6 +1,6 @@
-import { RUN_STATES, nodeFacts, observationClock, dependentClock, isStale, matches } from './model.mjs';
+import { RUN_STATES, nodeFacts, runFlowFacts, observationClock, dependentClock, isStale, matches } from './model.mjs';
 import { fleetScene, runScene } from './scene.mjs';
-import { formatTimestamp, elapsedTime, remainingTime, leaseIdentity, capabilityName, attributeName, attributeValue, technicalAttribute, drainDescription } from './format.mjs';
+import { formatRunId, formatTimestamp, elapsedTime, remainingTime, leaseIdentity, capabilityName, attributeName, attributeValue, technicalAttribute, drainDescription } from './format.mjs';
 
 export function element(tag, className, text) {
   const el = document.createElement(tag);
@@ -36,6 +36,14 @@ export function replaceContents(target, children, signature) {
 }
 function pair(list, name, value) { list.append(element('dt', '', name), element('dd', '', value ?? '미제공')); }
 function message(text) { return element('p', 'muted', text); }
+function runLabel(id, tag = 'span') { const el = element(tag, 'run-id', formatRunId(id)); el.title = id; return el; }
+function viewSetting(caption, testid, options, onChange) {
+  const field = element('label', 'view-setting'), select = element('select');
+  select.dataset.testid = testid; select.setAttribute('aria-label', caption);
+  for (const [value, text] of options) { const option = element('option', '', text); option.value = value; select.append(option); }
+  select.addEventListener('change', () => onChange(select.value));
+  field.append(element('span', '', caption), select); return { field, select };
+}
 function timestamp(value) { const el = element('time', '', formatTimestamp(value)); if (value) { el.dateTime = value; el.title = value; } return el; }
 function timePair(list, name, value, context) {
   const description = element('dd'); description.append(timestamp(value));
@@ -46,17 +54,18 @@ const shellArgument = value => "'" + value.replaceAll("'", "'\\''") + "'";
 export class DashboardView {
   constructor(root, { mode, identity, onRetry, onLogout, onRunSelection = () => {} }) {
     this.root = root; this.mode = mode; this.onRunSelection = onRunSelection;
-    this.state = { scene: 'fleet', representation: mode === 'demo' ? '3d' : '2d', run: null, node: null, step: null, filter: '' };
+    this.state = { scene: 'fleet', representation: mode === 'demo' ? '3d' : '2d', run: null, node: null, step: null, actor: null, filter: '' };
     this.resources = new Map(); this.positions = new Map(); this.now = performance.now();
     root.classList.add('dashboard');
     const header = element('header', 'dashboard-header');
     const brand = element('div', 'brand'); brand.append(element('strong', '', `enode ${mode === 'demo' ? '데모' : '함대'} 현황판`), element('span', 'muted', mode === 'demo' ? '공개 데모' : 'Mediator · 관측'));
     this.headerActions = element('div', 'header-actions');
-    this.fleetButton = button('함대', `${mode}-${mode === 'demo' ? 'fleet' : 'grid'}-button`, () => this.changeScene('fleet'));
-    this.runButton = button('작업 그래프', `${mode}-${mode === 'demo' ? 'run' : 'graph'}-button`, () => this.changeScene('run'));
-    this.twoD = button('2D', `${mode}-2d-button`, () => this.changeRepresentation('2d'));
-    this.threeD = button('3D', `${mode}-3d-button`, () => this.changeRepresentation('3d'));
-    this.headerActions.append(this.fleetButton, this.runButton, this.twoD, this.threeD, element('span', 'identity', identity));
+    const settings = element('div', 'view-settings'); settings.setAttribute('role', 'group'); settings.setAttribute('aria-label', '보기 설정');
+    const sceneSetting = viewSetting('화면', `${mode}-scene-select`, [['fleet', '함대'], ['run', '작업 그래프']], value => this.changeScene(value));
+    const representationSetting = viewSetting('표현', `${mode}-representation-select`, [['2d', '2D'], ['3d', '3D']], value => this.changeRepresentation(value));
+    this.sceneSelect = sceneSetting.select; this.representationSelect = representationSetting.select;
+    settings.append(element('span', 'view-settings-title', '보기'), sceneSetting.field, representationSetting.field);
+    this.headerActions.append(settings, element('span', 'identity', identity));
     if (onLogout) this.headerActions.append(button('인증 종료', `${mode}-logout-button`, onLogout));
     header.append(brand, this.headerActions);
     this.connection = element('div', 'connection'); this.connection.setAttribute('role', 'status');
@@ -65,7 +74,7 @@ export class DashboardView {
     const layout = element('main', 'dashboard-layout');
     this.panel = element('section', 'scene-panel'); this.panel.dataset.testid = `${mode}-fleet-region`; this.panel.setAttribute('aria-label', '함대와 작업 장면');
     const sceneHeader = element('div', 'scene-header'); this.title = element('h1', '', '함대'); this.subtitle = element('span', 'muted');
-    this.backButton = button('← 함대로 돌아가기', `${mode}-graph-back-button`, () => { this.changeScene('fleet'); this.fleetButton.focus({ preventScroll: true }); }, 'scene-back');
+    this.backButton = button('← 함대로 돌아가기', `${mode}-graph-back-button`, () => { this.changeScene('fleet'); this.sceneSelect.focus({ preventScroll: true }); }, 'scene-back');
     this.sceneContext = element('p', 'scene-context');
     const heading = element('div', 'scene-heading'); heading.append(this.title, this.subtitle, this.sceneContext);
     sceneHeader.append(this.backButton, heading);
@@ -93,10 +102,15 @@ export class DashboardView {
     this.sidebar.append(filterLabel, this.runStatus, this.submissionNotice, this.runList, message('QUEUED 작업은 노드에 배치하지 않습니다.'), this.askList, this.requirements, this.stepList);
     layout.append(this.panel, this.sidebar); root.replaceChildren(header, this.connection, layout);
     this.zoom = 1; this.dimensions = { width: 880, height: 620 }; this.autoFit = true;
-    this.resizeObserver = new ResizeObserver(() => { if (this.autoFit) this.fit(); }); this.resizeObserver.observe(this.viewport);
+    this.compact = this.viewport.clientWidth < 560;
+    this.resizeObserver = new ResizeObserver(() => {
+      const compact = this.viewport.clientWidth < 560;
+      if (compact !== this.compact) { this.compact = compact; this.render(); }
+      if (this.autoFit) this.fit();
+    }); this.resizeObserver.observe(this.viewport);
     this.dismissOutside = e => {
       if (this.inspector.hidden || this.inspector.contains(e.target)) return;
-      if (e.type !== 'wheel' && e.target.closest?.(`[data-testid="${mode}-node-select-button"], [data-testid="${mode}-step-select-button"]`)) return;
+      if (e.type !== 'wheel' && e.target.closest?.(`[data-testid="${mode}-node-select-button"], [data-testid="${mode}-step-select-button"], [data-testid="${mode}-flow-actor-button"]`)) return;
       this.closeInspector();
     };
     this.dismissKey = e => {
@@ -108,6 +122,7 @@ export class DashboardView {
     document.addEventListener('wheel', this.dismissOutside, { capture: true, passive: true });
     document.addEventListener('keydown', this.dismissKey, true);
     this.wheelZoom = e => {
+      if (this.dimensions.compact && !e.ctrlKey && !e.metaKey) return;
       if (!this.canvas.querySelector('svg') || e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY) || !e.deltaY) return;
       e.preventDefault();
       const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? this.viewport.clientHeight : 1);
@@ -132,11 +147,12 @@ export class DashboardView {
   }
   selectNode(id) { this.changeScene('fleet'); this.state.node = id; this.render(); }
   selectStep(id) { this.changeScene('run'); this.state.step = id; this.render(); }
+  selectActor(id) { this.changeScene('run'); this.state.actor = id; this.render(); }
   closeInspector(restoreFocus = false) {
-    const node = this.state.node, step = this.state.step;
-    if (!node && !step) return;
-    this.state.node = this.state.step = null; this.inspector.hidden = true; this.render();
-    if (restoreFocus) [...this.root.querySelectorAll('[data-node-id], [data-step-id]')].find(el => node ? el.dataset.nodeId === node : el.dataset.stepId === step)?.focus({ preventScroll: true });
+    const node = this.state.node, step = this.state.step, actor = this.state.actor;
+    if (!node && !step && !actor) return;
+    this.state.node = this.state.step = this.state.actor = null; this.inspector.hidden = true; this.render();
+    if (restoreFocus) [...this.root.querySelectorAll('[data-node-id], [data-step-id], [data-actor-id]')].find(el => node ? el.dataset.nodeId === node : actor ? el.dataset.actorId === actor : el.dataset.stepId === step)?.focus({ preventScroll: true });
   }
   setZoom(value, manual = true, anchor) {
     if (manual) this.closeInspector();
@@ -152,7 +168,7 @@ export class DashboardView {
       this.viewport.scrollTop += after.top + (point.y - before.top) * this.zoom / old - point.y;
     }
   }
-  fit() { this.autoFit = true; if (this.viewport.clientWidth <= 20 || this.viewport.clientHeight <= 20) return; this.setZoom(Math.min(1, (this.viewport.clientWidth - 20) / this.dimensions.width, (this.viewport.clientHeight - 20) / this.dimensions.height), false); }
+  fit() { this.autoFit = true; if (this.viewport.clientWidth <= 20 || this.viewport.clientHeight <= 20) return; this.setZoom(Math.min(1, (this.viewport.clientWidth - 20) / this.dimensions.width, this.dimensions.compact ? 1 : (this.viewport.clientHeight - 20) / this.dimensions.height), false); }
   update(resources, now = performance.now()) { this.resources = resources; this.now = now; this.render(); }
   resourceStatus(key) {
     const r = this.resources.get(key);
@@ -170,19 +186,22 @@ export class DashboardView {
     this.connection.classList.toggle('is-stale', [...this.resources.values()].some(r => r.error || isStale(r, this.now)));
     this.runStatus.textContent = `${runs.length}개 작업 · ${this.resourceStatus('runs')}`;
     const isFleet = this.state.scene === 'fleet', selectedRun = runs.find(r => r.run_id === this.state.run);
+    const run = { ...selectedRun, run_id: this.state.run, state: detail?.state || selectedRun?.state };
+    const flowStale = !detailResource?.data || !!detailResource.error || isStale(detailResource, this.now);
     this.panel.dataset.scene = this.state.scene; this.backButton.hidden = isFleet;
     this.title.textContent = isFleet ? '함대' : '작업 그래프';
-    this.subtitle.textContent = isFleet ? `${nodes.length}개 노드 · 모형을 눌러 상세 확인` : `${detail?.steps?.length ?? 0}개 단계 · 화살표는 실행 의존 관계`;
+    this.subtitle.textContent = isFleet ? `${nodes.length}개 노드 · 모형을 눌러 상세 확인` : `요청 → 배정 → 실행 · ${detail?.steps?.length ?? 0}개 단계${this.compact ? ' · 아래로 스크롤' : ''}`;
     this.sceneContext.hidden = isFleet;
-    this.sceneContext.textContent = isFleet ? '' : `${selectedRun?.submitter || '제출자 미확인'} · ${this.state.run} · ${detail?.state || selectedRun?.state || '조회 중'}`;
-    this.sceneContext.title = this.sceneContext.textContent;
-    this.runButton.disabled = !this.state.run;
-    for (const [el, pressed] of [[this.fleetButton, this.state.scene === 'fleet'], [this.runButton, this.state.scene === 'run'], [this.twoD, this.state.representation === '2d'], [this.threeD, this.state.representation === '3d']]) el.setAttribute('aria-pressed', String(pressed));
-    const signature = JSON.stringify([this.state.scene, this.state.representation, this.state.node, this.state.step, this.state.run, nodes, runs.map(r => [r.run_id, r.submitter]), detail, [...details], asks, nodes.map(n => nodeFacts(n, details, asks, now).expiring)]);
+    this.sceneContext.textContent = isFleet ? '' : `${selectedRun?.submitter || '제출자 미확인'} · ${formatRunId(this.state.run)} · ${detail?.state || selectedRun?.state || '조회 중'}`;
+    this.sceneContext.title = isFleet ? '' : this.state.run;
+    this.sceneSelect.value = this.state.scene; this.representationSelect.value = this.state.representation;
+    this.sceneSelect.querySelector('[value="run"]').disabled = !this.state.run;
+    this.sceneSelect.title = this.state.run ? '표시할 화면' : '목록에서 작업을 선택하면 작업 그래프를 볼 수 있어요';
+    const signature = JSON.stringify([this.state.scene, this.state.representation, this.state.node, this.state.step, this.state.actor, this.state.run, this.compact, flowStale, selectedRun, nodes, runs.map(r => [r.run_id, r.submitter]), detail, [...details], asks, nodes.map(n => nodeFacts(n, details, asks, now).expiring)]);
     if (signature !== this.canvas._signature) {
       let scene;
       if (this.state.scene === 'fleet' && nodes.length) scene = fleetScene({ nodes, runs, details, asks, now, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.node, onSelect: id => this.selectNode(id) });
-      else if (this.state.scene === 'run' && detail?.steps?.length && !detail.graphError) scene = runScene({ steps: detail.steps, nodes, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.step, onSelect: id => this.selectStep(id) });
+      else if (this.state.scene === 'run' && (detail || selectedRun) && !detail?.graphError) scene = runScene({ steps: detail?.steps, nodes, run, stale: flowStale, compact: this.compact, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.step, onSelect: id => this.selectStep(id), actor: this.state.actor, onActorSelect: id => this.selectActor(id) });
       if (scene) {
         const position = { x: this.viewport.scrollLeft, y: this.viewport.scrollTop };
         this.dimensions = scene; replaceContents(this.canvas, [scene.element], signature); this.setZoom(this.zoom, false);
@@ -194,17 +213,17 @@ export class DashboardView {
     const filtered = runs.filter(r => !this.state.filter || r.state === this.state.filter);
     const rows = filtered.map(r => {
       const b = button('', `${this.mode}-run-select-button`, () => this.selectRun(r.run_id), 'run-row'); b.dataset.runId = r.run_id; b.setAttribute('aria-pressed', String(this.state.run === r.run_id));
-      b.append(element('span', 'run-id', r.run_id), element('span', `state state-${r.state.toLowerCase().replace(/[^a-z]/g, '')}`, r.state),
+      b.append(runLabel(r.run_id), element('span', `state state-${r.state.toLowerCase().replace(/[^a-z]/g, '')}`, r.state),
         element('span', 'run-meta', r.submitter || '제출자 미제공'), element('span', 'run-meta', formatTimestamp(r.created_at)), element('span', 'run-meta', r.assigned.length ? r.assigned.map(a => `${a.as}: ${a.nodes.map(n => n.label || n.node).join(', ')}`).join(' / ') : '노드 미배정'));
       return b;
     });
     replaceContents(this.runList, rows.length ? rows : [message(runsResource?.data ? '해당하는 작업이 없습니다.' : '작업 목록 미확인')], JSON.stringify([filtered, this.state.run]));
-    this.renderInspector(nodes, details, asks, now, detail, detailResource);
+    this.renderInspector(nodes, details, asks, now, detail, detailResource, run, flowStale);
     this.renderRequirements(detail, detailResource, nodes);
     if (this.mode === 'fleet') {
       const items = [element('h3', '', '사람 응답 대기'), message(this.resourceStatus('asks'))];
       for (const a of asks) {
-        const b = button(`${a.run_id} · 단계 ${a.seq}`, 'fleet-ask-run-button', () => this.selectRun(a.run_id), 'text-link'); b.dataset.runId = a.run_id;
+        const b = button(`${formatRunId(a.run_id)} · 단계 ${a.seq}`, 'fleet-ask-run-button', () => this.selectRun(a.run_id), 'text-link'); b.dataset.runId = a.run_id; b.title = a.run_id;
         const askResource = this.resources.get('asks');
         const askNow = dependentClock(runsResource, [askResource], this.now);
         items.push(b, message(a.prompt), message(`응답자: ${a.answerers?.join(', ') || '미제공'}\n질문: ${formatTimestamp(a.asked_at)}${a.asked_at && askNow !== null ? ` · ${elapsedTime(a.asked_at, askNow)} (목록 관측 시각 기준)` : ''}\n기한: ${a.deadline ? formatTimestamp(a.deadline) : '기한 없음'}`), message(`runctl asks\nrunctl answer ${shellArgument(a.run_id)} ${a.seq} --set field=value`));
@@ -234,7 +253,26 @@ export class DashboardView {
     if (detail.verdict) contents.push(element('h3', '', `검증 · ${detail.verdict.state}`), ...detail.verdict.checks.map(c => message(`${c.ok ? '통과' : '실패'} · ${c.note || '설명 없음'}`)));
     replaceContents(this.requirements, contents, JSON.stringify([detail, resource?.previousRequires, nodes, contents[1].textContent]));
   }
-  renderInspector(nodes, details, asks, now, detail, detailResource) {
+  renderFlowInspector(run, detail, stale) {
+    this.inspector.hidden = false;
+    const guest = this.state.actor === 'guest', facts = runFlowFacts(run.state, detail?.steps, stale);
+    const name = run.submitter === undefined ? '제출자 미확인' : run.submitter || '제출자 미제공';
+    const close = button('×', `${this.mode}-inspector-close-button`, () => this.closeInspector(true), 'inspector-close'); close.setAttribute('aria-label', '상세 닫기');
+    const list = element('dl');
+    list.append(element('dt', '', '현재 작업'), runLabel(run.run_id, 'dd'));
+    pair(list, '작업 상태', run.state);
+    if (!guest) pair(list, '진행 상황', facts.label);
+    pair(list, '제출자', name);
+    if (run.created_at) timePair(list, '접수 시각', run.created_at);
+    if (run.ended_at) timePair(list, '종료 시각', run.ended_at);
+    if (stale) pair(list, '관측', '갱신 지연 · 마지막으로 확인한 상태');
+    const items = [close, element('h2', '', guest ? name : 'Mediator'), element('p', '', guest ? this.mode === 'demo' ? 'Guest · 요청한 사람' : 'Submitter · 요청한 사람' : '요청을 받아 실행 가능한 enode에 배정하고 결과를 확인합니다.'), list];
+    if (guest) items.push(message('이 이름으로 접수된 작업의 실행 과정을 보고 있어요.'));
+    else items.push(message(facts.description));
+    replaceContents(this.inspector, items, JSON.stringify([this.state.actor, run, facts, stale]));
+  }
+  renderInspector(nodes, details, asks, now, detail, detailResource, run, stale) {
+    if (this.state.scene === 'run' && this.state.actor) { this.renderFlowInspector(run, detail, stale); return; }
     const node = nodes.find(n => n.node_id === this.state.node), step = detail?.steps?.find(s => s.id === this.state.step);
     const isNode = this.state.scene === 'fleet'; this.inspector.hidden = isNode ? !node : !step;
     if (this.inspector.hidden) return;
@@ -249,7 +287,7 @@ export class DashboardView {
         const leaseNow = dependentClock(this.resources.get('nodes'), dependent, this.now);
         const owner = leaseIdentity(node, this.resources.get('runs')?.data?.runs);
         pair(list, '사용 중인 작업의 제출자', owner.submitter);
-        pair(list, '현재 작업', owner.runId);
+        list.append(element('dt', '', '현재 작업'), runLabel(owner.runId, 'dd'));
         if (isStale(this.resources.get('runs'), this.now) || this.resources.get('runs')?.error) pair(list, '제출자 정보', '이전 목록 관측 · 갱신 지연');
         timePair(list, '임대 갱신 기한', node.lease.not_after, `${facts.asked ? '사람 응답 대기 중에는 임대가 만료되지 않습니다.' : remainingTime(node.lease.not_after, leaseNow)}${freeze.length ? ' · 관련 관측 미갱신' : ''}`);
         for (const s of details.get(node.lease.run_id)?.steps || []) if (s.node === node.node_id && s.state === 'CLAIMED') {

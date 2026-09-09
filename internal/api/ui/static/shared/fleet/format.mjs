@@ -1,4 +1,8 @@
 // 표시만 바꾸며 서버 값·상태·관측 시계는 보존한다.
+export function formatRunId(value) {
+  return (value || '').replace(/(^|-)([0-9a-f]{16,})$/i, (_, prefix, hash) => prefix + hash.slice(0, 8));
+}
+
 const timestampFormat = new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit',
 });

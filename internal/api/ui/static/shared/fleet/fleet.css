@@ -16,6 +16,12 @@ body.dashboard { margin:0; }
 .dashboard .brand strong { font-size:19px; letter-spacing:-.5px; }
 .dashboard .brand>span { margin-left:8px; font-size:12px; }
 .dashboard .header-actions button { padding:5px 10px; font-size:12px; }
+.dashboard .view-settings { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:5px 9px; border:1px solid #394B5C; border-radius:8px; background:#101920; }
+.dashboard .view-settings-title { color:#A9BDCF; font-size:11px; font-weight:600; margin-right:2px; }
+.dashboard .view-setting { display:flex; align-items:center; gap:5px; color:#98A4B3; font-size:11px; }
+.dashboard .view-setting+ .view-setting { border-left:1px solid #344352; padding-left:9px; }
+.dashboard .view-setting select { border:0; background:#1B2B38; color:#DCEBF6; padding:5px 7px; border-radius:5px; font-size:12px; }
+.dashboard .view-setting select:hover { background:#263C4D; }
 .dashboard .identity { color:#75B4FF; border:1px solid #29496C; border-radius:24px; padding:5px 12px; font:12px ui-monospace,monospace; }
 .dashboard .connection { min-height:36px; display:flex; justify-content:space-between; align-items:center; gap:12px; padding:4px 24px; color:var(--muted); font-size:11px; }
 .dashboard .connection button { font-size:11px; padding:3px 9px; flex-shrink:0; }
@@ -38,6 +44,13 @@ body.dashboard { margin:0; }
 .dashboard .scene-canvas svg { display:block; flex-shrink:0; font-family:ui-monospace,monospace; }
 .dashboard .scene-item { cursor:pointer; }
 .dashboard .scene-item:hover { filter:brightness(1.25); }
+.dashboard .scene-canvas .run-flow { font-family:inherit; }
+.dashboard .flow-context-link { stroke-dasharray:4 6; }
+.dashboard .flow-link[data-active=true] { stroke-dasharray:7 7; animation:run-flow-travel 1.2s linear infinite; }
+.dashboard .flow-actor.is-active .flow-halo { animation:run-flow-pulse 2s ease-in-out infinite; }
+.dashboard .run-flow[data-paused=true] * { animation-play-state:paused; }
+@keyframes run-flow-travel { to { stroke-dashoffset:-28; } }
+@keyframes run-flow-pulse { 0%,100% { stroke-opacity:.4; stroke-width:1; } 50% { stroke-opacity:1; stroke-width:3; } }
 .dashboard .scene-empty { text-align:center; color:var(--muted); padding:60px 28px; max-width:600px; overflow-wrap:anywhere; }
 .dashboard .scene-navigation { position:absolute; bottom:18px; right:20px; display:flex; align-items:center; gap:6px; background:#14181DEB; padding:5px; border:1px solid var(--line); border-radius:8px; }
 .dashboard .scene-navigation button { padding:4px 9px; font-size:12px; }
