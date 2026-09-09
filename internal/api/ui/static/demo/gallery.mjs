@@ -5,8 +5,8 @@ const terminal = state => ['SUCCEEDED', 'FAILED', 'CANCELLED'].includes(state);
 const validID = value => typeof value === 'string' && /^gallery-[0-9a-f]{64}$/.test(value);
 const validProof = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value);
 export class GalleryDemo {
-  constructor({ submitter, storage, fetcher = (...args) => fetch(...args), uuid = requestID, timers = globalThis, onChange = () => {}, onAccepted = () => {} }) {
-    Object.assign(this, { submitter, storage, fetcher, uuid, timers, onChange, onAccepted });
+  constructor({ submitter, storage, history, fetcher = (...args) => fetch(...args), uuid = requestID, timers = globalThis, onChange = () => {}, onAccepted = () => {} }) {
+    Object.assign(this, { submitter, storage, history, fetcher, uuid, timers, onChange, onAccepted });
     this.state = { phase: 'idle', projects: [], message: '', intent: null, run: null, result: null, publication: null, confirmedBody: null };
     this.editBody = ''; this.generation = 0;
     try {
@@ -16,9 +16,11 @@ export class GalleryDemo {
         this.editBody = saved.result?.body || '';
       }
     } catch { /* A corrupt session never authorizes a write. */ }
+    this.history?.remember(this.state.run?.run_id, this.state.intent?.request_id);
   }
   emit() { this.onChange(this.state); }
   save() {
+    this.history?.remember(this.state.run?.run_id, this.state.intent?.request_id);
     const { projects, message, ...saved } = this.state;
     try { this.storage?.setItem(GALLERY_KEY, JSON.stringify(saved)); } catch { /* Keep current intent in memory. */ }
   }

@@ -1,6 +1,17 @@
 import { element, button, dismissOnBackdrop } from '../shared/fleet/view.mjs';
 import { trapFocus } from './tour.mjs';
 import { GALLERY_ORIGIN } from './gallery.mjs';
+export function galleryTranscript(events, userLabel = '나') {
+  const transcript = element('ol', 'gallery-transcript'); transcript.setAttribute('aria-label', '실제 실행 대화 기록');
+  const roles = { user: userLabel, assistant: 'Claude', tool: '작업', system: '진행 상황' };
+  const tools = { list_projects: '참가팀 확인', get_project: '프로젝트 읽기', get_comments: '댓글 읽기', post_comment: '댓글 게시', post_confirmed_comment: '댓글 게시' };
+  for (const event of events) {
+    const role = Object.hasOwn(roles, event.role) ? event.role : 'system';
+    const item = element('li', `gallery-event gallery-${role}`);
+    item.append(element('strong', '', tools[event.tool] || roles[role]), element('p', '', event.text)); transcript.append(item);
+  }
+  return transcript;
+}
 export class GalleryDialog {
   constructor(root, { gallery, returnFocus }) {
     this.gallery = gallery; this.returnFocus = returnFocus;
@@ -38,12 +49,8 @@ export class GalleryDialog {
     const s = this.gallery.state; this.status.textContent = s.message; this.status.dataset.outcome = s.phase;
     this.content.replaceChildren();
     if (!s.intent) { this.content.append(this.composer()); return; }
-    const transcript = element('ol', 'gallery-transcript'); transcript.setAttribute('aria-label', '실제 실행 대화 기록');
     const events = [...(s.result?.transcript || [{ role: 'user', text: s.intent.prompt }]), ...(s.publication?.result?.transcript || [])];
-    const roles = { user: '나', assistant: 'Claude', tool: '작업', system: '진행 상황' };
-    const tools = { list_projects: '참가팀 확인', get_project: '프로젝트 읽기', get_comments: '댓글 읽기', post_comment: '댓글 게시', post_confirmed_comment: '댓글 게시' };
-    for (const event of events) { const item = element('li', `gallery-event gallery-${event.role}`); item.append(element('strong', '', event.tool ? tools[event.tool] || roles[event.role] : roles[event.role] || '진행 상황'), element('p', '', event.text)); transcript.append(item); }
-    this.content.append(transcript);
+    this.content.append(galleryTranscript(events));
     if (s.phase === 'posted') {
       const result = s.publication?.result || s.result;
       const selected = result?.project_id || s.intent.project_id;

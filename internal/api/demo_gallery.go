@@ -76,6 +76,7 @@ func (s *Server) registerGallery(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/demo/gallery/runs", h.draft)
 	mux.HandleFunc("POST /v1/demo/gallery/comments", h.comment)
 	mux.HandleFunc("GET /v1/demo/gallery/runs/{id}", h.result)
+	mux.HandleFunc("GET /v1/demo/gallery/history/{id}", s.auth(h.history))
 	mux.HandleFunc("POST /v1/demo/gallery/runs/{id}/publish", h.publish)
 }
 
@@ -431,6 +432,10 @@ func (h *galleryHandler) result(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, "gallery request not found")
 		return
 	}
+	h.writeResult(w, r, run)
+}
+
+func (h *galleryHandler) writeResult(w http.ResponseWriter, r *http.Request, run *store.Run) {
 	result, err := h.artifact(run)
 	if err != nil {
 		fail(w, 503, "gallery result unavailable")

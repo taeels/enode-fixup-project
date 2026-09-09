@@ -1631,3 +1631,85 @@ Node UI 63개 무실패/무생략, Go UI 98.4%, Mediator 빌드와 실제 demo �
 [PR #19](https://github.com/taeels/enode-fixup-project/pull/19)를 생성했다.
 PR에는 Run ID 축약·요청 흐름·보기 설정과 검증 범위, 운영 배포 전 상태를 명시했다.
 기존 공동 CP 보류를 유지하며 main 병합과 배포는 수행하지 않았다.
+
+## SSH 서버 업데이트 — 추가 검사 생략
+
+**Timestamp**: 2026-09-09T06:10:42.282683+00:00
+
+**User Input**:
+
+```text
+ssh로 MacMini에 떠있는 서버 업데이트 해봐. 추가적인 검사를 하지는 마.
+```
+
+**AI Response**: PR #17이 병합된 origin/main `78be96d`의 소스로 SSH에서 Mediator를 빌드·교체·재시작했다. 새 PID는 46496이며 기존 터널·공개 주소·DB·설정을 유지했다. 사용자 지시에 따라 테스트·린트·상태 API·브라우저 검사를 실행하지 않았다. 백업은 /Users/runixs/enode-public-demo/backup-server-update-20260909T061030Z에 보존했다.
+
+## Remote DDTHON Comment 표시명·서버 반영
+
+**Timestamp**: 2026-09-09T06:22:52.812364+00:00
+
+**User Input**:
+
+```text
+runctl이름을 gallary가 아니고 remote ddthon comment 이런 이름 어떄?
+```
+
+```text
+서버에 반영해야지?
+```
+
+**Decision**: 표시명을 Remote DDTHON Comment로 바꾸어 새 작업 카드·입력창·작업 목록·그래프·노드/단계 상세에 적용한다. 실행 식별자와 기존 계약은 유지하고 기존 gallery Run도 같은 표시명으로 읽는다. Mac mini Mediator를 새 소스로 빌드·교체한다. 이전 사용자 지시대로 추가 검사는 생략한다.
+
+## 단계 이름의 출처와 설계 설명 정정
+
+**Timestamp**: 2026-09-09T06:29:32.207677+00:00
+
+**User Input**:
+
+```text
+그러면 galley, play, make  이런건 전부 서버에서 네이밍을 붙인거야??? runctl에서 붙이는게 아니고???? 이게 데모때문에 그런건가? 아니면 원래 이게 우리 디자인이 맞는거야?
+```
+
+**Decision**: 단계 이름은 계약/계획 작성자가 steps[].id로 정하며 runctl은 파일을 읽어 POST /v1/runs에 그대로 제출한다. make/play는 greet-play 등 계약 예제에 정의되어 있고, 웹 음원 데모도 내장 계약 예제를 사용한다. gallery만 현재 갤러리 전용 데모 어댑터의 계약 생성 코드에서 고정했다. 설계 문서는 UI를 같은 제출 API의 어댑터로 허용한다. 모든 단계 이름을 Mediator가 정하는 설계라는 앞선 인상을 정정한다. Remote DDTHON Comment의 UI 별칭은 표시 편의 구현이며 원래 실행 ID를 바꾸지 않았다. 표시명 버전 d952667은 Mac mini에 교체·재시작 완료했고 추가 검사는 실행하지 않았다.
+
+## 갤러리 Run 대화 이력 후속 요청
+
+**Timestamp**: 2026-09-09T06:40:31.152660+00:00
+
+**User Input**:
+
+```text
+galley로 run을 한 대화내용을 run history에서도 보게 할 방법없나??? origin/main이 업데이트됐으니까 rebase해서 작업해
+```
+
+**Decision**: origin/main 57b8a1a 위 unit/runixs-gallery-history로 rebase했다. Run 흐름·보기 설정을 유지하며 표시명 충돌을 해결하고 양쪽 audit 원문 블록을 보존했다. 화면 확인 질문의 답이 없어 웹 작업 목록 기준으로 진행한다. 게스트는 보존한 소유 요청 증명, 실 함대 운영자는 토큰 인증으로 봉인된 대화를 읽는다. 별도 읽기 화면으로 연결하며 실행·게시 재요청은 하지 않는다. frontend-design 스킬을 적용하고 gallery-history-plan.md에 구현 순서를 기록했다.
+
+## 갤러리 표시명 변경 철회
+
+**Timestamp**: 2026-09-09T06:43:06.814124+00:00
+
+**User Input**:
+
+```text
+너 아까 내가 말한 Remote DDTHON comment 라고 변경한거 다 revert해서 없애줘 기존대로 갤러리로 해줘.
+```
+
+**Decision**: 표시명 별칭과 해당 import/호출을 전부 철회하고 최신 main의 기존 갤러리 UI로 복원했다. 단계/용도는 gallery, Run ID는 gallery-접두어와 기존 일반 해시 축약을 사용한다. 새 작업 버튼/입력창은 원래 해커톤에 의견 남기기 문구다. 진행 중인 대화 이력 변경은 보존한다. 이 이름 복구 커밋만 먼저 Mac mini에 빌드·교체하며 운영 추가 검사는 생략한다.
+
+## 갤러리 표시명 복원 배포·대화 기록 검증
+
+**Timestamp**: 2026-09-09T06:48:44.211886+00:00
+
+**Decision**: 표시명 복원 597a784를 Mac mini Mediator에 빌드·교체했다. PID 58117, 백업 backup-server-update-20260909T064309Z이며 기존 터널 PID 70718/주소를 유지했다. 운영 추가 검사는 하지 않았다. 이어 웹 Run 선택의 대화 기록 버튼과 게스트 증명 보존, 토큰 인증 운영자 조회를 구현했다. Node 69개, 별도 생성/삭제한 테스트 DB의 API/UI race 81.6%/98.4%, 실제 진입점 mock 브라우저 4환경, vet/glyphscan/Mediator 빌드를 통과했다. 대화 조회에서 새 실행/게시가 없고 현재 작성 메시지가 보존되는 것을 확인했다. 실 댓글 게시와 Bedrock 실행은 수행하지 않았다. 최신 main의 추가 변경은 PR #20 담당 상태 문서뿐이므로 이를 rebase로 인수한 후 후속 PR을 제출한다.
+
+## 갤러리 대화 기록 PR 제출
+
+**Timestamp**: 2026-09-09T06:49:33.575891+00:00
+
+**Decision**: main b60a8dd(PR #20의 nacl1119 상태 정리)을 재인수했다. 코드 변경이 없어 이미 통과한 검사는 반복하지 않았다. 코드 9d8d1de를 runixs92@gmail.com 작성자로 push하고 PR #22(https://github.com/taeels/enode-fixup-project/pull/22)를 제출했다. 표시명 별칭은 최종 diff에 없고 기존 main의 format/scene/submission 코드가 유지된다. 대화 이력 기능을 같은 운영 서버에 적용하며 운영 추가 검사를 실행하지 않는다.
+
+## 갤러리 대화 기록 운영 적용 완료
+
+**Timestamp**: 2026-09-09T06:49:57.661233+00:00
+
+**Decision**: 코드 9d8d1de를 SSH로 Mac mini에서 빌드하고 관리 중인 Mediator PID를 확인해 교체·재시작했다. 새 PID 60283, 터널 PID 70718, 백업 backup-server-update-20260909T064915Z다. 기존 갤러리 이름과 새 대화 이력 기능이 포함된 바이너리다. 설정·데이터·터널 주소는 보존했다. 사용자 지시대로 운영 추가 검사는 실행하지 않았다. 완료한 계획 체크박스·담당 상태·운영/검증 기록을 갱신하고 PR #22에 반영한다.
