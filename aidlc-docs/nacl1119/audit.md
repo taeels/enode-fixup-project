@@ -119,3 +119,19 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · PR #9 열림 · 병합·transcript 대기.
 
 ---
+
+## 제어판 화면을 시안(enode-ux.pen)에 맞춤
+**Timestamp**: 2026-09-09T03:55:34Z
+**User Input**: "이거 panel이 기존 design 파일들 디자인을 참고해서 작성된건가?" 이어서 "A." (시안에 맞춘다)
+**AI Response**: 처음 page.go 는 시안을 안 보고 쓴 밋밋한 기능판이었음을 밝혔다(FD 가 레이아웃을 시안 몫으로 미룸). 진행자가 A(시안에 맞춤)를 골라, pencil MCP 로 design/enode-ux.pen 의 제어판 화면을 읽었다: S3(ppAJi 도는 노드) · S5(n9Wzng 멈춤) · C3(pxDrainActive drain 건 뒤) · 배지 C4/C5. 디자인 토큰(bg #0B0D10 · surface #14181D · 보라 #B98CFF · 상태 색 · Inter/JetBrains Mono · 반경 10)과 스크린샷을 근거로 page.go 를 다크 2단(사이드바+본문) 한국어 UI 로 다시 짰다 — 현재 작업/자원 회수(graceful·at-boundary·건 뒤 풀기)/탐지 능력 칩/데몬 로그 카드. 값·엔드포인트·동작 무변경. glyphscan 통과(가운뎃점만 씀 · 배지 점은 CSS). 로컬에서 새 빌드로 제어판을 띄워 확인(포트 8081). UI 문구는 시안대로 한국어(제품 UI · 카드뉴스와 같은 기준). 커밋 d9c11de.
+**Context**: CONSTRUCTION · panel · 시안 정렬 · PR #9 갱신.
+
+---
+
+## PR #9 병합 확인 · 시안 정렬 갭 · PR #10
+**Timestamp**: 2026-09-09T04:08:41Z
+**User Input**: "이 브랜치 빌드로 노드를 띄워. 정리해." 이어서 "PR 한거 머지 확인해줘."
+**AI Response**: 임시 노드 데모를 준비하다(브랜치 enode 빌드 + pbranch.yaml) 진행자가 PR 병합 확인을 요청해, 데모 잔여물과 내가 띄운 패널(8081)을 정리하고(진행자의 local 노드 pid 41524 는 보존) PR #9 를 확인했다: 병합됨(merge 182da58 · 04:08:41Z). 그런데 병합이 시안 정렬 커밋(d9c11de page.go · c0fa636 audit) 앞에 일어나 main 에는 옛 밋밋한 영어 기능판이 들어갔고 시안 디자인은 빠졌다(origin/main:page.go 에 control panel 만 있고 #0B0D10 없음). main..unit/panel 이 정확히 그 두 커밋뿐이고 겹치는 파일이 없어, 후속 PR #10(base main · head unit/panel)을 열어 시안본을 올린다. transcript(W4)는 PR #10 병합 뒤 main 에서 unit/transcript 를 따서 시작한다 — internal/panel 을 공유하므로 시안본이 main 에 든 뒤가 깨끗하다.
+**Context**: CONSTRUCTION · panel · PR #9 병합됨 · PR #10 시안 정렬 대기 · transcript 대기.
+
+---
