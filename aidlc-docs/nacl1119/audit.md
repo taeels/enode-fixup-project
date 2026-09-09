@@ -79,3 +79,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · FD 승인 · 인계 준비.
 
 ---
+
+## panel NFR Requirements
+**Timestamp**: 2026-09-09T03:17:22Z
+**User Input**: "환경 주의는 안해도 됨. 작업 진행해. 요약 커밋해둬."
+**AI Response**: 인계 요약을 construction/plans/panel-remaining-handoff.md 로 저장해 커밋했다(1979743 · 환경 주의 절 제외). 이어 panel NFR Requirements 를 construction/panel/nfr-requirements/nfr-requirements.md 에 냈다: 성능·바이너리(심볼 상한 CP4 차단 게이트) · 폴링(팩 권장 5초) · 보안(바인딩 127.0.0.1·LAN panel_token 거부 경로·파일 권한 0600·기본 무인증 근거) · 신뢰성 저하 분기 · 시험성 커버리지 80%(internal/panel·internal/proc · DB 없이) · 이식성 크로스빌드·빌드 태그 짝 · 기술 스택 무변경(net/http 표준·새 의존 0·packaging 무변경) · 표기/언어 차단. 값을 새로 정한 자리 없음(폴링은 팩 권장을 딛음). 완료 메시지를 2지 선택으로 낸다.
+**Context**: CONSTRUCTION · panel · NFR Requirements 완료 · 승인 지점 3 앞.
+
+---
