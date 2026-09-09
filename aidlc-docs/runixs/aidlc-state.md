@@ -26,6 +26,18 @@
 소유 도메인이 없어 현재 임시 주소를 유지한다. [실행·관리 기록](construction/macmini-public-demo.md).
 이 MacBook의 서비스는 중지 상태이며 공동 LED·음원·방송 CP10은 남아 있다.
 
+**Mac mini 작업 실행은 Bedrock VM으로 전환했다.** 기존 `ccb` 연결을 별도 Lima
+VM의 일반 사용자 enode에 적용했다. 사용자가 제공한 새 키로 실제 Claude Run
+`bedrock-vm-proof-b8f111c2` 성공·봉인 결과와 격리 검사 15개를 확인했다.
+기존 Mac 직접 실행 노드는 종료했고 VM과 팀원 두 노드의 heartbeat, 공개 UI를
+재확인했다. Mediator·터널·공개 주소는 유지한다. [구성·관리·한계](construction/macmini-bedrock-sandbox.md).
+제품 OS sandbox 기능이나 공동 CP10 전체 완료로 해석하지 않는다.
+
+태양님 Windows 노드 `270c97c94415`는 실제 shell Run
+`teammate-connectivity-54c76943` 성공·봉인 내용·lease 해제를 확인했다.
+추가 Mac 노드 `620abcbb7e47`도 등록·heartbeat 갱신을 확인했으며 해당 노드의
+에이전트·하드웨어 작업은 아직 검증하지 않았다.
+
 공개 서버의 등록 실패를 조사해 HTTP→HTTPS 301이 등록 POST를 GET으로 바꾸는
 문제를 재현했다. 제공된 토큰은 HTTPS에서 인증됐다. 노드 설정 주소를 HTTPS로
 바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).

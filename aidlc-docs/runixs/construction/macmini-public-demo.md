@@ -9,6 +9,10 @@
 `/Users/runixs/enode-public-demo`다. 기존 SSH `MacMini` 별칭으로 관리한다.
 MacBook의 앞서 종료한 Mediator·노드·데모 제어판·전용 DB는 중지 상태를 유지했다.
 
+후속 사용자 요청으로 작업 실행을 [Bedrock VM](macmini-bedrock-sandbox.md)으로
+전환했다. 기존 Mac 직접 실행 노드는 종료했다. 아래 초기 구성·shell 검증은
+전환 전 기록이며 현재 노드는 `95262f8783e9`다. Mediator·DB·터널은 유지했다.
+
 현재 공개 주소는 https://deutsche-football-tract-necklace.trycloudflare.com 이다.
 `/`는 `/ui/`로 이동하며 게스트 데모는 `/ui/demo/`, 실 함대는 `/ui/fleet/`다.
 방문자는 별도 앱·VPN·API 토큰 없이 데모 화면에 접속할 수 있다.
@@ -63,7 +67,8 @@ ssh MacMini '/opt/homebrew/bin/python3 /Users/runixs/enode-public-demo/manage.py
 ssh MacMini '/opt/homebrew/bin/python3 /Users/runixs/enode-public-demo/manage.py stop'
 ```
 
-`stop`은 이 환경의 터널·노드·Mediator만 종료하고 DB·파일을 보존한다. SSH 종료 후
+현재 `start`는 Mediator·터널·Bedrock VM 노드를 시작하며 최신 URL을 VM에 반영한다.
+`stop`은 이 환경의 터널·VM·Mediator만 종료하고 DB·파일을 보존한다. SSH 종료 후
 유지되지만 재부팅 자동 기동은 미설정이다. 최신 URL은 원격 `public-url.txt`,
 노드 등록 토큰은 원격 `config/token`에 있다. 설정·토큰은 Git에 포함하지 않는다.
 

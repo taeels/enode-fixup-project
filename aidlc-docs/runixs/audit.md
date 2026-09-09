@@ -1300,3 +1300,33 @@ workspace: ""
 Mac mini의 별도 실행 디렉터리·DB·새 토큰에 166c935 arm64 바이너리를 배치하고 Mediator·실제 enode·cloudflared를 기동했다. 공개 주소는 https://deutsche-football-tract-necklace.trycloudflare.com 이며 루트는 /ui/로 이동한다. MacBook에서 공개 UI와 API 인증을 검사했고 실제 Mac mini 노드를 잠시 공개 HTTPS에 연결해 등록·claim·35초 idle 이후 shell 실행·봉인 결과 다운로드를 확인했다. macmini-public-e2e-4900838a는 SUCCEEDED이며 검증 후 자체 노드를 loopback으로 복구했다. 새 비밀 값은 원격 0600 파일에만 저장하고 로그·문서에 노출하지 않았다. README·manage.py로 상태·시작·종료 명령을 제공한다. SSH 종료 후 유지되지만 재부팅 자동 기동은 설정하지 않았다. 현재 MacBook의 중지한 서비스와 기존 태양님 서버는 유지하며 공동 LED·음원·방송 CP10은 미완료다. 제품 코드와 rc1 릴리스는 바꾸지 않았다.
 
 ---
+
+
+## Mac mini 보안 검토·팀원 연결 확인·Bedrock VM 전환
+
+**Timestamp (기록 시각)**: 2026-09-09T03:40:29.608176+00:00
+
+**User Input**:
+
+```text
+c3f5ed9는 보안문제될 내용없지?? 내 컴퓨터를 노출시킨거니까 말이야. 곧 팀원들이 enode를 붙일거야. 그거 붙으면 너가 검증 해주면 돼.
+지금 내 MacMini에 'ccb'로 bedrock연결된 claudecode 실행 alias커맨드가 있는데, enode로 그 클로드가 실행되게 설정할 수 있나?? 샌드박스로 안전한 환경에서 말이야.
+```
+
+**AI Response**: 공개 저장소의 c3f5ed9 변경 5개 파일에 실제 API 토큰·DB 암호가 없음을 대조했다. 공개 URL·호스트명 등 운영 메타데이터는 있으며, 공개 조회·인증 경계와 공유 토큰의 넓은 권한, 기존 직접 실행 노드의 개인 호스트 접근 가능성을 설명했다. 태양님 Windows 노드 270c97c94415의 실제 shell Run teammate-connectivity-54c76943 성공·봉인 내용·heartbeat·lease 해제를 확인했다.
+
+기존 ccb의 최소 Bedrock 환경과 enode의 harness_bin 접점을 조사하고, 별도 Lima VM의 일반 사용자로 enode와 고정 버전 Claude를 배치했다. 호스트 공유·SSH agent 전달·자동 포트 전달 없이 systemd 권한·파일 제한과 작업 UID의 네트워크 제한, Mediator·Bedrock 전용 HTTPS 프록시를 적용했다. 운영 범위의 새 요청으로 수행했으며 제품의 OS sandbox 기능이나 공동 CP10 완료로 기록하지 않는다.
+
+**추가 User Input**:
+
+```text
+[사용자가 제공한 새 Bedrock 키 — 비밀 값이므로 감사 로그에서 제외]
+
+이게 새로운 키야ㅣ
+```
+
+**AI Response**: 기존 키가 실제 AWS 호출에서 403을 반환해 첫 자체 검증 Run을 취소했다. 새 키를 Mac mini ccb와 VM의 권한 제한 파일에 저장했다. 키를 출력하거나 Git에 기록하지 않았다. 실제 enode→Claude→Bedrock Run bedrock-vm-proof-b8f111c2가 SUCCEEDED이며 봉인 bedrock-proof.txt의 정확한 내용을 확인했다. 격리 검사 15개도 통과했다. 로컬 auth status만으로 키 유효성을 주장하지 않았다.
+
+기존 Mac 직접 실행 노드 3ae3a256ec68를 종료하고 VM 노드 95262f8783e9로 전환했다. VM 서비스 자동 기동과 공개 런타임의 VM 관리 경로를 설정했다. Mediator·터널 프로세스와 공개 주소는 유지했다. 전환 후 VM과 팀원 두 노드 heartbeat, lease 해제, 기존 호스트 광고 만료·프로세스 종료, 공개 UI 세 경로 HTTP 200을 확인했다. 추가 Mac 팀원 노드는 heartbeat까지 확인했으며 해당 장비의 에이전트·하드웨어 검증은 남아 있다.
+
+시작·중지·키 갱신 명령과 검증 한계를 construction/macmini-bedrock-sandbox.md 및 Mac mini 실행 디렉터리 README에 남겼다. 키 동기화 명령의 변경 없는 실행과 Python 문법 검사를 확인했다. VM 작업 간 상태와 Bedrock 키 자체를 격리하지 않으며 공유 Mediator 권한도 그대로임을 명시했다. Mac 재부팅 후 전체 자동 기동은 미설정이다. 제품 코드·rc1·영상 세션의 변경과 공동 CP10 상태를 유지했다.
