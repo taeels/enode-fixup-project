@@ -103,3 +103,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · NFR Design 승인 · Infra 건너뜀 · Code Generation 착수.
 
 ---
+
+## panel Code Generation 구현 · CP4 코드 게이트 초록
+**Timestamp**: 2026-09-09T03:55:34Z
+**User Input**: (진행자 위임 "결정 필요 없으면 다음 단계로 기록하고 진행" 에 따라 Code Generation Part 2 를 자동 진행)
+**AI Response**: panel 코드를 세 커밋으로 냈다. f958ecc: proc 추출(ProcessAlive·SignalStop·OwnsConfig·DetachAttr·PidFromLock 을 internal/proc 로 · net/http 없음 · enodectl 이 이걸 쓰게). becb42a: 상태 파일(internal/enode/status.go · advertise 루프가 At 바뀔 때만 씀 · policy.go 에 panel_token). d1ca5fc: internal/panel 서버(Config·New·Handler·화면 값 다섯 묶음·drain 토글·프로세스 제어·stop 은 cancel 먼저·LAN 토큰 거부) · cmd/enode panel 하위명령 · cmd/enodectl serve exec 위임 · 테스트(panel 87.8%·proc 88.9%·임포트 경계). 정본 충돌은 유닛 정본대로 internal/proc 로 닫음(enode-features 3.1.2 의 internal/panel 은 심볼 상한을 깬다). CP4 코드 게이트 재료 전부 초록: 심볼 상한 net/http=13·crypto/tls=1(≤50·10) · 커버리지 80%↑ · 경계 테스트 · 크로스 빌드 3종 · vet · glyphscan · gofmt · 버튼 전부. 눈 검증(S3/S3b/S1/S5·LED)과 push·PR 은 진행자·하드웨어 몫이라 여기서 멈추고 확인받는다. 알려진 무관 실패: internal/enode TestPrepareKeepsBuildCacheDropsJunk 는 Windows autocrlf 아티팩트로 제 변경 전부터 실패(CI 리눅스 무관).
+**Context**: CONSTRUCTION · panel · Code Generation 완료 · CP4 코드 초록 · PR 확인 대기.
+
+---

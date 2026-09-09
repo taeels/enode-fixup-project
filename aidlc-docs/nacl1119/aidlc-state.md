@@ -29,10 +29,14 @@
     심볼 상한 CP4 · 커버리지 80%(panel·proc) · 바인딩/토큰 거부 경로 · 새 의존 0
   - [x] NFR Design — 승인됨. `panel/nfr-design/nfr-design.md` (커밋 497a1f2)
   - [x] Infrastructure Design — 건너뜀(로컬 프로세스뿐·새 클라우드 자원 없음·결정 불필요)
-  - [ ] Code Generation — 계획 냄(`construction/plans/panel-code-generation-plan.md`) ·
-    구현 진행 중(internal/proc · internal/enode/status.go · policy.go · advertise.go ·
-    internal/panel · cmd/enode panel · cmd/enodectl serve · 테스트)
+  - [x] Code Generation — 구현 완료 (커밋 f958ecc·becb42a·d1ca5fc). 요약
+    `panel/code/implementation-summary.md`. internal/proc · status.go · policy.go ·
+    advertise.go · internal/panel · cmd/enode panel · cmd/enodectl serve · 테스트
     - 진행자 위임: 결정 필요 없으면 게이트에서 "다음 단계"로 기록하고 진행 (2026-09-09)
+  - [x] CP4 게이트 코드 재료 초록 — 심볼 상한 13·1(≤50·10) · 커버리지 panel 87.8%·proc 88.9% ·
+    경계 테스트 · 크로스 빌드 3종 · vet · glyphscan · gofmt. 버튼 전부(status·start·stop·logs +
+    drain 걸기·모드·풀기) 냄
+  - [ ] PR — 눈 검증(S3/S3b/S1/S5 · LED)은 진행자·하드웨어가 CP4 최종 확정. push·PR 은 진행자 확인 뒤
 - [ ] transcript — CP6 · 의존 panel · obs
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)
