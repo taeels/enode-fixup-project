@@ -1,0 +1,72 @@
+{
+  "run_id": "greet-play-__RUNID__",
+  "work": {
+    "id": {
+      "system": "manual",
+      "change_id": "greet-play-__RUNID__"
+    },
+    "system": "manual"
+  },
+  "requires": [
+    {
+      "as": "tts",
+      "capability": "agent.reason",
+      "service": "tts",
+      "tts": "say-macos",
+      "fmt_mp3": "yes"
+    },
+    {
+      "as": "board",
+      "capability": "agent.reason",
+      "audio_playback": "true",
+      "board": "rpi2b-v1.1"
+    }
+  ],
+  "steps": [
+    {
+      "id": "make",
+      "uses": "tts",
+      "run": [
+        "/bin/bash",
+        "-c",
+        "set -e\n# 문장은 argv 한 칸으로 들어온다 ($1). 셸을 안 거치므로 따옴표가 있어도 안 갈린다.\ntext=$1\nenc=\"\"\nfor c in lame \"$HOME/.local/bin/lame\" /opt/homebrew/bin/lame /usr/local/bin/lame; do\n  if p=$(command -v \"$c\" 2>/dev/null); then enc=$p; break; fi\ndone\n[ -n \"$enc\" ] || { echo \"mp3 encoder missing\" >&2; exit 5; }\nw=$(mktemp -t greet).wav\ntrap 'rm -f \"$w\"' EXIT\nsay -v Yuna --file-format=WAVE --data-format=LEI16@22050 -o \"$w\" \"$text\"\n\"$enc\" --quiet -b 64 -m m \"$w\" \"$OUT/greeting.mp3\"\n[ -s \"$OUT/greeting.mp3\" ] || { echo \"empty output\" >&2; exit 4; }\nafinfo \"$OUT/greeting.mp3\" | sed -n '1,8p'\n",
+        "greet-play",
+        "__TEXT__"
+      ],
+      "out": [
+        "greeting.mp3"
+      ]
+    },
+    {
+      "id": "play",
+      "uses": "board",
+      "needs": [
+        "make"
+      ],
+      "in": {
+        "from": [
+          "greeting.mp3"
+        ]
+      },
+      "run": [
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "$ErrorActionPreference='Stop';$f = Join-Path $env:IN 'greeting.mp3';Write-Output ('file=' + $f + ' exists=' + (Test-Path $f));if (-not (Test-Path $f)) { exit 6 };$mp = Get-Command mpg123 -ErrorAction SilentlyContinue;if ($mp) { Write-Output 'player=mpg123'; & $mp.Source -q $f; exit $LASTEXITCODE };$ff = Get-Command ffplay -ErrorAction SilentlyContinue;if ($ff) { Write-Output 'player=ffplay'; & $ff.Source -nodisp -autoexit -loglevel error $f; exit $LASTEXITCODE };Write-Output 'player=MediaPlayer';Add-Type -AssemblyName PresentationCore;$p = New-Object System.Windows.Media.MediaPlayer;$p.Open([Uri]$f);$n = 0; while (-not $p.NaturalDuration.HasTimeSpan -and $n -lt 40) { Start-Sleep -Milliseconds 100; $n++ };$d = 5.0; if ($p.NaturalDuration.HasTimeSpan) { $d = $p.NaturalDuration.TimeSpan.TotalSeconds };$p.Volume = 1.0; $p.Play();Start-Sleep -Seconds ([Math]::Ceiling($d) + 1);$p.Stop(); $p.Close();Write-Output ('played seconds=' + $d)"
+      ]
+    }
+  ],
+  "success_when": [
+    {
+      "step": "make",
+      "exit_code": 0,
+      "produced": [
+        "greeting.mp3"
+      ]
+    },
+    {
+      "step": "play",
+      "exit_code": 0
+    }
+  ]
+}
