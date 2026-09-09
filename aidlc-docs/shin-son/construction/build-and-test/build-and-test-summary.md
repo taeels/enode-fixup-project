@@ -1,4 +1,4 @@
-# Build and Test Summary — queue
+# Build and Test Summary — queue · drain
 
 ## 게이트 결과 (2026-09-09 · Postgres.app 18.6 · 포트 55434)
 
@@ -29,3 +29,25 @@ mediator · schema.sql 한 줄)은 진행자가 직렬로 병합한다.
 - `internal/api` 커버리지 80.6% — 여유 3 문장.
 - `WakeQueued` 의 반환이 `Woken`. drain(W2)은 `Cancel` 만 부르면 된다 — 안에서 깨운다.
 - 대기 상한 없음(정본)의 수락 위험은 `nfr-requirements.md` 3절.
+
+---
+
+## drain (2026-09-09)
+
+| 게이트 | 결과 | 비고 |
+|---|---|---|
+| build · vet · gofmt · glyphscan · 크로스 빌드 넷 | 통과 | |
+| `go test ./internal/enode ./internal/contract ./cmd/enode` (DB 없음) | 통과 | drain 시험 여덟 포함 |
+| `go test ./internal/store ./internal/api` (DB) | 통과 | drain 시험 여섯 포함 |
+| `go test ./... -coverpkg` + 80% 하한 (CP0) | 통과 | 열여섯 패키지 · 전체 87.0% · `internal/api` 80.5% (여유 2 문장) |
+| 스킵 | 0 | |
+| **CP3 실동작** (실 Mediator + 실 노드 + 정책 파일) | **통과** | 통보 · 경계 취소 · 산출 보존 · 202 대기 · 해제 후 승격 · graceful 완주 |
+
+## 병합 조건
+CP0 · CP3 초록. `unit/drain` 을 PR 로 `main` 에 낸다. 조율 둘 — `cmd/enode/main.go` 한 줄(panel) ·
+`internal/enode/claim.go` 한 분기(transcript). 접점 — `internal/store` · `internal/api/api.go`.
+
+## 진행자에게
+- `internal/api` 커버리지 여유 2 문장 — 안 덮인 것은 DB 오류 경로 셋.
+- NFR 답 A 의 수락 위험 — at-boundary 취소가 DB 오류로 실패하면 소유자의 `stop` 이 닫는다.
+- 정책 파일 계약 — `<stem>.policy.yaml` · 키 `drain` · 어휘 셋. panel 의 토글이 이것을 쓴다.

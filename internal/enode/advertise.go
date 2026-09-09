@@ -44,6 +44,10 @@ type AdvertResponse struct {
 	// RenewSeconds 는 Mediator 가 말하는 주기다 (ADR-028).
 	// 0 이면 안 온 것이고 그때는 우리 기본값을 쓴다 — 옛 Mediator 와도 돈다.
 	RenewSeconds int `json:"renew_seconds"`
+	// Drain 은 중앙이 받아 적은 정책이다 (ADR-063 §4.1). 통보이지 판정이 아니다 —
+	// 「받았다」는 뜻뿐이고 소유자를 가리지 않는다. 이 값이 Worker 의 것이다:
+	// 파일에 썼다고 중앙이 알았다는 뜻은 아니므로 파일이 아니라 응답을 본다.
+	Drain string `json:"drain"`
 }
 
 type Lease struct {
@@ -106,6 +110,15 @@ type Advertiser struct {
 	// OnLeases 는 응답의 임대 목록을 받는다. S4 가 여기에 붙는다.
 	OnLeases func([]Lease)
 
+	// Held 는 응답의 drain 과 광고 주기를 Worker 에 나르는 자리다 (ADR-063 §4).
+	// Advertiser 와 Worker 는 다른 고루틴이고 둘을 잇는 것은 이것뿐이다.
+	// nil 이면 안 나른다 — 정책을 모르는 호출자는 오늘 그대로 돈다.
+	Held *Held
+
+	// policy 는 광고 직전마다 읽는 정책 파일이다. 비어 있으면 첫 광고에서
+	// Ident.Config 옆의 파일로 만든다 — 설정이 없는 시험은 안 읽는다.
+	policy *policyReader
+
 	// OnReady 는 첫 광고가 성공한 뒤 한 번 불린다 (탄력 노드).
 	//
 	// 왜 필요한가 — 노드를 띄운 쪽은 「떴다」와 「쓸 수 있다」 사이를
@@ -149,6 +162,9 @@ func (a *Advertiser) Run(ctx context.Context) {
 			Label:        a.Ident.Label,
 			Instance:     a.Client.Instance, // 이번 생 (ADR-030)
 			Capabilities: snap.Caps,
+			// 소유자 정책은 광고 직전에 파일에서 읽는다 (ADR-063 §4) — 정본이 파일이다.
+			// 안 걸렸으면 제로값이라 policy 키가 안 나간다 (omitzero).
+			Policy: a.readPolicy(),
 		}
 		resp, err := a.Client.Advertise(ctx, ad)
 		switch {
@@ -168,6 +184,14 @@ func (a *Advertiser) Run(ctx context.Context) {
 					a.Every = want
 				}
 			}
+			// 중앙이 받아 적은 정책을 Worker 에 나른다 (ADR-063 §4.1). 바뀔 때만
+			// 찍는다 — 같은 값이 광고마다 오는 것이 정상이다.
+			if a.Held != nil {
+				if a.Held.SetDrain(resp.Drain) {
+					a.Log.Info("drain acknowledged by mediator", "mode", resp.Drain)
+				}
+				a.Held.SetRenew(a.Every)
+			}
 			// 값의 나이를 함께 찍는다 — 비싼 탐지는 자기 주기로 도므로
 			// 여기 실린 harness·repo 는 「지금」이 아니다. 그 사실이 안
 			// 보이면 「왜 로그아웃했는데 아직 광고에 있지」가 미궁이 된다.
@@ -182,4 +206,15 @@ func (a *Advertiser) Run(ctx context.Context) {
 		}
 		t.Reset(a.Every)
 	}
+}
+
+// readPolicy 는 이번 광고에 실을 정책이다. 설정 경로가 없으면(시험) 안 읽는다.
+func (a *Advertiser) readPolicy() contract.Policy {
+	if a.policy == nil {
+		if a.Ident.Config == "" {
+			return contract.Policy{}
+		}
+		a.policy = &policyReader{Path: PolicyPath(a.Ident.Config), Log: a.Log}
+	}
+	return a.policy.Read()
 }

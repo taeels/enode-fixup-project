@@ -425,7 +425,13 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// 되돌려졌으면 아직 진행 중이므로 정산하지 않는다.
+	// 그래도 경계는 경계다 — 노드가 at-boundary 로 drain 중이면 여기서 닫는다.
+	// 되돌린 단계가 다시 돌면 「더 집지 않는다」가 깨진다.
 	if rolled {
+		if closed := s.drainAtBoundary(r.Context(), runID, body.Node); closed != "" {
+			write(w, 200, map[string]any{"run_id": runID, "seq": seq, "rolled_back": true, "run_state": closed})
+			return
+		}
 		write(w, 200, map[string]any{"run_id": runID, "seq": seq, "rolled_back": true})
 		return
 	}
@@ -437,8 +443,39 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 	}
 	if state != "" {
 		s.log.Info("run finished", "run", runID, "state", state)
+	} else {
+		// 아직 산다 — 이 노드가 at-boundary 로 drain 중이면 단계 경계인 지금 닫는다 (ADR-063 §2.1).
+		// 마지막 단계였으면 위의 정산이 이미 닫았고 취소할 것이 없다.
+		state = s.drainAtBoundary(r.Context(), runID, body.Node)
 	}
 	write(w, 200, map[string]any{"run_id": runID, "seq": seq, "run_state": state})
+}
+
+// drainAtBoundary 는 결과를 보고한 노드가 at-boundary 로 drain 중이면 그 Run 을
+// 취소 경로로 닫는다 (ADR-063 §2.1 · decisions §1). 새 신호가 아니라 ADR-009 의 길이다 —
+// 사유가 drain:<node_id> 라 목록의 verdict 로 「소유자가 돌려받았다」가 갈린다.
+// Run 전체가 닫힌다 — 일부만 살리는 것은 부분 복구고 I5 가 막는다.
+//
+// 닫았으면 그 상태(FAILED)를, 아니면 "" 를 돌려준다. 실패는 로그뿐이다 — 보고는
+// 받았고, Worker 가 더 안 집으므로 그 Run 은 다음 노드 단계에서 멈춰 소유자의
+// stop 이나 다른 노드의 보고를 기다린다 (NFR 답 A · 수락한 위험).
+func (s *Server) drainAtBoundary(ctx context.Context, runID, node string) string {
+	drain, err := s.st.NodeDrain(ctx, node)
+	if err != nil {
+		s.log.Error("cannot read the node drain policy", "node", node, "err", err)
+		return ""
+	}
+	if drain != store.DrainAtBoundary {
+		return ""
+	}
+	state, err := s.st.Cancel(ctx, runID, "drain:"+node)
+	if err != nil {
+		s.log.Error("cannot close the run at the step boundary; the owner's stop will",
+			"run", runID, "node", node, "err", err)
+		return ""
+	}
+	s.log.Info("run closed at a step boundary; the node is draining", "run", runID, "node", node, "state", state)
+	return state
 }
 
 // ── POST /v1/runs ────────────────────────────────────────────────────────

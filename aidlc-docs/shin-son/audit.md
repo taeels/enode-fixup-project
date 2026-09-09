@@ -171,3 +171,85 @@ Q3 A"
 **Context**: CONSTRUCTION - queue - Build and Test 승인 · PR to main.
 
 ---
+
+## drain — 착수 · Functional Design 계획
+**Timestamp**: 2026-09-09T01:24:15Z
+**User Input**: "Queue는 머지 됐어 확인해봐 확인하고 drain 진행하자"
+**AI Response**: PR #5 병합을 확인했다(`310c22d` · 2026-09-09T01:00:41Z). `main` 을 fast-forward 하고 `unit/drain` 을 땄다. drain 유닛 정의 · enode-features 3.2.2 · decisions §1 · ADR-063 §2·§3·§4·§6 · scene-gates CP3 · enode 의 advertise/leases/claim(Worker)/paths/config · api postResult · obs 의 contract.Policy 를 읽었다. obs 와 queue 가 이미 낸 것(draining 열 · 매칭 제외 · 해제 깨우기 · Cancel 의 깨우기)을 빼고 남은 셋 — 노드의 정책 파일 읽기와 광고 · 응답 drain 을 Worker 로 · postResult 끝의 at-boundary 취소 — 로 FD 계획 `construction/plans/drain-functional-design-plan.md` 를 냈다. 질문 셋: 정책 파일 위치·이름 · 응답 drain 의 배선(cmd/enode 한 줄 — panel 의 파일) · 파일 권한 검사.
+**Context**: CONSTRUCTION - drain - Functional Design (Step 2~4 완료 · Step 5 답 대기).
+
+---
+
+## drain — Functional Design · 답 셋 · 산출물 생성
+**Timestamp**: 2026-09-09T01:58:09Z
+**User Input**: "Q1 A
+Q2 A
+Q3 A"
+**AI Response**: 답 A · A · A — 정책 파일은 설정 옆 `<stem>.policy.yaml` · 응답 drain 은 Held 로 나르고 `cmd/enode` 한 줄(조율) · 권한은 경고만. 모호한 답 없음. 산출물 셋을 `construction/drain/functional-design/` 에 냈다 — business-logic-model(정책→광고→응답→Worker 흐름 · at-boundary 의 세 tx 와 Worker 가 닫는 창 · 해제 · 파일 행렬) · business-rules(정책 · 경계 · 파일 · 응답 · 보안 확장 판정 · 안 하는 것) · domain-entities(파일 스키마 · Policy/AdvertResponse.Drain/Held/NodeDrain · 어휘 상수를 contract 로 한 벌 · cmd/enode 한 줄). 완료 메시지(2-옵션)를 내고 승인을 기다린다.
+**Context**: CONSTRUCTION - drain - Functional Design (Step 6·7 완료 · Step 8 승인 대기).
+
+---
+
+## drain — Functional Design 승인
+**Timestamp**: 2026-09-09T02:00:44Z
+**User Input**: "승인할게"
+**AI Response**: drain FD 승인을 기록했다. 산출물 셋 · 계획 · 상태 · 감사를 `unit/drain` 에 커밋한다. 다음은 NFR Requirements — 새 HTTP 표면 0 · 파일 표면 하나. 물음은 하나(취소 실패의 재시도 자리).
+**Context**: CONSTRUCTION - drain - Functional Design 승인 (Step 9).
+
+---
+
+## drain — NFR Requirements · 계획 · 물음 하나
+**Timestamp**: 2026-09-09T02:01:17Z
+**User Input**: (없음 — FD 승인의 후속)
+**AI Response**: NFR Requirements 계획 `construction/plans/drain-nfr-requirements-plan.md` 를 냈다. 실측 표 · 권장값(대기 길이 = 광고 주기 · 오류 로그는 원인이 바뀔 때만 · 캐시 없음) · 물음 하나 — at-boundary 취소가 DB 오류로 실패했을 때 재시도 자리(없음 vs 하트비트).
+**Context**: CONSTRUCTION - drain - NFR Requirements (Step 2~4 완료 · Step 5 답 대기).
+
+---
+
+## drain — NFR Requirements · 답 · 산출물 생성
+**Timestamp**: 2026-09-09T02:07:02Z
+**User Input**: "A"
+**AI Response**: 답 A(취소 실패는 로그 · 재시도 없음 · 수락한 위험으로 기록)를 적고 산출물 둘을 `construction/drain/nfr-requirements/` 에 냈다 — 규칙 열다섯 판정(준수 8 · 해당 없음 7 · 조건부 0) · 오용 사례 · 비-보안 NFR 다섯 축 · 진행자 표시 넷 · 기술 선택(yaml.v3 재사용 · 파일 감시 안 들임). 완료 메시지를 내고 승인을 기다린다.
+**Context**: CONSTRUCTION - drain - NFR Requirements (Step 6·7 완료 · Step 8 승인 대기).
+
+---
+
+## drain — NFR Requirements 승인 · NFR Design · Infrastructure Design 건너뜀
+**Timestamp**: 2026-09-09T02:07:52Z
+**User Input**: "승인"
+**AI Response**: 승인을 기록하고 커밋한다. NFR Design · Infrastructure Design 은 queue 와 같은 근거로 건너뛴다(어떻게는 Code Generation 계획이 진다 · 새 인프라 0). 다음은 Code Generation Part 1.
+**Context**: CONSTRUCTION - drain - NFR Requirements 승인 (Step 9).
+
+---
+
+## drain — Code Generation · Part 1 계획 · 승인 요청
+**Timestamp**: 2026-09-09T02:08:56Z
+**User Input**: (없음 — NFR 승인의 후속)
+**AI Response**: Code Generation 계획 `construction/plans/drain-code-generation-plan.md` 를 냈다 — 갈래 셋(contract·store → enode·cmd/enode → api) · 겉면(어휘 상수 한 벌 · NodeDrain · policyReader · AdvertResponse.Drain · Advertiser.Held · Held 겉면 넷) · 단계 A1~A4 · B1~B6 · C1~C2 · 시험(enode 여덟 · api 넷~다섯 · store 하나) · CP3 재는 순서 · 진행자 표시 셋. 승인을 요청한다.
+**Context**: CONSTRUCTION - drain - Code Generation Part 1 (Step 4~6 완료 · Step 7 승인 대기).
+
+---
+
+## drain — Code Generation Part 1 승인 · Part 2 착수
+**Timestamp**: 2026-09-09T02:13:33Z
+**User Input**: "승인"
+**AI Response**: 계획 승인을 기록했다. Part 2 를 A(contract·store) → B(enode·cmd/enode) → C(api) 순으로 짓고 이 기계의 Postgres 로 시험까지 돌린다.
+**Context**: CONSTRUCTION - drain - Code Generation Part 1 승인 (Step 8·9) · Part 2 시작.
+
+---
+
+## drain — Code Generation Part 2 완료 · CP0 · CP3
+**Timestamp**: 2026-09-09T02:23:47Z
+**User Input**: (없음 — Part 1 승인의 후속)
+**AI Response**: 계획대로 짰다 — A(contract 상수 · store 별칭 · NodeDrain) · B(policy.go · advertise · leases · claim · cmd/enode 한 줄 · 시험 여덟) · C(postResult 갈래 둘 · drainAtBoundary · 시험 다섯). 첫 실행에서 잡은 것 — 기존 시험이 Held 없이 Worker 를 만들어 SIGSEGV → Drain()·Renew() nil 안전. 되돌림 뒤 취소 갈래를 loopRun 계약으로 덮는 시험을 더해 internal/api 80.1% → 80.5%. CP0 — 열여섯 패키지 80% 통과 · 전체 87.0% · 스킵 0 · glyphscan · 크로스 빌드. CP3 실동작 — at-boundary 통보 · 경계 취소(verdict drain:<node_id> · s1 DONE · record 에 산출) · 202 QUEUED · 해제 후 RUNNING · graceful 완주 · 양쪽 로그. 코드 요약 `construction/drain/code/code-summary.md`. 완료 메시지를 내고 승인을 기다린다.
+**Context**: CONSTRUCTION - drain - Code Generation Part 2 (Step 10~14 완료 · Step 15 승인 대기).
+
+---
+
+## drain — Code Generation 승인 · Build and Test · PR
+**Timestamp**: 2026-09-09T02:25:48Z
+**User Input**: "PR을 열게, 이거 merge하면 이제 태호님이 뭘 해야하지?"
+**AI Response**: Code Generation 승인으로 받았다. 코드와 문서를 커밋하고 Build and Test 문서(unit · integration · summary)에 drain 절을 더해 커밋한 뒤 `unit/drain` 을 push 하고 `main` 으로 PR 을 연다. 병합 뒤 nacl1119(문태호)의 일 — panel 유닛(W3 · CP4): 이 FD 가 정한 정책 파일 `<stem>.policy.yaml` 의 `drain` 키를 제어판 토글이 쓴다.
+**Context**: CONSTRUCTION - drain - Code Generation 승인 (Step 16) · Build and Test · PR to main.
+
+---

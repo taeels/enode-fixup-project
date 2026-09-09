@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -50,6 +51,20 @@ func (s *Store) Notify(w Woken) { s.PushAsks(w.asks) }
 // 점유된 노드와 같은 편이고, dry-run 은 busy 를 안 보듯 이것도 안 본다.
 func (s *Store) DrainingNodes(ctx context.Context) (map[string]bool, error) {
 	return drainingIn(ctx, s.pool)
+}
+
+// NodeDrain 은 그 노드가 광고로 나른 drain 정책의 복사본이다 (ADR-063 §4).
+// 없는 노드는 "" — 안 걸린 것과 같다. 판정이 아니라 관측이다.
+func (s *Store) NodeDrain(ctx context.Context, nodeID string) (string, error) {
+	var d string
+	err := s.pool.QueryRow(ctx, `SELECT draining FROM nodes WHERE node_id = $1`, nodeID).Scan(&d)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return d, nil
 }
 
 func drainingIn(ctx context.Context, q querier) (map[string]bool, error) {

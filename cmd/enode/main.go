@@ -180,6 +180,7 @@ func run() int {
 		Client: client, Ident: ident, Every: *every, Log: log,
 		Caps:     det.Capabilities, // 여기서 탐지하지 않는다 (ADR-068)
 		OnLeases: held.Set,         // 응답이 임대의 갱신이자 취소 통보다 통째로 교체한다
+		Held:     held,             // 응답의 drain 을 Worker 에 나른다 (ADR-063 §4)
 	}
 
 	// 떴다는 신호 — 첫 광고가 성공한 뒤 한 번 (docs/elastic-nodes.md §4.4).

@@ -94,10 +94,11 @@ func (s *Store) Migrate(ctx context.Context) error {
 
 // 광고가 나를 수 있는 drain 정책의 어휘다 (ADR-063 §6).
 // 이 셋 밖은 값이 아니라 오해이고, DrainPolicy 가 "" 로 접는다.
+// 정본은 contract 의 셋이다 — 노드도 같은 셋을 보므로 한 벌만 둔다.
 const (
-	DrainNone       = ""
-	DrainGraceful   = "graceful"
-	DrainAtBoundary = "at-boundary"
+	DrainNone       = contract.DrainNone
+	DrainGraceful   = contract.DrainGraceful
+	DrainAtBoundary = contract.DrainAtBoundary
 )
 
 // DrainPolicy 는 광고가 실어 온 정책 값을 어휘 안으로 접는다.

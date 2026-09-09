@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // Step 은 claim 이 돌려주는 할 일 하나다.
@@ -296,6 +298,9 @@ type Worker struct {
 	// 머신에 이미 있는 자격증명을 그대로 쓴다. 나중에 요청자 신원 / 팀 공용
 	// 신원을 넣을 때 이 필드만 갈아끼운다.
 	Creds Credentials
+
+	// drainingNoted 는 「안 집는다」를 이미 찍었는가다 — 광고 주기마다 다시 안 찍는다.
+	drainingNoted bool
 }
 
 // report 는 보고가 닿을 때까지 다시 보낸다 (ADR-030).
@@ -347,6 +352,21 @@ func (w *Worker) creds() Credentials {
 
 func (w *Worker) Run(ctx context.Context) {
 	for ctx.Err() == nil {
+		// 소유자가 at-boundary 로 drain 을 걸었고 중앙이 받아 적었다 (ADR-063 §2.1) —
+		// 더 집지 않는다. 도는 단계는 이 분기 밖에서 이미 끝까지 간다(execute 는
+		// claim 뒤다). Mediator 가 경계에서 Run 을 닫으므로 올 단계도 없지만,
+		// 그 취소가 실패한 경우에도 「경계에서 놓는다」가 거짓이 되지 않게 여기서 막는다.
+		// graceful 은 그대로 집는다 — 새 임대만 막는 것이고 임대는 매칭이 막는다.
+		if w.Held.Drain() == contract.DrainAtBoundary {
+			w.noteDraining(true)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(w.Held.Renew()):
+			}
+			continue
+		}
+		w.noteDraining(false)
 		step, err := w.Client.Claim(ctx, w.Ident.NodeID)
 		switch {
 		case errors.Is(err, errNoWork):
@@ -364,6 +384,19 @@ func (w *Worker) Run(ctx context.Context) {
 		}
 		w.Held.Add(step.Lease)
 		w.safeExecute(ctx, step)
+	}
+}
+
+// noteDraining 은 집기를 멈추고 다시 시작하는 순간을 한 번씩만 찍는다.
+func (w *Worker) noteDraining(draining bool) {
+	if draining == w.drainingNoted {
+		return
+	}
+	w.drainingNoted = draining
+	if draining {
+		w.Log.Info("draining at-boundary; not claiming until the owner releases it")
+	} else {
+		w.Log.Info("drain released; claiming again")
 	}
 }
 
