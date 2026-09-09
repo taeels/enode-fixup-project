@@ -81,3 +81,37 @@ Q2 A"
 **Context**: CONSTRUCTION - queue - Functional Design 승인 (Step 9).
 
 ---
+
+## NFR Requirements — queue · 계획 · 물음 셋
+**Timestamp**: 2026-09-08T17:39:36Z
+**User Input**: (없음 — FD 승인의 후속)
+**AI Response**: NFR Requirements 를 실행한다 — 보안 확장이 켜져 있어 규칙 열다섯의 판정을 유닛마다 낸다(obs 선례와 같은 자리). 계획 `construction/plans/queue-nfr-requirements-plan.md` 를 냈다: 실측 표 · 닫힌 값 · 권장값(훑기 상한 없음 · 잠금은 막고 기다림 · 로그 규칙) · 물음 셋 — (1) QUEUED 부분 인덱스(schema.sql 접점 한 줄) (2) 기동 훑기 실패 정책 (3) 시험용 Postgres 조달(이 기계에 없다). FD 커밋은 `a14163c`.
+**Context**: CONSTRUCTION - queue - NFR Requirements (Step 2~4 완료 · Step 5 답 대기).
+
+---
+
+## NFR Requirements — queue · 답 셋 · 산출물 생성
+**Timestamp**: 2026-09-08T23:59:38Z
+**User Input**: "Q1 A
+Q2 A
+Q3 A"
+**AI Response**: 답 A · A · A 를 계획 파일에 적었다 — (1) `runs_queued_idx` 부분 인덱스를 `schema.sql` 에 더한다(접점 한 줄) (2) 기동 훑기 실패는 Error 로그 후 기동 계속 (3) 시험용 Postgres 는 사용자가 `docs/testdb-setup.md` 4절대로 직접 깐다. 모호한 답 없음. 산출물 둘을 `construction/queue/nfr-requirements/` 에 냈다 — nfr-requirements.md(규칙 열다섯 판정: 준수 8 · 해당 없음 7 · 조건부 0 · 차단 0 · 오용 사례 · 비-보안 NFR 다섯 축 · 재는 자리 · 진행자에게 넘기는 것 넷) · tech-stack-decisions.md(advisory xact lock 선택과 버린 후보 셋 · 부분 인덱스 · 안 들이는 것 · 차단 게이트 영향). 완료 메시지(2-옵션)를 내고 승인을 기다린다.
+**Context**: CONSTRUCTION - queue - NFR Requirements (Step 6·7 완료 · Step 8 승인 대기).
+
+---
+
+## NFR Requirements — queue · 검토 질문
+**Timestamp**: 2026-09-09T00:11:04Z
+**User Input**: "이 기계에 Postgres가 선다는 의미는, 우선 이 코드를 나중에 병합하는 인원이 다른 서버 컴퓨터에 mediator 서버를 띄울거라서, 그게 가능한거라고 이해돼. 맞아?"
+**AI Response**: 반만 맞다고 답했다. 이 기계의 Postgres 는 시험용이다 — `go test` 가 진짜 Postgres 를 요구하고(`internal/store` 는 없으면 t.Fatal) 코드 단계의 시험을 이 자리에서 돌리려는 것. 실제 Mediator 는 띄우는 사람의 서버에 자기 Postgres 를 두고 DATABASE_URL 로 붙는다 — 여기 Postgres 와 무관하다. 여기서 시험을 안 돌리고 CI 만 믿으면 안 깔아도 되나 실패를 코드 단계에서 미리 못 잡는다. 시험은 판을 TRUNCATE 하므로 손으로 띄운 Mediator 와 판을 나누지 않는다(docs/testdb-setup.md 1절).
+**Context**: CONSTRUCTION - queue - NFR Requirements (승인 대기 중 검토 문답).
+
+---
+
+## NFR Requirements — queue · 승인 · NFR Design · Infrastructure Design 건너뜀
+**Timestamp**: 2026-09-09T00:11:46Z
+**User Input**: "승인"
+**AI Response**: NFR Requirements 승인을 기록했다. 산출물 둘 · 계획 · 상태 · 감사를 `unit/queue` 에 커밋한다. NFR Design 은 건너뛴다 — 회차 실행 계획이 SKIP 이고 「어떻게」는 Code Generation 계획이 진다(obs 와 같은 근거 · 기술 선택은 tech-stack-decisions.md 가 이미 닫았다). Infrastructure Design 도 건너뛴다 — 새 인프라 0(constraints §6). 다음은 Code Generation Part 1(계획).
+**Context**: CONSTRUCTION - queue - NFR Requirements 승인 (Step 9) · NFR Design SKIP · Infrastructure Design SKIP.
+
+---

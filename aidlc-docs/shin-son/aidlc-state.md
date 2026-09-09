@@ -9,9 +9,10 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 
 - **Current Phase**: CONSTRUCTION
 - **Current Unit**: queue (브랜치 `unit/queue` · 2026-09-08T13:55:15Z 착수 · 2026-09-09 에 `main` `0a159a4`(obs 병합) 위로 옮김)
-- **Current Stage**: NFR Requirements — 실행 여부 판단 중
+- **Current Stage**: Code Generation — Part 1 계획 작성 중
+  (`construction/plans/queue-nfr-requirements-plan.md`)
   (`construction/plans/queue-functional-design-plan.md`)
-- **Last Completed**: queue Functional Design (2026-09-08T17:37:00Z)
+- **Last Completed**: queue NFR Requirements (2026-09-09T00:11:46Z)
 - **Extension Configuration**: `decisions.md` §1 이 닫음 — security-baseline 켬 ·
   resiliency-baseline 끔 · property-based-testing 끔. 취급은 `decisions.md` §3
 - **Blockers**: 로컬 Postgres 없음(docker · brew 도 없음) — Code Generation 전에
@@ -19,9 +20,9 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 
 ### queue
 - [x] Functional Design — 승인 2026-09-08T17:37:00Z (Q1=A · Q2=A · 산출물 `construction/queue/functional-design/`)
-- [ ] NFR Requirements (판단 예정 · 신규 표면 없음)
-- [ ] NFR Design
-- [ ] Infrastructure Design (해당 없음 예상)
+- [x] NFR Requirements — 승인 2026-09-09T00:11:46Z (답 A·A·A · `construction/queue/nfr-requirements/`)
+- [x] NFR Design — SKIP (회차 계획 · 어떻게는 Code Generation 계획이 진다)
+- [x] Infrastructure Design — SKIP (새 인프라 0 · constraints §6)
 - [ ] Code Generation — Part 1 계획 · Part 2 생성
 - [ ] CP0 회귀 · CP2 게이트 · PR to main
 
