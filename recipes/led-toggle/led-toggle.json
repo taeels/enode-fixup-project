@@ -1,0 +1,43 @@
+{
+  "run_id": "led-toggle-__RUNID__",
+  "work": {
+    "id": {
+      "system": "manual",
+      "change_id": "led-toggle"
+    },
+    "system": "manual"
+  },
+  "requires": [
+    {
+      "as": "board",
+      "capability": "agent.reason",
+      "board": "rpi2b-v1.1",
+      "led_red": "true",
+      "led_green": "true"
+    }
+  ],
+  "steps": [
+    {
+      "id": "toggle",
+      "uses": "board",
+      "run": [
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "$ErrorActionPreference='Stop'\n$target = '__PIHOST__'\n$script = @'\nset -eu\nRED=${1:?red gpio}\nGREEN=${2:?green gpio}\nN=${3:-6}\nMS=${4:-250}\n\n# pinctrl 과 raspi-gpio 는 set <pin> op dh|dl 과 get <pin> 이 같다.\n# 그래서 둘을 한 자리에 둔다. gpioset 은 안 쓴다 - 프로세스가 끝나면\n# 선을 놓아서 LED 가 그 자리에서 꺼진다.\ntool=\"\"\nfor t in pinctrl raspi-gpio; do\n  if command -v \"$t\" >/dev/null 2>&1; then tool=$t; break; fi\ndone\n[ -n \"$tool\" ] || { echo \"no gpio tool found; tried pinctrl and raspi-gpio\" >&2; exit 5; }\necho \"tool=$tool red=$RED green=$GREEN cycles=$N interval_ms=$MS\"\n\nsetpin() {\n  if [ \"$2\" = 1 ]; then lvl=dh; else lvl=dl; fi\n  \"$tool\" set \"$1\" op \"$lvl\"\n}\n\necho \"before:\"\n\"$tool\" get \"$RED\"\n\"$tool\" get \"$GREEN\"\n\n# 어느 핀이 어느 LED 인지 아직 확인 안 된 값이라, 먼저 하나씩 켜서\n# 사람이 보고 가릴 수 있게 한다. 패턴은 그 뒤다.\necho \"identify: red only\"\nsetpin \"$RED\" 1; setpin \"$GREEN\" 0; sleep 1\necho \"identify: green only\"\nsetpin \"$RED\" 0; setpin \"$GREEN\" 1; sleep 1\n\nsec=$(awk \"BEGIN{printf \\\"%.3f\\\", $MS/1000}\")\necho \"pattern: alternating $N cycles\"\ni=0\nwhile [ \"$i\" -lt \"$N\" ]; do\n  setpin \"$RED\" 1; setpin \"$GREEN\" 0; sleep \"$sec\"\n  setpin \"$RED\" 0; setpin \"$GREEN\" 1; sleep \"$sec\"\n  i=$((i + 1))\ndone\n\n# 켠 채로 끝나지 않는다. 다음 시연의 첫 장면을 망친다.\nsetpin \"$RED\" 0\nsetpin \"$GREEN\" 0\necho \"after:\"\n\"$tool\" get \"$RED\"\n\"$tool\" get \"$GREEN\"\necho \"done\"\n\n'@\n# BOM 도 CRLF 도 안 남긴다. 원격 bash 가 \\r 을 명령의 일부로 읽는다.\n$enc = New-Object System.Text.UTF8Encoding($false)\n$tmp = Join-Path $env:TEMP ('led-toggle-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '.sh')\n[System.IO.File]::WriteAllText($tmp, ($script -replace \"`r`n\", \"`n\"), $enc)\n$dest = '/tmp/enode-led-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '.sh'\nWrite-Output ('target=' + $target + ' script=' + $dest)\n& scp -o BatchMode=yes -o StrictHostKeyChecking=accept-new $tmp ($target + ':' + $dest)\nif ($LASTEXITCODE -ne 0) { Write-Output ('scp failed rc=' + $LASTEXITCODE); exit $LASTEXITCODE }\n$remote = \"bash $dest __RED__ __GREEN__ __CYCLES__ __MS__; rc=`$?; rm -f $dest; exit `$rc\"\n$out = & ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new $target $remote 2>&1\n$rc = $LASTEXITCODE\n$text = ($out | Out-String)\nWrite-Output $text\n[System.IO.File]::WriteAllText((Join-Path $env:OUT 'led.log'), $text, $enc)\nRemove-Item $tmp -Force\nWrite-Output ('remote rc=' + $rc)\nexit $rc"
+      ],
+      "out": [
+        "led.log"
+      ]
+    }
+  ],
+  "success_when": [
+    {
+      "step": "toggle",
+      "exit_code": 0,
+      "produced": [
+        "led.log"
+      ]
+    }
+  ]
+}
