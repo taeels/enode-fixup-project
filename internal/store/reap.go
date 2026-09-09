@@ -3,9 +3,13 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"github.com/taeels/enode/internal/contract"
+	"errors"
 	"log/slog"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // Reap 은 만료된 임대를 회수한다 (ADR-008).
@@ -77,10 +81,20 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 	}
 
 	// 종료한 Run 의 임대를 전부 해제한다 — I2
-	if _, err := s.pool.Exec(ctx, `
+	freed, err := s.pool.Exec(ctx, `
 		DELETE FROM leases l USING runs r
-		 WHERE r.run_id = l.run_id AND r.state IN ('SUCCEEDED','FAILED')`); err != nil {
+		 WHERE r.run_id = l.run_id AND r.state IN ('SUCCEEDED','FAILED')`)
+	if err != nil {
 		return n, err
+	}
+	// 임대가 실제로 지워졌을 때만 큐를 깨운다 (ADR-064). 회수는 요청이 아니라
+	// 감시자라 자기 트랜잭션으로 족하고, 매 주기 훑으면 「주기에 얹지 않는다」를
+	// 어기므로 지워진 것이 있을 때만이다. 실패해도 회수 수는 그대로다 —
+	// 대기 Run 은 다음 지점에서 다시 본다.
+	if freed.RowsAffected() > 0 {
+		if _, werr := s.WakeQueuedNow(ctx); werr != nil && log != nil {
+			log.Error("cannot wake the queue after reaping", "err", werr)
+		}
 	}
 	if n > 0 {
 		if log != nil {
@@ -201,9 +215,16 @@ func (s *Store) Cancel(ctx context.Context, runID, by string) (string, error) {
 	if _, err := tx.Exec(ctx, `DELETE FROM leases WHERE run_id=$1`, runID); err != nil {
 		return "", err
 	}
+	// 임대가 풀렸다 — 같은 트랜잭션에서 큐를 깨운다 (ADR-064).
+	// QUEUED 를 취소한 경우엔 풀린 것이 없어 훑기가 빈손으로 돌아온다.
+	woken, err := s.wakeQueuedIn(ctx, tx)
+	if err != nil {
+		return "", err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return "", err
 	}
+	s.Notify(woken)
 	if err := s.sealRecord(ctx, runID, v); err != nil {
 		return StateFailed, err
 	}
@@ -233,6 +254,20 @@ func hasFleetCondition(c contract.Contract) bool {
 }
 
 func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) {
+	// 도는 Run 만 정산한다. QUEUED 는 단계가 0 이라 아래 셈이 「전부 끝났다」로
+	// 읽혀 SUCCEEDED 로 닫힐 수 있다 — 오늘 부르는 자리 셋은 QUEUED 를 안 넘기지만
+	// 그 조건이 코드에 없었다. 상태가 하나 늘면 검증 대상이 는다는 INVARIANTS §1.2
+	// 의 경고가 이 줄이다. 종료된 Run 도 여기서 끝난다 — 봉인은 이미 됐다.
+	var state string
+	if err := s.pool.QueryRow(ctx, `SELECT state FROM runs WHERE run_id=$1`, runID).Scan(&state); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", err
+	}
+	if state != StateRunning && state != StateVerifying {
+		return "", nil
+	}
 	var pending, broke int
 	if err := s.pool.QueryRow(ctx, `
 		SELECT count(*) FILTER (WHERE state IN ('PENDING','CLAIMED','ASKED')),
@@ -325,9 +360,16 @@ func (s *Store) SettleIfDone(ctx context.Context, runID string) (string, error) 
 	if _, err := tx.Exec(ctx, `DELETE FROM leases WHERE run_id = $1`, runID); err != nil {
 		return "", err
 	}
+	// 임대가 풀렸다 — 같은 트랜잭션에서 큐를 깨운다 (ADR-064). 커밋 전이라
+	// 「a 는 끝났는데 b 는 아직」인 순간이 밖에서 안 보인다.
+	woken, err := s.wakeQueuedIn(ctx, tx)
+	if err != nil {
+		return "", err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return "", err
 	}
+	s.Notify(woken)
 	// 종료 상태에 이르렀으므로 봉인한다 (I4) — 이후 변경되지 않는다.
 	if err := s.sealRecord(ctx, runID, v); err != nil {
 		return v.State, err

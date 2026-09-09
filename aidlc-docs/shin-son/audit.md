@@ -115,3 +115,35 @@ Q3 A"
 **Context**: CONSTRUCTION - queue - NFR Requirements 승인 (Step 9) · NFR Design SKIP · Infrastructure Design SKIP.
 
 ---
+
+## Code Generation — queue · Part 1 계획 · 승인 요청
+**Timestamp**: 2026-09-09T00:15:09Z
+**User Input**: (없음 — NFR 승인의 후속)
+**AI Response**: Code Generation Part 1 계획 `construction/plans/queue-code-generation-plan.md` 를 냈다 — 갈래 셋(store · api · mediator) · 못 박는 겉면(FD 에서 둘이 넓어짐: WakeQueued 가 Woken 을 돌려준다 — 승격이 올린 첫 단계 되묻기를 커밋 뒤 알리려고 · nonce 는 store 에 이미 있어 안 옮긴다) · 단계 A1~A10 · B1~B4 · C1~C3 · 시험 열여덟의 이름 · CP0/CP2 재는 순서 · 진행자 표시 넷. 코드 사실 확인: Seal 이 Open 을 스스로 불러 취소된 QUEUED 도 봉인된다 · ClaimStep 은 r.state='RUNNING' 만 집는다 · CreateRun 몸통에 runAcquires·raiseAsks·Records.Open 이 있어 승격도 같은 몸통을 쓴다. NFR 커밋은 `18f3b51`. 이 계획의 승인을 요청한다.
+**Context**: CONSTRUCTION - queue - Code Generation Part 1 (Step 4~6 완료 · Step 7 승인 대기).
+
+---
+
+## Code Generation — queue · Part 1 승인 · Part 2 착수
+**Timestamp**: 2026-09-09T00:20:49Z
+**User Input**: "승인"
+**AI Response**: Code Generation 계획 승인을 기록했다. Part 2 를 계획의 순서(A store → B api → C mediator · match 주석)대로 짓는다. DSN 이 아직 없으므로 시험은 짓되 실행은 「미실행」으로 적는다.
+**Context**: CONSTRUCTION - queue - Code Generation Part 1 승인 (Step 8·9) · Part 2 시작 (Step 10).
+
+---
+
+## Code Generation — queue · Part 2 생성 완료 · 시험 미실행
+**Timestamp**: 2026-09-09T00:33:58Z
+**User Input**: (없음 — Part 1 승인의 후속)
+**AI Response**: 계획대로 짰다 — A store(신규 `queue.go` · store.go 의 StateQueued·LeaseTTL·createRunIn 추출 · reap.go/claim.go/release.go 의 깨우기 지점 · schema.sql 부분 인덱스 · queue_test.go 아홉) · B api(submit 의 enqueue 둘 · DrainingNodes 합침 · postNodes drain 해제 wake · api_test.go 409→202 셋 · queue_test.go 일곱) · C mediator(wakeQueuedAtStart · LeaseTTL 배선 · 시험 둘) · match.go 주석. 계획 밖 결정 둘을 코드 요약에 적었다 — 큐 기계를 새 파일 queue.go 에 둠(접점 diff 최소화) · 훑기가 FOR UPDATE SKIP LOCKED(취소와의 교착 방지). 검사: go build · go vet · gofmt · glyphscan · 크로스 빌드 넷 · DB 안 쓰는 패키지 시험 통과. cmd/enodectl 의 TestCmdStart_ 셋이 전체 병렬 실행에서 한 번 깨졌으나 단독 재실행과 main 워크트리에서 통과(부하 · 이 유닛 밖). **DB 시험 열여덟과 기존 store/api/mediator 시험 · 커버리지 · CP0 · CP2 는 미실행** — Postgres 가 없다. 코드 요약 `construction/queue/code/code-summary.md`. 완료 메시지(2-옵션)를 내고 승인을 기다린다 — 커밋은 승인 뒤.
+**Context**: CONSTRUCTION - queue - Code Generation Part 2 (Step 10~14 완료 · Step 15 승인 대기).
+
+---
+
+## Code Generation — queue · 승인
+**Timestamp**: 2026-09-09T00:36:11Z
+**User Input**: "승인"
+**AI Response**: Code Generation 승인을 기록했다(시험 미실행 상태로의 승인). 코드 · 시험 · 계획 · 코드 요약 · 상태 · 감사를 `unit/queue` 에 커밋한다. 다음은 Build and Test — 진짜 Postgres 가 있어야 CP0 · 커버리지 · CP2 를 돈다. 사용자가 `docs/testdb-setup.md` 4절대로 깔고 DSN 을 주면 돌린다.
+**Context**: CONSTRUCTION - queue - Code Generation 승인 (Step 16) · Build and Test 대기(Postgres).
+
+---

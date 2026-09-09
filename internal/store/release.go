@@ -27,19 +27,20 @@ import (
 // "그 역할을 쓰는 모든 단계가 놓는 단계의 조상 일 것" 을 요구한다.
 // 폭이 열리면서 그 조건이 강해졌다 — 순차였다면 "뒤에서 안 쓰면 된다" 로
 // 족했지만, 병렬에서는 순서가 안 정해진 단계가 동시에 돌 수 있다.
-func (s *Store) applyRelease(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
+// 돌려주는 수는 지운 임대의 수다 — 0 보다 크면 부르는 쪽이 큐를 깨운다 (ADR-064).
+func (s *Store) applyRelease(ctx context.Context, tx pgx.Tx, runID string, seq int) (int, error) {
 	var raw, assignedJSON []byte
 	if err := tx.QueryRow(ctx,
 		`SELECT `+liveContract+`, assigned FROM runs WHERE run_id=$1`, runID).
 		Scan(&raw, &assignedJSON); err != nil {
-		return err
+		return 0, err
 	}
 	var c contract.Contract
 	if err := json.Unmarshal(raw, &c); err != nil {
-		return err
+		return 0, err
 	}
 	if seq < 1 || seq > len(c.Steps) || len(c.Steps[seq-1].Release) == 0 {
-		return nil
+		return 0, nil
 	}
 	freed := map[string]bool{}
 	for _, r := range c.Steps[seq-1].Release {
@@ -48,7 +49,7 @@ func (s *Store) applyRelease(ctx context.Context, tx pgx.Tx, runID string, seq i
 	var assigned []Assigned
 	if len(assignedJSON) > 0 {
 		if err := json.Unmarshal(assignedJSON, &assigned); err != nil {
-			return err
+			return 0, err
 		}
 	}
 	keep, drop := map[string]bool{}, map[string]bool{}
@@ -68,9 +69,12 @@ func (s *Store) applyRelease(ctx context.Context, tx pgx.Tx, runID string, seq i
 		}
 	}
 	if len(nodes) == 0 {
-		return nil
+		return 0, nil
 	}
-	_, err := tx.Exec(ctx, `DELETE FROM leases WHERE run_id=$1 AND node_id = ANY($2)`,
+	tag, err := tx.Exec(ctx, `DELETE FROM leases WHERE run_id=$1 AND node_id = ANY($2)`,
 		runID, nodes)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
 }

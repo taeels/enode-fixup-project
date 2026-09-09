@@ -167,3 +167,11 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS submitter text NOT NULL DEFAULT '';
 -- 좁히거나 정렬하는데 선행 열이 work_id 이기 때문이다.
 -- limit 상한이 1000 이므로 함대가 자라면 그 정렬 비용이 보인다.
 CREATE INDEX IF NOT EXISTS runs_created_idx ON runs (created_at);
+
+-- 대기열의 훑기가 타는 인덱스 (ADR-064).
+--
+-- 임대가 지워지는 지점마다 WHERE state = 'QUEUED' ORDER BY created_at 을 한 번씩
+-- 돈다 — 대기가 0 인 함대에서도 매 종료마다다. state 인덱스가 없으면 그 한 줄이
+-- runs 를 통째로 훑고, runs 는 지우지 않고 쌓인다. 부분 인덱스라 대기 행만 들어
+-- 대기가 없으면 비어 있고, 승격 UPDATE 가 행을 인덱스에서 뺀다.
+CREATE INDEX IF NOT EXISTS runs_queued_idx ON runs (created_at) WHERE state = 'QUEUED';
