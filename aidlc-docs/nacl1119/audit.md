@@ -71,3 +71,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · Functional Design 산출물 완료 · 승인 지점 2(FD) 앞.
 
 ---
+
+## panel Functional Design 승인 · 남은 작업 인계 요청
+**Timestamp**: 2026-09-09T03:12:54Z
+**User Input**: "진행해" (FD 승인 · NFR Requirements 로) 이어서 "남은 작업 동료분에게 전달하게 요약해줘."
+**AI Response**: 진행자가 panel Functional Design 을 승인했다(승인 지점 2 닫힘). NFR Requirements 로 넘어가려던 참에, 진행자가 남은 작업을 동료에게 넘길 요약을 요청했다. FD 승인 표시를 계획에 반영해 커밋하고(브랜치를 깨끗이 넘김), 남은 작업 요약을 낸다. NFR 이후 단계는 인계받는 사람이 잇는다.
+**Context**: CONSTRUCTION · panel · FD 승인 · 인계 준비.
+
+---
