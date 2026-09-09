@@ -172,8 +172,30 @@ PATH 의 것을 쓴다. 어느 쪽을 골랐는지 첫 줄에 찍는다 (`ssh=..
 한다. 여기 적는 것은 증상과 우회다.
 
 `~/.ssh/config` 가 그 파이 주소를 특정 키(`IdentityFile`, `IdentitiesOnly yes`)에
-고정하고 있으면 새로 만든 키는 쓰이지 않는다. 키를 새로 심고도 안 되면 config 를
-먼저 본다.
+고정하고 있으면 새로 만든 키는 쓰이지 않는다. 이번에도 새 키를 심었지만 실제로
+쓰인 것은 config 의 `id_rpi_sunnypi` 였다. 그 항목을 적는 쪽이
+`recipes/pi-stage/Initialize-RpiAccess.ps1` 이고, 왜 그렇게 적는지는
+`recipes/pi-stage/README.md` 의 「키 이름이 기본값이 아니면 ssh 가 안 집는다」에 있다.
+
+## 안 될 때 먼저 던지는 것
+
+```bash
+./submit.sh --diag
+```
+
+소리 없이 `board` 노드 위에서 ssh 환경만 찍어 온다 — 누구로 도는지, `HOME` 이
+있는지, `ssh` 가 어느 파일인지, 내장 `ssh -V` 와 Git `ssh -V` 가 각각 뜨는지,
+Git ssh 로 파이에 붙는지, 파이의 사운드 카드 배치와 `mpg123` 유무. 로그를 그
+자리에서 보여 준다. 위의 `rc=255` 를 좁히는 데 여섯 번 던진 것을 하나로 접었다.
+
+읽는 법 — `builtin_ssh_V` 가 `rc=255 out_bytes=0 err_bytes=0` 이면 위 증상이다.
+`git_ssh_whoami` 의 `out:` 에 계정 이름이 찍히면 파이까지는 됐고, 남은 것은
+소리 쪽이다.
+
+## tts 쪽
+
+`make` 가 부르는 `bin/tts-typecast.sh` 는 노드의 워크스페이스에 있다. 그 사본과
+노드가 광고하는 라벨, 키 자리, `say` 쪽 함정은 `tts-node/` 에 있다.
 
 주소와 장치는 환경변수로 덮는다.
 
