@@ -18,14 +18,19 @@
   - internal/proc 추출 · internal/panel · enodectl serve · cmd/enode panel · 경계 검사 테스트
   - **완료 조건에 조작 넷(status·start·stop·logs) + drain 걸기·모드·풀기 전부 나열**
   - 심볼 상한(enodectl.exe net/http ≤50 · crypto/tls ≤10) 재측정 · 커버리지 80%(internal/panel)
+  - [x] ADR-068 닫힘(A · 진행자) — 데몬이 `<stem>.status.yaml` 에 Caps·At 쓰고 제어판이 읽음.
+    `decisions.md` §2 「탐지 능력 읽기(ADR-068)」 행 추가
+  - [ ] Functional Design — 계획 제출(`construction/plans/panel-functional-design-plan.md`) ·
+    ADR-068 질문 파일(`construction/panel/functional-design/adr-068-questions.md`) · FD 산출물 작성 중
 - [ ] transcript — CP6 · 의존 panel · obs
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)
 
 ## 열린 미정
 
-- panel 착수 전 — 제어판이 데몬 Capabilities{Caps,At} 를 읽는 계약(ADR-068).
-  진행자가 `requirements/decisions.md` 에 행을 더해 닫는다.
+- (닫힘 2026-09-09) ADR-068 — 제어판이 데몬 Capabilities{Caps,At} 를 읽는 계약.
+  진행자가 A 로 결정: 데몬이 `<stem>.status.yaml` 에 Caps·At 쓰고 제어판이 읽음.
+  `requirements/decisions.md` §2 「탐지 능력 읽기(ADR-068)」 행으로 닫음.
 
 ## 겹치는 자리 (조율)
 
@@ -33,7 +38,8 @@
    internal/api/ui   card-news(nacl1119) vs ui(runixs) — 같은 패키지.  PR 직렬 병합 ·
                      커버리지 80% 공유
    internal/panel    panel·transcript 둘 다 nacl1119 — 한 손 안이라 접점 아님
-   internal/enode    drain(shin-son) vs transcript(nacl1119) — 다른 파일(광고 vs 링 tee)
+   internal/enode    drain(shin-son 병합됨) vs panel(nacl1119 status 파일 쓰기 · ADR-068=A)
+                     vs transcript(nacl1119 링 tee) — 서로 다른 파일/자리(광고 vs status vs 링 tee)
    drain 정책 파일    shin-son 의 drain 이 정하는 형식을 panel 의 drain 토글이 쓴다 — 맞춘다
    cmd/mediator      queue(shin-son)·ui(runixs)와 접점 — 진행자 직렬 병합
 ```

@@ -39,3 +39,27 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION 인계. 이 커밋 이후의 panel · transcript 단계는 Bedrock 세션이 이어서 기록한다.
 
 ---
+
+## panel Functional Design 착수 — ADR-068 질문과 FD 계획
+**Timestamp**: 2026-09-09T02:47:43Z
+**User Input**: "aidlc-docs/nacl1119/construction/plans/panel-transcript-handoff-prompt.md 를 읽고 그 안의 프롬프트대로 시작해."
+**AI Response**: 핸드오프 프롬프트대로 착수했다(이 세션이 곧 인계받은 Bedrock 세션이다). 브랜치가 unit/panel(origin/main 50af6cf 위)임을 확인했다. 규약·핸드오프 문서·정본(unit-of-work §5 · construction-roster · decisions §2 「제어판 서버 위치」·「LAN 노출의 토큰」·§6.5 · scene-gates CP4)과 의존 표면(internal/enode/policy.go · internal/runctl/client.go)을 읽고, 착수 블로킹인 ADR-068 을 실측으로 좁혔다: Capabilities{Caps, At} 는 데몬 메모리에만 있고(detector.go:78 · main.go:167) 데몬은 나가는 http.Client 만 있어(main.go:155) 다른 프로세스인 제어판이 At 을 읽을 통로가 없다. Caps 는 GET /v1/nodes 로 읽히나 At 은 광고에 안 실린다(ADR-068). 이 미결을 갈래 넷(로컬 상태 파일 · 로컬 데몬 엔드포인트 · At 광고로 ADR-068 뒤집기 · At 미루고 seen_at 을 정직하게 표시)으로 정리해 질문 파일을 냈다: construction/panel/functional-design/adr-068-questions.md. panel Functional Design 계획을 construction/plans/panel-functional-design-plan.md 에 썼다.
+**Context**: CONSTRUCTION · panel · Functional Design Part 1(계획). 승인 지점 1(ADR-068)과 2(FD 계획) 앞.
+
+---
+
+## ADR-068 진행자 결정 — A (로컬 상태 파일)
+**Timestamp**: 2026-09-09T02:57:11Z
+**User Input**: "ADR-068 질문 너의 추천은 뭐야" -> (A 추천) -> adr-068-questions.md 의 [Answer]: A -> "대답했어" -> (decisions 행 문안 확인 요청) -> "진행해"
+**AI Response**: ADR-068 을 A 로 받았다 — 데몬이 정책 파일 옆 <stem>.status.yaml 에 Caps·At 을 쓰고 제어판이 읽는다. decisions.md §2 를 읽다가 정본과 부딪히는 자리를 찾아 진행자에게 보였다: §2 「S3 현재 작업의 출처」(decisions.md:82)가 상태 파일 방식을 「새 기계」로 한 번 물렸다. 그 행은 lease 에 한정되고 At 은 Mediator 에 없어 같은 논리가 안 닿음을 설명했다. 진행자가 진행해 확인. requirements/decisions.md §2 에 「탐지 능력 읽기 (ADR-068) · At 의 출처」 행을 더해 캐논에 닫았다.
+**Context**: CONSTRUCTION · panel · 승인 지점 1(ADR-068) 닫힘.
+
+---
+
+## 작업 트리 흔들림 — 산출물 유실 후 unit/panel 로 복구
+**Timestamp**: 2026-09-09T02:57:11Z
+**User Input**: (AskUserQuestion) "panel 작업을 누가 진행할까요?" -> "이 세션이 다시 진행" / "현재 변경을 stash -> unit/panel 로 checkout -> pop -> 거기서 커밋(유실 방지) 진행해. 다른 세션 멈췄어." / "이 세션이 계속 소유해." / "너가 bedrock이야."
+**AI Response**: 이번 세션 초반에 작업 트리가 두 번 흔들려(unit/panel 리셋 · main 으로 checkout) 첫 산출물이 유실됐다. 경쟁 세션이 있는 줄 알았으나 진행자가 "너가 bedrock이야" 로 정정 — 이 세션이 곧 인계받은 Bedrock 세션이고 단독 소유자다. 유실된 산출물(ADR-068 질문 파일 · FD 계획 · decisions §2 행 · state/audit 기록)을 전부 다시 만들었고, main 에 얹혀 있던 그 변경을 stash -> unit/panel checkout -> pop 으로 옮겼다(aidlc-state.md 는 3-way 자동 병합, 충돌 없음). 이 단계를 unit/panel 에 커밋해 유실을 막는다. main 에는 커밋하지 않는다.
+**Context**: CONSTRUCTION · panel · 세션 소유권 확정 · unit/panel 복구 · 커밋.
+
+---
