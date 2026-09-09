@@ -378,7 +378,7 @@ func TestHandleIndexServesButtons(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	b, _ := readAll(resp)
-	for _, want := range []string{"control panel", "drain", "logs", "/api/state"} {
+	for _, want := range []string{"호스트 제어판", "자원 회수 (drain)", "/api/state", "/api/drain", "탐지 능력"} {
 		if !strings.Contains(b, want) {
 			t.Errorf("index page missing %q", want)
 		}
