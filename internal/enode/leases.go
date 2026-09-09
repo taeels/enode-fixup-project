@@ -16,6 +16,13 @@ type Held struct {
 
 	// everHeld 는 한 번이라도 일을 집었는가다 (--once). EverHeld 를 보라.
 	everHeld bool
+
+	// drain 은 중앙이 받아 적은 소유자 정책이다 (ADR-063 §4.1). Advertiser 가
+	// 광고 응답에서 채우고 Worker 가 읽는다 — at-boundary 면 더 집지 않는다.
+	// renew 는 그때 Worker 가 다시 보기까지 기다리는 길이 — 광고 주기다.
+	// 해제도 광고 응답으로만 알 수 있으므로 그보다 자주 볼 이유가 없다.
+	drain string
+	renew time.Duration
 }
 
 func NewHeld() *Held { return &Held{byRun: map[string]Lease{}} }
@@ -72,4 +79,44 @@ func (h *Held) Valid(runID string) (Lease, bool) {
 		return Lease{}, false // 목록에 없으면 없는 것이다 — 취소되었거나 회수되었다
 	}
 	return l, time.Now().Before(l.NotAfter)
+}
+
+// SetDrain 은 응답이 준 정책을 그대로 둔다. 바뀌었으면 true 다 — 로그는 그때만.
+func (h *Held) SetDrain(mode string) (changed bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	changed = h.drain != mode
+	h.drain = mode
+	return changed
+}
+
+// Drain 은 중앙이 받아 적은 정책이다. "" 면 안 걸렸다.
+// nil 수신자도 안 걸린 것이다 — Held 없이 도는 Worker(시험)가 오늘 그대로 돌게.
+func (h *Held) Drain() string {
+	if h == nil {
+		return ""
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.drain
+}
+
+// SetRenew 는 광고 주기다 — Worker 가 at-boundary 에서 기다리는 길이.
+func (h *Held) SetRenew(d time.Duration) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.renew = d
+}
+
+// Renew 는 기다리는 길이다. 아직 주기를 못 받았으면 5초 — 첫 광고 전이다.
+func (h *Held) Renew() time.Duration {
+	if h == nil {
+		return 5 * time.Second
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if h.renew <= 0 {
+		return 5 * time.Second
+	}
+	return h.renew
 }

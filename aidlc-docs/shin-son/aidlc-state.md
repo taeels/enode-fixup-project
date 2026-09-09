@@ -9,11 +9,11 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 
 - **Current Phase**: CONSTRUCTION
 - **Current Unit**: drain (브랜치 `unit/drain` · `main` `310c22d`(queue 병합) 에서 · 2026-09-09T01:24:15Z 착수)
-- **Current Stage**: drain Code Generation — Part 1 계획 작성 중
+- **Current Stage**: drain Build and Test · PR
   (`construction/plans/queue-code-generation-plan.md`)
   (`construction/plans/queue-nfr-requirements-plan.md`)
   (`construction/plans/queue-functional-design-plan.md`)
-- **Last Completed**: drain NFR Requirements (2026-09-09T02:07:52Z)
+- **Last Completed**: drain Code Generation (2026-09-09T02:25:48Z)
 - **Extension Configuration**: `decisions.md` §1 이 닫음 — security-baseline 켬 ·
   resiliency-baseline 끔 · property-based-testing 끔. 취급은 `decisions.md` §3
 - **Blockers**: 없음. Postgres.app 18.6 이 55434 에 섰다 (DSN 은 docs/testdb-setup.md 의 한 줄).
@@ -30,8 +30,9 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 ### drain
 - [x] Functional Design — 승인 2026-09-09T02:00:44Z (A·A·A · `construction/drain/functional-design/`)
 - [x] NFR Requirements — 승인 2026-09-09T02:07:52Z (답 A) · NFR Design · Infra Design SKIP
-- [ ] Code Generation
-- [ ] CP0 · CP3 · PR to main
+- [x] Code Generation — 승인 2026-09-09T02:25:48Z (`construction/drain/code/code-summary.md`)
+- [x] CP0 · CP3 통과 (2026-09-09T02:25:48Z)
+- [ ] Build and Test · PR to main
 
 ## 유닛 (의존 순)
 

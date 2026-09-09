@@ -323,3 +323,26 @@ func TestQueue_ConcurrentEnqueueAndReleaseNeverStrands(t *testing.T) {
 		}
 	}
 }
+
+// NodeDrain 은 광고가 나른 복사본을 돌려준다 — 없는 노드는 안 걸린 것이다.
+func TestQueue_NodeDrainReadsTheAdvertisedCopy(t *testing.T) {
+	st := obsStore(t)
+	ctx := context.Background()
+	if d, err := st.NodeDrain(ctx, "nobody"); err != nil || d != "" {
+		t.Fatalf("NodeDrain of an unknown node: %q %v, want empty", d, err)
+	}
+	adv := qAdvert("node-a", claude)
+	adv.Policy.Drain = DrainAtBoundary
+	if _, err := st.UpsertAdvert(ctx, adv, "p", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := st.NodeDrain(ctx, "node-a"); d != DrainAtBoundary {
+		t.Fatalf("NodeDrain after an at-boundary advert: %q", d)
+	}
+	if _, err := st.UpsertAdvert(ctx, qAdvert("node-a", claude), "p", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := st.NodeDrain(ctx, "node-a"); d != "" {
+		t.Fatalf("NodeDrain after the release advert: %q, want empty", d)
+	}
+}

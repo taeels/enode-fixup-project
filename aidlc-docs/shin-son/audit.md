@@ -221,3 +221,35 @@ Q3 A"
 **Context**: CONSTRUCTION - drain - NFR Requirements 승인 (Step 9).
 
 ---
+
+## drain — Code Generation · Part 1 계획 · 승인 요청
+**Timestamp**: 2026-09-09T02:08:56Z
+**User Input**: (없음 — NFR 승인의 후속)
+**AI Response**: Code Generation 계획 `construction/plans/drain-code-generation-plan.md` 를 냈다 — 갈래 셋(contract·store → enode·cmd/enode → api) · 겉면(어휘 상수 한 벌 · NodeDrain · policyReader · AdvertResponse.Drain · Advertiser.Held · Held 겉면 넷) · 단계 A1~A4 · B1~B6 · C1~C2 · 시험(enode 여덟 · api 넷~다섯 · store 하나) · CP3 재는 순서 · 진행자 표시 셋. 승인을 요청한다.
+**Context**: CONSTRUCTION - drain - Code Generation Part 1 (Step 4~6 완료 · Step 7 승인 대기).
+
+---
+
+## drain — Code Generation Part 1 승인 · Part 2 착수
+**Timestamp**: 2026-09-09T02:13:33Z
+**User Input**: "승인"
+**AI Response**: 계획 승인을 기록했다. Part 2 를 A(contract·store) → B(enode·cmd/enode) → C(api) 순으로 짓고 이 기계의 Postgres 로 시험까지 돌린다.
+**Context**: CONSTRUCTION - drain - Code Generation Part 1 승인 (Step 8·9) · Part 2 시작.
+
+---
+
+## drain — Code Generation Part 2 완료 · CP0 · CP3
+**Timestamp**: 2026-09-09T02:23:47Z
+**User Input**: (없음 — Part 1 승인의 후속)
+**AI Response**: 계획대로 짰다 — A(contract 상수 · store 별칭 · NodeDrain) · B(policy.go · advertise · leases · claim · cmd/enode 한 줄 · 시험 여덟) · C(postResult 갈래 둘 · drainAtBoundary · 시험 다섯). 첫 실행에서 잡은 것 — 기존 시험이 Held 없이 Worker 를 만들어 SIGSEGV → Drain()·Renew() nil 안전. 되돌림 뒤 취소 갈래를 loopRun 계약으로 덮는 시험을 더해 internal/api 80.1% → 80.5%. CP0 — 열여섯 패키지 80% 통과 · 전체 87.0% · 스킵 0 · glyphscan · 크로스 빌드. CP3 실동작 — at-boundary 통보 · 경계 취소(verdict drain:<node_id> · s1 DONE · record 에 산출) · 202 QUEUED · 해제 후 RUNNING · graceful 완주 · 양쪽 로그. 코드 요약 `construction/drain/code/code-summary.md`. 완료 메시지를 내고 승인을 기다린다.
+**Context**: CONSTRUCTION - drain - Code Generation Part 2 (Step 10~14 완료 · Step 15 승인 대기).
+
+---
+
+## drain — Code Generation 승인 · Build and Test · PR
+**Timestamp**: 2026-09-09T02:25:48Z
+**User Input**: "PR을 열게, 이거 merge하면 이제 태호님이 뭘 해야하지?"
+**AI Response**: Code Generation 승인으로 받았다. 코드와 문서를 커밋하고 Build and Test 문서(unit · integration · summary)에 drain 절을 더해 커밋한 뒤 `unit/drain` 을 push 하고 `main` 으로 PR 을 연다. 병합 뒤 nacl1119(문태호)의 일 — panel 유닛(W3 · CP4): 이 FD 가 정한 정책 파일 `<stem>.policy.yaml` 의 `drain` 키를 제어판 토글이 쓴다.
+**Context**: CONSTRUCTION - drain - Code Generation 승인 (Step 16) · Build and Test · PR to main.
+
+---

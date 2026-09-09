@@ -60,6 +60,15 @@ type Policy struct {
 	Drain string `json:"drain"`
 }
 
+// Drain 의 어휘 셋. 광고 본문 policy.drain · 응답 drain · nodes.draining · 노드의
+// 정책 파일이 같은 셋을 쓴다. 자리가 계약인 이유 — 노드(internal/enode)와
+// 저장소(internal/store)가 둘 다 보는데 노드는 저장소를 못 딛는다.
+const (
+	DrainNone       = ""
+	DrainGraceful   = "graceful"
+	DrainAtBoundary = "at-boundary"
+)
+
 // Capability 는 노드가 가진 것 하나다. 속성의 존재가 곧 능력이다 (ADR-019).
 type Capability struct {
 	Capability string            `json:"capability"`
