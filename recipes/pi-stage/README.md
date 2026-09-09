@@ -88,7 +88,8 @@ SSH 세션이 스스로 죽는다.** 실제로 두 번 당했다. base64 로 실
 
 ```text
    Initialize-RpiAccess.ps1   기계마다 한 번.  키를 만들어 보드에 심고
-                              udev 규칙을 깐다.  비밀번호를 두 번 묻는다
+                              ssh config 에 적고 udev 규칙을 깐다
+                              비밀번호를 두 번 묻는다
 
    Connect-Rpi.ps1            보드를 찾아 SSH 로그인까지 확인한다
                               -PassThru 로 Target 과 Method 를 돌려준다
@@ -97,8 +98,46 @@ SSH 세션이 스스로 죽는다.** 실제로 두 번 당했다. base64 로 실
                               -Led 로 ACT PWR Both,  -Hz 로 점멸 속도
 ```
 
-`Initialize-RpiAccess.ps1` 은 `authorized_keys` 를 **덮어쓰지 않고 이어
-붙인다.** 다른 기계의 키가 이미 들어 있을 수 있어서다.
+`Initialize-RpiAccess.ps1` 은 `authorized_keys` 와 로컬 `ssh config` 를 둘 다
+**덮어쓰지 않고 이어 붙인다.** 다른 기계의 키와 다른 호스트 항목이 이미 들어
+있을 수 있어서다. 이미 적힌 항목이 있으면 그냥 넘어간다.
+
+## 키 이름이 기본값이 아니면 ssh 가 안 집는다
+
+이 함정에 실제로 걸렸다. 키를 심어 놓고도 이렇게 하면 거절당한다.
+
+```text
+debug1: identity file C:\Users\MSI/.ssh/id_ed25519 type -1
+debug1: Will attempt key: C:\Users\MSI/.ssh/id_rsa
+...
+sunny@192.168.137.50: Permission denied (publickey,password).
+```
+
+`type -1` 은 그 파일이 없다는 뜻이다. ssh 는 `id_rsa` · `id_ed25519` 같은
+**기본 이름만** 후보로 올리는데, 이 키는 `id_rpi_sunnypi` 라 목록에 아예 안
+들어간다. 서버는 `publickey` 를 받겠다고 했지만 클라이언트가 내밀 것이
+없었던 것이다. **네트워크가 끊긴 것처럼 보이지만 주소와는 무관하다.**
+
+그래서 부트스트랩이 `~/.ssh/config` 에 항목을 적는다. 적고 나면 짧은 이름
+하나로 붙는다.
+
+```bash
+ssh sunnypi
+```
+
+```text
+Host sunnypi
+  HostName sunnypi.local
+
+Host sunnypi sunnypi.local 192.168.137.50
+  User sunny
+  IdentityFile ~/.ssh/id_rpi_sunnypi
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+```
+
+키 경로를 물결표로 적는 것이 중요하다. 홈 경로도 경로 구분자도 기계마다
+다르므로, 절대 경로로 적으면 그 파일이 그 기계에서만 맞는다.
 
 무한 점멸은 보드에 떼어 놓고 SSH 는 빠진다. 그래서 노트북을 닫아도 계속
 돈다. `Stop` 이 세운다.
