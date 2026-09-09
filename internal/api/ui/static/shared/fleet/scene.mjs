@@ -1,4 +1,5 @@
 import { COLORS, graphLayout, nodeFacts } from './model.mjs';
+import { leaseIdentity } from './format.mjs';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svg(tag, attributes = {}, text) {
@@ -10,6 +11,7 @@ function svg(tag, attributes = {}, text) {
 function label(parent, x, y, text, attributes = {}) {
   parent.append(svg('text', { x, y, fill: '#E6EAF0', 'font-size': 13, ...attributes }, text));
 }
+const shorten = (text, length = 24) => text.length > length ? `${text.slice(0, length - 1)}…` : text;
 function selectable(el, title, testid, idKey, id, action, selected) {
   el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0');
   el.setAttribute('aria-label', title); el.setAttribute('aria-pressed', String(selected));
@@ -53,7 +55,7 @@ function machine(parent, kind, color) {
     parent.append(svg('circle', { cx: -12, cy: 8, r: 3, fill: color }));
   }
 }
-export function fleetScene({ nodes, details, asks, now, iso, mode, selected, onSelect }) {
+export function fleetScene({ nodes, runs = [], details, asks, now, iso, mode, selected, onSelect }) {
   const columns = Math.max(2, Math.ceil(Math.sqrt(nodes.length))), rows = Math.ceil(nodes.length / columns);
   const width = iso ? Math.max(880, (columns + rows) * 130 + 140) : Math.max(760, columns * 260 + 60);
   const height = iso ? Math.max(620, (columns + rows) * 76 + 240) : Math.max(460, rows * 170 + 80);
@@ -72,22 +74,24 @@ export function fleetScene({ nodes, details, asks, now, iso, mode, selected, onS
     const x = iso ? width / 2 + (col - row) * 125 : 30 + col * 260;
     const y = iso ? 170 + (col + row) * 78 : 40 + row * 170;
     const facts = nodeFacts(node, details, asks, now), color = COLORS[facts.tone];
+    const owner = leaseIdentity(node, runs), status = `${facts.label}${owner ? ` · ${owner.submitter}` : ''}`;
     const group = svg('g', { transform: `translate(${x} ${y})`, opacity: facts.expiring ? .65 : 1 });
-    selectable(group, `${node.label || node.node_id} · ${facts.label}`, `${mode}-node-select-button`, 'node', node.node_id, () => onSelect(node.node_id), selected === node.node_id);
+    selectable(group, `${node.label || node.node_id} · ${status}`, `${mode}-node-select-button`, 'node', node.node_id, () => onSelect(node.node_id), selected === node.node_id);
+    group.append(svg('title', {}, `${node.label || node.node_id}\n${status}${owner ? `\n작업: ${owner.runId}` : ''}`));
     if (iso) {
       group.append(svg('path', { d: 'M -100 30 L 0 -20 L 100 30 L 0 80 Z', fill: '#1B2027', stroke: color, 'stroke-width': selected === node.node_id ? 3 : 1.5 }));
       group.append(svg('path', { d: 'M -100 30 L 0 80 L 100 30 L 100 42 L 0 92 L -100 42 Z', fill: '#10151B' }));
       machine(group, machineKind(node), color);
-      label(group, 0, -67, node.label || node.node_id, { 'text-anchor': 'middle', 'font-weight': 600 });
-      label(group, 0, -48, facts.label, { 'text-anchor': 'middle', fill: color, 'font-size': 11 });
+      label(group, 0, -67, shorten(node.label || node.node_id), { 'text-anchor': 'middle', 'font-weight': 600 });
+      label(group, 0, -48, shorten(status, 28), { 'text-anchor': 'middle', fill: color, 'font-size': 11 });
     } else {
       group.append(svg('rect', { width: 235, height: 143, rx: 10, fill: '#1B2027', stroke: selected === node.node_id ? color : '#39434F', 'stroke-width': 2 }));
       group.append(svg('circle', { cx: 17, cy: 25, r: 4, fill: color }));
-      label(group, 30, 30, node.label || node.node_id, { 'font-weight': 600 });
+      label(group, 30, 30, shorten(node.label || node.node_id), { 'font-weight': 600 });
       label(group, 15, 55, facts.label, { fill: color });
       label(group, 15, 80, node.capabilities.map(c => c.capability).join(' · ').slice(0, 28), { fill: '#98A4B3', 'font-size': 11 });
       label(group, 15, 106, `sandbox: ${[...new Set(node.capabilities.map(c => c.attrs.sandbox ?? '미제공'))].join(', ')}`, { fill: '#98A4B3', 'font-size': 11 });
-      label(group, 15, 128, facts.expiring ? '광고 만료 임박 · 상세 확인' : node.lease ? '현재 임대 Run 있음' : '현재 임대 없음', { fill: '#98A4B3', 'font-size': 11 });
+      label(group, 15, 128, owner ? shorten(`작업 제출자 · ${owner.submitter}`, 28) : facts.expiring ? '광고 만료 임박 · 상세 확인' : '현재 임대 없음', { fill: '#98A4B3', 'font-size': 11 });
     }
     root.append(group);
   });
@@ -98,32 +102,26 @@ export function runScene({ steps, nodes = [], iso, mode, selected, onSelect }) {
   const width = Math.max(780, ...placed.map(s => s.x + 230)), height = Math.max(460, ...placed.map(s => s.y + 230));
   const root = svg('svg', { width, height, viewBox: `0 0 ${width} ${height}`, 'aria-label': '작업 의존 그래프', role: 'group' });
   for (const s of placed) for (const id of s.needs) {
-    const from = byID.get(id), x = from.x + 175, y = from.y + (iso ? 100 : 45), endX = s.x, endY = s.y + (iso ? 100 : 45);
+    const from = byID.get(id), x = from.x + 175, y = from.y + 58, endX = s.x, endY = s.y + 58;
     root.append(svg('path', { d: `M ${x} ${y} C ${x + 35} ${y}, ${endX - 35} ${endY}, ${endX - 8} ${endY}`, fill: 'none', stroke: '#647386', 'stroke-width': 2 }));
     root.append(svg('path', { d: `M ${endX - 9} ${endY - 4} l 7 4 l -7 4`, fill: 'none', stroke: '#647386' }));
   }
   for (const s of placed) {
     const color = s.state === 'ASKED' ? COLORS.asked : s.state === 'FAILED' ? COLORS.failed : s.state === 'DONE' ? COLORS.idle : s.state === 'CLAIMED' ? COLORS.leased : COLORS.expiring;
     const group = svg('g', { transform: `translate(${s.x} ${s.y})`, opacity: s.state === 'SKIPPED' && !s.chosen ? .5 : 1 });
-    selectable(group, `${s.id} · ${s.state}`, `${mode}-step-select-button`, 'step', s.id, () => onSelect(s.id), selected === s.id);
+    const node = nodes.find(n => n.node_id === s.node), nodeLabel = node?.label || s.node || '노드 미배정';
+    selectable(group, `${s.seq}. ${s.id} · ${s.state} · ${nodeLabel}`, `${mode}-step-select-button`, 'step', s.id, () => onSelect(s.id), selected === s.id);
+    group.append(svg('title', {}, `${s.seq}. ${s.id}\n${s.state} · ${s.uses}\n실행 노드: ${nodeLabel}`));
     if (iso) {
-      const model = svg('g', { transform: 'translate(87 70)' });
-      model.append(svg('path', { d: 'M -87 30 L 0 -14 L 87 30 L 0 74 Z', fill: '#1B2027', stroke: color, 'stroke-width': selected === s.id ? 3 : 1.5 }));
-      model.append(svg('path', { d: 'M -87 30 L 0 74 L 87 30 L 87 40 L 0 84 L -87 40 Z', fill: '#10151B' }));
-      const node = nodes.find(n => n.node_id === s.node);
-      if (s.node) machine(model, node ? machineKind(node) : 'generic', color);
-      else model.append(svg('path', { d: 'M -30 29 L 0 14 L 30 29 L 0 44 Z', fill: 'none', stroke: '#647386' }));
-      group.append(model);
-      label(group, 87, -8, s.id, { 'text-anchor': 'middle', 'font-weight': 600, 'font-size': 12 });
-      label(group, 87, 12, `${s.state} · ${node?.label || s.node || '노드 미배정'}`, { 'text-anchor': 'middle', fill: color, 'font-size': 10 });
-      if (s.state === 'SKIPPED') label(group, 87, 177, s.chosen ? '선택됨 · 도달하지 못함' : '선택하지 않은 경로', { 'text-anchor': 'middle', fill: '#98A4B3', 'font-size': 10 });
-    } else {
-      group.append(svg('rect', { width: 175, height: 96, rx: 7, fill: '#1B2027', stroke: color, 'stroke-width': selected === s.id ? 3 : 1.5 }));
-      label(group, 13, 23, `${s.seq}  ${s.id.length > 18 ? s.id.slice(0, 17) + '…' : s.id}`, { 'font-size': 12, 'font-weight': 600 });
-      label(group, 13, 46, s.state, { fill: color, 'font-size': 12 });
-      label(group, 13, 67, s.uses.slice(0, 23) || '용도 미제공', { fill: '#98A4B3', 'font-size': 10 });
-      label(group, 13, 84, s.state === 'SKIPPED' ? s.chosen ? '선택됨 · 도달하지 못함' : '선택하지 않은 경로' : s.node || '노드 미배정', { fill: '#98A4B3', 'font-size': 10 });
+      group.append(svg('path', { d: 'M 8 116 L 175 116 L 175 8 L 185 18 L 185 126 L 18 126 Z', fill: '#0B1723', stroke: '#34495E' }));
     }
+    group.append(svg('rect', { width: 175, height: 116, rx: 8, fill: '#19232D', stroke: selected === s.id ? color : '#4B6074', 'stroke-width': selected === s.id ? 3 : 1.5 }));
+    group.append(svg('path', { d: 'M 12 36 H 163', stroke: '#34495E' }));
+    label(group, 12, 23, `${s.seq}  ${shorten(s.id, 17)}`, { 'font-size': 12, 'font-weight': 600 });
+    label(group, 12, 56, s.state, { fill: color, 'font-size': 12 });
+    label(group, 12, 76, shorten(s.uses || '용도 미제공', 23), { fill: '#B2C0CD', 'font-size': 10 });
+    label(group, 12, 98, shorten(nodeLabel, 23), { fill: '#98A4B3', 'font-size': 10 });
+    if (s.state === 'SKIPPED') label(group, 0, 148, s.chosen ? '선택됨 · 도달하지 못함' : '선택하지 않은 경로', { fill: '#98A4B3', 'font-size': 10 });
     root.append(group);
   }
   return { element: root, width, height };

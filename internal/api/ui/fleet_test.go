@@ -6,7 +6,7 @@ import (
 )
 
 func TestFleetAndDemoModulesAreServed(t *testing.T) {
-	for _, path := range []string{"/ui/fleet/", "/ui/fleet/app.mjs", "/ui/fleet/login.mjs", "/ui/shared/fleet/model.mjs", "/ui/shared/fleet/client.mjs", "/ui/shared/fleet/scene.mjs", "/ui/shared/fleet/view.mjs", "/ui/shared/fleet/fleet.css", "/ui/demo/tour.mjs", "/ui/demo/submission.mjs", "/ui/demo/webcam.mjs", "/ui/demo/settings.json"} {
+	for _, path := range []string{"/ui/fleet/", "/ui/fleet/app.mjs", "/ui/fleet/login.mjs", "/ui/shared/fleet/model.mjs", "/ui/shared/fleet/format.mjs", "/ui/shared/fleet/client.mjs", "/ui/shared/fleet/scene.mjs", "/ui/shared/fleet/view.mjs", "/ui/shared/fleet/fleet.css", "/ui/demo/tour.mjs", "/ui/demo/submission.mjs", "/ui/demo/webcam.mjs", "/ui/demo/settings.json"} {
 		r := get(t, path)
 		if r.Code != 200 {
 			t.Errorf("GET %s = %d", path, r.Code)
