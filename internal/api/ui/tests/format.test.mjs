@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatTimestamp, formatDuration, remainingTime, elapsedTime, leaseIdentity, attributeName, attributeValue, capabilityName } from '../static/shared/fleet/format.mjs';
+import { formatTimestamp, formatDuration, remainingTime, elapsedTime, leaseIdentity, attributeName, attributeValue, capabilityName, wrapLabel } from '../static/shared/fleet/format.mjs';
 
 test('lease submitter is joined only through the current lease, never historical assignments', () => {
   const runs = [{ run_id: 'past', submitter: 'old guest', assigned: [{ nodes: [{ node: 'node-1' }] }] }, { run_id: 'current', submitter: 'current guest' }];
@@ -49,4 +49,14 @@ test('only known attribute meanings are translated and sandbox evidence stays ve
   assert.equal(attributeValue('custom', '<script>text</script>'), '<script>text</script>');
   assert.equal(attributeName('custom'), 'custom');
   assert.equal(capabilityName('custom.capability'), 'custom.capability');
+});
+
+test('long host labels wrap within two lines while wide characters consume more room', () => {
+  assert.deepEqual(wrapLabel('worker@MacBook-Pro.local'), ['worker@MacBook-Pro.local']);
+  const host = 'operator@long-development-workstation.local';
+  assert.equal(wrapLabel(host).length, 2);
+  assert.equal(wrapLabel(host).join(''), host);
+  assert.deepEqual(wrapLabel('가나다라마바사아자차카타파하가나다라마바사'), ['가나다라마바사아자차카타파하가', '나다라마바사']);
+  assert.deepEqual(wrapLabel('x'.repeat(100)), ['x'.repeat(30), 'x'.repeat(28) + '…']);
+  assert.deepEqual(wrapLabel('  worker\n name\t '), ['worker name']);
 });

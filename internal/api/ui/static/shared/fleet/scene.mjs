@@ -1,5 +1,5 @@
 import { COLORS, graphLayout, nodeFacts } from './model.mjs';
-import { leaseIdentity } from './format.mjs';
+import { leaseIdentity, wrapLabel } from './format.mjs';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svg(tag, attributes = {}, text) {
@@ -57,22 +57,24 @@ function machine(parent, kind, color) {
 }
 export function fleetScene({ nodes, runs = [], details, asks, now, iso, mode, selected, onSelect }) {
   const columns = Math.max(2, Math.ceil(Math.sqrt(nodes.length))), rows = Math.ceil(nodes.length / columns);
-  const width = iso ? Math.max(880, (columns + rows) * 130 + 140) : Math.max(760, columns * 260 + 60);
-  const height = iso ? Math.max(620, (columns + rows) * 76 + 240) : Math.max(460, rows * 170 + 80);
+  const gapX = 220, gapY = 125;
+  const width = iso ? Math.max(880, (columns + rows - 2) * gapX + 320) : Math.max(760, columns * 330 + 60);
+  const height = iso ? Math.max(620, (columns + rows - 2) * gapY + 300) : Math.max(460, rows * 210 + 80);
+  const originX = (width - (columns - rows) * gapX) / 2;
   const root = svg('svg', { width, height, viewBox: `0 0 ${width} ${height}`, 'aria-label': '함대 관측', role: 'group' });
   if (iso) {
     const floor = svg('g', { stroke: '#262D36', 'stroke-width': 1, opacity: .6 });
-    const cx = width / 2, top = 75, span = Math.max(columns, rows) + 1;
+    const cx = originX, top = 75, span = Math.max(columns, rows) + 1;
     for (let i = 0; i <= span; i++) {
-      floor.append(svg('path', { d: `M ${cx - i * 120} ${top + i * 66} l ${span * 120} ${span * 66}`, fill: 'none' }));
-      floor.append(svg('path', { d: `M ${cx + i * 120} ${top + i * 66} l ${-span * 120} ${span * 66}`, fill: 'none' }));
+      floor.append(svg('path', { d: `M ${cx - i * gapX} ${top + i * gapY} l ${span * gapX} ${span * gapY}`, fill: 'none' }));
+      floor.append(svg('path', { d: `M ${cx + i * gapX} ${top + i * gapY} l ${-span * gapX} ${span * gapY}`, fill: 'none' }));
     }
     root.append(floor);
   }
   nodes.forEach((node, index) => {
     const col = index % columns, row = Math.floor(index / columns);
-    const x = iso ? width / 2 + (col - row) * 125 : 30 + col * 260;
-    const y = iso ? 170 + (col + row) * 78 : 40 + row * 170;
+    const x = iso ? originX + (col - row) * gapX : 30 + col * 330;
+    const y = iso ? 180 + (col + row) * gapY : 40 + row * 210;
     const facts = nodeFacts(node, details, asks, now), color = COLORS[facts.tone];
     const owner = leaseIdentity(node, runs), status = `${facts.label}${owner ? ` · ${owner.submitter}` : ''}`;
     const group = svg('g', { transform: `translate(${x} ${y})`, opacity: facts.expiring ? .65 : 1 });
@@ -82,16 +84,17 @@ export function fleetScene({ nodes, runs = [], details, asks, now, iso, mode, se
       group.append(svg('path', { d: 'M -100 30 L 0 -20 L 100 30 L 0 80 Z', fill: '#1B2027', stroke: color, 'stroke-width': selected === node.node_id ? 3 : 1.5 }));
       group.append(svg('path', { d: 'M -100 30 L 0 80 L 100 30 L 100 42 L 0 92 L -100 42 Z', fill: '#10151B' }));
       machine(group, machineKind(node), color);
-      label(group, 0, -67, shorten(node.label || node.node_id), { 'text-anchor': 'middle', 'font-weight': 600 });
-      label(group, 0, -48, shorten(status, 28), { 'text-anchor': 'middle', fill: color, 'font-size': 11 });
+      const nameLines = wrapLabel(node.label || node.node_id);
+      nameLines.forEach((line, i) => label(group, 0, -68 - (nameLines.length - 1 - i) * 18, line, { 'text-anchor': 'middle', 'font-weight': 600, class: 'node-name' }));
+      label(group, 0, -48, wrapLabel(status, 36, 1)[0], { 'text-anchor': 'middle', fill: color, 'font-size': 11 });
     } else {
-      group.append(svg('rect', { width: 235, height: 143, rx: 10, fill: '#1B2027', stroke: selected === node.node_id ? color : '#39434F', 'stroke-width': 2 }));
+      group.append(svg('rect', { width: 280, height: 176, rx: 10, fill: '#1B2027', stroke: selected === node.node_id ? color : '#39434F', 'stroke-width': 2 }));
       group.append(svg('circle', { cx: 17, cy: 25, r: 4, fill: color }));
-      label(group, 30, 30, shorten(node.label || node.node_id), { 'font-weight': 600 });
-      label(group, 15, 55, facts.label, { fill: color });
-      label(group, 15, 80, node.capabilities.map(c => c.capability).join(' · ').slice(0, 28), { fill: '#98A4B3', 'font-size': 11 });
-      label(group, 15, 106, `sandbox: ${[...new Set(node.capabilities.map(c => c.attrs.sandbox ?? '미제공'))].join(', ')}`, { fill: '#98A4B3', 'font-size': 11 });
-      label(group, 15, 128, owner ? shorten(`작업 제출자 · ${owner.submitter}`, 28) : facts.expiring ? '광고 만료 임박 · 상세 확인' : '현재 임대 없음', { fill: '#98A4B3', 'font-size': 11 });
+      wrapLabel(node.label || node.node_id).forEach((line, i) => label(group, 30, 30 + i * 18, line, { 'font-weight': 600, class: 'node-name' }));
+      label(group, 15, 76, facts.label, { fill: color });
+      label(group, 15, 102, wrapLabel(node.capabilities.map(c => c.capability).join(' · '), 36, 1)[0], { fill: '#98A4B3', 'font-size': 11 });
+      label(group, 15, 128, wrapLabel(`sandbox: ${[...new Set(node.capabilities.map(c => c.attrs.sandbox ?? '미제공'))].join(', ')}`, 36, 1)[0], { fill: '#98A4B3', 'font-size': 11 });
+      label(group, 15, 154, owner ? wrapLabel(`작업 제출자 · ${owner.submitter}`, 36, 1)[0] : facts.expiring ? '광고 만료 임박 · 상세 확인' : '현재 임대 없음', { fill: '#98A4B3', 'font-size': 11 });
     }
     root.append(group);
   });

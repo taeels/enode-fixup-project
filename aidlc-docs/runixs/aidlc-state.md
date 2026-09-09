@@ -9,11 +9,11 @@
 
 **UI 가독성 후속 작업**: `UI-update` 체크아웃의 `unit/runixs-ui-readability`
 (`a5d62cf` 기준)에서 휠 확대·축소, 작업 그래프 구분·함대 복귀, 현재 임대의
-제출자 표시, 기능별 정보 카드·읽기 쉬운 시각을 구현했다. Node 51·브라우저
-45개 단언·Go UI 98.4%·vet·glyphscan·Mediator 빌드를 확인했다.
+제출자 표시, 기능별 정보 카드·읽기 쉬운 시각을 구현했다. 긴 노드 이름의 겹침
+피드백으로 함대 간격과 두 줄 표시도 보완했다. Node 52·브라우저 45개 단언·12가지 배치·Go UI 98.4%·vet·glyphscan·Mediator 빌드를 확인했다.
 [변경·검증 기록](construction/ui/code/ui-readability.md),
 [보완 계획](construction/plans/ui-readability-plan.md). 공식 Code Generation과
-기존 공동 장면 보류는 유지한다. 배포·push·PR·병합은 실행하지 않았다.
+기존 공동 장면 보류는 유지한다. 사용자 지시로 미리보기 재개·커밋·PR 제출을 진행한다. 배포·병합은 별도다.
 
 **로컬 실행 상태: 중지.** 사용자 지시로 실행 장소를 다른 호스트로 옮긴다.
 이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.

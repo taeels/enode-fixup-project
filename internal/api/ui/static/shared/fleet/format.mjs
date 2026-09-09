@@ -51,3 +51,21 @@ export function attributeValue(key, value) {
 }
 export const technicalAttribute = key => ['ws', 'greet'].includes(key);
 export const drainDescription = value => ({ '': '새 작업 수락 중', graceful: '현재 작업 완료 후 회수 (graceful)', 'at-boundary': '현재 단계 완료 후 회수 (at-boundary)' })[value] || value;
+
+// SVG의 고정 폭 영역 안에서 한글 등 전각 문자를 두 칸으로 계산한다.
+export function wrapLabel(value, columns = 30, maxLines = 2) {
+  const lines = ['']; let used = 0;
+  const units = char => char.codePointAt(0) <= 127 ? 1 : 2;
+  for (const char of value.replace(/\s+/g, ' ').trim()) {
+    if (used + units(char) > columns) {
+      if (lines.length === maxLines) {
+        const last = [...lines.pop()];
+        while (used > columns - 2) used -= units(last.pop());
+        lines.push(last.join('') + '…'); return lines;
+      }
+      lines.push(''); used = 0;
+    }
+    lines[lines.length - 1] += char; used += units(char);
+  }
+  return lines;
+}
