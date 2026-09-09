@@ -114,8 +114,24 @@ Codex는 AGENTS.md에서 vendored AI-DLC v1.0.1 정본을 읽는다. 별도 스�
 남아 있다. 현재 작업 위치는 이 파일과 승인된 코드 계획을 따른다.
 팀원의 demo pen D1~D5와 `3d-view@8985694`의 선별 재사용은 이미 UI에 반영했다.
 
-영상·캐릭터 시트 작업은 사용자의 요청으로 **보류**했다. 미추적 영상 산출물과
-별도 계획·이미지는 보존하며 UI/demo-back 커밋에 포함하지 않는다.
+## 영상 제작 지원
+
+2026-09-09 DDTHON 캐릭터 시트 9종과 고정 참조를 만들고, 첫 15초·요청 및 승인
+15초·실제 웹 UI 설명 30초를 연결해 60초 영상을 완성했다.
+[영상 문서 인덱스](construction/video/README.md),
+[제작 요약](construction/video/code/implementation-summary.md),
+[출력·검증](construction/video/code/build-and-test.md)에 최신 기준을 정리했다.
+
+첫 15초와 회사 메신저 폰 합성본은 사용자가 채택했다. 탭 위치의 작은 차이도
+수용했다. 후반은 가상 노드 5개로 승인 후 Mediator 전달, 해당 장치의 enode 수신,
+Claude Code 실행, 고정된 sandbox 안 작업과 결과 반환을 보여준다.
+720p·24fps·60/15/30초와 전체 영상·음성 디코딩, UI 캡처 오류 0,
+TypeScript·ESLint를 확인했다. 한국어 대사는 자동 전사로 확인했으며 원어민
+청취 검증이나 실제 S2 실행·격리 검증으로 기록하지 않는다.
+
+사용자의 문서화·커밋 지시에 따라 영상 기록만 담당 AI-DLC 문서로 관리한다.
+원본·MP4·PNG·ZIP·제작 코드·dist는 로컬에 그대로 보존한다.
+기존 제품 유닛 단계와 공동 CP10 상태는 이 영상 완료로 변경하지 않는다.
 
 ## Extension Configuration
 
