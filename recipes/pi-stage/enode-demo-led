@@ -1,0 +1,23 @@
+#!/bin/sh
+set -eu
+
+# 기존 데모 계약의 명령을 SSH로 연결된 온보드 LED에 연결한다.
+action=${1:-status}
+seconds=10
+case "$action" in
+    heartbeat)
+        if [ "$#" -gt 1 ]; then
+            [ "$#" -eq 3 ] && [ "$2" = --seconds ] || exit 2
+            seconds=$3
+        fi
+        ;;
+    on|off|restore|status) [ "$#" -le 1 ] || exit 2 ;;
+    *) echo 'Usage: enode-demo-led heartbeat [--seconds 1..60] | on | off | restore | status' >&2; exit 2 ;;
+esac
+case "$seconds" in ''|*[!0-9]*) exit 2 ;; esac
+[ "$seconds" -ge 1 ] && [ "$seconds" -le 60 ] || exit 2
+recipe_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec ssh -T -o BatchMode=yes -o ConnectTimeout=5 \
+    -o ServerAliveInterval=5 -o ServerAliveCountMax=2 \
+    "${PI_TARGET:-sunny@sunnypi.local}" sh -s -- "$action" "$seconds" \
+    < "$recipe_dir/led-device.sh"

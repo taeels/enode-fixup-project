@@ -1822,3 +1822,177 @@ MERGEABLE이며 head는 `d09d71e`다. 계획의 PR 제출 단계를 완료 처�
 **Timestamp**: 2026-09-09T07:17:15.601669+00:00
 
 **Decision**: origin/main bc6476b까지 rebase하고 작성자 runixs92@gmail.com으로 브랜치를 push해 PR #26(https://github.com/taeels/enode-fixup-project/pull/26)을 제출했다. OPEN·MERGEABLE이며 제출 당시 CI는 진행 중이다. 코드 5472651을 Mac mini의 독립 경로에서 빌드한 뒤 관리 중인 Mediator를 교체·재시작했다. 새 PID 69797, 기존 터널 PID 70718, 백업 backup-server-update-20260909T071703Z다. 설정·DB·VM·공개 주소를 보존했다. 운영 추가 검사는 사용자 지시대로 생략했다. 담당 계획을 완료 처리하고 실제 결과를 state·구현 기록에 남겼다. 공동 CP6/CP10과 main 미병합 상태는 별도로 유지한다.
+
+## LED 연결 운영 보완 요청
+
+**Timestamp**: 2026-09-09T07:31:31Z
+
+**User Input**:
+
+```text
+지금 우리 MacMini에서 뜨고있는  mediator에서 led 테스트가 안되고 있어. 내가 이 PC로 LED를 컨트롤할 수 있는 raspberrypi를 랜선으로 붙였으니까 여기서 led용 runctl을 붙이고 컨트롤하게 해줘. 빨리 !!빨리 테스트 다 건너뛰고 되게 해 무조건 너가 ssh로 macMini에 있는 서버까지 확인해가면서 테스트해
+```
+
+**User Input**:
+
+```text
+ssh sunny 이게 라즈베리파이 계정이고, 레시피는 너도 어딧는지 알거야.
+```
+
+**Decision**: 기존 승인 상태를 복원하고 즉시 운영 보완한다. 전체 테스트는 생략하고 실제 LED 연결만 검증한다. Mac mini mediator PID 73084·127.0.0.1:8080 리슨과 공개 함대를 확인했다. device=led 광고 노드가 없고 기존 온보드 레시피를 실행할 POSIX 명령도 이 Mac에 없다. sunnypi.local은 en7의 Pi에 도달하지만 기본 키와 기존 ED25519 키 모두 인증 거절이다. SSH 키 등록을 요청하고 독립적으로 실행 노드·명령 준비를 진행한다. 비활성 resiliency/property-based-testing 확장은 상속하며 CP10을 통과로 바꾸지 않는다.
+
+## 팀원 디버깅 힌트 수신
+
+**Timestamp**: 2026-09-09T07:35:00Z
+
+**User Input**:
+
+```text
+팀원이 알아낸 디버깅 힌트야. 
+
+
+mediator 기록을 직접 뒤져봤다. 배선은 멀쩡하고, 시나리오 계약의 requires 가 실제 함대에 없는 속성을 부른다. 두 시나리오 다 매칭 단계에서 422 로 거절되고 있다.
+
+기록이 말하는 것
+
+demo front 로 낸 run 은 전부 created_at == ended_at 인 즉시 FAILED 다. 배정도 없고 스텝도 안 돈다.
+
+led-toggle    reject 422  as=board  "need 1, fleet has 0 - agent.reason device=led"
+welcome-audio reject 422  as=voice  "eason harness=claude tts=higgsfield"
+
+submitter 는 다정한 불씨 · 차분한 단풍 으로 제대로 실려 있다. 즉 Guest 이름 · /v1/demo/runs · 토큰 대리 ·
+이름 주입은 다 지나갔고, 매처에서 죽
+
+함대가 실제로 광고하는 것
+
+GET /v1/capabilities 에 device 라는 키 자체가 없다. tts 는 higgsfield 가 아니라 say-macos 다.
+
+보드  nacl1119@DESKTOP-5DRAFHN   board=rpi2b-v1.1  audio_playback=true
+                                 led_green=true  led_red=true  os=windows
+음성  thstls110534@MacBook-Pro   service=tts  tts=say-macos
+                                 tts_typecast=yes  voice_typecast=Sanghyun
+
+같은 시각에 runctl 로 낸 demo-rehearsal-162702 는 RUNNING 으로 잘 돌고 있고, 그쪽 requires 는 이렇다 — 말씀하신 「이름 없이 내면 되던」 경로가 이것이다.
+
+tts    service=tts  tts_typecast=yes
+board  audio_playback=true  board=rpi2b-v1.1
+
+어디를 고쳐야 하나
+
+internal/contract/examples/demo-led-toggle.json 과 demo-welcome-audio.json 두 장이다. internal/api/demo.go 는 손댈 곳이 없다. 이 두 예제는 recipes/greet-play/greet-play-pi.json 이 실측으로
+확정한 값을 안 따라가고 별도로 지어졌
+
+requires 말고 steps 도 같이 어긋나 있어서, 매칭만 고쳐도 다음 줄에서 또 죽는다.
+
+   enode-demo-led        저장소 어디에도 없는 명령이다
+   enode-demo-play       마찬가지.  실제 경로는 pi-stage 의 두 스크립트다
+   sh -c                 보드 노드는 os=windows 다.  greet-play 는 powershell 로 낸다
+   agent + higgsfield    실제 음성 경로는 run 스텝의 bin/tts-typecast.sh 다
+
+정리하면 두 시나리오를 이렇게 옮겨야 한다.
+
+   welcome-audio   greet-play-pi.json 을 그대로.  __TEXT__ 자리에
+                   "{{submitter}}님  tDemoWelcome 재작성)
+   led-toggle      board=rpi2b-v1.1 로 매칭하고, 스텝은 powershell 로
+                   recipes/pi-stage/Set-RpiLed.ps1 의 Blink · On 을 부른다
+
+LED 쪽은 커밋 9449376 이 GPIO 17 · 27 에 LED 가 없다고 실측으로 못박아 뒀으니, 온보드 ACT · PWR 을 쓰는 Set-RpiLed.ps1 경로가 유일하게 서 있는 길이다.
+
+두 예제 파일을 greet-play 기준으로 다시 쓸까? 낼 브랜치 이름만 정해주면 바로 들어간다.
+```
+
+**Decision**: 직접 서버에서 확인한 device=led 불일치와 일치한다. 사용자가 Pi를 이 Mac에 연결했으므로 Windows 계약으로 변경하는 대신 이 Mac의 POSIX SSH 명령과 실제 LED 광고를 제공한다. 음성 불일치는 본 요청 밖으로 남긴다.
+
+## Pi 인증과 실제 LED 연결 완료
+
+**Timestamp**: 2026-09-09T07:39:10Z
+
+**User Input**: "라즈베리파이 비밀번호 이거야. [REDACTED]"
+
+비밀번호는 보안 규칙에 따라 원문 기록에서 제외했다. 제공된 인증으로
+ssh-copy-id를 실행하여 기존 Mac 공개키 한 개를 추가했고 비밀번호는 파일에 저장하지 않았다.
+
+**User Input** (동일 입력 3회): "점멸되고있어."
+
+**Decision**: Pi SSH·gpio 쓰기 권한 확인 후 LED 노드 85ccc712ee24를 기동했다.
+실제 runctl Run led-bridge-20260909-0736의 heartbeat·persistent 모두 SUCCEEDED,
+Mac mini SSH에서 동일 결과·산출물 네 조건 성공을 확인했다. Pi 두 LED는
+trigger=none brightness=255이며 사용자가 점멸을 확인했다. 공개 API 제출
+demo-f9929b15a7ac3f1ca317262c7fddbcaab70469a6ccf776251aefb86ef54861f1도
+QUEUED에서 승격 후 두 단계 모두 SUCCEEDED다. 이 Mac의 LaunchAgents가
+SSH 터널·노드를 자동 재시작한다. 기존 mediator·계약은 수정하지 않았다.
+전체 테스트·DB 게이트는 사용자 지시로 생략했고 공동 CP10은 유지한다.
+
+## LED 연결 PR 제출 요청
+
+**Timestamp**: 2026-09-09T07:41:09Z
+
+**User Input**: "PR올려줘."
+
+**Decision**: origin/main을 fetch하고 현재 브랜치가 최신 main을 포함함을 확인했다.
+LED 명령·레시피 안내·담당 운영 기록 7개 파일을 main 대상으로 PR 제출한다.
+전체 테스트 생략 지시를 유지하고 실제 runctl·공개 제출 성공을 검증 근거로 적는다.
+PR 제출은 공동 CP10 승인이나 main 병합으로 간주하지 않는다.
+
+## 공개 음성 시나리오 즉시 실패 진단
+
+**Timestamp**: 2026-09-09T07:42:35Z
+
+**User Input**: "이제 음성쪽 wire를 확인해야되는데 새 작업으로 사운드재생 눌렀는데 바로 실패했거든?? 왜 그런지 확인해줘.  빨리 !!"
+
+**Decision**: Mac mini SSH 조회에서 16:41:19·16:41:26 공개 Run이 생성과 동시에
+FAILED, assigned=[]임을 확인했다. 현재 음성 계약의 dry-run도
+`422 need 1, fleet has 0 - agent.reason harness=claude tts=higgsfield`를 재현했다.
+실제 음성 노드는 service=tts·tts_typecast=yes·tts=say-macos이며,
+device=speaker 광고도 없다. 이 Mac에는 운영 PATH의 enode-demo-play도 없다.
+별도 수동 Run fx-play-mac-164046은 service=tts/tts_typecast=yes와
+board=rpi2b-v1.1/device=led로 배정되어 synthesize·play 모두 SUCCEEDED였다.
+즉 공개 계약이 실제 동작 경로와 불일치한다. 진단 요청에 따라 운영 설정·코드는
+변경하지 않았고 음성의 물리적 청취 성공은 주장하지 않는다.
+
+## 음성 연결 수정·PR 지시
+
+**Timestamp**: 2026-09-09T07:46:01Z
+
+**User Input**: "빨리 고쳐서 PR올려 !!!"
+
+**Decision**: 기존 PR #28을 LED·음성 연결 범위로 갱신한다. 공개 계약의 음성
+요구를 실제 service=tts·tts_typecast=yes로, 보드는 board=rpi2b-v1.1·
+audio_playback=true·os=darwin으로 바꾼다. agent/name 주입 계약을 유지하고
+프롬프트는 실제 bin/tts-typecast.sh를 사용하도록 수정한다. PR #29의 재생
+명령을 운영 PATH에 설치했으며 별도 소스 복제를 만들지 않는다. 이 Mac의
+오디오 광고는 재생기·card1 존재 확인 후 기동한다. 진행 중 수동 Run을 보존하고
+완료 후 노드를 재시작한다. 전체 테스트는 생략하고 Mac mini 빌드·실행만 검증한다.
+
+## 서버 우선 반영·전체 PR 병합·PR 30 인수
+
+**Timestamp**: 2026-09-09T07:51:35Z
+
+**User Input**: "전부 다 머지 되게 해줘."
+
+**User Input**: "빨리 고쳐서 먼저 반영하고 그 뒤에 쌓인 PR까지 다 올려"
+
+**User Input**: "PR30범도 같이 봐줘. 빨리 먼저 서버에 반영"
+
+**User Input**: "내가 웹에서 직접 사운드 해볼 수 있게 된 상태일 떄 알려줘."
+
+**Decision**: 관련 열린 PR은 #28·#29·#30 세 개다. 운영 우선 지시에 따라
+0253f42를 Mac mini에 반영(PID 80169), 공개 음성 demo-8150200e… 성공을 확인했다.
+이후 #30 12f318c의 직접 SCP/SSH 재생 계약을 검토·빌드·배포(PID 81093)했다.
+공개 demo-b301d99a…도 실제 두 노드에서 합성·재생 모두 SUCCEEDED다.
+사용자에게 웹에서 직접 사운드를 실행할 수 있다고 즉시 알렸다.
+#29·#30은 test/cross/bounded-demo 전체 통과 뒤 순서대로 병합했고,
+main 3c4137a를 현재 브랜치에 인수했다. #28의 겹치는 음성 코드 두 파일은
+#30을 최종안으로 채택해 충돌을 해소했다. 이제 #28에는 LED 레시피·운영 기록만
+main 대비 남는다. 최종 기록을 push하고 #28의 새 CI를 확인해 병합한다.
+
+## 실제 음성 확인과 CI 생략 병합 지시
+
+**Timestamp**: 2026-09-09T07:53:00Z
+
+**User Input**: "좋아 잘 동작하는거 확인했고, PR올리고 CI태우지 말고 싹 다 머지시켜줘."
+
+**Decision**: 사용자가 웹 사운드의 실제 동작을 확인했다. #29·#30은 이미
+병합됐다. #28도 CI 대기 없이 병합하라는 최신 지시를 따른다. 이번 브랜치에서
+이미 시작된 CI는 취소하며 최종 기록·병합 커밋에는 skip ci를 지정한다.
+이는 사용자가 승인한 검사 생략이며 CI 통과나 공동 CP10 전체 승인으로 기록하지 않는다.
