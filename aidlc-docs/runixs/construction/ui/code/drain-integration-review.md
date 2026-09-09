@@ -80,7 +80,7 @@ ignored `local/drain-integration-20260909/`에 보존한다.
 이것은 runixs의 Drain 소비자 통합 증거이며 다른 담당자의 CP4 제어판이나
 LED·음원·방송 CP10 전체 완료를 선언하는 기록은 아니다.
 
-## 현재 실행 환경과 접속
+## 종료 전 실행 환경과 접속
 
 로컬 Mediator·enode·runctl·enodectl을 `166c935b7795` 빌드로 갱신했다.
 기존 DB·토큰·node_id를 유지했다. 이전 rc1 바이너리는 로컬 백업에 보존했다.
@@ -112,3 +112,15 @@ security-baseline의 이번 적용 범위는 충족했다. 고정 상대 리다�
 데이터 저장·의존성·공개 송신 대상은 없어 해당 신규 통제는 N/A다.
 배포·TLS는 기존 승인된 로컬 데모 범위를 유지한다. resiliency-baseline과
 property-based-testing은 상속된 비활성 선택을 유지한다.
+
+## 사용자 지시에 따른 로컬 종료
+
+2026-09-09 사용자가 Mediator·서버를 다른 호스트에서 띄우기로 해 이 PC의
+rc1-runtime Mediator·enode를 정상 종료했다. 이전 3d-view의 임시 Mediator,
+노드 6개와 제어판 6개·serve 래퍼도 종료했다. repo 전용 PostgreSQL(57567)은
+pg_ctl fast stop으로 중지했다. 8080·18080~18086·18092·18093·57567의 닫힘과
+mediator/enode/enodectl 프로세스 없음으로 확인했다.
+
+설정·토큰·DB 데이터·로그·빌드 파일은 보존했다. 작업 전에 있던 공용 Homebrew
+PostgreSQL(5432)과 다른 애플리케이션 서비스는 유지했다. 위 LAN 주소는 현재
+접속 대상이 아니다. 코드와 인수 기록의 94dfc02 CI test·cross는 모두 통과했다.

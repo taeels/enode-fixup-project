@@ -7,6 +7,10 @@
 
 ## 현재 기준 — 2026-09-09
 
+**로컬 실행 상태: 중지.** 사용자 지시로 실행 장소를 다른 호스트로 옮긴다.
+이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.
+아래 LAN·Drain 결과는 종료 전 검증 기록이다. 설정·DB 데이터·로그는 보존했다.
+
 `unit/runixs-ui`는 Drain PR #7이 병합된 `origin/main@50af6cf` 위에 있다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의

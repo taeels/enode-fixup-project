@@ -924,3 +924,17 @@ http://172.24.82.142:8080 안들어가지는데?? 404 에러떠
 같은 Mac의 LAN 기본 주소는 302 /ui/, UI 세 경로와 읽기 API는 200이다. macOS 방화벽의 기존 Mediator 인바운드 허용도 확인했다. 다른 기기의 URL·오류·IP 답변은 아직 없어 원격 접속 성공으로 선언하지 않는다. 코드 커밋은 지정 이메일로 push했고 후속 Draft PR #8을 열었다. 담당 상태와 계획의 PR #6 Draft 문구를 실제 병합 상태로 정정하고 본 인수 결과를 같은 PR에 반영한다. 기존 rc1 배포 자산·영상 세션 작업은 보존한다. 실제 LED·음원·방송 CP10은 미확인으로 유지하며 공식 단계는 Code Generation이다.
 
 ---
+
+## 다른 호스트 실행으로 로컬 환경 종료
+
+**Timestamp (기록 시각)**: 2026-09-09T02:47:20.761476+00:00
+
+**User Input**:
+
+```text
+지금 mediator와 서버를 다른곳에서 띄울꺼니까 이 pc에서 한건 다 내려줘.
+```
+
+**AI Response**: 실행 장소를 옮기는 지시에 따라 local/rc1-runtime의 enodectl stop과 Mediator SIGTERM으로 현재 환경을 종료했다. 추가 조사에서 이전 3d-view의 /tmp/enode-impl-demo Mediator, 6개 노드와 6개 제어판·serve 래퍼가 남아 있어 경로와 PID를 대조해 정상 종료했다. 전용 테스트 PostgreSQL 57567도 pg_ctl fast stop으로 중지했다. 8080·18080~18086·18092·18093·57567 포트 닫힘과 mediator/enode/enodectl 프로세스 없음으로 검증했다. 설정·토큰·DB 데이터·로그·빌드 파일은 보존하고 기존 공용 Homebrew PostgreSQL 5432와 다른 앱 서비스는 유지했다. 담당 상태와 실행 기록을 중지 상태로 갱신한다. 종료 전 코드·인수 기록 94dfc02의 GitHub CI test·cross는 모두 통과했고 이후 변경은 종료 상태 문서뿐이다.
+
+---
