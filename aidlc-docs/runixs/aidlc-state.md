@@ -1,6 +1,7 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → 갤러리 확장 Build and Test 완료·Mac mini 운영 적용.
+**현재 공식 단계**: CONSTRUCTION → DDTHON 내부 댓글 탐색 보완 Build and Test 완료·Mac mini 운영 적용.
+앞선 갤러리 확장은 검증·Mac mini 운영 적용·PR #14 병합을 완료했다.
 기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
 담당 FD와 UI 11단계·demo-back 7단계 계획은 2026-09-08T20:11:36Z
@@ -15,7 +16,7 @@
 [변경·검증 기록](construction/ui/code/ui-readability.md),
 [보완 계획](construction/plans/ui-readability-plan.md). 공식 Code Generation과
 기존 공동 장면 보류는 유지한다. 사용자 지시로 미리보기를 재개하고 코드 510c6a6·0b422a7을 push했다.
-[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)은 main에 병합됐고 이번 rebase로 인수했다. 운영 배포 전이다.
+[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)은 main에 병합됐고 이번 rebase로 인수했다. Mac mini Mediator `1b5d8aa`에 운영 적용했다.
 
 **로컬 실행 상태: 중지.** 사용자 지시로 실행 장소를 다른 호스트로 옮긴다.
 이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.
@@ -59,7 +60,7 @@ Run과 댓글 한 개로 완료됐으며 외부 URL 요청은 도구 호출 없�
 바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).
 실패한 다른 PC의 재시작 후 등록 성공은 아직 미확인이다.
 
-`unit/runixs-ui`는 `origin/main@16ef08c`로 rebase했고 [PR #14](https://github.com/taeels/enode-fixup-project/pull/14)로 검토한다. transcript·UI 가독성·greet-play 예제를 인수했다. 운영 Mediator는 입력칸 안내까지 포함한 `b01274b`, VM enode는 `56f2f99`이며 이번 rebase의 추가 main 변경은 아직 운영에 배포하지 않았다. 아래는 앞선 Drain 인수 기록이다.
+[PR #14](https://github.com/taeels/enode-fixup-project/pull/14)는 모든 CI 통과 후 main `50899b0`에 병합됐다. 후속 `unit/runixs-gallery-navigation`에서 DDTHON 내부 댓글/작성 팀 탐색의 과잉 거절을 수정한다. 후속 [PR #17](https://github.com/taeels/enode-fixup-project/pull/17)로 검토한다. 운영 Mediator `1b5d8aa`와 VM Python 코드에 적용했고 VM enode 바이너리는 `56f2f99`다. 실제 Bedrock은 Runaway 댓글에서 MindCraft를 찾아 AI 표시가 있는 응원 초안을 만들었으며, 공개 UI 조회도 answered로 완료했다. 아래는 앞선 Drain 인수 기록이다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
 404를 `/ui/` 리다이렉트로 보완해 push했다. 실제 Mac 노드의 at-boundary·graceful,
@@ -84,7 +85,7 @@ UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도
 | UI 1~8 | 실 함대 관측, D1/D2/D5, 2D/3D, 투어, 제출 의도·재시도, 웹캠 조작 | 공동 실제 장면은 9~10에서 확인 |
 | 갤러리 확장 | 프롬프트 한 번·AI 팀 탐색·실제 댓글 게시·거절/되묻기, main 통합·Mac mini 적용·공개 인수 | 공동 CP6/CP10은 별도 |
 | UI 개선 | 웹캠 닫기·복원, 한글 두 단어 이름, 상세·모달·투어의 바깥 조작 닫기 | 구현·로컬 검증 완료 |
-| UI 가독성 보완 | 휠 확대·축소, 단계 그래프·함대 복귀, 임대 제출자, 기능별 상세·한국어 시각 | 구현·로컬 검증 완료, 배포 전 |
+| UI 가독성 보완 | 휠 확대·축소, 단계 그래프·함대 복귀, 임대 제출자, 기능별 상세·한국어 시각 | 구현·검증·Mac mini 배포 완료 |
 | UI 9 | queue·sandbox 출처, c7a237d 두 시나리오의 실제 POST/GET·이름·3D 연결 | 실제 장비 광고·동작, 공개 방송 주소 |
 | UI 10~11 | 독립 검사·PR #6/#8 병합·실제 Drain 관측과 queue 인수 | 공동 CP 장면과 전체 생성 결과 리뷰 |
 | demo-back 1~5 | obs·queue·실제 fixture 인수, 공개 라우트·검증·한도·재시도·DB/UI 연결 | 구현·로컬 검증 완료 |

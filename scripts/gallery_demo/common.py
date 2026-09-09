@@ -68,6 +68,25 @@ class Gallery:
     def comments(self, selected):
         return self._call('/api/projects/' + project_id(selected) + '/comments')
 
+    def project_comments(self, selected, offset=0, limit=40):
+        selected = project_id(selected)
+        if type(offset) is not int or not 0 <= offset <= 2000 or type(limit) is not int or not 1 <= limit <= 50:
+            raise ValueError('invalid comment page')
+        data = self.comments(selected)
+        rows = data.get('comments')
+        if not isinstance(rows, list) or len(rows) > 2000 or any(not isinstance(c, dict) for c in rows):
+            raise ValueError('invalid comments')
+        rows = [c for c in rows if not c.get('deleted')]
+        comments = []
+        for row in rows[offset:offset + limit]:
+            # Public discussion evidence only: never relay account/session fields.
+            comment = {key: str(row.get(key) or '')[:4000 if key == 'body' else 300]
+                       for key in ('id', 'teamName', 'body', 'parentId', 'createdAt')}
+            comment['body_truncated'] = len(str(row.get('body') or '')) > 4000
+            comments.append(comment)
+        return {'project_id': selected, 'comments': comments, 'total': len(rows), 'offset': offset,
+                'next_offset': offset + limit if offset + limit < len(rows) else None}
+
     def post(self, selected, body):
         return self._call('/api/projects/' + project_id(selected) + '/comments', {'body': comment_body(body)})
 

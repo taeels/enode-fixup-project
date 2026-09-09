@@ -41,7 +41,7 @@ export class GalleryDialog {
     const transcript = element('ol', 'gallery-transcript'); transcript.setAttribute('aria-label', '실제 실행 대화 기록');
     const events = [...(s.result?.transcript || [{ role: 'user', text: s.intent.prompt }]), ...(s.publication?.result?.transcript || [])];
     const roles = { user: '나', assistant: 'Claude', tool: '작업', system: '진행 상황' };
-    const tools = { list_projects: '참가팀 확인', get_project: '프로젝트 읽기', post_comment: '댓글 게시', post_confirmed_comment: '댓글 게시' };
+    const tools = { list_projects: '참가팀 확인', get_project: '프로젝트 읽기', get_comments: '댓글 읽기', post_comment: '댓글 게시', post_confirmed_comment: '댓글 게시' };
     for (const event of events) { const item = element('li', `gallery-event gallery-${event.role}`); item.append(element('strong', '', event.tool ? tools[event.tool] || roles[event.role] : roles[event.role] || '진행 상황'), element('p', '', event.text)); transcript.append(item); }
     this.content.append(transcript);
     if (s.phase === 'posted') {
@@ -54,7 +54,7 @@ export class GalleryDialog {
     }
     if (s.phase === 'needs_project') this.content.append(this.composer(true));
     if (s.phase === 'uncertain') this.content.append(button('다시 연결', 'gallery-retry-button', () => this.gallery.retry(), 'primary'));
-    if (['refused', 'draft_ready', 'posted', 'error'].includes(s.phase)) this.content.append(button('새 메시지', 'gallery-reset-button', () => this.gallery.reset(), 'gallery-reset'));
+    if (['refused', 'draft_ready', 'answered', 'posted', 'error'].includes(s.phase)) this.content.append(button('새 메시지', 'gallery-reset-button', () => this.gallery.reset(), 'gallery-reset'));
   }
   destroy() { this.dialog.remove(); }
 }

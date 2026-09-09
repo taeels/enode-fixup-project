@@ -400,7 +400,7 @@ func (h *galleryHandler) artifact(run *store.Run) (*galleryResult, error) {
 		return nil, errors.New("invalid result")
 	}
 	switch result.Outcome {
-	case "refused", "needs_project", "draft_ready", "posted", "error":
+	case "refused", "needs_project", "draft_ready", "answered", "posted", "error":
 	default:
 		return nil, errors.New("invalid outcome")
 	}
@@ -408,7 +408,7 @@ func (h *galleryHandler) artifact(run *store.Run) (*galleryResult, error) {
 		return nil, errors.New("invalid transcript")
 	}
 	for _, event := range result.Transcript {
-		if (event.Role != "user" && event.Role != "assistant" && event.Role != "system" && event.Role != "tool") || !galleryText(event.Text, 3000) || (event.Tool != "" && event.Tool != "list_projects" && event.Tool != "get_project" && event.Tool != "post_comment" && event.Tool != "post_confirmed_comment") {
+		if (event.Role != "user" && event.Role != "assistant" && event.Role != "system" && event.Role != "tool") || !galleryText(event.Text, 3000) || (event.Tool != "" && event.Tool != "list_projects" && event.Tool != "get_project" && event.Tool != "get_comments" && event.Tool != "post_comment" && event.Tool != "post_confirmed_comment") {
 			return nil, errors.New("invalid event")
 		}
 	}

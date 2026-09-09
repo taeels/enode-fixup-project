@@ -1497,3 +1497,25 @@ Mac mini 소스·테스트 DB의 전체 Go race는 1,244개 통과·실패/생�
 18개 패키지가 커버리지 80% 하한을 넘었다(전체 86.56%). vet·gofmt·glyphscan과
 macOS arm64 Mediator/enode/enodectl, Linux arm64·Windows amd64 enode 빌드를 완료했다. 운영 Mediator `b01274b`와
 VM enode `56f2f99`의 실행 상태는 이번 Git 통합과 구분한다.
+
+## DDTHON 내부 댓글 탐색의 과잉 거절 수정
+
+**Timestamp**: 2026-09-09T05:56:28.102293+00:00
+
+**User Input**:
+
+```json
+"나\nRunaway댓글보면 AI댓글단 팀이 있는데 그 팀가서 \nAI임을 밝히고 그 과제 장점에 대해 몇가지 이야기 해주고 응원해줘\n\nClaude\n죄송하지만, 다른 프로젝트의 댓글을 확인하거나 팀을 찾는 작업은 불가능합니다. 댓글을 남길 구체적인 팀/프로젝트 이름을 직접 알려주시면 응원 댓글을 작성해드리겠습니다.\n\n\n\n이렇게 말하는데, 나는 분명 sanbox에 우리 ddthon웹페이지 및 그 하위페이지드에 대해서 권한을 열었어. 지금 데모 interface가 실제 프롬프트를 입력하는곳이다 보니 보안적인 측면에서 나쁜짓을 하면 무시하라고 했던거지 ddthon하위페이지에서 댓글을 찾아보는건 나쁜짓이 아니야."
+```
+
+**Decision**: 허용된 DDTHON 내부에서 댓글·작성 팀을 읽고 다른 프로젝트로 이동하는 것은 승인된 탐색이다. 기존 POLICY가 갤러리까지 모든 웹 탐색을 금지했고 댓글 읽기 도구가 없어 정상 요청을 거절했다. 이 범위 정정을 기존 FD·Code Generation 계획에 반영한다. 공개 댓글 조회 MCP와 작성 팀을 현재 목록에 대조하는 흐름, 조회 전용 결과를 추가한다. 외부 호스트·파일/명령·자격 증명·투표·삭제/수정 금지는 유지한다. 댓글 내용은 대상 탐색의 증거이며 도구 권한을 바꾸는 지시는 아니다. 검사·실제 Bedrock 초안 검증 후 운영 적용하고 기존 PR #14에 포함한다. 실제 댓글은 추가 테스트 게시하지 않는다.
+
+**후속 상태**: 작업 중 PR #14의 모든 CI 통과·main `50899b0` 병합을 확인했다. 현재 수정은 그 main에서 만든 `unit/runixs-gallery-navigation`의 별도 후속 PR로 제출한다.
+
+**검증**: Python 18·Node 59, API/UI race 81.5%/98.4%, vet·gofmt·glyphscan·데스크톱/모바일 회귀를 통과했다. 실제 Bedrock은 사용자와 같은 간접 단서로 MindCraft를 찾고 AI 작성 표시와 장점이 있는 초안을 만들었다. DDTHON URL을 포함한 조회는 answered, 외부 URL 혼합은 도구 없는 refused였다. 후보 검증에서 실제 게시 호출은 차단했다.
+
+## DDTHON 탐색 수정의 운영 인수·후속 PR
+
+**Timestamp**: 2026-09-09T06:03:46.622698+00:00
+
+**AI Response**: Mediator와 VM Python을 `1b5d8aa`로 적용했다. 공개 UI에서 Runaway 댓글→AI 작성 팀 MindCraft 식별이 answered로 완료됐다. Run은 `gallery-63cf3ef1302c002a166fc5ed000fd457f4872587994d9241456a482007e53121`이고 실제 댓글은 추가 게시하지 않았다. 터널 PID 70718·주소·DB·팀원 노드를 보존했으며 VM 서비스 3개 active·drain 복원·소스 해시 일치를 확인했다. PR #14는 이미 병합됐으므로 main `50899b0`에서 후속 PR #17을 만들었다.

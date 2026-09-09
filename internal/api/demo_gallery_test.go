@@ -191,6 +191,23 @@ func TestGallery_RefusalCannotPublishAndUnsafeArtifactRejected(t *testing.T) {
 	}
 }
 
+func TestGallery_PublicCommentReadIsVisibleButCannotPublish(t *testing.T) {
+	h := galleryTestHandler(t)
+	id := "gallery-" + strings.Repeat("9", 64)
+	galleryFixture(t, h, id, galleryResult{Outcome: "answered", Message: "댓글 작성 팀을 확인했습니다.",
+		ProjectID: "project-1", Transcript: []galleryEvent{
+			{Role: "tool", Tool: "list_projects", Text: "목록 조회 완료"},
+			{Role: "tool", Tool: "get_comments", Text: "댓글 조회 완료"},
+			{Role: "assistant", Text: "다른 팀이 남긴 댓글입니다."},
+		}})
+	w := galleryCall(h.result, "GET", "/v1/demo/gallery/runs/"+id, "", galleryProof)
+	demoTestStatus(t, w, 200)
+	if !strings.Contains(w.Body.String(), `"tool":"get_comments"`) || !strings.Contains(w.Body.String(), `"outcome":"answered"`) {
+		t.Fatal("public discussion result missing", w.Body.String())
+	}
+	demoTestStatus(t, galleryCall(h.publish, "POST", "/v1/demo/gallery/runs/"+id+"/publish", `{"request_id":"`+galleryProof+`","body":"댓글"}`, ""), 409)
+}
+
 type galleryTransport func(*http.Request) (*http.Response, error)
 
 func (f galleryTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
