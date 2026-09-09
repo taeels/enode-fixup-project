@@ -19,7 +19,7 @@ for (const [id, nm] of Object.entries(boards)) {
   const missing = (need[nm]||[]).filter(x => !names.has(x))
   Print(nm, "buttons missing:", missing.length ? missing.join(",") : "none")
 }
-bad = /[*_~`#]{2}|[★☆※◆■▶►✔✓]/
+bad = /[*_~`#]{2}|[\u2605\u2606\u203B\u25C6\u25A0\u25B6\u25BA\u2714\u2713]/
 badEnum = /\b(SEALED|RESOLVING|ALLOCATING|CREATED)\b/
 for (const [id, nm] of Object.entries(boards)) {
   Print(nm, "decorative:", Get(id, n => n.type==="text" && bad.test(n.content||"") ? 1 : undefined).length,
