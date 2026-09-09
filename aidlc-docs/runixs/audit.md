@@ -1933,3 +1933,33 @@ SSH 터널·노드를 자동 재시작한다. 기존 mediator·계약은 수정�
 LED 명령·레시피 안내·담당 운영 기록 7개 파일을 main 대상으로 PR 제출한다.
 전체 테스트 생략 지시를 유지하고 실제 runctl·공개 제출 성공을 검증 근거로 적는다.
 PR 제출은 공동 CP10 승인이나 main 병합으로 간주하지 않는다.
+
+## 공개 음성 시나리오 즉시 실패 진단
+
+**Timestamp**: 2026-09-09T07:42:35Z
+
+**User Input**: "이제 음성쪽 wire를 확인해야되는데 새 작업으로 사운드재생 눌렀는데 바로 실패했거든?? 왜 그런지 확인해줘.  빨리 !!"
+
+**Decision**: Mac mini SSH 조회에서 16:41:19·16:41:26 공개 Run이 생성과 동시에
+FAILED, assigned=[]임을 확인했다. 현재 음성 계약의 dry-run도
+`422 need 1, fleet has 0 - agent.reason harness=claude tts=higgsfield`를 재현했다.
+실제 음성 노드는 service=tts·tts_typecast=yes·tts=say-macos이며,
+device=speaker 광고도 없다. 이 Mac에는 운영 PATH의 enode-demo-play도 없다.
+별도 수동 Run fx-play-mac-164046은 service=tts/tts_typecast=yes와
+board=rpi2b-v1.1/device=led로 배정되어 synthesize·play 모두 SUCCEEDED였다.
+즉 공개 계약이 실제 동작 경로와 불일치한다. 진단 요청에 따라 운영 설정·코드는
+변경하지 않았고 음성의 물리적 청취 성공은 주장하지 않는다.
+
+## 음성 연결 수정·PR 지시
+
+**Timestamp**: 2026-09-09T07:46:01Z
+
+**User Input**: "빨리 고쳐서 PR올려 !!!"
+
+**Decision**: 기존 PR #28을 LED·음성 연결 범위로 갱신한다. 공개 계약의 음성
+요구를 실제 service=tts·tts_typecast=yes로, 보드는 board=rpi2b-v1.1·
+audio_playback=true·os=darwin으로 바꾼다. agent/name 주입 계약을 유지하고
+프롬프트는 실제 bin/tts-typecast.sh를 사용하도록 수정한다. PR #29의 재생
+명령을 운영 PATH에 설치했으며 별도 소스 복제를 만들지 않는다. 이 Mac의
+오디오 광고는 재생기·card1 존재 확인 후 기동한다. 진행 중 수동 Run을 보존하고
+완료 후 노드를 재시작한다. 전체 테스트는 생략하고 Mac mini 빌드·실행만 검증한다.
