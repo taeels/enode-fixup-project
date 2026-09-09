@@ -1,6 +1,6 @@
 import { RUN_STATES, nodeFacts, runFlowFacts, observationClock, dependentClock, isStale, matches } from './model.mjs';
 import { fleetScene, runScene } from './scene.mjs';
-import { formatRunId, formatTimestamp, elapsedTime, remainingTime, leaseIdentity, capabilityName, attributeName, attributeValue, technicalAttribute, drainDescription, stepDisplayName } from './format.mjs';
+import { formatRunId, formatTimestamp, elapsedTime, remainingTime, leaseIdentity, capabilityName, attributeName, attributeValue, technicalAttribute, drainDescription } from './format.mjs';
 
 export function element(tag, className, text) {
   const el = document.createElement(tag);
@@ -214,7 +214,7 @@ export class DashboardView {
     const rows = filtered.map(r => {
       const b = button('', `${this.mode}-run-select-button`, () => this.selectRun(r.run_id), 'run-row'); b.dataset.runId = r.run_id; b.setAttribute('aria-pressed', String(this.state.run === r.run_id));
       b.append(runLabel(r.run_id), element('span', `state state-${r.state.toLowerCase().replace(/[^a-z]/g, '')}`, r.state),
-        element('span', 'run-meta', r.submitter || '제출자 미제공'), element('span', 'run-meta', formatTimestamp(r.created_at)), element('span', 'run-meta', r.assigned.length ? r.assigned.map(a => `${stepDisplayName(r.run_id, a.as)}: ${a.nodes.map(n => n.label || n.node).join(', ')}`).join(' / ') : '노드 미배정'));
+        element('span', 'run-meta', r.submitter || '제출자 미제공'), element('span', 'run-meta', formatTimestamp(r.created_at)), element('span', 'run-meta', r.assigned.length ? r.assigned.map(a => `${a.as}: ${a.nodes.map(n => n.label || n.node).join(', ')}`).join(' / ') : '노드 미배정'));
       return b;
     });
     replaceContents(this.runList, rows.length ? rows : [message(runsResource?.data ? '해당하는 작업이 없습니다.' : '작업 목록 미확인')], JSON.stringify([filtered, this.state.run]));
@@ -291,7 +291,7 @@ export class DashboardView {
         if (isStale(this.resources.get('runs'), this.now) || this.resources.get('runs')?.error) pair(list, '제출자 정보', '이전 목록 관측 · 갱신 지연');
         timePair(list, '임대 갱신 기한', node.lease.not_after, `${facts.asked ? '사람 응답 대기 중에는 임대가 만료되지 않습니다.' : remainingTime(node.lease.not_after, leaseNow)}${freeze.length ? ' · 관련 관측 미갱신' : ''}`);
         for (const s of details.get(node.lease.run_id)?.steps || []) if (s.node === node.node_id && s.state === 'CLAIMED') {
-          pair(list, '실행 단계', `${stepDisplayName(node.lease.run_id, s.id)} · 회차 ${s.attempt ?? '미제공'}`); timePair(list, '실행 시작', s.started_at);
+          pair(list, '실행 단계', `${s.id} · 회차 ${s.attempt ?? '미제공'}`); timePair(list, '실행 시작', s.started_at);
         }
         const b = button('사용 중인 작업 보기 →', `${this.mode}-node-run-button`, () => this.selectRun(node.lease.run_id), 'text-link'); b.dataset.nodeId = node.node_id; items.push(b);
       }
@@ -316,7 +316,7 @@ export class DashboardView {
       technical.append(technicalToggle, ids, element('pre', '', JSON.stringify(node, null, 2)));
       items.push(capabilities, freshness, technical);
     } else {
-      items.push(element('h2', '', stepDisplayName(detail.run_id, step.id))); pair(list, '상태', step.state); pair(list, '용도', stepDisplayName(detail.run_id, step.uses)); pair(list, '선행 단계', step.needs.join(', ') || '없음');
+      items.push(element('h2', '', step.id)); pair(list, '상태', step.state); pair(list, '용도', step.uses); pair(list, '선행 단계', step.needs.join(', ') || '없음');
       pair(list, '경로 선택', `${step.chosen ? '선택됨' : '선택 안 됨'}${step.state === 'SKIPPED' ? step.chosen ? ' · 도달하지 못함' : ' · 실행하지 않는 경로' : ''}`);
       pair(list, '실행 노드', nodes.find(n => n.node_id === step.node)?.label || step.node); pair(list, '회차', step.attempt); timePair(list, '시작', step.started_at); timePair(list, '종료', step.ended_at);
       const b = button('이 단계의 노드 보기 →', `${this.mode}-step-node-button`, () => this.selectNode(step.node), 'text-link'); b.disabled = !nodes.some(n => n.node_id === step.node); items.push(b);
