@@ -20,8 +20,10 @@
   - 심볼 상한(enodectl.exe net/http ≤50 · crypto/tls ≤10) 재측정 · 커버리지 80%(internal/panel)
   - [x] ADR-068 닫힘(A · 진행자) — 데몬이 `<stem>.status.yaml` 에 Caps·At 쓰고 제어판이 읽음.
     `decisions.md` §2 「탐지 능력 읽기(ADR-068)」 행 추가
-  - [ ] Functional Design — 계획 제출(`construction/plans/panel-functional-design-plan.md`) ·
-    ADR-068 질문 파일(`construction/panel/functional-design/adr-068-questions.md`) · FD 산출물 작성 중
+  - [ ] Functional Design — 계획·ADR-068(A) 커밋됨(04aa712). FD 산출물 셋 냄
+    (`panel/functional-design/` domain-entities · business-logic-model · business-rules) · 승인 대기
+    - 정본 충돌 기록: proc 추출은 internal/proc(net/http 없음)로 간다 — enode-features 3.1.2 는
+      internal/panel 이라 했으나 그러면 enodectl.exe 심볼 상한(CP4)이 깨진다. 유닛 정본 §5 가 이김
 - [ ] transcript — CP6 · 의존 panel · obs
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)

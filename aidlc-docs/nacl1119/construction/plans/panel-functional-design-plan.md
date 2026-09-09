@@ -106,60 +106,60 @@ ADR-068 답(진행자 · A)이 왔으므로 그 값으로
 
 ### 3.2 domain-entities.md — 제어판이 쓰는 것
 
-- [ ] `panel.Config` — `Node · Listen · MediatorBase · Token · PanelToken`. 겉면 시작 모양(정본 §5)
-- [ ] 화면이 읽는 값 — 신원(node_id · label) · 탐지 능력(Caps + At · 상태 파일에서) ·
+- [x] `panel.Config` — `Node · Listen · MediatorBase · Token · PanelToken`. 겉면 시작 모양(정본 §5)
+- [x] 화면이 읽는 값 — 신원(node_id · label) · 탐지 능력(Caps + At · 상태 파일에서) ·
       현재 작업(Nodes 원문에서 이 node_id 행의 lease) · Mediator 마지막 응답 시각
-- [ ] 상태 파일 `<stem>.status.yaml` 의 형 — `caps`(광고 능력 목록과 같은 모양) · `at`(RFC3339).
+- [x] 상태 파일 `<stem>.status.yaml` 의 형 — `caps`(광고 능력 목록과 같은 모양) · `at`(RFC3339).
       `StatusPath(configPath)` 는 `PolicyPath` 와 같은 규칙(<dir>/<stem>.status.yaml)
-- [ ] drain 상태 모델 — 정책 파일의 `drain` 값 어휘(`""` · `graceful` · `at-boundary`) 를
+- [x] drain 상태 모델 — 정책 파일의 `drain` 값 어휘(`""` · `graceful` · `at-boundary`) 를
       그대로 쓴다. 새 형식을 안 만든다 (policy.go 정본)
-- [ ] `panel_token` 을 `internal/enode` 의 `Policy` 구조체에 additive 로 더하는 자리 —
+- [x] `panel_token` 을 `internal/enode` 의 `Policy` 구조체에 additive 로 더하는 자리 —
       정책 파일에 키 하나가 앉을 뿐, policyReader 가 모르는 키를 이미 무시하므로 데몬 무변경
-- [ ] 프로세스 제어 상태 모델 — status(running · stopped) · start · stop · logs.
+- [x] 프로세스 제어 상태 모델 — status(running · stopped) · start · stop · logs.
       도는 노드에서는 start 자리에 재시작이 온다(stop 뒤 start · 새 하위명령 아님)
 
 ### 3.3 business-logic-model.md — 조작의 흐름
 
-- [ ] 탐지 능력 읽기 — 데몬이 status 파일을 쓰는 자리(advertise.go 가 정책을 읽는 옆 ·
+- [x] 탐지 능력 읽기 — 데몬이 status 파일을 쓰는 자리(advertise.go 가 정책을 읽는 옆 ·
       snap.At 이 손에 있음)와 제어판이 읽는 경로. 파일이 없거나 낡으면 화면이 무엇을 보이나
-- [ ] drain 걸기·모드 선택·풀기 — 정책 파일 쓰기(유닉스 0600 · 윈도우 상속 ACL).
+- [x] drain 걸기·모드 선택·풀기 — 정책 파일 쓰기(유닉스 0600 · 윈도우 상속 ACL).
       걸기 전 화면(S3)과 건 뒤 화면(S3b)이 서로 다른 장임을 흐름으로 가른다
-- [ ] stop 의 순서 — POST /v1/runs/{id}/cancel(Client.Cancel) 을 먼저 부르고 데몬을 끈다.
+- [x] stop 의 순서 — POST /v1/runs/{id}/cancel(Client.Cancel) 을 먼저 부르고 데몬을 끈다.
       Mediator 가 안 닿으면 확인 문구가 「임대 만료로 죽는다」를 말하고 그대로 끈다
       (decisions §6.5 표 · verdict 에 cancelled by 가 남게)
-- [ ] serve 의 exec 위임 흐름 — enodeBin 을 찾아 제어판 하위명령으로 넘긴다(setup.go 본뜸).
+- [x] serve 의 exec 위임 흐름 — enodeBin 을 찾아 제어판 하위명령으로 넘긴다(setup.go 본뜸).
       HTTP 서버를 enodectl 안에서 직접 부르지 않는 이유(심볼 상한 · 39배·14배)를 적는다
-- [ ] 흐름을 ASCII 다이어그램으로 그린다 (`common/ascii-diagram-standards.md`)
+- [x] 흐름을 ASCII 다이어그램으로 그린다 (`common/ascii-diagram-standards.md`)
 
 ### 3.4 business-rules.md — 규칙과 검증
 
-- [ ] 바인딩 — 127.0.0.1:8081 기본 (Mediator :8080 옆 · decisions §2 · ADR-063 3.3)
-- [ ] LAN 노출 — `--listen` 이 127.0.0.1 밖이면 정책 파일의 `panel_token` 필수.
+- [x] 바인딩 — 127.0.0.1:8081 기본 (Mediator :8080 옆 · decisions §2 · ADR-063 3.3)
+- [x] LAN 노출 — `--listen` 이 127.0.0.1 밖이면 정책 파일의 `panel_token` 필수.
       없으면 기동 거부(`New` 가 error). Mediator 토큰을 재사용하지 않는다. 이 회차엔
       켜지 않고 거부 경로만 선다 (decisions 「제어판 LAN 노출의 토큰」)
-- [ ] 임포트 경계 — `panel -> store` 금지 · `panel -> api` 금지 · `enode -> panel` 금지
+- [x] 임포트 경계 — `panel -> store` 금지 · `panel -> api` 금지 · `enode -> panel` 금지
       (`cmd/enode -> panel` 허용). 경계 검사 테스트로 잡는다
-- [ ] proc 추출 경계 — `internal/proc` 는 net/http 를 안 쓴다. 어느 함수·상수를 내리고
+- [x] proc 추출 경계 — `internal/proc` 는 net/http 를 안 쓴다. 어느 함수·상수를 내리고
       어느 것을 cmd/enodectl 에 남기는지 파일·줄로 못 박는다 (1절)
-- [ ] status 파일 쓰기 표면 — `internal/enode` 에 additive 한 자리. 권한은 정책 파일과
+- [x] status 파일 쓰기 표면 — `internal/enode` 에 additive 한 자리. 권한은 정책 파일과
       같다(0600 · 상속 ACL). 데몬이 못 써도 막지 않는다(로그만) — 능력은 광고가 이미 진다
-- [ ] 심볼 상한 — enodectl.exe net/http ≤50 · crypto/tls ≤10. serve 가 exec 위임이라
+- [x] 심볼 상한 — enodectl.exe net/http ≤50 · crypto/tls ≤10. serve 가 exec 위임이라
       제어판 HTTP 표면이 이 실행파일에 안 링크됨을 규칙으로 적는다
-- [ ] 오류·확인 문구 — stop·재시작은 누르기 전에 그 Run 을 어떻게 끝내는지 말한다
+- [x] 오류·확인 문구 — stop·재시작은 누르기 전에 그 Run 을 어떻게 끝내는지 말한다
 
 ### 3.5 완료 조건 (게이트 CP4)
 
-- [ ] `scene-gates.md` CP4(43행 · 90~99행)의 S3·S3b·S1·S5 를 그대로 옮기고 각 요구를 규칙에 잇는다
-- [ ] **화면 버튼을 전부 나열한다** — 조작 넷(status·start·stop·logs) + drain 걸기·모드
+- [x] `scene-gates.md` CP4(43행 · 90~99행)의 S3·S3b·S1·S5 를 그대로 옮기고 각 요구를 규칙에 잇는다
+- [x] **화면 버튼을 전부 나열한다** — 조작 넷(status·start·stop·logs) + drain 걸기·모드
       (graceful·at-boundary)·풀기. 「누르면 걸린다」만으로는 「풀기」가 빠진 채 통과된다
-- [ ] 경계 검사 테스트 초록 · 심볼 상한 재측정 · `internal/panel` 커버리지 80%
-- [ ] CP4 는 2일차 정오 · 가장 앞에 당긴 게이트라 늦추지 않는다. CP5·CP6·CP7 은 장면 밖(빨개도 CP4 는 초록)
+- [x] 경계 검사 테스트 초록 · 심볼 상한 재측정 · `internal/panel` 커버리지 80%
+- [x] CP4 는 2일차 정오 · 가장 앞에 당긴 게이트라 늦추지 않는다. CP5·CP6·CP7 은 장면 밖(빨개도 CP4 는 초록)
 
 ### 3.6 검토
 
-- [ ] 산출물이 `CONVENTIONS.md` 1절(강조는 굵게만 · 장식 문자 금지)·2절(밖으로 나가는 것은 영어)을 지키는지 본다
-- [ ] `content-validation.md` 로 다이어그램·특수문자를 검사한다
-- [ ] security-baseline 준수 요약을 낸다 (LAN 토큰 거부 경로 · 정책·상태 파일 권한이 걸리는 규칙)
+- [x] 산출물이 `CONVENTIONS.md` 1절(강조는 굵게만 · 장식 문자 금지)·2절(밖으로 나가는 것은 영어)을 지키는지 본다
+- [x] `content-validation.md` 로 다이어그램·특수문자를 검사한다
+- [x] security-baseline 준수 요약을 낸다 (LAN 토큰 거부 경로 · 정책·상태 파일 권한이 걸리는 규칙)
 - [ ] 완료 메시지를 2지 선택(변경 요청 / 다음 단계로)으로 내고 승인을 기다린다. 승인 전에 코드를 안 쓴다
 
 ---

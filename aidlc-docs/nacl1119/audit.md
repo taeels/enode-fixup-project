@@ -63,3 +63,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · 세션 소유권 확정 · unit/panel 복구 · 커밋.
 
 ---
+
+## panel Functional Design 산출물 셋
+**Timestamp**: 2026-09-09T03:11:36Z
+**User Input**: (앞선 "진행해" 로 FD 산출물 작성 승인) — ADR-068=A 결정 뒤 FD 본문 작성.
+**AI Response**: panel Functional Design 산출물 셋을 construction/panel/functional-design/ 에 냈다: domain-entities.md(Config·화면 값 다섯 묶음·상태 파일 <stem>.status.yaml·정책 파일 panel_token additive·proc 추출 경계) · business-logic-model.md(serve exec 위임·탐지 능력 읽기·stop cancel-먼저·drain 토글·흐름 ASCII) · business-rules.md(바인딩/LAN 토큰·값 없을 때 분기·임포트 경계·심볼 상한 CP4·상태 파일 쓰기·완료 조건 버튼 표·security-baseline). 정본 충돌 하나를 못 박았다: enode-features 3.1.2(:198)는 proc 함수 셋을 internal/panel 로 내리라 했으나, 그러면 cmd/enodectl 의 stop/start 가 그 패키지를 거쳐 net/http 에 닿아 enodectl.exe 심볼 상한(CP4)이 깨진다. 유닛 정본 unit-of-work §5(internal/proc · net/http 없음)가 상한을 지키는 유일한 갈래라 그것으로 간다. FD 계획 체크박스를 갱신했고(마지막 승인-대기 항목만 남김) 코드는 아직 안 썼다. 완료 메시지를 2지 선택으로 낸다.
+**Context**: CONSTRUCTION · panel · Functional Design 산출물 완료 · 승인 지점 2(FD) 앞.
+
+---
