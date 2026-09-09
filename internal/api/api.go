@@ -289,7 +289,8 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 	// 하나가 "drain 해제를 받은 광고 처리" 이기 때문이다 — 덮어쓰기만 하면
 	// 해제를 본 사람이 아무도 없다. 버릴 값을 이 유닛이 미리 세워 두는
 	// 것이고, 그래야 drain 유닛이 저장소 접점을 다시 안 연다.
-	if _, err := s.st.UpsertAdvert(r.Context(), a, principal(r), ttl); err != nil {
+	prevDrain, err := s.st.UpsertAdvert(r.Context(), a, principal(r), ttl)
+	if err != nil {
 		s.log.Error("cannot store advertisement", "node", a.NodeID, "err", err)
 		fail(w, 503, "store failed")
 		return
@@ -311,6 +312,15 @@ func (s *Server) postNodes(w http.ResponseWriter, r *http.Request) {
 			}
 			s.log.Warn("node restarted; in-flight steps marked failed",
 				"node", a.NodeID, "run", runID, "state", state)
+		}
+	}
+	// drain 이 풀렸다 — 이 광고가 해제를 나른다 (ADR-063 §4). 그 노드를 기다리던
+	// Run 이 있으면 지금 승격한다 (ADR-064 의 깨우기 지점 하나). 감싸는 요청
+	// 트랜잭션이 없는 자리라 자기 트랜잭션이다. 실패해도 광고는 받은 것이다 —
+	// 대기 Run 은 다음 지점에서 다시 본다.
+	if prevDrain != store.DrainNone && store.DrainPolicy(a.Policy.Drain) == store.DrainNone {
+		if _, werr := s.st.WakeQueuedNow(r.Context()); werr != nil {
+			s.log.Error("cannot wake the queue after a drain release", "node", a.NodeID, "err", werr)
 		}
 	}
 	// 살아 있다고 말하면 살아 있을 권한을 받는다
@@ -481,10 +491,28 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 			fail(w, 503, "query failed")
 			return
 		}
+		// drain 을 건 노드는 점유된 노드와 같은 편이다 (ADR-063 §6). 이 분기 안인
+		// 것이 규칙이다 — dry-run 은 busy 를 안 보듯 이것도 안 본다. 존재는 답하고
+		// 여유는 답하지 않는다 (ADR-014 결정 3).
+		draining, derr := s.st.DrainingNodes(ctx)
+		if derr != nil {
+			s.log.Error("cannot query draining nodes", "err", derr)
+			fail(w, 503, "query failed")
+			return
+		}
+		for id := range draining {
+			busy[id] = true
+		}
 	}
 
 	assign, rej := match.Match(c.Requires, adverts, busy)
 	if rej != nil {
+		// 후보는 있는데 전부 점유됨 — 죽이지 않고 기다린다 (ADR-064). 자리 1.
+		// dry-run 은 busy 를 안 보므로 여기 못 온다.
+		if !dry && rej.Code == match.CodeAllBusy {
+			s.enqueue(w, r, c, warnings)
+			return
+		}
 		if !dry {
 			// 거절도 기록한다 — 왜 안 돌았는지가 없으면 껍데기가 재시도를 못 정한다.
 			run := store.Run{RunID: c.RunID, Principal: principal(r), Contract: c,
@@ -548,8 +576,9 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 	switch {
 	case errors.Is(err, store.ErrNodeTaken):
 		// I5 그 사이 다른 Run 이 가져갔다. 트랜잭션이 전부 롤백했으므로
-		// 손으로 해제할 것이 없다. 일시적 실패이므로 409 다.
-		fail(w, match.CodeAllBusy, "another run took the node during allocation")
+		// 손으로 해제할 것이 없다. 일시적이므로 기다린다 (ADR-064). 자리 2 —
+		// 예전에는 409 였고 runs 행조차 없어 목록에도 안 떴다.
+		s.enqueue(w, r, c, warnings)
 		return
 	case err != nil:
 		// 같은 run_id 로 동시에 들어온 경우도 여기로 온다 — 다시 읽어 200 으로 답한다.
@@ -564,6 +593,43 @@ func (s *Server) submit(w http.ResponseWriter, r *http.Request, dry bool) {
 	v := s.view(ctx, &run)
 	v.Warnings = warnings
 	write(w, 201, v)
+}
+
+// enqueue 는 점유 실패한 제출을 QUEUED 로 받는다 (ADR-064).
+//
+// 자리가 둘이다 — 매처가 전부 점유됨(409 상황)을 낸 자리와, 매칭은 됐는데 임대
+// INSERT 가 기본키 충돌로 롤백된 자리(ErrNodeTaken). 둘 다 같은 전이
+// ALLOCATING -> QUEUED 이고(INVARIANTS §2) 호출자가 둘을 가를 이유가 없다.
+//
+// 응답은 202 · 본문은 201 과 같은 모양이다 (mediator-api §2). 넣으면서 한 번
+// 훑는데 그 자리에서 승격됐으면 202 는 낡은 답이므로 다시 읽어 201 로 낸다.
+func (s *Server) enqueue(w http.ResponseWriter, r *http.Request, c contract.Contract, warnings []string) {
+	ctx := r.Context()
+	run := store.Run{RunID: c.RunID, State: store.StateQueued, Principal: principal(r),
+		Contract: c, Submitter: submitter(r)}
+	promoted, err := s.st.CreateQueuedRun(ctx, run)
+	if err != nil {
+		// 같은 run_id 로 동시에 들어온 경우도 여기로 온다 — 다시 읽어 200 으로 답한다.
+		if existing, gerr := s.st.GetRun(ctx, c.RunID); gerr == nil {
+			write(w, 200, s.view(ctx, existing))
+			return
+		}
+		s.log.Error("cannot queue run", "run", c.RunID, "err", err)
+		fail(w, 503, "create failed")
+		return
+	}
+	if promoted {
+		if existing, gerr := s.st.GetRun(ctx, c.RunID); gerr == nil {
+			v := s.view(ctx, existing)
+			v.Warnings = warnings
+			write(w, 201, v)
+			return
+		}
+		// 다시 못 읽어도 상태는 참이다 — 202 로 내고 껍데기가 읽게 둔다.
+	}
+	v := s.view(ctx, &run)
+	v.Warnings = warnings
+	write(w, 202, v)
 }
 
 // ── GET /v1/runs/{id} ────────────────────────────────────────────────────

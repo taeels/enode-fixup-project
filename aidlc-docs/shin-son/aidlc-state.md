@@ -5,6 +5,28 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 산출물은 이 디렉터리 `aidlc-docs/shin-son/` 아래. (panel·transcript 는 nacl1119 로
 재배정됨 — 2026-09-08.)
 
+## 진행 (Stage Progress)
+
+- **Current Phase**: CONSTRUCTION
+- **Current Unit**: queue (브랜치 `unit/queue` · 2026-09-08T13:55:15Z 착수 · 2026-09-09 에 `main` `0a159a4`(obs 병합) 위로 옮김)
+- **Current Stage**: queue PR #5 열림 · 병합 대기. 다음 유닛 drain(W2 · CP3) — FD 는 병합 전에 시작 가능
+  (`construction/plans/queue-code-generation-plan.md`)
+  (`construction/plans/queue-nfr-requirements-plan.md`)
+  (`construction/plans/queue-functional-design-plan.md`)
+- **Last Completed**: queue Code Generation (2026-09-09T00:36:11Z)
+- **Extension Configuration**: `decisions.md` §1 이 닫음 — security-baseline 켬 ·
+  resiliency-baseline 끔 · property-based-testing 끔. 취급은 `decisions.md` §3
+- **Blockers**: 없음. Postgres.app 18.6 이 55434 에 섰다 (DSN 은 docs/testdb-setup.md 의 한 줄).
+
+### queue
+- [x] Functional Design — 승인 2026-09-08T17:37:00Z (Q1=A · Q2=A · 산출물 `construction/queue/functional-design/`)
+- [x] NFR Requirements — 승인 2026-09-09T00:11:46Z (답 A·A·A · `construction/queue/nfr-requirements/`)
+- [x] NFR Design — SKIP (회차 계획 · 어떻게는 Code Generation 계획이 진다)
+- [x] Infrastructure Design — SKIP (새 인프라 0 · constraints §6)
+- [x] Code Generation — 승인 2026-09-09T00:36:11Z (시험 미실행 상태 · `construction/queue/code/code-summary.md`)
+- [x] CP0 회귀 통과 (2026-09-09T00:47:40Z) · CP2 통과 (2026-09-09T00:52:59Z)
+- [x] Build and Test 승인 · PR to main — https://github.com/taeels/enode-fixup-project/pull/5 (진행자 직렬 병합 대기)
+
 ## 유닛 (의존 순)
 
 - [ ] queue 대기열 — CP2 · 의존 obs

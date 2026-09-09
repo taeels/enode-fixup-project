@@ -53,6 +53,13 @@ type Store struct {
 	// Log 는 되돌림처럼 밖에서 안 보이는 판단을 남기는 자리다.
 	// 없으면 조용히 지나간다 — 로그가 없다고 동작이 달라지면 안 된다.
 	Log *slog.Logger
+	// LeaseTTL 은 대기열에서 승격될 때 발급하는 임대의 수명이다 (ADR-010).
+	//
+	// 제출 경로의 임대는 api 가 cfg.Lease.TTLSeconds 로 만들어 넘기지만,
+	// 승격은 저장 계층 안에서 일어나 그 값을 볼 수 없다. 그래서 cmd/mediator 가
+	// 같은 값을 여기 채운다 (MaxLeasesPerRun 과 같은 자리). 0 이면 설정의
+	// 기본값(3600초)과 같게 둔다 — 시험이 안 채워도 임대가 즉시 만료되지 않게.
+	LeaseTTL time.Duration
 }
 
 func (s *Store) log() *slog.Logger {
@@ -170,7 +177,20 @@ func (s *Store) UpsertAdvert(ctx context.Context, a contract.Advert, principal s
 // LiveAdverts 는 만료되지 않은 광고를 돌려준다.
 // 살아 있음의 신탁이 아니다 — 죽었지만 아직 만료 안 된 노드가 들어 있다.
 func (s *Store) LiveAdverts(ctx context.Context) ([]contract.Advert, error) {
-	rows, err := s.pool.Query(ctx,
+	return liveAdvertsIn(ctx, s.pool)
+}
+
+// querier 는 pool 과 tx 가 함께 만족하는 읽기 겉면이다.
+//
+// 대기열 훑기는 부르는 트랜잭션 안에서 광고를 읽어야 하고(queue.go), 제출은
+// pool 로 읽는다. SQL 이 두 벌이 되면 언젠가 어긋나므로 문장을 하나로 두고
+// 어디서 읽을지만 갈아 끼운다.
+type querier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+}
+
+func liveAdvertsIn(ctx context.Context, q querier) ([]contract.Advert, error) {
+	rows, err := q.Query(ctx,
 		`SELECT node_id, label, capabilities FROM nodes WHERE expires_at > now() ORDER BY node_id`)
 	if err != nil {
 		return nil, err
@@ -223,10 +243,13 @@ type NodeRef struct {
 const (
 	StateResolving  = "RESOLVING"
 	StateAllocating = "ALLOCATING"
-	StateRunning    = "RUNNING"
-	StateVerifying  = "VERIFYING"
-	StateSucceeded  = "SUCCEEDED"
-	StateFailed     = "FAILED"
+	// QUEUED 는 후보는 있는데 전부 점유돼 기다리는 중이다 (ADR-064).
+	// 임대 0 · 노드 0 · 재기동 후에도 그대로 참이다 (INVARIANTS §1.1).
+	StateQueued    = "QUEUED"
+	StateRunning   = "RUNNING"
+	StateVerifying = "VERIFYING"
+	StateSucceeded = "SUCCEEDED"
+	StateFailed    = "FAILED"
 )
 
 var ErrNotFound = errors.New("not found")
@@ -330,15 +353,34 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 		nullable(r.Contract.Work.Key()), r.Submitter); err != nil {
 		return err
 	}
+	raisedAsks, err := s.createRunIn(ctx, tx, r, grants, steps)
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	// 알림은 커밋 뒤에만 — 트랜잭션 안에서 쏘면 롤백된 질문을 알리게 된다.
+	s.PushAsks(raisedAsks)
+	return nil
+}
+
+// createRunIn 은 runs 행이 이미 있는 Run 에 임대 · 단계 · 첫 획득 · 첫 되묻기 ·
+// Record 디렉터리를 붙인다. CreateRun 의 몸통이고, 대기열 승격(queue.go)이
+// 같은 몸통을 쓴다 — 제출로 도는 Run 과 기다렸다 도는 Run 이 다른 코드로
+// 만들어지면 둘은 언젠가 다르게 돈다.
+//
+// 커밋하지 않는다. 돌려주는 되묻기는 부르는 쪽이 커밋한 뒤 알린다 (ADR-032 §4).
+func (s *Store) createRunIn(ctx context.Context, tx pgx.Tx, r Run, grants []LeaseGrant, steps []contract.Step) ([]AskEvent, error) {
 	for _, g := range grants {
 		_, err := tx.Exec(ctx,
 			`INSERT INTO leases (node_id, run_id, not_after, nonce) VALUES ($1,$2,$3,$4)`,
 			g.NodeID, r.RunID, g.NotAfter, g.Nonce)
 		if isUniqueViolation(err) {
-			return fmt.Errorf("%w: %s", ErrNodeTaken, g.NodeID)
+			return nil, fmt.Errorf("%w: %s", ErrNodeTaken, g.NodeID)
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	// 역할 → 노드. 매처가 이미 정했으므로 단계 행에 박아둔다.
@@ -352,7 +394,7 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 	for i, st := range steps {
 		kind, err := st.Kind()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		// 기본값을 여기서 채워 넣는다 (ADR-023 §4) — needs 를 안 적은 계약은
 		// [직전 단계] 가 되어 오늘과 똑같이 돈다. 계약 전문은 안 바꾼다:
@@ -362,18 +404,18 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 			 VALUES ($1,$2,$3,$4,$5,'PENDING',$6,$7)`,
 			r.RunID, i+1, st.ID, st.Uses, kind.String(), nodeOf[st.Uses],
 			contract.NeedsOf(steps, i)); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	// 첫 단계가 획득일 수 있다 — 그러면 아무도 보고하기 전에 수행해야 한다.
 	// 노드에 안 가므로 claim 을 기다릴 수 없고, 여기서 안 하면 Run 이 멈춘다.
 	if err := s.runAcquires(ctx, tx, r.RunID); err != nil {
-		return err
+		return nil, err
 	}
 	// 첫 단계가 되묻기일 수 있다 — 제출 즉시 물을 것은 물어야 한다.
 	raisedAsks, err := s.raiseAsks(ctx, tx, r.RunID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// 실행 중에는 붙이기만 한다 (성질 1: append-only) —
 	// 디렉터리를 지금 열어두고 로그가 쌓이게 한다. 봉인은 종료 시 한 번뿐이다.
@@ -382,15 +424,10 @@ func (s *Store) CreateRun(ctx context.Context, r Run, grants []LeaseGrant, steps
 	// 호출자는 에러를 받아 상태가 갈린다.
 	if s.Records != nil {
 		if err := s.Records.Open(r.RunID); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-	// 알림은 커밋 뒤에만 — 트랜잭션 안에서 쏘면 롤백된 질문을 알리게 된다.
-	s.PushAsks(raisedAsks)
-	return nil
+	return raisedAsks, nil
 }
 
 // CreateRejectedRun 은 매칭이 거절된 Run 을 기록한다.

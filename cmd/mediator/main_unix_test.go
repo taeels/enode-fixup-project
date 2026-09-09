@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/taeels/enode/internal/config"
+	"github.com/taeels/enode/internal/contract"
 	"github.com/taeels/enode/internal/store"
 )
 
@@ -648,4 +649,63 @@ func TestRun_StopsAtTheFirstThingItCannotDo(t *testing.T) {
 			t.Fatalf("stderr wording contract: got %q, want %q in it", stderr, "cannot create artifacts directory")
 		}
 	})
+}
+
+// ── 기동 시 큐 훑기 (ADR-064 §6) ─────────────────────────────────────────
+
+// queuedContract 는 요구 하나 · 단계 하나의 최소 계약이다.
+func queuedContract() contract.Contract {
+	return contract.Contract{
+		Requires: []contract.Require{{As: "b", Capability: contract.CapabilityAgentReason,
+			Attrs: map[string]string{"harness": "claude"}}},
+		Steps: []contract.Step{{ID: "one", Uses: "b", Run: []string{"true"}}},
+	}
+}
+
+// 죽어 있는 동안 풀린 것을 기동이 줍는다 — 광고 없이 넣어 QUEUED 로 두고,
+// 노드를 들인 뒤 기동 훑기를 부르면 RUNNING 이다.
+func TestWakeQueuedAtStart_PromotesWhatWasFreedWhileDown(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(ctx, scratchDB(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(st.Close)
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if promoted, err := st.CreateQueuedRun(ctx, store.Run{RunID: "w", Principal: "p", Contract: queuedContract()}); err != nil || promoted {
+		t.Fatalf("queueing without a fleet: promoted=%v err=%v", promoted, err)
+	}
+	adv := contract.Advert{NodeID: "n1", Label: "n1", Capabilities: []contract.Capability{{
+		Capability: contract.CapabilityAgentReason, Attrs: map[string]string{"harness": "claude"}}}}
+	if _, err := st.UpsertAdvert(ctx, adv, "p", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr := captureOutput(t, func() { wakeQueuedAtStart(ctx, st, logTo()) })
+
+	if !strings.Contains(stderr, "promoted queued runs at start") {
+		t.Fatalf("stderr wording contract: got %q, want the promotion line in it", stderr)
+	}
+	run, err := st.GetRun(ctx, "w")
+	if err != nil || run.State != store.StateRunning {
+		t.Fatalf("w after the start wake: %v %v, want RUNNING", run, err)
+	}
+}
+
+// 훑기가 실패해도 기동은 계속한다 — 오류 한 줄이 남고 돌아온다.
+func TestWakeQueuedAtStart_FailureIsLoggedAndBootContinues(t *testing.T) {
+	ctx := context.Background()
+	st, err := store.Open(ctx, scratchDB(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.Close() // 닫힌 풀 — 훑기의 Begin 이 실패한다
+
+	_, stderr := captureOutput(t, func() { wakeQueuedAtStart(ctx, st, logTo()) })
+
+	if !strings.Contains(stderr, "cannot wake the queue at start") {
+		t.Fatalf("stderr wording contract: got %q, want the failure line in it", stderr)
+	}
 }

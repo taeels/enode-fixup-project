@@ -840,7 +840,8 @@ func (s *Store) ReportStep(ctx context.Context, runID string, seq int, nodeID st
 // 획득을 마지막에 두는 이유 — 그것이 needs 를 보고 고르므로, 앞의 효과
 // (건너뜀 전파 · 지어진 단계)가 먼저 반영돼 있어야 같은 그림을 본다.
 func (s *Store) afterStep(ctx context.Context, tx pgx.Tx, runID string, seq int) ([]AskEvent, error) {
-	if err := s.applyStepEffects(ctx, tx, runID, seq); err != nil {
+	freed, err := s.applyStepEffects(ctx, tx, runID, seq)
+	if err != nil {
 		return nil, err
 	}
 	if err := s.runAcquires(ctx, tx, runID); err != nil {
@@ -848,15 +849,30 @@ func (s *Store) afterStep(ctx context.Context, tx pgx.Tx, runID string, seq int)
 	}
 	// 되묻기는 맨 뒤다 — 앞의 효과(전파·획득)가 반영된 그림을 보고
 	// needs 가 찬 질문을 올린다 (ADR-032). 올린 것은 커밋 뒤 알림의 재료다.
-	return s.raiseAsks(ctx, tx, runID)
+	asks, err := s.raiseAsks(ctx, tx, runID)
+	if err != nil {
+		return nil, err
+	}
+	// 부분 반납으로 임대가 풀렸으면 같은 트랜잭션에서 큐를 깨운다 (ADR-064).
+	// 획득 뒤인 것이 맞다 — 이 Run 이 방금 잡은 노드가 busy 에 들어 있어야 한다.
+	// 승격이 올린 되묻기는 이 단계의 것과 함께 커밋 뒤 한 번에 알린다.
+	if freed > 0 {
+		w, err := s.wakeQueuedIn(ctx, tx)
+		if err != nil {
+			return nil, err
+		}
+		asks = append(asks, w.asks...)
+	}
+	return asks, nil
 }
 
-func (s *Store) applyStepEffects(ctx context.Context, tx pgx.Tx, runID string, seq int) error {
+// 돌려주는 수는 release 가 지운 임대의 수다.
+func (s *Store) applyStepEffects(ctx context.Context, tx pgx.Tx, runID string, seq int) (int, error) {
 	if err := s.applyExpands(ctx, tx, runID, seq); err != nil {
-		return err
+		return 0, err
 	}
 	if err := s.applyDispatch(ctx, tx, runID, seq); err != nil {
-		return err
+		return 0, err
 	}
 	// 놓는 것은 맨 마지막이다 — 되돌릴 수 없으므로, 앞의 둘이 실패해
 	// 이 단계가 FAILED 가 되는 경우에는 놓지 않는다.

@@ -77,6 +77,8 @@ func run() int {
 	if !migrate(ctx, st, log) {
 		return 1
 	}
+	// 죽어 있는 동안 풀린 임대는 깨울 자리가 없었다 — 큐를 한 번 훑는다 (ADR-064 §6).
+	wakeQueuedAtStart(ctx, st, log)
 
 	// 시간이 감시자다 (ADR-008) — 시작할 때 한 번 먼저 돈다(재시작 스캔).
 	// Mediator 가 죽어 있는 동안 갱신이 멈추고, 재시작하면 not_after 가 지나
@@ -187,7 +189,27 @@ func openRecords(st *store.Store, cfg config.Config, log *slog.Logger) bool {
 	st.MaxContractVersions = cfg.Contract.MaxVersions
 	st.MaxLeasesPerRun = cfg.Lease.MaxPerRun
 	st.NotifyURL = cfg.Notify.AsksURL
+	// 대기열 승격이 발급하는 임대의 수명 — 제출 경로와 같은 값이어야 한다 (ADR-064).
+	st.LeaseTTL = time.Duration(cfg.Lease.TTLSeconds) * time.Second
 	return true
+}
+
+// wakeQueuedAtStart 는 기동 시 큐를 한 번 훑는다 (ADR-064 §6).
+//
+// QUEUED 는 임대도 노드도 쥐지 않아 재기동 후에도 그대로 참이다. 다만 Mediator 가
+// 죽어 있는 동안 풀린 임대는 깨울 지점이 없었으므로 여기서 그 빠진 지점을 메운다.
+//
+// 실패해도 기동은 계속한다. 열리는 것이 없다 — 상태는 참이고 다음 임대 해제나
+// 회수가 다시 훑는다. 잃는 것은 지연뿐이라 그것으로 사람을 부르지 않는다.
+func wakeQueuedAtStart(ctx context.Context, st *store.Store, log *slog.Logger) {
+	promoted, err := st.WakeQueuedNow(ctx)
+	if err != nil {
+		log.Error("cannot wake the queue at start; queued runs wait for the next release", "err", err)
+		return
+	}
+	if len(promoted) > 0 {
+		log.Info("promoted queued runs at start", "runs", len(promoted))
+	}
 }
 
 // migrate 는 스키마를 올린다. 멱등이라 매 기동마다 돈다.
