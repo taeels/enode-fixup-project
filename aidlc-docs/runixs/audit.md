@@ -1922,3 +1922,14 @@ demo-f9929b15a7ac3f1ca317262c7fddbcaab70469a6ccf776251aefb86ef54861f1도
 QUEUED에서 승격 후 두 단계 모두 SUCCEEDED다. 이 Mac의 LaunchAgents가
 SSH 터널·노드를 자동 재시작한다. 기존 mediator·계약은 수정하지 않았다.
 전체 테스트·DB 게이트는 사용자 지시로 생략했고 공동 CP10은 유지한다.
+
+## LED 연결 PR 제출 요청
+
+**Timestamp**: 2026-09-09T07:41:09Z
+
+**User Input**: "PR올려줘."
+
+**Decision**: origin/main을 fetch하고 현재 브랜치가 최신 main을 포함함을 확인했다.
+LED 명령·레시피 안내·담당 운영 기록 7개 파일을 main 대상으로 PR 제출한다.
+전체 테스트 생략 지시를 유지하고 실제 runctl·공개 제출 성공을 검증 근거로 적는다.
+PR 제출은 공동 CP10 승인이나 main 병합으로 간주하지 않는다.
