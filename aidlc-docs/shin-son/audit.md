@@ -253,3 +253,67 @@ Q3 A"
 **Context**: CONSTRUCTION - drain - Code Generation 승인 (Step 16) · Build and Test · PR to main.
 
 ---
+
+## greet-play — 보드 스피커 재생이 지금 되는지 · 첫 실행
+**Timestamp**: 2026-09-09T04:29:09Z
+**User Input**: "나 runctl 제출해서, 안녕하세요 손신입니다 tts 소리를 보드에서 붙어있는 스피커로 재생하고 싶음. 가능해 지금 ?" · "wav가 안돼 mp3로 할거야 아마 enode 가 그렇게돼있을거임 b 진행"
+**AI Response**: `runctl capabilities` 에 `audio_playback=true` · `board=rpi2b-v1.1` 노드가 있었다(당시 `270c97c94415 taeels@sunnybook`, 속성을 하나씩 눌러 보니 `os=windows` · `host_arch=amd64`). 역할 둘(`tts` 가 mp3 를 만들고 `board` 가 튼다)을 속성으로 부르는 계약을 짜서 dry-run 으로 두 노드가 걸리는 것을 확인하고 제출했다 — `greet-play-20260909-132909` SUCCEEDED, `player=MediaPlayer` · `played seconds=1.959`(클립 1.933). 어느 스피커로 나갔는지는 라벨로 안 갈린다고 적어 뒀다. 문장은 고정 문장이 아니라 명시 문장이라 `say` 를 직접 불렀다(tts_workspace/CLAUDE.md 규약).
+**Context**: 별개 — greet-play recipe (AI-DLC 유닛이 아님).
+
+---
+
+## greet-play — recipe 를 저장소에 둔다 · PR #13
+**Timestamp**: 2026-09-09T04:38:32Z
+**User Input**: "이 recipe runctl 계약서를 알려줄 수 있어? 그거 enode-fixup-workshop에 디렉토리 하나 파서 커밋올려주면 될듯" · "응 올려, 그리고 PR 최신에서 그 커밋만 포함되게 pr 올릴수있나, greet-play만 변경사항으로 되게" · "enode-fixup-project 말한거였어. 이 컴퓨터에서 이 디렉토리 찾아봐" · "enode-fixup-workshop은 안건드려도되고"
+**AI Response**: 처음에 `enode-fixup-workshop` 에 올렸다(PR #3 · 브랜치 · `shin-son-development` 의 커밋 하나). 사용자가 그쪽은 그대로 두라고 해서 손대지 않았다. `enode-fixup-project` 에 `recipes/greet-play/`(README · greet-play.json · submit.sh)를 두고 `main` 에서 딴 `recipe/greet-play` 로 PR #13 을 열었다(변경 3 파일 · 커밋 1). 이후 병합됐다.
+**Context**: 별개 — greet-play recipe.
+
+---
+
+## greet-play — 소리가 난 자리가 보드가 아니었다
+**Timestamp**: 2026-09-09T05:07:28Z
+**User Input**: "근데 그 문장이 윈도우 컴퓨터에서 나온거야 설마?" · "다시 한번 런해봐 내가 오디오 를 꺼놈;;" · "다시 한번 제출해봐 , 그리고 왜이렇게 빨리 말하지?"
+**AI Response**: 맞다고 답했다 — `play` 스텝은 `os=windows` 노드 위에서 .NET `MediaPlayer` 로 그 기계의 기본 오디오 장치에 냈고, 파이는 별개 컴퓨터라 보드 스피커에 닿을 경로가 없었다. 그때까지 세 번(04:29 · 05:01 · 05:02Z) 남의 기계에서 소리가 났다는 것과, 어디서 나는지 모르는 채로 세 번 돌린 것이 잘못이라고 적고 추가 실행을 멈췄다. 사용자가 오디오를 켜고 다시 요청해 두 번 더 돌렸다(05:06 · 05:07Z, 같은 결과). 빠른 이유는 `say` 기본 속도이고 Yuna 가 다른 여덟 음성보다 40% 빠르다는 것을 실측으로 보였다.
+**Context**: 별개 — greet-play recipe.
+
+---
+
+## tts — Typecast 로 바꾸고 상현으로 고정 · 라벨 갱신 · CLAUDE.md
+**Timestamp**: 2026-09-09T05:38:15Z
+**User Input**: "그냥 typecast 다운받아서 그거로 해주라." · "무슨 키?" · "key 어디에다 적으면 되니 ?" · "음성은 상현으로 픽스하고, 캐패블리티 업데이트 하자" · "고쳐."
+**AI Response**: Typecast 는 내려받는 엔진이 아니라 API 라 계정 · 키 · 글자당 과금이 따라온다고 알렸고, tts_workspace/CLAUDE.md 의 외부 TTS 금지 조항과 어긋난다는 것을 두 번 물었다. 사용자가 키를 `~/.config/typecast/api.key` 에 두었다. `bin/tts-typecast.sh` 를 만들었다 — `X-API-KEY` · `ssfm-v30` · `kor` · 응답이 오디오 바이트라 HTTP 코드로 걸러냄 · 걸러진 환경에서 `HOME` 을 못 믿어 `id -un` 으로 집을 되짚음. 590 음성 중 다섯을 사용자 맥에서 순서대로 들려주고 상현(`tc_69fc0cff784968297fb45daa`)을 기본값으로 박았다. 라벨 `tts_typecast: "yes"` · `voice_typecast: Sanghyun` · `typecast_model: ssfm-v30` 을 더했다(`tts: say-macos` 는 그대로 — 바꾸면 기존 계약이 못 닿는다). enode 재기동은 분류기에 막혀 사용자가 직접 했고 `capabilities` 에 실린 것과 dry-run 매칭을 확인했다. "고쳐." 로 CLAUDE.md 를 두 엔진 서술로 고쳤다(기본은 여전히 `say`, Typecast 는 명시로 부를 때만).
+**Context**: 별개 — tts 노드 (tts_workspace, 저장소 밖).
+
+---
+
+## greet-play — 계약을 Typecast 로 · 다시 재생
+**Timestamp**: 2026-09-09T05:47:13Z
+**User Input**: "그거 바꿔줘. 그리고 바꾼뒤에 runctl 제출해서 보드에서 소리 나는지 다시한번 확인해볼래"
+**AI Response**: `make` 스텝을 `bin/tts-typecast.sh "$1" "$OUT/greeting.mp3"` 로, `requires` 를 `tts_typecast=yes` + `voice_typecast=Sanghyun` 으로 바꿨다(`fmt_mp3` 는 이제 불필요). `greet-play-20260909-144713-70963` SUCCEEDED — 44.1kHz · 85,681 바이트 · 2.14초로 `say` 경로에서는 나올 수 없는 값이라 바이트가 Typecast 를 거쳤다. 소리는 여전히 sunnybook 의 기본 장치였다.
+**Context**: 별개 — greet-play recipe.
+
+---
+
+## greet-play — pi-stage 갈래를 보고 판단을 정정한다
+**Timestamp**: 2026-09-09T06:19:09Z
+**User Input**: "https://github.com/taeels/enode-fixup-project/compare/main...recipe/pi-stage 이 브랜치보고 너가 준 두번째 답장을 다시 검토해. 1번째는 안돼" · "응 --pi로 상현 목소리 돌려봐"
+**AI Response**: `ssh` 로 파이에 넘기는 길을 "기록에 안 남고 exit 0 을 못 믿는다" 며 덜 좋은 길이라 했던 판단을 철회했다 — 브랜치의 `--pi` 갈래는 커널 재생 카운터(`/proc/asound/card1/pcm0p/sub0/status`)를 찍어 실제 재생을 증명하고 그것이 Record 에 남으며, 매칭(노드)과 라우팅(스피커)이 다른 층이라는 것도 그쪽이 맞았다. `greet-play-pi.json` 의 `make` 만 Typecast 로 갈아 끼워 제출했다 — `play` 가 `scp failed rc=255`(1초 만에). 그때 파이가 자리를 옮기는 중이었다.
+**Context**: 별개 — greet-play recipe.
+
+---
+
+## greet-play — 보드가 nacl1119 노드로 옮겨감 · rc=255 를 좁혀 파이 잭까지
+**Timestamp**: 2026-09-09T06:42:09Z
+**User Input**: "지금 보드를 taeho nacl1119@DESKTOP-5DRAFHN 여기에 보드 연결 바꿨을거임, 태호가 지금 enode에 cap 등록중" · "광고에 실렸대, 다시 한번 보자." · "똑같대 다시해봐" · "태호님은 키옵션 없이 그냥 붙는거같네, 나도 다시해보자" · "키 심었대 다시 돌려봐" (태호의 `ssh -v` 로그와 키 생성 로그를 같이 붙임)
+**AI Response**: 라벨이 `9b3586dc2564 nacl1119@DESKTOP-5DRAFHN` 로 옮겨간 것을 dry-run 으로 확인했고 계약은 노드 이름을 안 적어 손댈 것이 없었다. `--pi` 가 네 번 `rc=255`. 처음엔 키 부재로 봤다(`-v` 로그의 `identity file ... type -1` 일곱 개) — 키를 심고 `BatchMode=yes` 로 `whoami` 가 붙은 뒤에도 같았다. 소리 없는 진단 계약을 여섯 번 던져 좁혔다: 스텝은 MSI 계정 · 세션 7 · `HOME` 없음 · 콘솔 없음; **Windows 내장 `ssh.exe` 는 `ssh -V` 조차 rc=255 에 출력 0 바이트**(stdin `NUL` · `Start-Process` 새 콘솔 · 전체 경로 모두 무효); 같은 기계의 `C:\Program Files\Git\usr\bin\ssh.exe` 는 정상이고 그것으로 `whoami` · scp 왕복 · 파이의 카드 배치(`0 vc4hdmi` · `1 bcm2835 Headphones`)까지 됐다. `~/.ssh/config` 가 그 주소를 `id_rpi_sunnypi` 에 고정하고 있어 새 키는 쓰이지도 않았다. `play` 스텝이 Git 의 ssh · scp 가 있으면 그것을 쓰도록 고쳐 제출 — `greet-play-pi-20260909-154201-76258` SUCCEEDED, `mpg123 rc=0`, 스텝 4.5초에 클립 2.43초. 사용자가 그 자리에서 상현 목소리를 들었다. 원인은 못 밝혔고 증상과 우회만 적었다.
+**Context**: 별개 — greet-play recipe.
+
+---
+
+## greet-play — 세 사람 인사 · PR #21 · 이 기록
+**Timestamp**: 2026-09-09T06:55:16Z
+**User Input**: "아까 소리 확인했어. 이 내용 PR 해야할거같고. 태양님, 태호님, 태완님 안녕하세요 라고 목소리 출력도 다시해줘 runctl로" · "지금 소리도 나니까, 관련한 계약 내용들하고 지금 성공했던 부분들, 디버깅 내용들 업데이트하면 될 거 같아. enode-fixup-project 폴더야."
+**AI Response**: `greet-play-pi-20260909-154417-76559` SUCCEEDED — "태양님, 태호님, 태완님 안녕하세요" 3.03초, 파이 잭. PR #21 `recipe/pi-stage-typecast` → `recipe/pi-stage`(base 를 main 이 아니라 pi-stage 로 잡은 이유 — `--pi` 갈래가 아직 main 에 없어서 main 으로 내면 taeels 의 커밋이 딸려 간다): `make` Typecast(host · pi 둘 다) · `play` Git ssh 우선 · README 에 진단 경위. 이어 `tts-node/`(tts-typecast.sh 사본 · labels.yaml · 세우는 법)와 `diag-node.json` + `submit.sh --diag`(진단 여섯 번을 하나로 접음)를 얹었다. 이 감사 로그와 `aidlc-state.md` 는 `main` 에서 딴 `shin-son/greet-play-record` 로 따로 PR — 담당 기록이 taeels 의 브랜치를 타지 않게.
+**Context**: 별개 — greet-play recipe. 열린 것 — 내장 ssh.exe 가 enode 스텝 안에서 뜨지 않는 원인.
+
+---
