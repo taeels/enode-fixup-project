@@ -1,6 +1,6 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → ui YouTube Live 웹캠 후속 Build 성공·테스트 미실행·Mac mini 운영 적용·PR #25 제출.
+**현재 공식 단계**: CONSTRUCTION → ui 원격 장비 식별 후속 Code Generation·Build and Test 완료, 최신 main 인수·PR 준비.
 앞선 갤러리 확장은 검증·Mac mini 운영 적용·PR #14 병합을 완료했다.
 기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
@@ -8,6 +8,18 @@
 사용자의 “응 시작해”로 승인됐다. Inception이나 FD 승인을 다시 기다리지 않는다.
 
 ## 현재 기준 — 2026-09-09
+
+**원격 실행 가치·장비 식별 후속 작업**: `unit/runixs-remote-identity`에서 새 작업
+카드에 타인의 에이전트·원격 장비·sandbox의 실행 가치를 설명했다. Run마다 작업색을,
+호스트마다 장비색을 유지하고 소유자 표시·hostname·OS/CPU·역할·연결 장치를
+함대/작업 그래프와 상세에 표시한다. Windows의 연결 보드를 호스트 자체로 그리지
+않고 VM·이전 배정·미배정 정보를 구분한다. 기존 gallery 이름과 계약 ID를 유지한다.
+Node 74개, Go UI race 98.4%, vet·glyphscan·Mediator 빌드와 fixture 브라우저
+4환경의 2D/3D를 통과했다. main의 YouTube 설정에 맞춰 CSP 기대값 검사도 보완했다.
+[계획](construction/plans/ui-remote-identity-plan.md),
+[구현·검증](construction/ui/code/ui-remote-identity.md).
+PR #22·#25는 병합돼 인수했다. 최신 main의 pi-stage 레시피도 rebase 대상으로
+확인했으며 UI/API/운영 설정 변경은 없다. 공동 CP6/CP10 보류를 유지한다.
 
 **YouTube Live 웹캠 후속 작업**: `unit/runixs-youtube-live-webcam`에서 사용자가
 최종 지정한 영상 `8y2ln1nCHbM`을 공개 데모 웹캠 설정에 연결했다. 공개 settings와
@@ -33,7 +45,7 @@ vet·glyphscan·Mediator 빌드를 통과했다.
 대화 기록 코드 `9d8d1de`도 Mac mini에 빌드·교체했다(PID 60283). 운영 추가
 검사는 사용자 지시에 따라 생략했다. 최신 main `b60a8dd`를 인수하고
 [PR #22](https://github.com/taeels/enode-fixup-project/pull/22)를 제출했다.
-PR은 병합 전이며 공동 CP6/CP10 보류를 유지한다.
+PR #22는 main `4290cee`에 병합됐으며 공동 CP6/CP10 보류를 유지한다.
 
 **Run 흐름·보기 설정 후속 작업**: 같은 `Runixs/UI-Update-2`에서 게스트/제출자와
 Mediator 역할 요소, 관측 상태에 따른 실행 연결, 역할 상세, 좁은 화면 세로 흐름을

@@ -128,3 +128,13 @@ API/UI race(81.6%/98.4%), mock 브라우저 4환경, vet·glyphscan·Mediator �
 통과했다. 실제 댓글/Claude 실행과 운영 추가 검사는 하지 않았다.
 [구현·조회 경계·검증](../demo-back/code/gallery-history.md)을 따른다.
 기존 공동 CP6/CP10 보류를 유지한다.
+
+## 원격 장비 식별 UI 후속 — 2026-09-09T07:15:43Z
+
+새 작업 설명, Run/호스트의 결정적 색, 소유자·hostname·OS/CPU·역할 표시와 연결
+장치/호스트 구분을 구현했다. Node 74/74(skip 0), Go UI race 98.4%, vet·gofmt·
+glyphscan·Mediator 빌드, demo/fleet × desktop/mobile의 2D/3D fixture 검증을 통과했다.
+main의 YouTube 설정과 기존 고정 CSP 기대값의 불일치는 테스트에서 보완해 통과했다.
+실제 댓글/Claude/하드웨어 작업이나 운영 추가 검사는 하지 않았다.
+[구현·검증 범위](../ui/code/ui-remote-identity.md)에 근거를 기록했다.
+공동 CP6/CP10 보류는 유지한다.

@@ -1,8 +1,10 @@
 package ui_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -108,6 +110,22 @@ func TestHandlerNoDirectoryListing(t *testing.T) {
 }
 
 func TestHandlerSecurityHeaders(t *testing.T) {
+	var settings struct {
+		Webcam *struct {
+			EmbedURL string `json:"embedUrl"`
+		} `json:"webcam"`
+	}
+	if err := json.Unmarshal(get(t, "/ui/demo/settings.json").Body.Bytes(), &settings); err != nil {
+		t.Fatal(err)
+	}
+	demoCSP := "default-src 'self'"
+	if settings.Webcam != nil {
+		embed, err := url.Parse(settings.Webcam.EmbedURL)
+		if err != nil || embed.Scheme != "https" || embed.Host == "" {
+			t.Fatal("configured webcam must use a public HTTPS embed URL")
+		}
+		demoCSP += "; frame-src https://" + strings.TrimSuffix(embed.Host, ":443")
+	}
 	want := map[string]string{
 		"Content-Security-Policy":   "default-src 'self'",
 		"Strict-Transport-Security": "max-age=31536000; includeSubDomains",
@@ -115,9 +133,12 @@ func TestHandlerSecurityHeaders(t *testing.T) {
 		"X-Frame-Options":           "DENY",
 		"Referrer-Policy":           "strict-origin-when-cross-origin",
 	}
-	for _, path := range []string{"/ui/", "/ui/cardnews/", "/ui/demo/", "/ui/does-not-exist"} {
+	for _, path := range []string{"/ui/", "/ui/cardnews/", "/ui/demo/", "/ui/demo/index.html", "/ui/fleet/", "/ui/does-not-exist"} {
 		rec := get(t, path)
 		for header, value := range want {
+			if header == "Content-Security-Policy" && (path == "/ui/demo/" || path == "/ui/demo/index.html") {
+				value = demoCSP
+			}
 			if got := rec.Header().Get(header); got != value {
 				t.Errorf("GET %s header %s = %q, want %q", path, header, got, value)
 			}
