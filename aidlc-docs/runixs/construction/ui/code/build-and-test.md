@@ -1,5 +1,9 @@
 # UI 코드 생성 중 검증 기록
 
+**함대 탐색·가독성 보완 — 2026-09-09**: Node 52, Go UI 98.4%, UI vet,
+glyphscan·Mediator 빌드와 합성 관측 기반 브라우저 45개 단언과 긴 이름의 12가지 배치가 통과했다.
+[검증 범위와 재현 자료](ui-readability.md). DB/실제 장비 공동 CP 검증과 구분한다.
+
 **후속 진행 — 2026-09-09**: 진행자 c7a237d의 실제 LED/음원 fixture를 인수하고
 공개 demo-back 구현·API/DB/UI 연동을 완료했다. 아래 이전 픽스처/라우트 대기는
 [최신 demo-back 구현·검증](../../demo-back/code/implementation-summary.md)으로 대체한다.

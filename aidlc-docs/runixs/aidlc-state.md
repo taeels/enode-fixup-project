@@ -7,6 +7,15 @@
 
 ## 현재 기준 — 2026-09-09
 
+**UI 가독성 후속 작업**: `UI-update` 체크아웃의 `unit/runixs-ui-readability`
+(`a5d62cf` 기준)에서 휠 확대·축소, 작업 그래프 구분·함대 복귀, 현재 임대의
+제출자 표시, 기능별 정보 카드·읽기 쉬운 시각을 구현했다. 긴 노드 이름의 겹침
+피드백으로 함대 간격과 두 줄 표시도 보완했다. Node 52·브라우저 45개 단언·12가지 배치·Go UI 98.4%·vet·glyphscan·Mediator 빌드를 확인했다.
+[변경·검증 기록](construction/ui/code/ui-readability.md),
+[보완 계획](construction/plans/ui-readability-plan.md). 공식 Code Generation과
+기존 공동 장면 보류는 유지한다. 사용자 지시로 미리보기를 재개하고 코드 510c6a6·0b422a7을 push했다.
+[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)을 main 대상으로 열었다. 배포·병합 전이다.
+
 **로컬 실행 상태: 중지.** 사용자 지시로 실행 장소를 다른 호스트로 옮긴다.
 이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.
 아래 LAN·Drain 결과는 종료 전 검증 기록이다. 설정·DB 데이터·로그는 보존했다.
@@ -35,6 +44,7 @@ UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도
 |---|---|---|
 | UI 1~8 | 실 함대 관측, D1/D2/D5, 2D/3D, 투어, 제출 의도·재시도, 웹캠 조작 | 공동 실제 장면은 9~10에서 확인 |
 | UI 개선 | 웹캠 닫기·복원, 한글 두 단어 이름, 상세·모달·투어의 바깥 조작 닫기 | 구현·로컬 검증 완료 |
+| UI 가독성 보완 | 휠 확대·축소, 단계 그래프·함대 복귀, 임대 제출자, 기능별 상세·한국어 시각 | 구현·로컬 검증 완료, 배포 전 |
 | UI 9 | queue·sandbox 출처, c7a237d 두 시나리오의 실제 POST/GET·이름·3D 연결 | 실제 장비 광고·동작, 공개 방송 주소 |
 | UI 10~11 | 독립 검사·PR #6 병합·실제 Drain 관측과 queue 인수 | 공동 CP 장면과 전체 생성 결과 리뷰, 후속 PR #8 |
 | demo-back 1~5 | obs·queue·실제 fixture 인수, 공개 라우트·검증·한도·재시도·DB/UI 연결 | 구현·로컬 검증 완료 |
