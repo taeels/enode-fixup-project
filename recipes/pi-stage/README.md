@@ -1,17 +1,22 @@
-# pi-stage — 어느 기계에 물려도 보드의 LED 를 흔든다
+# pi-stage — 어느 기계에 물려도 무대 장치를 부린다
 
-라즈베리파이 2 Model B 를 랜선으로 직결한 기계에서, 온보드 LED 두 개를
-SSH 로 켜고 끄고 깜빡인다.
+라즈베리파이 2 Model B 를 랜선으로 직결한 기계에서, 보드에 달린 무대 장치를
+SSH 로 부린다. 지금 부리는 것은 **온보드 LED 둘과 3.5mm 잭의 스피커**다.
 
 ```powershell
 ./Initialize-RpiAccess.ps1                      # 기계마다 한 번
 ./Set-RpiLed.ps1 -Action Blink -Hz 2            # 초당 2회 점멸
 ./Set-RpiLed.ps1 -Action Stop                   # 세우고 원상복구
+./Play-RpiSound.ps1 -Path .\welcome.mp3         # 옮기고 틀고 확인까지
 ```
 
 말로 하면 한 줄이지만 이 recipe 가 보여 주려는 것은 따로 있다. **보드를
 찾는 일과 보드를 부리는 일이 다른 문제이고, 앞의 것이 훨씬 어렵다.**
 직결 링크에는 DHCP 도 DNS 도 라우터도 없다.
+
+무대 노드의 운영 지식은 `chore/enode-demo` 브랜치의 `enode-demo/CLAUDE.md`
+에 먼저 쌓였다. 소리 쪽은 그 문서가 실측으로 확인해 둔 값을 그대로 가져왔고,
+LED 쪽은 그 문서가 미확인으로 남긴 자리를 이 recipe 가 재서 채웠다.
 
 ## 주소를 모르고 붙는다
 
@@ -74,6 +79,57 @@ echo mmc0 > /sys/class/leds/ACT/trigger    # 끝나면 되돌린다
 `sudo` 는 안 쓴다. `99-led-permissions.rules` 가 LED 파일을 `gpio` 그룹에
 열어 주고 계정이 그 그룹에 있다. 부팅할 때마다 udev 가 다시 적용한다.
 
+## 소리는 옮기고 튼다
+
+파일은 이 기계에 있고 스피커는 보드에 달려 있다. `Play-RpiSound.ps1` 이
+올리고 틀고 확인까지 한 번에 한다.
+
+```text
+   card 0   vc4hdmi      HDMI
+   card 1   Headphones   bcm2835.  3.5mm 잭.  이쪽이다
+
+   mp3      mpg123 -q -o alsa -a plughw:1,0
+   wav      aplay        -D plughw:1,0
+```
+
+장치를 가리키는 플래그 이름이 `-a` 와 `-D` 로 다르고, **`aplay` 는 mp3 를
+아예 못 읽는다.** 그래서 확장자로 재생기를 고른다.
+
+`~/.asoundrc` 가 기본을 card 1 로 돌려 놓았지만 **재생 명령에 장치를 명시한다.**
+기본값에 기대면 그것이 바뀐 날 조용히 HDMI 로 간다.
+
+재생 전에 볼륨을 올린다. 한 줄이고 멱등이다. 예전에 `aplay` 가 exit 0 로
+끝났는데 아무도 못 들은 적이 있고 원인이 이것이었다.
+
+```sh
+amixer -c 1 sset PCM 100% unmute
+```
+
+## exit 0 은 소리가 났다는 뜻이 아니다
+
+재생기는 장치를 열고 표본을 버릴 수 있다. 그래서 셋을 함께 본다.
+
+```text
+   종료 상태     0 인가
+   걸린 시간     클립 길이와 맞는가.  즉시 끝났으면 열고 버린 것이다
+   커널 카운터   하드웨어가 실제로 프레임을 먹었는가
+```
+
+세 번째가 결정적이다. 재생하는 동안 상태 파일을 훑는다.
+
+```sh
+cat /proc/asound/card1/pcm0p/sub0/status
+```
+
+`hw_ptr` 이 단조 증가하면 카드가 실제로 소리를 뽑아낸 것이고, 끝이
+`DRAINING` 이면 끝까지 갔다는 뜻이다. **이 값은 card 1 의 것이므로 HDMI 로
+새지 않았다는 증거도 된다.** 라벨 뒤에 공백이 여러 칸 붙으므로
+(`hw_ptr      : 43761`) 파싱할 때 한 칸으로 가정하면 안 된다.
+
+여기까지가 확인할 수 있는 전부다. **이 기계도 보드도 소리를 듣지 못한다.**
+DAC 가 표본을 먹었다는 것까지가 한계이고, 들렸다는 것은 사람이 듣고 말해야
+기록할 수 있다. 스크립트도 마지막에 그렇게 적고 끝낸다.
+
 ## 원격 스크립트는 base64 로 싣는다
 
 여러 줄 셸 스크립트를 `ssh` 인자로 넘기면 따옴표가 PowerShell, ssh, 원격
@@ -84,7 +140,7 @@ echo mmc0 > /sys/class/leds/ACT/trigger    # 끝나면 되돌린다
 SSH 세션이 스스로 죽는다.** 실제로 두 번 당했다. base64 로 실으면 원격
 명령줄에는 `echo <b64> | base64 -d | sh` 만 남아서 매칭될 본문이 없다.
 
-## 세 스크립트
+## 네 스크립트
 
 ```text
    Initialize-RpiAccess.ps1   기계마다 한 번.  키를 만들어 보드에 심고
@@ -96,6 +152,9 @@ SSH 세션이 스스로 죽는다.** 실제로 두 번 당했다. base64 로 실
 
    Set-RpiLed.ps1             On Off Blink Stop Restore Status
                               -Led 로 ACT PWR Both,  -Hz 로 점멸 속도
+
+   Play-RpiSound.ps1          mp3 나 wav 를 올려서 틀고 커널 카운터로 확인한다
+                              -Card 로 장치,  기본값 1 은 3.5mm 잭
 ```
 
 `Initialize-RpiAccess.ps1` 은 `authorized_keys` 와 로컬 `ssh config` 를 둘 다
@@ -188,6 +247,18 @@ Stop                 stopped 1 loop(s)
 Status (세운 뒤)      ACT trigger=mmc0   PWR trigger=input  loops=0
 ```
 
+소리도 두 포맷 모두 돌렸다. 사람이 듣고 두 번 다 났다고 확인했다.
+
+```text
+wav (aplay)     exit 0   elapsed 2.160s / clip 2.000s   hw_ptr 1920 -> 91000
+                states RUNNING DRAINING
+mp3 (mpg123)    exit 0   elapsed 2.111s / clip 2.038s   hw_ptr 0 -> 86925
+                states OPEN RUNNING DRAINING
+```
+
+걸린 시간이 클립 길이와 맞고, `hw_ptr` 이 9만 가까이 올라갔고, 끝이
+`DRAINING` 이다. 셋이 함께 맞아야 재생으로 친다.
+
 ## led-toggle 을 대신한다
 
 이 recipe 는 `recipes/led-toggle` 을 지우고 그 자리를 받는다. 그쪽은 외장
@@ -229,6 +300,15 @@ LED 순방향 전압에 못 미쳐서 부하가 안 보이기 때문이다. 이 
 
 바깥 핀에 LED 를 물리는 갈래가 다시 필요해지면, 그때는 배선을 먼저 적고
 위와 같은 대조군을 세운 뒤에 되살리는 것이 맞다.
+
+**`raspi-gpio` 는 이 보드에 없다.** `enode-demo/CLAUDE.md` 의 LED 절이 그
+이름을 쓰는데, 지금 Raspbian 13 에는 `pinctrl` 만 깔려 있다. 인자 모양은
+같으므로 이름만 바꾸면 된다.
+
+```text
+   raspi-gpio   MISSING
+   pinctrl      /usr/bin/pinctrl
+```
 
 ## 온보드 LED 핀에는 pinctrl 을 대지 않는다
 
