@@ -9,7 +9,7 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 
 - **Current Phase**: CONSTRUCTION
 - **Current Unit**: queue (브랜치 `unit/queue` · 2026-09-08T13:55:15Z 착수 · 2026-09-09 에 `main` `0a159a4`(obs 병합) 위로 옮김)
-- **Current Stage**: Build and Test — CP0 · CP2 통과 · 산출물 다섯 냄 · 승인 대기 → PR to main
+- **Current Stage**: queue PR #5 열림 · 병합 대기. 다음 유닛 drain(W2 · CP3) — FD 는 병합 전에 시작 가능
   (`construction/plans/queue-code-generation-plan.md`)
   (`construction/plans/queue-nfr-requirements-plan.md`)
   (`construction/plans/queue-functional-design-plan.md`)
@@ -25,7 +25,7 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 - [x] Infrastructure Design — SKIP (새 인프라 0 · constraints §6)
 - [x] Code Generation — 승인 2026-09-09T00:36:11Z (시험 미실행 상태 · `construction/queue/code/code-summary.md`)
 - [x] CP0 회귀 통과 (2026-09-09T00:47:40Z) · CP2 통과 (2026-09-09T00:52:59Z)
-- [ ] Build and Test 승인 · PR to main
+- [x] Build and Test 승인 · PR to main — https://github.com/taeels/enode-fixup-project/pull/5 (진행자 직렬 병합 대기)
 
 ## 유닛 (의존 순)
 
