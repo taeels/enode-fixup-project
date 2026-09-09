@@ -1,5 +1,27 @@
 # pi-stage — 어느 기계에 물려도 무대 장치를 부린다
 
+## macOS·Linux에서 기존 데모 계약 연결
+
+PowerShell이 없는 호스트는 이 디렉터리의 `enode-demo-led`와
+`led-device.sh`를 같은 디렉터리에 두고 그 위치를 enode의 `PATH`에 넣는다.
+`enode-demo-led`에는 실행 권한을 준다. SSH 공개키 인증과 기존 gpio 권한이
+필요하며 기본 대상은 `sunny@sunnypi.local`이다. `PI_TARGET`으로 바꿀 수 있다.
+
+```sh
+./enode-demo-led status
+./enode-demo-led heartbeat --seconds 10
+./enode-demo-led on
+./enode-demo-led restore
+```
+
+`heartbeat`는 ACT·PWR을 2 Hz로 점멸하고 원래 트리거로 복원한다.
+`on`·`off`는 상태를 유지한다. 쓰기 뒤 실제 brightness를 읽어 불일치를 실패로
+처리한다. 직접 명령은 mediator 작업이 LED를 사용하지 않을 때 실행한다.
+노드 설정의 `labels.device: led`가 기존 `demo-led-toggle` 계약과 연결한다.
+이 명령은 온보드 LED만 다루며 GPIO 17·27을 사용하지 않는다.
+
+---
+
 라즈베리파이 2 Model B 를 랜선으로 직결한 기계에서, 보드에 달린 무대 장치를
 SSH 로 부린다. 지금 부리는 것은 **온보드 LED 둘과 3.5mm 잭의 스피커**다.
 
