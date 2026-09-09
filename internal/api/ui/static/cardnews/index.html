@@ -9,26 +9,45 @@
 <body>
 <header class="cardnews-header">
   <button type="button" data-testid="cardnews-close-button">닫기</button>
-  <span id="progress-text" aria-live="polite">1 / 4</span>
+  <span id="progress-text" aria-live="polite">1 / 5</span>
 </header>
 <main id="card-stage">
   <article class="card" data-index="0">
     <h2>enode 는 왜 필요할까요?</h2>
-    <p>혼자서는 다 감당할 수 없는 개발보드를, 팀이 필요할 때 나눠 씁니다.</p>
+    <img src="/ui/cardnews/card1.png" alt="여러 개발보드에 둘러싸인 개발자" data-testid="cardnews-illustration-0">
+    <p>개별로 관리하는 개발보드를, 팀이 필요할 때 나눠 씁니다.</p>
   </article>
   <article class="card" data-index="1">
     <h2>갤럭시 S2 버그를, 오늘 고쳐야 한다면</h2>
+    <img src="/ui/cardnews/card2.png" alt="모니터의 보드 정보를 확인하는 개발자" data-testid="cardnews-illustration-1">
     <p>갤럭시 S26 이 나온 지금도 그 시절 버그는 그 시절 보드에서만
       재현됩니다. 그런 보드는 대개 한 대, 한 자리뿐입니다.</p>
   </article>
   <article class="card" data-index="2">
     <h2>옆 팀 보드가 비어 있다면</h2>
+    <img src="/ui/cardnews/card3.png" alt="개발자와 로봇 옆에 놓인 여러 보드" data-testid="cardnews-illustration-2">
     <p>여러 보드를 동시에 써야 하는 날, 지금 비어 있는 동료의 보드를
       곧장 빌려 쓸 수 있다면 훨씬 빨리 끝납니다.</p>
   </article>
   <article class="card" data-index="3">
     <h2>enode 가 그 다리를 놓습니다</h2>
-    <p>지금 함대가 무엇을 하고 있는지 살펴보세요.</p>
+    <div class="card-image-row">
+      <img src="/ui/cardnews/card4.png" alt="폰을 들어 보이는 개발자" data-testid="cardnews-illustration-3">
+      <img src="/ui/cardnews/card4-board.png" alt="선반에 놓인 개발보드들" data-testid="cardnews-illustration-3b">
+    </div>
+    <p>원하는 작업을 지원 가능한 보드, 서버, 시료 등 가용자원을 살펴보세요</p>
+  </article>
+  <article class="card card-video" data-index="4">
+    <h2>enode 와 함께한 미래는 이렇게 일 합니다</h2>
+    <video
+      src="/ui/cardnews/story2.mp4"
+      data-testid="cardnews-story-video"
+      autoplay
+      muted
+      loop
+      playsinline
+      controls
+    ></video>
   </article>
 </main>
 <footer class="cardnews-footer">
@@ -38,6 +57,7 @@
     <span class="dot" data-testid="cardnews-progress-dot-1"></span>
     <span class="dot" data-testid="cardnews-progress-dot-2"></span>
     <span class="dot" data-testid="cardnews-progress-dot-3"></span>
+    <span class="dot" data-testid="cardnews-progress-dot-4"></span>
   </nav>
   <button type="button" data-testid="cardnews-next-button">다음</button>
 </footer>

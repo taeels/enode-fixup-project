@@ -42,6 +42,13 @@ func TestHandlerServesCardnews(t *testing.T) {
 		"cardnews-next-button",
 		"cardnews-progress-dot-0",
 		"cardnews-progress-dot-3",
+		"cardnews-progress-dot-4",
+		"cardnews-story-video",
+		"cardnews-illustration-0",
+		"cardnews-illustration-1",
+		"cardnews-illustration-2",
+		"cardnews-illustration-3",
+		"cardnews-illustration-3b",
 	} {
 		if !strings.Contains(body, `data-testid="`+testID+`"`) {
 			t.Errorf("cardnews page is missing element %q", testID)
@@ -66,6 +73,12 @@ func TestHandlerServesStaticAssets(t *testing.T) {
 		"/ui/shared/guest.js",
 		"/ui/cardnews/cardnews.js",
 		"/ui/cardnews/cardnews.css",
+		"/ui/cardnews/story2.mp4",
+		"/ui/cardnews/card1.png",
+		"/ui/cardnews/card2.png",
+		"/ui/cardnews/card3.png",
+		"/ui/cardnews/card4.png",
+		"/ui/cardnews/card4-board.png",
 		"/ui/demo/demo.js",
 		"/ui/demo/demo.css",
 	}
