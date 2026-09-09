@@ -1,4 +1,5 @@
 import { RUN_STATES } from '../shared/fleet/model.mjs';
+import { formatRunId } from '../shared/fleet/format.mjs';
 import { retryDelay } from '../shared/fleet/client.mjs';
 import { element, button, dismissOnBackdrop } from '../shared/fleet/view.mjs';
 import { trapFocus } from './tour.mjs';
@@ -63,7 +64,7 @@ export class Submission {
       if ([200, 201, 202].includes(status)) {
         if (!body || typeof body.run_id !== 'string' || !body.run_id || !RUN_STATES.includes(body.state)) throw new Error('Invalid submission acknowledgement');
         this.state.phase = 'accepted'; this.state.run = { run_id: body.run_id, state: body.state }; this.clearSaved();
-        this.state.message = `${body.run_id} · ${body.state}${body.state === 'QUEUED' ? ' · 접수됨, 배정을 기다리는 중' : body.state === 'FAILED' ? ' · 기존 요청이 실패 상태입니다' : ' · 접수 확인됨'}`;
+        this.state.message = `${formatRunId(body.run_id)} · ${body.state}${body.state === 'QUEUED' ? ' · 접수됨, 배정을 기다리는 중' : body.state === 'FAILED' ? ' · 기존 요청이 실패 상태입니다' : ' · 접수 확인됨'}`;
         this.emit(); this.onAccepted(this.state.run); return;
       }
       if ([400, 413, 415, 422].includes(status)) { this.state.phase = 'rejected'; this.state.message = `요청이 거절되었습니다 (${status}).${status === 422 ? ' 관측 목록을 다시 확인합니다.' : ' 새 작업으로 다시 시작할 수 있습니다.'}`; this.clearSaved(); if (status === 422) this.onRefresh(); }
@@ -110,6 +111,7 @@ export class SubmissionDialog {
     this.retry.disabled = this.submission.now() < state.retryAt;
     const wait = this.retry.disabled ? ` (${Math.ceil((state.retryAt - this.submission.now()) / 1000)}초)` : '';
     const text = state.message + wait; if (this.status.textContent !== text) this.status.textContent = text;
+    this.status.title = state.run?.run_id || '';
   }
   destroy() { clearInterval(this.timer); this.dialog.remove(); }
 }

@@ -9,6 +9,22 @@
 
 ## 현재 기준 — 2026-09-09
 
+**Run 흐름·보기 설정 후속 작업**: 같은 `Runixs/UI-Update-2`에서 게스트/제출자와
+Mediator 역할 요소, 관측 상태에 따른 실행 연결, 역할 상세, 좁은 화면 세로 흐름을
+구현했다. 상단 네 버튼은 화면·표현 드롭다운으로 교체했다. Node 63개·관측 모형
+브라우저 4환경·실제 demo 진입점 2환경·Go UI 98.4%·vet·glyphscan·Mediator 빌드가
+통과했다. [구현·검증](construction/ui/code/ui-run-flow.md),
+[보완 계획](construction/plans/ui-run-flow-plan.md). 운영 배포 전이며
+기존 공식 단계·공동 CP6/CP10 보류를 유지한다.
+
+**Run 이름 표시 후속 작업**: `Runixs/UI-Update-2`에서 긴 해시 ID를 접두어와
+앞 8자리로 표시했다. 작업 그래프·목록·노드 상세·접수 안내에 적용하고 전체
+ID는 title·조회·선택·CLI에 보존한다. Node 59개·표시 12개·브라우저 4환경,
+Go UI 98.4%·vet·glyphscan·Mediator 빌드를 확인했다.
+[변경·검증 기록](construction/ui/code/ui-run-label.md),
+[보완 계획](construction/plans/ui-run-label-plan.md). 운영 배포 전이며
+기존 공식 단계와 공동 CP6/CP10 보류는 유지한다.
+
 **UI 가독성 후속 작업**: `UI-update` 체크아웃의 `unit/runixs-ui-readability`
 (`a5d62cf` 기준)에서 휠 확대·축소, 작업 그래프 구분·함대 복귀, 현재 임대의
 제출자 표시, 기능별 정보 카드·읽기 쉬운 시각을 구현했다. 긴 노드 이름의 겹침

@@ -1,5 +1,6 @@
 import { DashboardView, button } from '../shared/fleet/view.mjs';
 import { ObservationClient } from '../shared/fleet/client.mjs';
+import { formatRunId } from '../shared/fleet/format.mjs';
 import { DemoTour } from './tour.mjs';
 import { Submission, SubmissionDialog } from './submission.mjs';
 import { GalleryDemo } from './gallery.mjs';
@@ -11,7 +12,8 @@ function update(resources = client.resources, now = performance.now()) {
   const state = submission.state, listed = state.run && resources.get('runs')?.data?.runs.some(r => r.run_id === state.run.run_id);
   // 접수 응답은 과거의 상태다. 목록에 나타난 뒤에는 현재 관측 상태만 안내한다.
   view.submissionNotice.hidden = !state.message || (state.phase === 'accepted' && listed);
-  view.submissionNotice.textContent = state.phase === 'accepted' ? `${state.run.run_id} · 접수 확인됨. 관측 목록에 반영되는 중입니다.` : state.message;
+  view.submissionNotice.textContent = state.phase === 'accepted' ? `${formatRunId(state.run.run_id)} · 접수 확인됨. 관측 목록에 반영되는 중입니다.` : state.message;
+  view.submissionNotice.title = state.run?.run_id || '';
 }
 const client = new ObservationClient({ mode: 'demo', onChange: update });
 const view = new DashboardView(root, { mode: 'demo', identity: guest.guestName(), onRetry: () => client.refresh(true), onRunSelection: id => client.selectRun(id) });

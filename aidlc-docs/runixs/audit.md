@@ -1519,3 +1519,102 @@ VM enode `56f2f99`의 실행 상태는 이번 Git 통합과 구분한다.
 **Timestamp**: 2026-09-09T06:03:46.622698+00:00
 
 **AI Response**: Mediator와 VM Python을 `1b5d8aa`로 적용했다. 공개 UI에서 Runaway 댓글→AI 작성 팀 MindCraft 식별이 answered로 완료됐다. Run은 `gallery-63cf3ef1302c002a166fc5ed000fd457f4872587994d9241456a482007e53121`이고 실제 댓글은 추가 게시하지 않았다. 터널 PID 70718·주소·DB·팀원 노드를 보존했으며 VM 서비스 3개 active·drain 복원·소스 해시 일치를 확인했다. PR #14는 이미 병합됐으므로 main `50899b0`에서 후속 PR #17을 만들었다.
+## Run 식별자 표시 축약 요청
+
+**Timestamp**: 2026-09-09T06:01:06Z
+
+**User Input**:
+
+```text
+$aidlc 꾸준한 단풍 · demo-dada8cd69d50e9d371bfea32fb6ba5bbfb6bc3da914a69a6395caab7efb85ee8 · FAILED
+
+이렇게 지금 run의 네이밍이 너무 긴숫자로 제네레이션되어있어. 이거 좀 간단하게 표시될 수 있게 해줘.
+```
+
+**AI Response / Decision**: vendored AI-DLC v1.0.1, roster의 UI 담당 runixs,
+담당 상태와 기존 승인된 코드 계획을 복원했다. 깨끗한 `Runixs/UI-Update-2`
+브랜치에서 기존 UI 가독성의 후속 수정으로 진행한다. 긴 해시의 앞 8자리와
+접두어만 표시하고 전체 ID는 title·선택·조회·CLI 명령에 보존한다.
+`construction/plans/ui-run-label-plan.md`에 구현·검증 순서를 기록했다.
+비활성 resiliency-baseline·property-based-testing은 건너뛰고 기존 보안 범위와
+공동 CP6/CP10 보류를 유지한다.
+
+## Run 식별자 표시 축약 구현·검증
+
+**Timestamp**: 2026-09-09T06:04:59Z
+
+**AI Response / Decision**: 작업 그래프·목록·노드 상세·질문 버튼·데모 접수
+안내의 긴 해시를 접두어와 앞 8자리로 표시했다. 전체 ID는 title에 남기고
+선택 키·조회 URL·제출 응답·CLI 명령을 원본으로 유지했다.
+Node 59개와 별도 표시 확인 12개, demo/fleet × 1440px/390px 브라우저 4환경이
+통과했다. 같은 축약명의 서로 다른 Run도 전체 ID로 조회되는 것을 확인했다.
+Go가 기본 PATH에 없어 설치된 `/tmp/enode-impl-tools/go/bin/go`로 재실행해
+UI 98.4%·vet·glyphscan 102파일·Mediator 빌드를 통과했다. demo.js는 ES 모듈로
+구문 검사했다. 모바일 캡처에서 한 줄 제목·가로 넘침 없음을 확인했다.
+변경·검증은 `construction/ui/code/ui-run-label.md`에 기록했다.
+기존 보안 예외·비활성 확장·공동 CP 보류를 유지한다. 운영 배포는 수행하지 않았다.
+
+## Run 그래프의 게스트·Mediator 흐름 보완 요청
+
+**Timestamp**: 2026-09-09T06:11:05Z
+
+**User Input**:
+
+```text
+지금 우리 노드나 run디테일화면에 딱 enode만 떠 있는데, 너무 썰렁해. 
+runs그래프에 게스트노드와 mediator노드까지 만들어서 진행되는 과정을 더 풍부하게 볼 수 있게하면 어떨까
+```
+
+**AI Response / Decision**: 기존 실행 단계 그래프에 요청자·Mediator의 역할
+요소를 더해 요청→배정→실행 관계를 드러내는 UI 후속 보완으로 진행한다.
+frontend-design 스킬을 적용하고 기존 짙은 운영 화면의 색·SVG 모형을 계승한다.
+역할 요소를 실제 등록 노드나 API 단계로 추가하지 않으며, 진행 효과는 실제
+Run/단계 관측과 신선도에 연결한다. 기존 미커밋 ID 축약 작업을 보존한다.
+`construction/plans/ui-run-flow-plan.md`에 설계·파일·검증을 기록했다.
+
+## 상단 보기 설정 드롭다운 보완 요청
+
+**Timestamp**: 2026-09-09T06:19:49Z
+
+**User Input**:
+
+```text
+UI 상단바에 함대/작업그래프 << 이거 둘 중에 하나만 선택되는 방식이고, 2D/3D도 둘중하나만 선택되는 방식인데 버튼이 각각 있으니까 약간 직관적이지 않아. 드롭다운이나 다른 형태로 변경해서 view변경 필터라는 것을 나타내주자.
+```
+
+**AI Response / Decision**: 진행 중인 Run 흐름 보완에 상단 선택 UI를 포함한다.
+보기 설정 그룹 안에 화면(함대/작업 그래프)·표현(2D/3D) 네이티브 드롭다운을
+두고 실제 SceneState와 선택값을 동기화한다. 최초 Run 미선택 제약, 새 제출의
+run+3d 전환, 함대 복귀 포커스와 두 표현의 선택 Run 보존을 검증한다.
+
+## Run 흐름·보기 설정 구현·검증 완료
+
+**Timestamp**: 2026-09-09T06:27:38Z
+
+**AI Response / Decision**: 요청자 아바타·Mediator 허브·실제 enode 단계 영역과
+상단 화면/표현 드롭다운을 구현했다. 역할 요소는 실제 API 노드나 steps에
+추가하지 않는다. 현재 관람객과 선택 Run의 제출자를 구분하며 CLAIMED 연결만
+RUNNING 중 움직이고 종료·오류·15초 지연·reduced-motion에서는 멈춘다.
+Node 63개 무실패/무생략, 관측 모형 브라우저 4환경과 실제 demo 진입점 2환경을
+통과했다. 게스트/Mediator 상세·키보드·포커스·드롭다운 동기화·모바일 스크롤·
+원본 ID·긴 이름·HTML 문자열·QUEUED/ASKED/종료/잘못된 DAG를 확인했다.
+Go UI 98.4%·vet·glyphscan·Mediator 빌드 통과. audit 사용자 원문의 후행 공백
+1개는 그대로 보존했고 다른 코드·문서의 diff 공백 검사는 통과했다.
+담당 FD·계획·상태와 `construction/ui/code/ui-run-flow.md`에 결과를 기록했다.
+미커밋 ID 축약은 보존했다. 운영 배포와 전체 유닛/공동 장면 승인은 수행하지 않았다.
+
+## UI 후속 변경 PR 제출 요청
+
+**Timestamp**: 2026-09-09T06:30:27Z
+
+**User Input**:
+
+```text
+PR올려줘
+```
+
+**AI Response / Decision**: Run 이름 축약·게스트/Mediator 흐름·보기 설정 변경을
+커밋하고 main 대상으로 PR을 제출한다. origin/main은 `c51d923`이며 작업 시작점
+이후 갤러리 탐색·카드뉴스 변경 6커밋이 추가됐다. 이를 rebase로 인수하고
+기존 사용자 기록을 보존하며 영향을 받는 UI 검사를 다시 확인한다.
+운영 배포·main 병합은 이번 PR 제출 요청에 포함하지 않는다.
