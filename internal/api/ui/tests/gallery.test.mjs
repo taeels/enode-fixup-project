@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GalleryDemo, GALLERY_KEY } from '../static/demo/gallery.mjs';
 const proof = '04995a39-1fba-4c16-b2cd-dc80ff21257e';
-const id = 'gallery-' + 'a'.repeat(64), postID = 'gallery-post-' + 'a'.repeat(64);
+const id = 'gallery-' + 'a'.repeat(64);
 const response = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 const draft = { outcome: 'draft_ready', message: '초안입니다.', body: '좋은 프로젝트!', transcript: [{ role: 'assistant', text: '초안입니다.' }] };
 function create(fetcher, saved) {
@@ -12,23 +12,31 @@ function create(fetcher, saved) {
   const demo = new GalleryDemo({ submitter: '밝은 수달', storage, uuid: () => proof, fetcher, timers });
   demo.state.projects = [{ id: 'project', title: 'Project', teamName: 'Team' }]; return { demo, values, storage };
 }
-test('draft does not publish until explicit confirmation; body is frozen across uncertain retry', async () => {
-  const calls = []; let publishAttempts = 0, published = false;
+test('one prompt submits one server workflow and displays the actual posted result', async () => {
+  const calls = [];
   const { demo } = create(async (path, options) => {
     calls.push({ path, ...options });
-    if (path.endsWith('/publish')) { publishAttempts++; if (publishAttempts === 1) throw Error('connection lost'); published = true; return response({ run_id: postID, state: 'RUNNING' }); }
     if (options.method === 'POST') return response({ run_id: id, state: 'RUNNING' }, 201);
-    return response({ run: { run_id: id, state: 'SUCCEEDED' }, result: draft, ...(published ? { publication: { run: { run_id: postID, state: 'SUCCEEDED' }, result: { outcome: 'posted', message: '게시 완료' } } } : {}) });
+    return response({ run: { run_id: id, state: 'SUCCEEDED' }, result: { outcome: 'posted', message: '게시 완료', project_id: 'project', body: '좋은 프로젝트!', transcript: [{ role: 'tool', tool: 'post_comment', text: '게시 완료' }] } });
   });
-  await demo.start('project', '댓글 써줘');
-  assert.equal(demo.state.phase, 'draft_ready'); assert.equal(publishAttempts, 0);
-  await demo.publish('내가 수정한 댓글'); assert.equal(demo.state.phase, 'uncertain');
-  await demo.publish('다른 댓글'); assert.equal(publishAttempts, 1);
-  await demo.retry(); assert.equal(demo.state.phase, 'posted'); assert.equal(publishAttempts, 2);
-  const posts = calls.filter(c => c.path.endsWith('/publish'));
-  assert.deepEqual(posts.map(c => JSON.parse(c.body)), Array(2).fill({ request_id: proof, body: '내가 수정한 댓글' }));
+  await demo.start('Team 팀에 응원 댓글 달아줘');
+  assert.equal(demo.state.phase, 'posted'); assert.equal(demo.state.result.project_id, 'project');
+  assert.deepEqual(calls.filter(c => c.method === 'POST').map(c => c.path), ['/v1/demo/gallery/comments']);
+  assert.deepEqual(JSON.parse(calls[0].body), { prompt: 'Team 팀에 응원 댓글 달아줘', request_id: proof, submitter: '밝은 수달' });
+  assert.equal(demo.state.confirmedBody, null);
   assert.ok(calls.every(c => c.credentials === 'omit' && c.redirect === 'error'));
-  assert.equal(calls.find(c => c.method === 'GET').headers['X-Gallery-Request-ID'], proof);
+  assert.equal(calls[1].headers['X-Gallery-Request-ID'], proof);
+});
+test('explicit draft-only outcome and ambiguous team never cause a publication request', async () => {
+  for (const outcome of ['draft_ready', 'needs_project']) {
+    let writes = 0;
+    const { demo } = create(async (path, options) => {
+      if (options.method === 'POST') { writes++; return response({ run_id: id, state: 'RUNNING' }); }
+      return response({ run: { run_id: id, state: 'SUCCEEDED' }, result: { ...draft, outcome } });
+    });
+    await demo.start('댓글 초안만 써줘'); assert.equal(demo.state.phase, outcome); assert.equal(writes, 1);
+    demo.reset(); assert.equal(demo.state.phase, 'idle');
+  }
 });
 test('refused request cannot publish', async () => {
   let posts = 0;
@@ -36,13 +44,13 @@ test('refused request cannot publish', async () => {
     if (options.method === 'POST') { posts++; return response({ run_id: id, state: 'RUNNING' }); }
     return response({ run: { run_id: id, state: 'SUCCEEDED' }, result: { outcome: 'refused', message: '외부 사이트 방문은 거절합니다.', transcript: [] } });
   });
-  await demo.start('project', '다른 사이트 방문해'); await demo.publish('댓글');
+  await demo.start('다른 사이트 방문해'); await demo.publish('댓글');
   assert.equal(demo.state.phase, 'refused'); assert.equal(posts, 1);
 });
 test('lost draft acknowledgement persists original UUID and retries same intent', async () => {
   const bodies = [];
   const { demo, values } = create(async (path, options) => { bodies.push(options.body); throw Error('offline'); });
-  await demo.start('project', '댓글'); await demo.retry();
+  await demo.start('댓글'); await demo.retry();
   assert.equal(bodies.length, 2); assert.equal(bodies[0], bodies[1]);
   assert.equal(JSON.parse(values.get(GALLERY_KEY)).intent.request_id, proof);
   demo.reset(); assert.equal(demo.state.phase, 'uncertain');
@@ -53,14 +61,14 @@ test('reload only reads accepted request; never automatically posts', async () =
   const { demo } = create(async (path, options) => { methods.push(options.method); return response({ run: { run_id: id, state: 'QUEUED' }, result: null }); }, { intent, run: { run_id: id, state: 'RUNNING' }, confirmedBody: null });
   assert.deepEqual(methods, []); await demo.retry(); assert.deepEqual(methods, ['GET']); assert.equal(demo.state.phase, 'running');
 });
-test('invalid selection and duplicate click do not create requests', async () => {
+test('blank prompt and duplicate click do not create requests', async () => {
   let count = 0;
   const { demo } = create(async () => { count++; throw Error('offline'); });
-  await demo.start('https://example.com', 'comment'); assert.equal(count, 0);
-  await Promise.all([demo.start('project', 'comment'), demo.start('project', 'comment')]); assert.equal(count, 1);
+  await demo.start(' '); assert.equal(count, 0);
+  await Promise.all([demo.start('comment'), demo.start('comment')]); assert.equal(count, 1);
 });
 test('stale callback after destruction cannot update UI', async () => {
   let resolve; const { demo } = create(() => new Promise(r => { resolve = r; }));
-  const pending = demo.start('project', 'comment'); demo.destroy(); resolve(response({ run_id: id, state: 'RUNNING' })); await pending;
+  const pending = demo.start('comment'); demo.destroy(); resolve(response({ run_id: id, state: 'RUNNING' })); await pending;
   assert.equal(demo.state.run, null);
 });

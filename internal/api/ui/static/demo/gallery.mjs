@@ -36,18 +36,18 @@ export class GalleryDemo {
     catch (error) { this.state.message = error.message; }
     this.emit();
   }
-  async start(project, prompt) {
-    if (this.state.intent || !this.state.projects.some(p => p.id === project) || !prompt.trim() || [...prompt].length > 1000) return;
+  async start(prompt) {
+    if (this.state.intent || !prompt.trim() || [...prompt].length > 1000) return;
     const proof = this.uuid(); if (!validProof(proof)) return;
-    this.state.intent = { project_id: project, prompt, submitter: this.submitter, request_id: proof }; this.save();
+    this.state.intent = { prompt, submitter: this.submitter, request_id: proof }; this.save();
     await this.send(false);
   }
   async send(publish) {
     if (this.state.phase === 'sending') return;
     const generation = this.generation;
-    this.state.phase = 'sending'; this.state.message = publish ? '확인한 댓글의 게시를 접수합니다…' : '격리된 Claude에 요청을 전달합니다…'; this.save(); this.emit();
+    this.state.phase = 'sending'; this.state.message = publish ? '댓글을 게시하고 있습니다…' : 'Claude에게 메시지를 전달하고 있습니다…'; this.save(); this.emit();
     try {
-      const run = await this.request(publish ? `/runs/${this.state.run.run_id}/publish` : '/runs', publish ? { request_id: this.state.intent.request_id, body: this.state.confirmedBody } : this.state.intent);
+      const run = await this.request(publish ? `/runs/${this.state.run.run_id}/publish` : this.state.intent.project_id ? '/runs' : '/comments', publish ? { request_id: this.state.intent.request_id, body: this.state.confirmedBody } : this.state.intent);
       if (generation !== this.generation) return;
       if (!(publish ? /^gallery-post-[0-9a-f]{64}$/ : /^gallery-[0-9a-f]{64}$/).test(run?.run_id) || typeof run.state !== 'string') throw new Error('접수 응답을 확인하지 못했습니다.');
       if (publish) this.state.publication = { run, result: null }; else this.state.run = run;
@@ -72,7 +72,7 @@ export class GalleryDemo {
       } else if (terminal(active.run.state) && active.run.state !== 'SUCCEEDED') {
         this.state.phase = 'error'; this.state.message = `실행이 ${active.run.state} 상태로 끝났습니다.`;
       } else {
-        this.state.phase = 'running'; this.state.message = active.run.state === 'QUEUED' ? '요청이 접수됐습니다. VM 배정을 기다리는 중입니다.' : 'VM에서 실행 중입니다. 완료되면 실제 응답과 도구 호출을 표시합니다.';
+        this.state.phase = 'running'; this.state.message = active.run.state === 'QUEUED' ? '메시지를 받았습니다. 앞선 작업이 끝나면 이어서 진행합니다.' : 'Claude가 요청을 처리하고 있습니다…';
         this.timer = this.timers.setTimeout(() => this.poll(), 3000);
       }
       this.save(); this.emit();

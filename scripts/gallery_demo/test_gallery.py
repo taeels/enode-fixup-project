@@ -24,6 +24,13 @@ def ticket(**changes):
     return payload + '.' + hmac.new(KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
+def comment_ticket(**changes):
+    grant = dict(purpose=broker.COMMENT_PURPOSE, job_id=JOB['job_id'], expires=int(time.time()) + 900)
+    grant.update(changes)
+    payload = base64.urlsafe_b64encode(json.dumps(grant).encode()).decode().rstrip('=')
+    return payload + '.' + hmac.new(KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+
 class FakeGallery:
     def __init__(self):
         self.posts = 0
@@ -33,6 +40,9 @@ class FakeGallery:
 
     def project(self, selected):
         return {'id': selected, 'title': '테스트', 'teamName': '팀', 'description': '프로젝트 소개'}
+
+    def projects(self):
+        return [{'id': 'project-1', 'title': '테스트', 'teamName': '팀'}, {'id': 'project-2', 'title': '다른 프로젝트', 'teamName': '다른 팀'}]
 
     def login(self, config):
         pass
@@ -49,6 +59,77 @@ class FakeGallery:
 
 
 class GalleryTests(unittest.TestCase):
+    def test_comment_grant_posts_once_and_cannot_switch_team(self):
+        fake = FakeGallery()
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / 'state.sqlite')
+            publisher = self.publisher(path, fake)
+            signed = comment_ticket()
+            first = publisher.publish(signed, 'project-1', JOB['body'])
+            self.assertEqual(first['outcome'], 'posted')
+            publisher.db.close()
+            publisher = self.publisher(path, fake)
+            self.assertEqual(publisher.publish(signed, 'project-1', JOB['body']), first)
+            for selected, body in [('project-2', JOB['body']), ('project-1', '다른 본문')]:
+                with self.assertRaises(ValueError):
+                    publisher.publish(signed, selected, body)
+            self.assertEqual(fake.posts, 1)
+            publisher.db.close()
+
+    def test_comment_grant_rejects_unknown_project_and_fixed_ticket_override(self):
+        fake = FakeGallery(); publisher = self.publisher(':memory:', fake)
+        for signed, selected, body in [(comment_ticket(), 'missing-project', JOB['body']), (comment_ticket(), 'https://example.com', JOB['body']),
+                                       (comment_ticket(), 'project-1', 'x' * 501), (ticket(), 'project-1', 'override'),
+                                       (comment_ticket(project_id='project-1'), 'project-1', JOB['body'])]:
+            with self.assertRaises(ValueError):
+                publisher.publish(signed, selected, body)
+        self.assertEqual(fake.posts, 0)
+        publisher.db.close()
+
+    def test_discovery_mcp_requires_catalog_and_cannot_publish(self):
+        tools = [('get_project', {'project_id': 'project-1'}), ('list_projects', {}),
+                 ('get_project', {'project_id': 'project-1'}), ('get_project', {'project_id': 'https://example.com'}), ('post_comment', {})]
+        requests = [{'jsonrpc': '2.0', 'id': i, 'method': 'tools/call', 'params': {'name': tool, 'arguments': args}} for i, (tool, args) in enumerate(tools)]
+        fake = FakeGallery()
+        with tempfile.TemporaryDirectory() as directory, patch.object(mcp, 'Gallery', return_value=fake):
+            out = io.StringIO(); audit = str(Path(directory) / 'events')
+            mcp.serve('discover', '', audit, io.StringIO(''.join(json.dumps(r) + '\n' for r in requests)), out)
+            replies = [json.loads(line)['result'] for line in out.getvalue().splitlines()]
+            self.assertTrue(replies[0]['isError']); self.assertIn('projects', json.loads(replies[1]['content'][0]['text']))
+            self.assertEqual(json.loads(replies[2]['content'][0]['text'])['id'], 'project-1')
+            self.assertTrue(replies[3]['isError']); self.assertTrue(replies[4]['isError']); self.assertEqual(fake.posts, 0)
+
+    def test_comment_worker_posts_after_catalog_and_exact_project_read(self):
+        job = {'operation': 'comment', 'prompt': '팀에 응원 댓글 달아줘', 'ticket': 'private-grant'}
+        for decision, outcome, read_id, should_post in [('comment_intent', 'draft_ready', 'project-1', True),
+                                                       ('draft_intent', 'draft_ready', 'project-1', False),
+                                                       ('comment_intent', 'needs_project', None, False),
+                                                       ('comment_intent', 'draft_ready', 'project-2', False)]:
+            def model(prompt, policy, schema, directory, config=None):
+                if config is None:
+                    return {'outcome': decision, 'message': '요청을 확인했습니다.'}
+                self.assertEqual(config['mode'], 'discover')
+                self.assertNotIn('private-grant', policy)
+                rows = [{'role': 'tool', 'tool': 'list_projects', 'text': '팀 목록 확인', 'ok': True}]
+                if read_id:
+                    rows.append({'role': 'tool', 'tool': 'get_project', 'project_id': read_id, 'text': '프로젝트 조회', 'ok': True})
+                Path(config['audit']).write_text(''.join(json.dumps(row) + '\n' for row in rows))
+                return {'outcome': outcome, 'message': '댓글을 작성했습니다.' if read_id else '어느 팀인가요?', 'body': JOB['body'], 'project_id': 'project-1'}
+            def post(fixed_job, audit, selected, body):
+                self.assertEqual(selected, 'project-1'); self.assertEqual(body, JOB['body'])
+                Path(audit).write_text(json.dumps({'role': 'tool', 'tool': 'post_comment', 'text': '게시 완료', 'ok': True}) + '\n')
+                return {'outcome': 'posted', 'message': '게시 완료', 'project_id': selected, 'body': body, 'comment_id': '1'}
+            with self.subTest(decision=decision, outcome=outcome, read_id=read_id), tempfile.TemporaryDirectory() as directory, patch.object(worker, 'claude', side_effect=model), patch.object(worker, 'publish', side_effect=post) as publication:
+                if read_id == 'project-2':
+                    with self.assertRaises(ValueError):
+                        worker.run(job, directory)
+                else:
+                    result = worker.run(job, directory)
+                    self.assertEqual(result['outcome'], 'posted' if should_post else outcome)
+                    self.assertEqual(any(e.get('tool') == 'post_comment' for e in result['transcript']), should_post)
+                    self.assertNotIn('private-grant', json.dumps(result))
+                self.assertEqual(publication.call_count, int(should_post))
+
     def test_fixed_paths(self):
         for bad in ['../x', 'a/b', 'https://example.com', 'x?next=secret', '', 'a' * 65, 'a\n']:
             with self.subTest(bad=bad), self.assertRaises(ValueError):

@@ -52,6 +52,13 @@ class Gallery:
         return {k: str(p.get(k) or '')[:8000 if k == 'description' else 300]
                 for k in ('id', 'title', 'teamName', 'description')}
 
+    def projects(self):
+        rows = self._call('/api/projects')['projects']
+        if not isinstance(rows, list) or len(rows) > 200:
+            raise ValueError('invalid catalog')
+        return [{'id': project_id(p['id']), 'title': str(p.get('title') or '')[:300],
+                 'teamName': str(p.get('teamName') or '')[:300]} for p in rows]
+
     def login(self, credentials):
         self._call('/api/auth/login', {k: credentials[k] for k in ('email', 'password')})
         team = self._call('/api/auth/me').get('team') or {}
