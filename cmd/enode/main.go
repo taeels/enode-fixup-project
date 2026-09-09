@@ -51,6 +51,11 @@ func run() int {
 	if len(os.Args) > 1 && os.Args[1] == "setup" {
 		return runSetupCmd(os.Args[2:])
 	}
+	// 제어판 하위명령 (R? · 3.1.2) — enodectl serve 가 여기로 exec 위임한다.
+	// 제어판의 net/http 표면을 enodectl.exe 밖에 두는 것이 이 갈래의 요점이다.
+	if len(os.Args) > 1 && os.Args[1] == "panel" {
+		return runPanelCmd(os.Args[2:])
+	}
 	// --version 은 플래그 파싱보다 앞이다 (ADR-056) — 설정 파일이 없어도
 	// 답해야 한다. 자기 갱신이 받아온 것이 무엇인지를 이것으로 판정한다.
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version") {
