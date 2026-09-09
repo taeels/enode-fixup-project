@@ -1713,3 +1713,49 @@ galley로 run을 한 대화내용을 run history에서도 보게 할 방법없�
 **Timestamp**: 2026-09-09T06:49:57.661233+00:00
 
 **Decision**: 코드 9d8d1de를 SSH로 Mac mini에서 빌드하고 관리 중인 Mediator PID를 확인해 교체·재시작했다. 새 PID 60283, 터널 PID 70718, 백업 backup-server-update-20260909T064915Z다. 기존 갤러리 이름과 새 대화 이력 기능이 포함된 바이너리다. 설정·데이터·터널 주소는 보존했다. 사용자 지시대로 운영 추가 검사는 실행하지 않았다. 완료한 계획 체크박스·담당 상태·운영/검증 기록을 갱신하고 PR #22에 반영한다.
+
+## YouTube Live 웹캠 연결과 최종 링크 교체
+
+**Timestamp**: 2026-09-09T07:00:00Z
+
+**User Input**:
+
+```text
+https://www.youtube.com/live/zoJC1SPEbJU?si=9d9trQyfbnV-5vAr 웹캠뷰에 이 라이브 스트리밍을 연결해봐.
+```
+
+**Follow-up User Input**:
+
+```text
+https://youtube.com/live/8y2ln1nCHbM?feature=share 이 링크로 해줘.
+```
+
+**AI Response / Decision**: 기존 UI 유닛의 `settings.json`이 공개 HTTPS iframe
+URL을 받고 Go·브라우저 양쪽에서 origin과 자격 증명 query를 검증하는 구조임을
+확인했다. YouTube 공식 embed 형식에 autoplay·mute·playsinline을 사용한다.
+첫 영상 ID를 기록한 뒤 배포 전 후속 입력의 `8y2ln1nCHbM`으로 교체했다.
+macOS arm64 Mediator `ce0ef4c`을 빌드해 Mac mini에 적용하고 공개 settings·CSP,
+PID `61883` 리슨과 기존 터널 PID `70718` 유지를 확인했다. 설정·토큰·DB·runctl은
+변경하지 않았다. 선행 사용자 지시에 따라 테스트 스위트는 실행하지 않았으며
+CP10·CP11 통과로 기록하지 않는다.
+
+---
+
+## YouTube Live 변경의 AI-DLC 기록·PR 요청
+
+**Timestamp**: 2026-09-09T07:00:00Z
+
+**User Input**:
+
+```text
+aidlc룰에 맞춰서 진행한것처럼 커밋 만들고 PR올려줘
+```
+
+**AI Response / Decision**: 기존 승인이나 검사를 소급해 만들지 않고 실제 사용자
+지시·두 코드 커밋·빌드·운영 확인·테스트 미실행을 담당 AI-DLC 문서에 보완한다.
+UI 유닛 소유권과 파일 경계를 계승하고 Functional Design·NFR·인프라 단계는 기존
+승인 상태를 유지한다. 보완 계획과 구현·배포 요약, 담당 state·audit를 커밋한 뒤
+현재 브랜치에서 main 대상 PR을 제출한다. PR 제출은 테스트 통과·장면 게이트 승인·
+main 병합과 구분한다.
+
+---
