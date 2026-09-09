@@ -27,8 +27,8 @@ test('one prompt submits one server workflow and displays the actual posted resu
   assert.ok(calls.every(c => c.credentials === 'omit' && c.redirect === 'error'));
   assert.equal(calls[1].headers['X-Gallery-Request-ID'], proof);
 });
-test('explicit draft-only outcome and ambiguous team never cause a publication request', async () => {
-  for (const outcome of ['draft_ready', 'needs_project']) {
+test('draft, read-only answer and ambiguous team never cause a publication request', async () => {
+  for (const outcome of ['draft_ready', 'answered', 'needs_project']) {
     let writes = 0;
     const { demo } = create(async (path, options) => {
       if (options.method === 'POST') { writes++; return response({ run_id: id, state: 'RUNNING' }); }

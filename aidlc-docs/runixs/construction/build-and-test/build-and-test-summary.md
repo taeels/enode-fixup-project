@@ -89,3 +89,22 @@ resiliency/PBT와 NFR/Infra의 기존 선택은 변경하지 않았다. 별도 �
 전체 OS sandbox·공동 하드웨어/방송 장면은 이 결과에 포함하지 않는다.
 
 표준 CI: [Go·coverage·cross](https://github.com/taeels/enode-fixup-project/actions/runs/34314414892), [Python·UI](https://github.com/taeels/enode-fixup-project/actions/runs/34314414875).
+
+## DDTHON 내부 댓글 탐색 보완 검증
+
+main `50899b0`(PR #14 병합)에서 후속 수정했다. Python 18·Node 59, API/UI
+race(81.5%/98.4%), vet·gofmt·glyphscan, 데스크톱/모바일의 댓글 조회 표시와
+조회 완료 후 새 메시지·게시 링크 없음 검사를 통과했다. 기존 게시·되묻기·거절
+흐름도 브라우저 mock으로 재확인했다.
+
+실제 Bedrock VM에서 후보 소스를 별도 root 소유 디렉터리에 두고 다음을 검증했다.
+
+- Runaway의 AI 댓글 작성 팀 찾기→MindCraft 과제 `mttorge8ag7kv` 조회→
+  AI 작성 표시·실제 장점과 응원을 담은 초안 반환. 첫 댓글 조회 실패 후 재조회에 성공했다.
+- 허용된 DDTHON URL을 포함한 댓글 조회 전용 요청→answered, MindCraft 식별.
+- Runaway 댓글 조회와 example.com 방문의 혼합 요청→도구 호출 없는 refused.
+
+19개 팀인 당시 목록에서 댓글의 작성 팀을 직접 찾았으며 대상 팀 이름을 검증
+프롬프트에 미리 제공하지 않았다. 테스트는 초안/조회만 요청했고 게시 호출도
+차단해 추가 실제 댓글을 쓰지 않았다. 근거는 Git 제외 discussion-live-probe.jsonl이다.
+운영 적용과 후속 PR 결과는 담당 상태·감사 로그에 기록한다.

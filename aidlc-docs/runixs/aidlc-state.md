@@ -1,6 +1,7 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → 갤러리 확장 Build and Test 완료·Mac mini 운영 적용.
+**현재 공식 단계**: CONSTRUCTION → DDTHON 내부 댓글 탐색 보완 Build and Test 진행.
+앞선 갤러리 확장은 검증·Mac mini 운영 적용·PR #14 병합을 완료했다.
 기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
 담당 FD와 UI 11단계·demo-back 7단계 계획은 2026-09-08T20:11:36Z
@@ -59,7 +60,7 @@ Run과 댓글 한 개로 완료됐으며 외부 URL 요청은 도구 호출 없�
 바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).
 실패한 다른 PC의 재시작 후 등록 성공은 아직 미확인이다.
 
-`unit/runixs-ui`는 `origin/main@16ef08c`로 rebase했고 [PR #14](https://github.com/taeels/enode-fixup-project/pull/14)로 검토한다. transcript·UI 가독성·greet-play 예제를 인수했다. 운영 Mediator는 입력칸 안내까지 포함한 `b01274b`, VM enode는 `56f2f99`이며 이번 rebase의 추가 main 변경은 아직 운영에 배포하지 않았다. 아래는 앞선 Drain 인수 기록이다.
+[PR #14](https://github.com/taeels/enode-fixup-project/pull/14)는 모든 CI 통과 후 main `50899b0`에 병합됐다. 후속 `unit/runixs-gallery-navigation`에서 DDTHON 내부 댓글/작성 팀 탐색의 과잉 거절을 수정한다. 운영 Mediator는 `b01274b`, VM enode는 `56f2f99`이며 수정분은 실제 Bedrock 검증 후 적용한다. 아래는 앞선 Drain 인수 기록이다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
 404를 `/ui/` 리다이렉트로 보완해 push했다. 실제 Mac 노드의 at-boundary·graceful,
