@@ -20,6 +20,17 @@
 이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.
 아래 LAN·Drain 결과는 종료 전 검증 기록이다. 설정·DB 데이터·로그는 보존했다.
 
+**Mac mini 공개 데모는 실행 중이다.** 별도 DB·새 토큰으로 Mediator와 실제 노드를
+띄우고 Cloudflare Quick Tunnel의 HTTPS 주소로 공개했다. 외부 UI·토큰 인증과
+실제 노드의 공개 등록·claim·shell 실행·봉인 다운로드를 확인했다. 사용자에게
+소유 도메인이 없어 현재 임시 주소를 유지한다. [실행·관리 기록](construction/macmini-public-demo.md).
+이 MacBook의 서비스는 중지 상태이며 공동 LED·음원·방송 CP10은 남아 있다.
+
+공개 서버의 등록 실패를 조사해 HTTP→HTTPS 301이 등록 POST를 GET으로 바꾸는
+문제를 재현했다. 제공된 토큰은 HTTPS에서 인증됐다. 노드 설정 주소를 HTTPS로
+바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).
+실패한 다른 PC의 재시작 후 등록 성공은 아직 미확인이다.
+
 `unit/runixs-ui`는 Drain PR #7이 병합된 `origin/main@50af6cf` 위에 있다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
@@ -46,7 +57,7 @@ UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도
 | UI 개선 | 웹캠 닫기·복원, 한글 두 단어 이름, 상세·모달·투어의 바깥 조작 닫기 | 구현·로컬 검증 완료 |
 | UI 가독성 보완 | 휠 확대·축소, 단계 그래프·함대 복귀, 임대 제출자, 기능별 상세·한국어 시각 | 구현·로컬 검증 완료, 배포 전 |
 | UI 9 | queue·sandbox 출처, c7a237d 두 시나리오의 실제 POST/GET·이름·3D 연결 | 실제 장비 광고·동작, 공개 방송 주소 |
-| UI 10~11 | 독립 검사·PR #6 병합·실제 Drain 관측과 queue 인수 | 공동 CP 장면과 전체 생성 결과 리뷰, 후속 PR #8 |
+| UI 10~11 | 독립 검사·PR #6/#8 병합·실제 Drain 관측과 queue 인수 | 공동 CP 장면과 전체 생성 결과 리뷰 |
 | demo-back 1~5 | obs·queue·실제 fixture 인수, 공개 라우트·검증·한도·재시도·DB/UI 연결 | 구현·로컬 검증 완료 |
 | demo-back 6~7 | 표준 검사·race·브라우저·문서 | 공동 장면과 전체 유닛 리뷰 |
 
@@ -72,7 +83,8 @@ UI·제출·이름·음성·봉인·방송을 확인한다. 현재 webcam 설정
 [검증 기록](construction/demo-back/code/build-and-test.md)에 소프트웨어 완료와
 실제 하드웨어/방송 게이트를 구분했다. [PR #6](https://github.com/taeels/enode-fixup-project/pull/6)은
 2026-09-09T02:25:03Z 병합됐다. 병합 사실과 공동 CP10의 실물 검증은 별개다.
-기본 주소 접속 보완과 Drain 인수 기록은 [후속 Draft PR #8](https://github.com/taeels/enode-fixup-project/pull/8)에서 리뷰한다.
+기본 주소 접속 보완과 Drain 인수 기록의 [후속 PR #8](https://github.com/taeels/enode-fixup-project/pull/8)은
+2026-09-09T02:48:47Z `main@bc41f26`으로 병합됐다.
 
 ## 검증 근거
 

@@ -1135,6 +1135,9 @@ video관련된 내용만 PR해줘
 ## 함대 탐색·정보 가독성 개선 요청
 
 **Timestamp**: 2026-09-09T04:51:44.681597+00:00
+## 공개 서버의 다른 PC 노드 등록 실패 조사
+
+**Timestamp (기록 시각)**: 2026-09-09T02:53:40.423613+00:00
 
 **User Input**:
 
@@ -1188,6 +1191,35 @@ sandbox · agent.reason
 ## 브라우저 확인 및 PR 제출 요청
 
 **Timestamp**: 2026-09-09T05:13:09.235896+00:00
+지금 공개 서버에서 띄웠는데, enode등록이 다른 pc에서 안된다고하거든?? 토큰이랑 그런거 다 넣었는데 말이야. 한번 확인해봐.
+```
+
+**AI Response**: 공개 Mediator 주소·실패 PC 오류·실행 명령을 요청했다. 현재 저장소 기록과 PR에는 새 공개 주소가 없고 브라우저 탭도 비어 있어 실제 공개 서버 요청은 아직 실행하지 않았다. origin/main에서 PR #8의 bc41f26 병합을 확인했다. 코드에서 setup은 GET /v1/capabilities 확인과 설정 저장이며 실제 등록은 start 이후 POST /v1/nodes임을 확인했다. 토큰 외에 principal 또는 전역 git email이 없으면 시작 자체가 실패할 수 있다. 실제 Client와 임시 HTTP 테스트 서버로 경로를 비교해 기본 주소와 끝 /는 POST 등록이 보존되어 성공하고 /ui/가 붙은 주소는 404임을 확인했다. 끝 /만으로 등록이 실패한다는 가설은 이 Go 1.26.6 재현에서 성립하지 않았다. 이 결과는 공개 서버의 원인 확정이 아니다. 제품 코드를 변경하지 않았고 앞서 중지한 Mediator·enode·전용 DB도 재기동하지 않았다. 공개 주소와 실제 오류 응답이 다음 진단 입력이다.
+
+---
+
+## 공개 주소·설정 수령과 HTTP 리다이렉트 원인 확인
+
+**Timestamp (기록 시각)**: 2026-09-09T02:55:52.808847+00:00
+
+**User Input (인증 정보 마스킹)**:
+
+```yaml
+# enode node config.
+# The absolute path of this file is part of the node id (ADR-017):
+# moving it makes a different node.
+mediator: http://mediator.taeels.duckdns.org
+token: <redacted>
+workspace: ""
+```
+
+**AI Response**: 공개 서버에서 HTTP가 HTTPS로 301 이동함을 확인했다. 사용자 토큰은 HTTPS GET /v1/capabilities에서 200으로 인증됐고 무인증은 401이었다. 빈 node_id의 HTTPS POST /v1/nodes는 인증 후 400 node_id is missing으로 거부되어 등록 핸들러 도달을 확인했다. 실제 enode.Client로 같은 빈 광고를 HTTP 주소에 보내자 GET HTTPS /v1/nodes로 이동했고, 목록의 200 응답을 광고 성공으로 잘못 받아 오류 없음·leases null·renew_seconds 0이 됐다. 유효 node_id를 보내지 않아 공개 함대에 시험 노드를 등록하지 않았다. 실패 PC에서 mediator를 https://mediator.taeels.duckdns.org로 바꾸고 해당 노드를 재시작하도록 안내한다. 그 PC의 재시작 결과와 로그는 아직 미수령이며 principal/전역 git email 부재는 별도 시작 실패 가능성이다. 제품·공개 프록시 설정은 변경하지 않았고 이 PC의 종료된 서비스도 다시 띄우지 않았다. 토큰은 요청 전송에만 사용했고 문서·증거 파일에는 저장하지 않았다.
+
+---
+
+## Mac mini 외부 공개와 GitHub Pages 가능 범위 문의
+
+**Timestamp (기록 시각)**: 2026-09-09T02:59:31.740066+00:00
 
 **User Input**:
 
@@ -1203,6 +1235,22 @@ sandbox · agent.reason
 ## 긴 노드 이름의 겹침 개선 요청
 
 **Timestamp**: 2026-09-09T05:15:55.230100+00:00
+내 MacMini에서 외부 게스트들이 접속할 수 있게 서버 띄울 수 있는 방법은 없어??? github page이런걸로 띄울 수도 없는거지?
+```
+
+**AI Response**: 현재 UI가 Mediator에 embed되어 같은 origin의 /v1 API를 호출하는 구조와 공식 호스팅 문서를 확인했다. Mac mini의 Mediator·DB를 Cloudflare Tunnel 또는 Tailscale Funnel로 공개 HTTPS 주소에 연결하는 구성이 가능하다. 고정 도메인을 사용할 공개 데모에는 Cloudflare Tunnel을 권장하고, 이미 Tailscale을 쓰는 경우 Funnel로 앱 설치 없는 외부 방문자를 받을 수 있음을 설명한다. GitHub Pages는 정적 UI만 호스팅하며 Go Mediator·DB는 별도 서버가 필요하다. 현재 UI를 Pages로 분리하면 API 주소·CORS 조정이 필요하다. Mac mini 기동·터널 생성·DNS 변경은 실행하지 않았고 방금 종료한 PC의 서비스도 중지 상태를 유지했다. 실제 운영 위치와 방식은 이 문의에서 선택되지 않았다.
+
+**확인한 공식 자료**:
+- https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages
+- https://developers.cloudflare.com/tunnel/setup/
+- https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/
+- https://tailscale.com/docs/use-cases/application-testing/share-local-dev-server-with-internet
+
+---
+
+## Mac mini 공개 실행 착수
+
+**Timestamp (기록 시각)**: 2026-09-09T03:03:01.971125+00:00
 
 **User Input**:
 
@@ -1229,5 +1277,26 @@ sandbox · agent.reason
 **Timestamp**: 2026-09-09T05:20:38.128824+00:00
 
 **AI Response**: 사용자 지시로 510c6a6·0b422a7을 unit/runixs-ui-readability에 커밋·push하고 main 대상 PR #16을 열었다. 제목은 함대 노드 간격과 그래프 탐색·정보 가독성 개선이며 URL은 https://github.com/taeels/enode-fixup-project/pull/16 이다. PR 본문에 최종 변경과 Node 52·브라우저 45/12배치·Go UI 98.4%·빌드 검증 및 공동 CP10 보류를 기록했다. Orca 미리보기 두 탭은 긴 호스트명을 표시하는 최신 소스로 갱신해 유지했다. 병합·배포는 실행하지 않았다.
+한번 해봐
+```
+
+**AI Response**: 앞선 Mac mini 공개 서버 구성 설명을 실제 실행 지시로 받아 기존 SSH MacMini 별칭으로 접속했다. 실제 호스트는 Runixsui-Macmini.local, arm64이며 PostgreSQL 16 서비스가 이미 있다. 기존 공개 서버나 중지한 MacBook 환경을 바꾸지 않고 별도 디렉터리·DB·토큰으로 준비한다. 고정 도메인 정보가 없어 우선 Cloudflare Quick Tunnel의 임시 HTTPS 주소를 사용해 게스트 접속을 검증한다. 승인된 실행 범위 내에서 도구 설치·기동·검증을 진행하며 실제 하드웨어 CP10 완료로 표시하지 않는다.
+
+---
+
+## Mac mini 공개 검증 완료와 임시 주소 유지
+
+**Timestamp (기록 시각)**: 2026-09-09T03:11:05.032207+00:00
+
+**User Input**:
+
+```text
+주소가 왜이래??? 앞에 deutsche-football -tract-necklace이건 수정을 못해?? enode 이런걸로
+아니야 없어 그냥 진행하자
+```
+
+**AI Response**: Cloudflare Quick Tunnel이 임의의 trycloudflare.com 하위 주소를 발급하며 접두어를 지정할 수 없음을 공식 문서로 확인했다. MacBook·Mac mini에 기존 Cloudflare 인증/도메인 설정이 없고 Tailscale Funnel 설정도 비어 있었다. 연결할 도메인을 질문했고 사용자는 도메인이 없으며 그대로 진행하도록 했다. 현재 임시 주소를 유지하고 Tailscale 장치명·기존 서버 DNS를 변경하지 않았다.
+
+Mac mini의 별도 실행 디렉터리·DB·새 토큰에 166c935 arm64 바이너리를 배치하고 Mediator·실제 enode·cloudflared를 기동했다. 공개 주소는 https://deutsche-football-tract-necklace.trycloudflare.com 이며 루트는 /ui/로 이동한다. MacBook에서 공개 UI와 API 인증을 검사했고 실제 Mac mini 노드를 잠시 공개 HTTPS에 연결해 등록·claim·35초 idle 이후 shell 실행·봉인 결과 다운로드를 확인했다. macmini-public-e2e-4900838a는 SUCCEEDED이며 검증 후 자체 노드를 loopback으로 복구했다. 새 비밀 값은 원격 0600 파일에만 저장하고 로그·문서에 노출하지 않았다. README·manage.py로 상태·시작·종료 명령을 제공한다. SSH 종료 후 유지되지만 재부팅 자동 기동은 설정하지 않았다. 현재 MacBook의 중지한 서비스와 기존 태양님 서버는 유지하며 공동 LED·음원·방송 CP10은 미완료다. 제품 코드와 rc1 릴리스는 바꾸지 않았다.
 
 ---
