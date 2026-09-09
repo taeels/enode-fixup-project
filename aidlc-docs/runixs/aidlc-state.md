@@ -9,6 +9,16 @@
 
 ## 현재 기준 — 2026-09-09
 
+**공개 음성 wire 운영 반영**: 기존 higgsfield/speaker 요구가 실제 함대와
+맞지 않아 422로 거절되던 문제를 고쳤다. PR #30의 Typecast 상현·rpi2b-v1.1
+계약을 인수해 Mac mini mediator에 반영했다(PID 81093, 터널 70718 유지).
+공개 제출 `demo-b301d99a…`의 합성·Pi 재생 모두 SUCCEEDED다.
+PR #29·#30은 CI 통과 후 main `3c4137a`에 병합했다. #28에도 운영 기록과
+최신 main을 반영하며 사용자에게 웹에서 직접 사운드를 실행할 수 있다고 알렸다.
+[계획](construction/plans/audio-wire-plan.md), [운영 기록](construction/ui/code/audio-wire.md).
+자동 테스트는 로컬에서 생략했고 CI 결과와 실제 실행 결과를 구분한다.
+물리적 청취 및 공동 CP10 전체는 별도 확인 사항이다.
+
 **LED 직결 운영 보완**: `Runixs/fix-wire`에서 이 Mac의 enode/runctl과 Mac mini
 SSH 터널을 `/Users/runixs/enode-led-bridge`에 설치했다. Pi의 sunny 계정에
 이 Mac 공개키를 추가하고 `ssh sunny` 별칭을 설정했다. 노드 `85ccc712ee24`가
