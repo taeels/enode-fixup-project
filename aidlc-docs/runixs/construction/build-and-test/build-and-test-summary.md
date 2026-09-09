@@ -108,3 +108,15 @@ race(81.5%/98.4%), vet·gofmt·glyphscan, 데스크톱/모바일의 댓글 조�
 프롬프트에 미리 제공하지 않았다. 테스트는 초안/조회만 요청했고 게시 호출도
 차단해 추가 실제 댓글을 쓰지 않았다. 근거는 Git 제외 discussion-live-probe.jsonl이다.
 운영 적용과 후속 PR 결과는 담당 상태·감사 로그에 기록한다.
+
+운영 Mediator·VM Python을 `1b5d8aa`로 적용했다. Mediator 교체는 10.65초,
+PID 43479이며 터널 PID 70718과 공개 주소를 유지했다. VM 3개 서비스는 active,
+원래 drain 정책을 복원했고 배치한 Python 3개 파일의 SHA-256이 검사 소스와 같다.
+Mediator 백업은 backup-gallery-discussion-20260909T060132Z, VM 소스 백업은
+/opt/enode/gallery-before-autonomous-20260909T060202Z다. VM enode 바이너리는 56f2f99다.
+
+공개 UI Run `gallery-63cf3ef1302c002a166fc5ed000fd457f4872587994d9241456a482007e53121`은
+현재 참가팀 20개→Runaway 댓글 18개→MindCraft 식별→answered로 완료했다.
+접수 POST 한 번, 게시 도구 호출·게시 링크 없음, 댓글 읽기 표시·새 메시지 정상,
+브라우저 오류 0이다. discussion-public-result.json·discussion-health.json이 증거다.
+후속 [PR #17](https://github.com/taeels/enode-fixup-project/pull/17)에서 검토한다.

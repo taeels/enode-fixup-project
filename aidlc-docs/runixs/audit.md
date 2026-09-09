@@ -1513,3 +1513,9 @@ VM enode `56f2f99`의 실행 상태는 이번 Git 통합과 구분한다.
 **후속 상태**: 작업 중 PR #14의 모든 CI 통과·main `50899b0` 병합을 확인했다. 현재 수정은 그 main에서 만든 `unit/runixs-gallery-navigation`의 별도 후속 PR로 제출한다.
 
 **검증**: Python 18·Node 59, API/UI race 81.5%/98.4%, vet·gofmt·glyphscan·데스크톱/모바일 회귀를 통과했다. 실제 Bedrock은 사용자와 같은 간접 단서로 MindCraft를 찾고 AI 작성 표시와 장점이 있는 초안을 만들었다. DDTHON URL을 포함한 조회는 answered, 외부 URL 혼합은 도구 없는 refused였다. 후보 검증에서 실제 게시 호출은 차단했다.
+
+## DDTHON 탐색 수정의 운영 인수·후속 PR
+
+**Timestamp**: 2026-09-09T06:03:46.622698+00:00
+
+**AI Response**: Mediator와 VM Python을 `1b5d8aa`로 적용했다. 공개 UI에서 Runaway 댓글→AI 작성 팀 MindCraft 식별이 answered로 완료됐다. Run은 `gallery-63cf3ef1302c002a166fc5ed000fd457f4872587994d9241456a482007e53121`이고 실제 댓글은 추가 게시하지 않았다. 터널 PID 70718·주소·DB·팀원 노드를 보존했으며 VM 서비스 3개 active·drain 복원·소스 해시 일치를 확인했다. PR #14는 이미 병합됐으므로 main `50899b0`에서 후속 PR #17을 만들었다.
