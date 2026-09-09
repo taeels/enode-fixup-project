@@ -22,7 +22,7 @@
 - [x] 2. `internal/api/demo_gallery.go`와 별도 `demo_gallery_history.go`에 인증된 읽기 경로 추가. 기존 결과 검증·legacy 게시 결과 재사용.
 - [x] 3. UI shared gallery history controller/dialog, 요청 증명 보존, demo/fleet 작업 목록의 대화 기록 연결. 기존 입력/실행 상태와 독립.
 - [x] 4. 권한·기존 봉인 결과·reset/reload·GET 전용·오래된 응답·HTML 본문 표시를 집중 검증. 외부 댓글은 게시하지 않음.
-- [ ] 5. 담당 상태·구현/검증 문서·커밋·PR 준비.
+- [x] 5. 담당 상태·구현/검증 문서·커밋·PR 제출. 코드 9d8d1de, main b60a8dd 기준 PR #22.
 
 변경 파일은 runixs의 ui·demo-back 안에 둔다. `internal/panel`과 nacl1119의
 공동 CP6, CP10은 범위 밖이다. 원격 운영 업데이트 시 추가 검사를 하지 말라는

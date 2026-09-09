@@ -56,3 +56,12 @@
 복원 커밋 `597a784`는 Mac mini에 빌드·교체했다. PID 58117,
 백업 `backup-server-update-20260909T064309Z`, 터널 PID 70718이다.
 운영 상태/API/브라우저 검사는 실행하지 않았다.
+
+## 최종 운영 적용·PR
+
+최신 main `b60a8dd` 위 코드 `9d8d1de`를 Mac mini에서 빌드·교체했다.
+2026-09-09T06:49:27.899919Z, Mediator PID 60283, 터널 PID 70718,
+백업 `backup-server-update-20260909T064915Z`다. 공개 주소는 유지한다.
+운영 추가 검사·실제 댓글 게시·Bedrock 재실행은 수행하지 않았다.
+[PR #22](https://github.com/taeels/enode-fixup-project/pull/22)를 제출했으며
+main 병합은 수행하지 않았다. 이름은 기존 갤러리 표기로 복원된 상태다.

@@ -1,6 +1,6 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → 갤러리 대화 기록 후속 Build and Test 완료.
+**현재 공식 단계**: CONSTRUCTION → 갤러리 대화 기록 후속 Build and Test 완료·Mac mini 운영 적용.
 앞선 갤러리 확장은 검증·Mac mini 운영 적용·PR #14 병합을 완료했다.
 기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
@@ -19,7 +19,10 @@ vet·glyphscan·Mediator 빌드를 통과했다.
 [구현·검증](construction/demo-back/code/gallery-history.md).
 사용자의 표시명 철회로 별칭을 제거하고 기존 gallery 표시로 복원했다.
 복원 커밋 `597a784`는 Mac mini에 배포했으며 운영 추가 검사는 생략했다.
-대화 기록 기능의 운영 적용은 아직 전이다. 공동 CP6/CP10 보류를 유지한다.
+대화 기록 코드 `9d8d1de`도 Mac mini에 빌드·교체했다(PID 60283). 운영 추가
+검사는 사용자 지시에 따라 생략했다. 최신 main `b60a8dd`를 인수하고
+[PR #22](https://github.com/taeels/enode-fixup-project/pull/22)를 제출했다.
+PR은 병합 전이며 공동 CP6/CP10 보류를 유지한다.
 
 **Run 흐름·보기 설정 후속 작업**: 같은 `Runixs/UI-Update-2`에서 게스트/제출자와
 Mediator 역할 요소, 관측 상태에 따른 실행 연결, 역할 상세, 좁은 화면 세로 흐름을

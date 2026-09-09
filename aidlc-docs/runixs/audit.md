@@ -1701,3 +1701,15 @@ galley로 run을 한 대화내용을 run history에서도 보게 할 방법없�
 **Timestamp**: 2026-09-09T06:48:44.211886+00:00
 
 **Decision**: 표시명 복원 597a784를 Mac mini Mediator에 빌드·교체했다. PID 58117, 백업 backup-server-update-20260909T064309Z이며 기존 터널 PID 70718/주소를 유지했다. 운영 추가 검사는 하지 않았다. 이어 웹 Run 선택의 대화 기록 버튼과 게스트 증명 보존, 토큰 인증 운영자 조회를 구현했다. Node 69개, 별도 생성/삭제한 테스트 DB의 API/UI race 81.6%/98.4%, 실제 진입점 mock 브라우저 4환경, vet/glyphscan/Mediator 빌드를 통과했다. 대화 조회에서 새 실행/게시가 없고 현재 작성 메시지가 보존되는 것을 확인했다. 실 댓글 게시와 Bedrock 실행은 수행하지 않았다. 최신 main의 추가 변경은 PR #20 담당 상태 문서뿐이므로 이를 rebase로 인수한 후 후속 PR을 제출한다.
+
+## 갤러리 대화 기록 PR 제출
+
+**Timestamp**: 2026-09-09T06:49:33.575891+00:00
+
+**Decision**: main b60a8dd(PR #20의 nacl1119 상태 정리)을 재인수했다. 코드 변경이 없어 이미 통과한 검사는 반복하지 않았다. 코드 9d8d1de를 runixs92@gmail.com 작성자로 push하고 PR #22(https://github.com/taeels/enode-fixup-project/pull/22)를 제출했다. 표시명 별칭은 최종 diff에 없고 기존 main의 format/scene/submission 코드가 유지된다. 대화 이력 기능을 같은 운영 서버에 적용하며 운영 추가 검사를 실행하지 않는다.
+
+## 갤러리 대화 기록 운영 적용 완료
+
+**Timestamp**: 2026-09-09T06:49:57.661233+00:00
+
+**Decision**: 코드 9d8d1de를 SSH로 Mac mini에서 빌드하고 관리 중인 Mediator PID를 확인해 교체·재시작했다. 새 PID 60283, 터널 PID 70718, 백업 backup-server-update-20260909T064915Z다. 기존 갤러리 이름과 새 대화 이력 기능이 포함된 바이너리다. 설정·데이터·터널 주소는 보존했다. 사용자 지시대로 운영 추가 검사는 실행하지 않았다. 완료한 계획 체크박스·담당 상태·운영/검증 기록을 갱신하고 PR #22에 반영한다.
