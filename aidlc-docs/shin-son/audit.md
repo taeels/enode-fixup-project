@@ -171,3 +171,29 @@ Q3 A"
 **Context**: CONSTRUCTION - queue - Build and Test 승인 · PR to main.
 
 ---
+
+## drain — 착수 · Functional Design 계획
+**Timestamp**: 2026-09-09T01:24:15Z
+**User Input**: "Queue는 머지 됐어 확인해봐 확인하고 drain 진행하자"
+**AI Response**: PR #5 병합을 확인했다(`310c22d` · 2026-09-09T01:00:41Z). `main` 을 fast-forward 하고 `unit/drain` 을 땄다. drain 유닛 정의 · enode-features 3.2.2 · decisions §1 · ADR-063 §2·§3·§4·§6 · scene-gates CP3 · enode 의 advertise/leases/claim(Worker)/paths/config · api postResult · obs 의 contract.Policy 를 읽었다. obs 와 queue 가 이미 낸 것(draining 열 · 매칭 제외 · 해제 깨우기 · Cancel 의 깨우기)을 빼고 남은 셋 — 노드의 정책 파일 읽기와 광고 · 응답 drain 을 Worker 로 · postResult 끝의 at-boundary 취소 — 로 FD 계획 `construction/plans/drain-functional-design-plan.md` 를 냈다. 질문 셋: 정책 파일 위치·이름 · 응답 drain 의 배선(cmd/enode 한 줄 — panel 의 파일) · 파일 권한 검사.
+**Context**: CONSTRUCTION - drain - Functional Design (Step 2~4 완료 · Step 5 답 대기).
+
+---
+
+## drain — Functional Design · 답 셋 · 산출물 생성
+**Timestamp**: 2026-09-09T01:58:09Z
+**User Input**: "Q1 A
+Q2 A
+Q3 A"
+**AI Response**: 답 A · A · A — 정책 파일은 설정 옆 `<stem>.policy.yaml` · 응답 drain 은 Held 로 나르고 `cmd/enode` 한 줄(조율) · 권한은 경고만. 모호한 답 없음. 산출물 셋을 `construction/drain/functional-design/` 에 냈다 — business-logic-model(정책→광고→응답→Worker 흐름 · at-boundary 의 세 tx 와 Worker 가 닫는 창 · 해제 · 파일 행렬) · business-rules(정책 · 경계 · 파일 · 응답 · 보안 확장 판정 · 안 하는 것) · domain-entities(파일 스키마 · Policy/AdvertResponse.Drain/Held/NodeDrain · 어휘 상수를 contract 로 한 벌 · cmd/enode 한 줄). 완료 메시지(2-옵션)를 내고 승인을 기다린다.
+**Context**: CONSTRUCTION - drain - Functional Design (Step 6·7 완료 · Step 8 승인 대기).
+
+---
+
+## drain — Functional Design 승인
+**Timestamp**: 2026-09-09T02:00:44Z
+**User Input**: "승인할게"
+**AI Response**: drain FD 승인을 기록했다. 산출물 셋 · 계획 · 상태 · 감사를 `unit/drain` 에 커밋한다. 다음은 NFR Requirements — 새 HTTP 표면 0 · 파일 표면 하나. 물음은 하나(취소 실패의 재시도 자리).
+**Context**: CONSTRUCTION - drain - Functional Design 승인 (Step 9).
+
+---

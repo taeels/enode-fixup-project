@@ -8,12 +8,12 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 ## 진행 (Stage Progress)
 
 - **Current Phase**: CONSTRUCTION
-- **Current Unit**: queue (브랜치 `unit/queue` · 2026-09-08T13:55:15Z 착수 · 2026-09-09 에 `main` `0a159a4`(obs 병합) 위로 옮김)
-- **Current Stage**: queue PR #5 열림 · 병합 대기. 다음 유닛 drain(W2 · CP3) — FD 는 병합 전에 시작 가능
+- **Current Unit**: drain (브랜치 `unit/drain` · `main` `310c22d`(queue 병합) 에서 · 2026-09-09T01:24:15Z 착수)
+- **Current Stage**: drain NFR Requirements — 계획·물음 하나 냄, 답 대기
   (`construction/plans/queue-code-generation-plan.md`)
   (`construction/plans/queue-nfr-requirements-plan.md`)
   (`construction/plans/queue-functional-design-plan.md`)
-- **Last Completed**: queue Code Generation (2026-09-09T00:36:11Z)
+- **Last Completed**: drain Functional Design (2026-09-09T02:00:44Z)
 - **Extension Configuration**: `decisions.md` §1 이 닫음 — security-baseline 켬 ·
   resiliency-baseline 끔 · property-based-testing 끔. 취급은 `decisions.md` §3
 - **Blockers**: 없음. Postgres.app 18.6 이 55434 에 섰다 (DSN 은 docs/testdb-setup.md 의 한 줄).
@@ -27,12 +27,18 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 - [x] CP0 회귀 통과 (2026-09-09T00:47:40Z) · CP2 통과 (2026-09-09T00:52:59Z)
 - [x] Build and Test 승인 · PR to main — https://github.com/taeels/enode-fixup-project/pull/5 (진행자 직렬 병합 대기)
 
+### drain
+- [x] Functional Design — 승인 2026-09-09T02:00:44Z (A·A·A · `construction/drain/functional-design/`)
+- [ ] NFR Requirements — 계획 냄 (2026-09-09T02:00:44Z) · 답 대기
+- [ ] Code Generation
+- [ ] CP0 · CP3 · PR to main
+
 ## 유닛 (의존 순)
 
-- [ ] queue 대기열 — CP2 · 의존 obs
+- [x] queue 대기열 — CP2 · 의존 obs · **병합됨 (PR #5 · 310c22d)**
   - QUEUED · CreateQueuedRun · WakeQueued(ctx,tx) 여섯 지점 · WakeQueuedNow ·
     DrainingNodes · submit 202 분기 · mediator 기동 wake
-- [ ] drain — CP3 · 의존 queue
+- [ ] drain — CP3 · 의존 queue · 진행 중
   - enode 정책 파일·광고 경로 · postResult at-boundary Cancel(drain:<node_id>) + WakeQueued
   - 정책 파일 위치·형식·enum 과 at-boundary tx 경계는 FD (decisions §1)
 
