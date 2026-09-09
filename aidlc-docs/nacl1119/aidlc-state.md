@@ -47,8 +47,11 @@
   - [x] NFR Requirements · NFR Design — 냄(`transcript/nfr-requirements`·`nfr-design`).
     단일 코드경로(빌드 태그 0) · 링 원자성/찢긴 읽기 · 커버리지 80% · 새 의존 0 · 심볼 상한 무영향
   - [x] Infrastructure Design — 건너뜀(로컬 파일뿐 · 클라우드 자원 없음)
-  - [ ] Code Generation — 계획 냄(`plans/transcript-code-generation-plan.md`) · 구현 진행 중.
-    화면 카드는 design/enode-ux.pen 을 참고해 같은 스타일로 (진행자 지시 2026-09-09)
+  - [x] Code Generation — 구현 완료 (커밋 a416289). 요약 `transcript/code/implementation-summary.md`.
+    링 파일 tee(runner·claim) · Ring(transcript.go) · 제어판 카드+지난 작업 · 화면은 enode-ux.pen 다크 토큰
+  - [x] CP6 게이트 코드 재료 초록 — 빌드 태그 0 · 심볼 상한 무영향 · panel 커버리지 86.1% ·
+    크로스 빌드 3종 · Mediator 변경 0 · 새 의존 0. 눈 검증은 사람·함대 몫
+  - [ ] PR — push·PR (진행자 확인). 병합은 CP6 눈 검증 뒤
 
 ## 열린 미정
 

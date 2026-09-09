@@ -151,3 +151,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · transcript · NFR 완료 · Infra 건너뜀 · Code Generation.
 
 ---
+
+## transcript Code Generation 구현 · CP6 코드 게이트 초록
+**Timestamp**: 2026-09-09T05:00:19Z
+**User Input**: (진행자 위임 자동 진행 · 화면은 design/*.pen 참고)
+**AI Response**: transcript 코드를 냈다(커밋 a416289). internal/enode/transcript.go: 고정 크기 링 파일 Ring(머리 magic·판·용량·total·generation + 몸통 · WriteAt 감김 · Reset 비움 · ReadRing 재확인 · 빌드 태그 없이 단일 코드경로). runner.go 가 하네스 stdout 을, claim.go 가 명령 단계를 io.MultiWriter 로 링에 tee(Job.Transcript · 실패 삼켜 cmd.Run 안 멈춤 · Worker 가 링 열고 단계 시작 때 Reset). internal/panel: GET /api/transcript(로컬 링 1초) · /api/runs(assigned 필터) · /api/record(tar 의 logs/NN-*.log). page.go 에 하네스 트랜스크립트 카드+지난 작업을 enode-ux.pen 다크 토큰으로 더했다(pencil MCP 로 S3/S4 확인 · 정본대로 S3 카드로 살리되 시안 스타일). CP6 코드 재료 초록: 빌드 태그 0 · 심볼 상한 무영향(13·1) · panel 커버리지 86.1% · 크로스 빌드 3종 · Mediator 변경 0 · 새 의존 0. 로컬 enode 테스트 일부는 환경(Windows·Bedrock env·autocrlf) 탓 실패로 유닛과 무관 · 링/panel 테스트는 통과. 눈 검증과 push·PR 은 사람 몫이라 여기서 멈춘다.
+**Context**: CONSTRUCTION · transcript · Code Generation 완료 · CP6 코드 초록 · PR 확인 대기.
+
+---

@@ -7,22 +7,22 @@ FD·NFR 이 값을 다 정했으므로 기계적이다 — 결정 없이 Part 2(
 
 ## 낼 것 · 순서 (의존 순)
 
-- [ ] 1. `internal/enode/transcript.go` 신규 — `Ring`(머리 32B: magic·version·capacity·
+- [x] 1. `internal/enode/transcript.go` 신규 — `Ring`(머리 32B: magic·version·capacity·
       total·generation + 몸통) · `TranscriptPath` · `OpenRing` · `(*Ring) Write`(io.Writer ·
       WriteAt 감김 · 링 쓰기 실패는 삼킨다) · `Reset` · `Close` · `ReadRing`(재확인). 빌드 태그 없음
-- [ ] 2. `internal/enode/runner.go` — `Job` 에 `Transcript io.Writer` additive. `cmd.Stdout` 을
+- [x] 2. `internal/enode/runner.go` — `Job` 에 `Transcript io.Writer` additive. `cmd.Stdout` 을
       `io.MultiWriter(&stdout, j.Transcript)`(nil 아니면). Decode·로그 반환 그대로
-- [ ] 3. `internal/enode/claim.go` — 명령 단계 `buf` 를 `io.MultiWriter(&buf, ring)` 로 (ring 주입)
-- [ ] 4. Worker 배선 — 노드의 Ring 을 열고(`OpenRing(TranscriptPath(Ident.Config),512*1024)`),
+- [x] 3. `internal/enode/claim.go` — 명령 단계 `buf` 를 `io.MultiWriter(&buf, ring)` 로 (ring 주입)
+- [x] 4. Worker 배선 — 노드의 Ring 을 열고(`OpenRing(TranscriptPath(Ident.Config),512*1024)`),
       CLAIMED 시작 때 `Reset()`, 하네스에 `Job.Transcript=ring`, 명령 단계에 같은 ring
-- [ ] 5. `internal/panel` — `GET /api/transcript`(ReadRing -> {generation,total,data}) ·
+- [x] 5. `internal/panel` — `GET /api/transcript`(ReadRing -> {generation,total,data}) ·
       `GET /api/runs`(runctl.Runs -> assigned 필터 목록) · `GET /api/record?run=`(runctl.Record
       tar -> logs/NN-*.log + verdict.checks)
-- [ ] 6. `internal/panel/page.go` — 트랜스크립트 카드(1초 폴링 · generation 바뀌면 비움) +
+- [x] 6. `internal/panel/page.go` — 트랜스크립트 카드(1초 폴링 · generation 바뀌면 비움) +
       지난 작업 목록/상세. **design/enode-ux.pen S3/S4 를 pencil MCP 로 읽어 다크 토큰에 맞춘다**
-- [ ] 7. 테스트 — 링(감김·상한 초과·Reset·순서 · TempDir) · tee · /api/transcript · /api/runs·
+- [x] 7. 테스트 — 링(감김·상한 초과·Reset·순서 · TempDir) · tee · /api/transcript · /api/runs·
       /api/record(httptest + tar 픽스처). 커버리지 80%
-- [ ] 8. 검증 — 크로스 빌드 3종 · go vet · glyphscan · gofmt · 커버리지 80% · 심볼 상한 재측정(무영향 확인)
+- [x] 8. 검증 — 크로스 빌드 3종 · go vet · glyphscan · gofmt · 커버리지 80% · 심볼 상한 재측정(무영향 확인)
 
 ---
 
