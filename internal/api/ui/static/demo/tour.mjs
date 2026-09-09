@@ -1,4 +1,4 @@
-import { element, button } from '../shared/fleet/view.mjs';
+import { element, button, dismissOnBackdrop } from '../shared/fleet/view.mjs';
 export const TOUR_KEY = 'enode.demo.tour.v1';
 export class TourProgress {
   constructor(storage) { this.storage = storage; this.index = 0; this.completed = false; try { this.completed = storage?.getItem(TOUR_KEY) === '1'; } catch { /* 저장 불가여도 현재 화면의 안내는 가능하다. */ } }
@@ -29,6 +29,7 @@ export class DemoTour {
     this.bubble.append(this.count, this.title, this.copy, actions); this.dialog.append(this.spotlight, this.bubble); root.append(this.dialog);
     this.dialog.addEventListener('cancel', e => { e.preventDefault(); this.finish(); });
     this.dialog.addEventListener('keydown', e => trapFocus(this.dialog, e));
+    dismissOnBackdrop(this.dialog, this.bubble, () => this.finish());
     this.reposition = () => this.position(); window.addEventListener('resize', this.reposition); window.addEventListener('scroll', this.reposition, true);
   }
   get open() { return this.dialog.open; }

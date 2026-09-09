@@ -4,18 +4,29 @@
 브랜치에서 작업하고 PR 로 main 에 병합한다(게이트 초록 뒤). 산출물은 이 디렉터리
 `aidlc-docs/runixs/` 아래.
 
-**2026-09-09 최신 기준**: `origin/main@0a159a4`의 obs PR #4를 확인하고
-`unit/runixs-ui`에 rebase했다. 담당 문서·샘플·설정 변경은 복원했고 충돌은 없다.
-[담당 범위](construction/runixs-scope.md)에 화면·백엔드 작업 8개와 완료 조건을
-구체화했다. [obs 인수 기록](construction/ui/preparation/obs-integration-review.md)에
-소비 계약·검증 환경·후속 접점을 기록했다.
+**2026-09-09 최신 기준**: queue PR #5의 `origin/main@310c22d`에
+`unit/runixs-ui`를 충돌 없이 rebase했다. 담당 두 커밋은 `f3a82b9`, `4c1265d`다.
+[queue 인수 기록](construction/ui/code/queue-integration-review.md)에 실제
+202/QUEUED·재접수·승격·목록 submitter와 UI 갱신 증거를 남겼다.
+
+**사용자 개선 반영**: 웹캠 닫기/재열기, 한글 두 단어 Guest 이름, 플로팅 상세와
+모달/투어의 바깥 조작 닫기를 구현했다. [변경 계획](construction/plans/ui-feedback-plan.md),
+[구현·검증](construction/ui/code/ui-feedback.md). Node 46·Go UI 98.4%·브라우저
+24개 동작 검증 통과. 영상은 보류하고 산출물과 재개 지점을 보존했다.
+
+**최신 커밋·push 승인**: 2026-09-09T01:25:46.761181+00:00 사용자가 “그러면 일단 commit해서 push할까”로
+UI 개선과 queue 인수 기록의 저장·공유를 승인했다. `unit/runixs-ui`를
+`runixs92@gmail.com`으로 커밋하고 rebase된 브랜치를 원격에 반영한다.
+실제 데모 연결·공동 게이트와 main 병합은 별도로 남아 있다.
 
 ## 유닛
 
 **현재 구현**: 승인된 UI 코드 계획 1~8을 생성했다. 실 함대 관측·D1/D2/D5·투어·
 제출 의도 상태·방송 표시 조작을 구현했고 로컬 브라우저와 단위 검증을 진행했다.
-9단계 실제 데모 연결은 queue·LED/음원 픽스처·방송 주소가 없어 보류다.
-10단계 중 외부 입력이 필요 없는 전체 검사를 마쳤다. Node 42·Go 1,090 통과,
+9단계 실제 데모 연결은 LED/음원 픽스처·demo-back·방송 주소가 없어 보류다.
+queue 인수는 완료했고 UI의 실제 대기→실행 전환은 로컬 API로 확인했다.
+10단계 중 외부 입력이 필요 없는 검사를 진행했다. queue rebase 뒤 Go 1,108 통과,
+후속 UI 개선 뒤 Node 46과 Go UI 검사가 통과했다.
 Go 0 스킵, 16 패키지 모두 커버리지 80% 이상(UI 98.4%). Code Generation 전체
 완료나 공동 장면 통과를 선언하지 않으며, 아래 이전 준비 기록은 이 진행에 선행한다.
 
@@ -114,9 +125,9 @@ obs 소비 계약 인수를 완료했다. 데모 전체 UI와 demo-back의 상�
 [검증 결과](construction/ui/code/build-and-test.md)에 이번 신규 코드 검증과
 공동 장면 보류를 구분했다. 승인된 Inception은 유지한다.
 
-**확인 기준**: 최신 origin/main을 fetch하고 obs 병합 `0a159a4`로 rebase했다.
+**확인 기준**: 최신 origin/main을 fetch하고 queue 병합 `310c22d`로 rebase했다.
 `GET /v1/nodes`·`GET /v1/runs`와 requires/chosen 확장이 존재한다.
-`WakeQueued`·`CreateQueuedRun`은 아직 없다. obs 담당의 부분 CP1 측정과
+`WakeQueued`·`CreateQueuedRun`과 submitter 저장·승격을 인수했다. obs 담당의 부분 CP1 측정과
 진행자 병합 조건을 확인했다. 실제 UI·queue가 필요한 CP1/CP2 전체 통과는 아니다.
 
 **이미 있는 코드**: `internal/api/ui/static/` 의 landing · shared/guest · demo ·
@@ -125,7 +136,7 @@ cardnews 와 `ui.Handler()`. `/ui/` 마운트는 이미 `internal/api/api.go` �
 실제 코드와 대조한다.
 
 **통합 착수 조건**: obs 인수는 완료했다. UI 어댑터·브라우저·실제 장면은 설계와
-코드 계획에 따라 구현·검증한다. demo-back은 queue 접수 경로도 필요하며,
+코드 계획에 따라 구현·검증한다. demo-back의 queue 접수 경로는 인수했고,
 공동 제출 계약 검토안을 사용하며 고정 시나리오의 실제 연결은 인수 뒤 확정한다.
 
 **2026-09-09 FD 진행**: UI 네 문서와 demo-back 네 문서(공동 제출 계약 포함)를

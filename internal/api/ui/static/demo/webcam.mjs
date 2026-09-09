@@ -20,12 +20,13 @@ export class WebcamState {
   minimap() { return { width: 1 / this.zoom, height: 1 / this.zoom, left: .5 - .5 / this.zoom - this.x / this.zoom, top: .5 - .5 / this.zoom - this.y / this.zoom }; }
 }
 export class WebcamWindow {
-  constructor(panel) {
-    this.panel = panel; this.state = new WebcamState(); this.pointers = new Map(); this.settingsGeneration = 0;
+  constructor(panel, { onVisibilityChange = () => {} } = {}) {
+    this.panel = panel; this.onVisibilityChange = onVisibilityChange; this.state = new WebcamState(); this.pointers = new Map(); this.settingsGeneration = 0;
     this.root = element('section', 'webcam-window'); this.root.dataset.testid = 'demo-webcam-region'; this.root.setAttribute('aria-label', '웹캠 방송');
     const header = element('div', 'webcam-header'); header.append(element('strong', '', '웹캠'));
     this.status = element('span', 'webcam-status', '방송 준비 중'); this.status.setAttribute('role', 'status');
     this.handle = button('↗', 'demo-webcam-resize-handle', () => {}, 'webcam-resize'); this.handle.setAttribute('aria-label', '방송 크기 조절 · 방향키 사용'); header.append(this.status, this.handle);
+    this.closeButton = button('×', 'demo-webcam-close-button', () => this.setVisible(false), 'webcam-close'); this.closeButton.setAttribute('aria-label', '웹캠 닫기'); header.append(this.closeButton);
     this.frame = element('div', 'webcam-frame'); this.placeholder = element('p', 'webcam-placeholder', '방송 준비 중'); this.frame.append(this.placeholder);
     this.input = element('div', 'webcam-input'); this.input.tabIndex = 0; this.input.dataset.testid = 'demo-webcam-pan-surface'; this.input.setAttribute('aria-label', '화면 이동 · 방향키와 확대 키, Escape로 종료'); this.input.hidden = true; this.frame.append(this.input);
     this.map = element('div', 'webcam-minimap'); this.map.setAttribute('aria-label', '확대 화면의 위치'); this.mapViewport = element('div'); this.map.append(this.mapViewport); this.frame.append(this.map);
@@ -61,6 +62,17 @@ export class WebcamWindow {
     this.state.bounds(panel.clientWidth, panel.clientHeight); this.render(); this.load();
   }
   distance() { const p = [...this.pointers.values()]; return p.length === 2 ? Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) : 0; }
+  setVisible(visible) {
+    if (visible === !this.root.hidden) return;
+    this.root.hidden = !visible;
+    if (visible) { this.render(); this.load(); }
+    else {
+      this.settingsGeneration++; this.settingsController?.abort(); clearTimeout(this.playerTimer);
+      this.player?.remove(); this.player = null; this.resizing = null;
+      this.state.moving = false; this.pointers.clear(); this.pinchDistance = 0; this.render();
+    }
+    this.onVisibilityChange(visible);
+  }
   setMoving(value) { this.state.moving = value; this.pointers.clear(); this.render(); if (value) this.input.focus(); }
   render() {
     this.root.style.width = `${this.state.size}px`; this.root.style.height = `${this.state.size}px`;
@@ -71,6 +83,7 @@ export class WebcamWindow {
     Object.assign(this.mapViewport.style, { width: `${m.width * 100}%`, height: `${m.height * 100}%`, left: `${m.left * 100}%`, top: `${m.top * 100}%` });
   }
   async load() {
+    if (this.root.hidden) return;
     const generation = ++this.settingsGeneration; this.settingsController?.abort(); this.settingsController = new AbortController();
     const controller = this.settingsController, timer = setTimeout(() => controller.abort(), 4000);
     this.status.textContent = '방송 설정 확인 중';

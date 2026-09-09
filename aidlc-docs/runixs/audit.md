@@ -491,3 +491,190 @@ runixs92@gmail.com으로 커밋해줘
 공동 게이트 완료나 원격 push·PR 병합 승인으로 확대하지 않는다.
 
 ---
+
+## 구현된 UI 미리보기 요청
+
+**Timestamp**: 2026-09-09T00:31:03Z
+
+**User Input**:
+
+```text
+그러면 지금 디자인한 UI를 출력해줄 수 있어?
+```
+
+**AI Response**: 현재 커밋의 실제 UI embed와 API Handler를 전용 로컬 DB에
+연결해 실 모드 18092와 공개 모드 18093으로 열었다. 미리보기용 노드 광고
+3개를 로컬 API로 등록하고 3D 함대, 2D 함대, 새 작업 모달의 실제 브라우저
+캡처를 ignored `local/ui-preview/screenshots/`에 저장했다. 방송은 미설정이며
+노드와 Run은 로컬 검증 데이터다. 실제 장비 실행이나 demo-back 연결 완료로
+기록하지 않는다. 사용자가 조작할 수 있도록 미리보기 서버를 유지한다.
+추가 작업 그래프 캡처는 대기 문자열 불일치와 Orca runtime 연결 종료로
+완료하지 못했다. 제품 코드나 기존 단계의 완료 상태는 변경하지 않았다.
+
+---
+
+## 데모 영상과 AI-DLC 연결 방식 상담
+
+**Timestamp**: 2026-09-09T00:40:06Z
+
+**User Input**:
+
+```text
+데모용으로 영상을 만들고 있었는데 이것도 aidlc workflow에 태워서 하면 좋나?
+```
+
+**AI Response**: 기존 영상 HANDOFF를 확인했다. 영상은 현재 소프트웨어
+AI-DLC에 연결한 별도 제작 작업으로 관리하되, 기존 HANDOFF와 자산을 정본으로
+유지하고 AI-DLC에는 범위·구현 의존성·검토 결과를 연결하는 방식을 권한다.
+0–30초 채택본 보존과 30초 이후 웹 작업 후 재개 결정은 유지한다. 현재 공식
+데모는 LED·음원이며 영상의 승인·이미지 전달·퓨징 이야기와 다르므로 장면별
+현재 구현·미연결·설명용 표현을 대조하는 작업을 먼저 제안한다. 콘티와 현재
+UI 자료 준비는 가능하지만 실제 완주 촬영은 해당 기능의 통합 검증 뒤다.
+새 유닛 배정, 공용 계획 변경, 영상 생성·크레딧 사용은 실행하지 않았다.
+
+---
+
+## 웹 동작 영상 도구 비교 상담
+
+**Timestamp**: 2026-09-09T00:42:53Z
+
+**User Input**:
+
+```text
+Kling이 애니메이션이나 실제 영상 제작 말고 웹의 동작을 애니메이션화해서 영상을 만드는데에도 좋나? 다른 좋은게 뭐가 있을까?
+```
+
+**AI Response**: Kling, Remotion, Screen Studio, Jitter, Adobe 공식 자료를
+조회했다. 웹 동작의 정확한 표현은 실제 화면 녹화와 시간·레이어를 직접
+제어하는 제작 도구가 적합하다는 판단을 설명한다. enode에는 실제 웹 UI
+녹화와 Remotion 합성을 권하고, 빠른 직접 녹화에는 Screen Studio, 디자인
+레이어 애니메이션에는 Jitter, 움직이는 기기 화면 합성에는 After Effects를
+비교한다. Kling은 기존 인물·배경 연출에 활용할 수 있다. 기존 한글 UI
+합성 수정 이력도 판단 근거로 삼았다. 도구 설치·유료 생성은 실행하지 않았다.
+
+**참고**:
+- https://kling.ai/quickstart/klingai-video-3-model-user-guide
+- https://www.remotion.dev/docs/the-fundamentals
+- https://screen.studio/
+- https://jitter.video/product/
+- https://www.adobe.com/products/aftereffects/motion-tracking.html
+
+---
+
+## Remotion 에이전트와 MCP 지원 확인
+
+**Timestamp**: 2026-09-09T00:46:35Z
+
+**User Input**:
+
+```text
+Remotion도 MCP나 에이전트가 동작하나??
+```
+
+**AI Response**: 공식 문서에서 Agent Skills를 통한 영상 구성·미리보기·
+렌더링 지원을 확인했다. 기존 문서 검색용 Remotion MCP는 deprecated이며
+신규 설치 대신 remotion-docs 스킬을 권고한다. 별도로 Studio를 조회하고
+재생·탐색하는 WebMCP가 있으며 호환 브라우저 에이전트가 필요하다. 이 세션의
+노출 도구에는 Remotion 전용 도구가 없으므로 WebMCP 연결 완료로 주장하지
+않는다. 현재 작업에는 공식 스킬과 CLI를 사용하는 구성을 권한다. 설치나
+새 영상 생성은 실행하지 않았다.
+
+**참고**:
+- https://www.remotion.dev/docs/ai/skills
+- https://www.remotion.dev/docs/ai/coding-agents
+- https://www.remotion.dev/docs/ai/mcp
+- https://www.remotion.dev/docs/ai/webmcp
+
+---
+
+## Remotion UI 샘플 제작 착수
+
+**Timestamp (기록 시각)**: 2026-09-09T01:02:31+00:00
+
+**User Input**:
+
+```text
+응 한번 해주ㅝ
+```
+
+**AI Response**: 직전 제안한 공식 스킬 설치와 별도 15초 UI 샘플 제작·미리보기·출력의 승인으로 해석했다. 공식 Remotion 스킬 7개를 설치하고 별도 프로젝트에 실제 UI 캡처, 한글 폰트, 시간 기반 확대·전환·자막·효과음을 구성했다. 대표 프레임 검수 후 MP4 출력 중이다. 기존 영상과 제품 유닛 단계는 유지한다.
+
+---
+
+## Kling 캐릭터 참조 시트 요청
+
+**Timestamp (기록 시각)**: 2026-09-09T01:02:31+00:00
+
+**User Input**:
+
+```text
+그리고 Kling에서 처음에 내가 보여준 캐릭터가 진행됨에 따라서 달라지더라고, 캐릭터 시트를 각 캐릭터별로 만든 후에 그걸 같이 input에 넣어서 줘야할 것 같아.
+```
+
+**AI Response**: 원본 포스터와 첫 장면, 기존 캐릭터 변화 검토 기록을 확인했다. 파란 요청자·금색 동료·흰 로봇 말의 개별 시트와 서대현님의 손·휴대폰 참조를 내장 imagegen으로 제작한다. 1차 시트의 과한 3D 표현과 구형 폰 차이를 확인해 원본 2D 스타일의 수정본을 생성 중이다. 장면 시작 프레임과 캐릭터 참조를 구분해 다음 Kling 입력 계획에 기록한다. Kling 업로드·Element 등록·영상 생성은 실행하지 않는다.
+
+---
+
+## 영상 보류 · queue 연동 재개
+
+**Timestamp (기록 시각)**: 2026-09-09T01:07:43.279624+00:00
+
+**User Input**:
+
+```text
+곧 queue가 머지된데, 지금 영상은 뒤로 미루고 일단 이거 해야할 것 같아.
+```
+
+**AI Response**: 영상 산출물을 보존하고 작업을 보류한다. fetch 결과 queue PR #5가 2026-09-09T01:00:41Z에 main@310c22d로 병합된 것을 확인했다. 기존 승인된 CONSTRUCTION 코드 생성 계획에 따라 담당 브랜치를 rebase하고 실제 queue 접점·시나리오 선행을 인수해 UI·demo-back 작업을 이어간다.
+
+---
+
+## UI 개선 요청 반영
+
+**Timestamp (기록 시각)**: 2026-09-09T01:14:22.085984+00:00
+
+**User Input (JSON, 원문 공백 보존)**:
+
+```json
+"- 그리고 웹캠뷰 닫기 버튼 필요해. \n- 사용자이름 한글 두단어로 바꿔주세요\n- 카드나 뭔가를 눌러서 나타난 플로팅 카드는 해당 카드 밖에 이전 레이어를 클릭하거나 액션이 생기면 자동으로 닫혀야해. \n\n\n위와같은 개선사항 요청이 왔어. aidlc에 반영해서 진행하자"
+```
+
+**AI Response**: 요청한 세 개선의 구현 지시로 기록한다. `construction/plans/ui-feedback-plan.md`에 변경 범위·수용 조건·검증을 적고 기존 승인된 코드 생성의 보완으로 실행한다. 한글 두 단어 이름을 신규 제출 계약에 반영하되 이전 미확인 요청의 원문을 보존해 재시도 시 Run 식별이 바뀌지 않게 한다. 웹캠 닫기/복원과 노드·단계 상세·모달·투어의 바깥 조작 닫기를 구현한다. queue 인수는 유지하고 실제 픽스처·방송 게이트 보류를 유지한다.
+
+---
+
+## queue 인수와 UI 개선 검증 결과
+
+**Timestamp (기록 시각)**: 2026-09-09T01:20:31.137887+00:00
+
+**AI Response**: queue@310c22d로 rebase 완료. 실제 201/202/200·거절·승격과 UI 선택 유지, 별도 DB에서 CreateQueuedRun의 submitter 저장·목록·승격 보존을 확인했다. rebase 기준 전체 Go 1,108 통과·0 스킵·16패키지 80% 이상. 이후 UI 개선은 Node 46·Go UI 98.4%·브라우저 24개 동작 단언 통과. 초기 브라우저 도구의 프로그램식 click은 포커스를 옮기지 않아 반환 포커스 기대가 틀렸고, 실제 클릭과 같이 먼저 포커스를 주어 재검증했다. 제품 포커스 동작은 유지했다. 모달 내부 조작과 폴링은 상세를 닫지 않으며 미확인 요청은 원문대로 재시도한다. 담당 FD/코드 계획/상태/검증 기록을 갱신했다. 영상 산출물은 보존·보류. 실제 픽스처·방송 입력과 공동 CP9/10/11은 보류이며 공용 문서·pen·다른 유닛 코드는 수정하지 않았다. 이번 보완은 아직 커밋·push·PR 하지 않았다.
+
+---
+
+## 담당 위치와 다음 작업 확인
+
+**Timestamp (기록 시각)**: 2026-09-09T01:24:05.264422+00:00
+
+**User Input**:
+
+```text
+그러면 내 작업은 어디까지 된건지 내 위치를 알려줘. 다음 구현을 기다려?
+```
+
+**AI Response**: 담당 상태와 git 상태를 대조하고 origin을 다시 fetch했다. main은 여전히 queue 병합 310c22d이며 실제 LED/음원 examples는 없다. runixs는 CONSTRUCTION 코드 생성 단계다. UI 독립 구현 1~8과 요청한 개선은 구현·로컬 검증 완료, queue 인수 완료다. 다음 구현인 demo-back도 runixs 담당이고 아직 구현하지 않았다. 실제 시나리오 계약 파일·매핑을 진행자에게 받아 연결하며 drain·panel·mcp 전체 완료를 기다리는 의존은 없다. 화면 구현 완료와 실제 데모·공동 게이트 완료를 구분하고, 최신 개선 변경은 아직 미커밋임을 안내한다.
+
+---
+
+## UI 개선과 queue 인수 기록 커밋·push 승인
+
+**Timestamp (기록 시각)**: 2026-09-09T01:25:46.761181+00:00
+
+**User Input**:
+
+```text
+그러면 일단 commit해서 push할까
+```
+
+**AI Response**: 완료한 UI 개선과 queue 인수 관련 담당 기록의 커밋·push 지시로 해석한다. 작성자·커미터는 Taewan Kim <runixs92@gmail.com>을 사용한다. 영상 파일·영상 별도 계획·이미지·로컬 검증 산출물은 보존하고 이번 커밋에서 제외한다. fetch 결과 원격 unit/runixs-ui는 7e4b4c7cf2e78de73d599a36069d05dc60562aa5이며, range-diff로 원격 두 커밋과 rebase한 f3a82b9/4c1265d의 내용이 같음을 확인했다. 다른 사람의 새 커밋이 없으므로 정확한 원격 SHA를 조건으로 force-with-lease push한다. Node 46·Go UI 98.4%·브라우저 24개 검증 결과를 유지하고 제출 코드 변경 없이 staged diff와 문서 범위를 확인한다. 이번 승인은 독립 변경의 저장·공유이며 Code Generation 전체 완료·공동 장면 통과·main 병합 승인은 아니다.
+
+---

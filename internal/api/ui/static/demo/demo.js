@@ -17,8 +17,10 @@ let storage; try { storage = sessionStorage; } catch { storage = null; }
 const submission = new Submission({ submitter: guest.guestName(), storage, onChange: state => { dialog.update(state); update(); }, onRefresh: () => client.refresh(), onAccepted: run => { dialog.close(); view.selectRun(run.run_id, true); client.refresh(); } });
 const dialog = new SubmissionDialog(root, { submission, canOpen: () => !tour.open });
 const newTask = button('+ 새 작업', 'demo-new-task-button', () => dialog.show(), 'primary'); view.newTaskSlot.append(newTask);
-const webcam = new WebcamWindow(view.panel);
-const tour = new DemoTour(root, { targets: [webcam.root, view.panel, view.sidebar, newTask], onStart: () => view.changeScene('fleet'), canStart: () => !dialog.open });
+const webcamToggle = button('웹캠', 'demo-webcam-toggle-button', () => webcam.setVisible(webcam.root.hidden)); webcamToggle.setAttribute('aria-expanded', 'true');
+const webcam = new WebcamWindow(view.panel, { onVisibilityChange: visible => { webcamToggle.setAttribute('aria-expanded', String(visible)); if (!visible) webcamToggle.focus({ preventScroll: true }); } });
+webcam.root.id = 'demo-webcam'; webcamToggle.setAttribute('aria-controls', webcam.root.id); view.headerActions.append(webcamToggle);
+const tour = new DemoTour(root, { targets: [webcam.root, view.panel, view.sidebar, newTask], onStart: () => { webcam.setVisible(true); view.changeScene('fleet'); }, canStart: () => !dialog.open });
 const replay = button('화면 안내', 'demo-tour-replay-button', () => tour.begin()); view.headerActions.append(replay);
 update(); client.start(); if (!tour.progress.completed) tour.begin();
 const ticker = setInterval(() => update(), 1000);

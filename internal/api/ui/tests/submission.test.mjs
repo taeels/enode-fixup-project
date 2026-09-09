@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Submission, PENDING_KEY, requestID } from '../static/demo/submission.mjs';
 const ID='11111111-1111-4111-8111-111111111111', ID2='22222222-2222-4222-8222-222222222222';
-const options={submitter:'guest-bright-otter',uuid:()=>ID};
+const options={submitter:'\uBC1D\uC740 \uC218\uB2EC',uuid:()=>ID};
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return{promise,resolve};};
 const reply=(status,body={},headers={})=>new Response(JSON.stringify(body),{status,headers});
 const memory=()=>{const values=new Map();return {values,getItem:k=>values.get(k),setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};};
@@ -16,6 +16,20 @@ test('uncertain retries preserve request identity and never automatically resend
  const calls=[],storage=memory();const s=new Submission({...options,storage,fetcher:async(_,init)=>{calls.push(init.body);return reply(503);}});
  await s.start('led-toggle');assert.equal(s.state.phase,'uncertain');await s.start('welcome-audio');assert.equal(calls.length,1);await s.retry();assert.equal(calls[0],calls[1]);
  const restored=new Submission({...options,storage,fetcher:()=>{throw Error('must not auto submit');}});assert.equal(restored.state.phase,'uncertain');assert.equal(restored.state.intent.request_id,ID);
+});
+test('a migrated guest retries the exact legacy intent instead of renaming it',async()=>{
+ const storage=memory(),intent={scenario_id:'welcome-audio',submitter:'guest-bright-otter',request_id:ID};
+ storage.setItem(PENDING_KEY,JSON.stringify({...intent,started_at:1}));const calls=[];
+ const s=new Submission({...options,storage,fetcher:async(_,init)=>{calls.push(JSON.parse(init.body));return reply(503);}});
+ assert.equal(s.state.phase,'uncertain');assert.equal(calls.length,0);await s.retry();assert.deepEqual(calls[0],intent);
+ s.newIntent();await s.start('led-toggle');assert.equal(calls[1].submitter,options.submitter);
+});
+test('new submissions require exactly two Hangul words with one space',async()=>{
+ for(const name of ['guest-bright-otter',options.submitter.replace(' ','  '),' '+options.submitter,options.submitter+' ',options.submitter+' word','<script>']){
+  const s=new Submission({...options,submitter:name,fetcher:()=>assert.fail('invalid name was submitted')});await s.start('led-toggle');assert.equal(s.state.intent,null);
+ }
+ const s=new Submission({...options,submitter:'\uAC00'.repeat(12)+' '+'\uB098'.repeat(12),fetcher:async()=>reply(503)});await s.start('welcome-audio');assert.equal(s.state.phase,'uncertain');
+ const tooLong=new Submission({...options,submitter:'\uAC00'.repeat(13)+' '+'\uB098',fetcher:()=>assert.fail('oversized name was submitted')});await tooLong.start('led-toggle');assert.equal(tooLong.state.intent,null);
 });
 test('timeout covers response body and late old response cannot change a new intent',async()=>{
  const callbacks=[],d=deferred();let n=0;const timers={setTimeout(fn){callbacks.push(fn);return callbacks.length;},clearTimeout(){}};

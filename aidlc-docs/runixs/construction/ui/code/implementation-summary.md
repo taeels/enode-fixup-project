@@ -56,3 +56,10 @@ label·harness·requires로 기기 종류나 sandbox 보장을 추론하지 않�
 이 입력 없이 demo-back의 실제 allow-list 매핑·서버 제출 실행을 만들지 않았다.
 현재 실제 `/v1/demo/runs`는 404이며 화면도 그 상태를 알린다.
 CP9/CP10/CP11의 실제 하드웨어·방송·봉인 장면은 보류다.
+
+
+## 후속 기록 — queue 인수·UI 개선
+
+2026-09-09 queue@310c22d로 rebase한 결과와 최신 검증은
+[queue 인수 기록](queue-integration-review.md), [UI 개선](ui-feedback.md)에 있다.
+위의 queue 미수령·영문 이름·닫기 동작 기록은 당시 기준이며 후속 기록이 대체한다.

@@ -1,10 +1,11 @@
 import { RUN_STATES } from '../shared/fleet/model.mjs';
 import { retryDelay } from '../shared/fleet/client.mjs';
-import { element, button } from '../shared/fleet/view.mjs';
+import { element, button, dismissOnBackdrop } from '../shared/fleet/view.mjs';
 import { trapFocus } from './tour.mjs';
 export const PENDING_KEY = 'enode.demo.pending.v1';
 export const SCENARIOS = ['led-toggle', 'welcome-audio'];
-const validName = name => typeof name === 'string' && /^guest-[a-z]{1,24}-[a-z]{1,24}$/.test(name);
+const validName = name => typeof name === 'string' && /^[가-힣]{1,12} [가-힣]{1,12}$/.test(name);
+const legacyName = name => typeof name === 'string' && /^guest-[a-z]{1,24}-[a-z]{1,24}$/.test(name);
 const validID = id => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 // LAN의 HTTP 데모에서는 randomUUID가 없을 수 있다. CSPRNG의 동일한 v4 형식을 쓴다.
 export function requestID(cryptography = globalThis.crypto) {
@@ -21,7 +22,7 @@ export class Submission {
     this.state = { phase: 'idle', intent: null, message: '', retryAt: 0, run: null };
     try {
       const saved = JSON.parse(storage?.getItem(PENDING_KEY) || 'null');
-      if (saved && SCENARIOS.includes(saved.scenario_id) && validName(saved.submitter) && validID(saved.request_id) && Number.isFinite(saved.started_at) && saved.started_at >= 0) {
+      if (saved && SCENARIOS.includes(saved.scenario_id) && (validName(saved.submitter) || legacyName(saved.submitter)) && validID(saved.request_id) && Number.isFinite(saved.started_at) && saved.started_at >= 0) {
         this.state = { ...this.state, phase: 'uncertain', intent: { scenario_id: saved.scenario_id, submitter: saved.submitter, request_id: saved.request_id }, startedAt: saved.started_at, message: '이전에 보낸 요청의 접수 결과가 미확인입니다. 같은 요청으로 다시 확인할 수 있습니다.' };
       } else if (saved) this.clearSaved();
     } catch { this.clearSaved(); }
@@ -83,7 +84,7 @@ export class SubmissionDialog {
     this.dialog = element('dialog', 'task-dialog'); this.dialog.setAttribute('aria-labelledby', 'demo-task-title');
     const title = element('h2', '', '새 작업'); title.id = 'demo-task-title';
     const close = button('×', 'demo-task-close-button', () => this.close(), 'task-close'); close.setAttribute('aria-label', '새 작업 닫기');
-    const intro = element('p', 'muted', `${submission.submitter} 이름으로 요청합니다. 시나리오를 누르면 바로 제출됩니다.`);
+    this.intro = element('p', 'muted');
     this.led = button('LED Toggle', 'demo-task-led-button', () => submission.start('led-toggle'), 'scenario-button'); this.led.append(element('span', '', '보드의 LED 시나리오 요청'));
     this.audio = button('사운드 재생', 'demo-task-audio-button', () => submission.start('welcome-audio'), 'scenario-button'); this.audio.append(element('span', '', '음원 시나리오 요청'));
     const scenarios = element('div', 'scenario-choices'); scenarios.append(this.led, this.audio);
@@ -92,14 +93,16 @@ export class SubmissionDialog {
     this.newRequest = button('다른 작업 시작', 'demo-task-new-intent-button', () => submission.newIntent());
     this.warning = element('p', 'muted', '다른 작업을 시작하면 별도의 요청이 됩니다. 앞선 요청은 이미 접수됐을 수 있습니다.');
     const actions = element('div', 'dialog-actions'); actions.append(this.newRequest, this.retry);
-    this.dialog.append(close, title, intro, scenarios, this.status, this.warning, actions); root.append(this.dialog);
+    this.dialog.append(close, title, this.intro, scenarios, this.status, this.warning, actions); root.append(this.dialog);
     this.dialog.addEventListener('cancel', e => { e.preventDefault(); this.close(); }); this.dialog.addEventListener('keydown', e => trapFocus(this.dialog, e));
+    dismissOnBackdrop(this.dialog, this.dialog, () => this.close());
     this.timer = setInterval(() => this.update(submission.state), 250); this.update(submission.state);
   }
   get open() { return this.dialog.open; }
   show() { if (!this.canOpen() || this.open) return; this.returnFocus = document.activeElement; this.update(this.submission.state); this.dialog.showModal(); this.dialog.querySelector('[data-testid="demo-task-close-button"]').focus(); }
   close() { this.dialog.close(); if (this.returnFocus?.isConnected) this.returnFocus.focus({ preventScroll: true }); }
   update(state) {
+    this.intro.textContent = state.intent && state.intent.submitter !== this.submission.submitter && !this.submission.canStart() ? '이전 요청의 제출자 정보로 다시 확인합니다.' : `${this.submission.submitter} 이름으로 요청합니다. 시나리오를 누르면 바로 제출됩니다.`;
     this.led.disabled = this.audio.disabled = !this.submission.canStart();
     const unresolved = ['uncertain', 'limited'].includes(state.phase);
     this.retry.hidden = this.newRequest.hidden = this.warning.hidden = !unresolved;

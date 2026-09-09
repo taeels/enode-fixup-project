@@ -11,6 +11,17 @@ export function button(text, testid, action, className = '') {
   const el = element('button', className, text); el.type = 'button'; el.dataset.testid = testid;
   el.addEventListener('click', action); return el;
 }
+// 배경에서 시작해 배경에서 끝난 클릭만 닫는다. 카드 내부 드래그는 읽기 조작이다.
+export function dismissOnBackdrop(dialog, content, close) {
+  let startedOutside = false;
+  const outside = e => {
+    const r = content.getBoundingClientRect();
+    return !content.contains(e.target) || e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+  };
+  dialog.addEventListener('pointerdown', e => { startedOutside = e.button === 0 && outside(e); });
+  dialog.addEventListener('pointercancel', () => { startedOutside = false; });
+  dialog.addEventListener('click', e => { const dismiss = startedOutside && outside(e); startedOutside = false; if (dismiss) close(); });
+}
 export function replaceContents(target, children, signature) {
   if (signature !== undefined && target._signature === signature) return;
   target._signature = signature;
@@ -59,7 +70,7 @@ export class DashboardView {
     const filterLabel = element('label', 'filter-label', '상태');
     this.filter = element('select'); this.filter.dataset.testid = `${mode}-run-state-filter`;
     for (const value of ['', ...RUN_STATES]) { const option = element('option', '', value || '전체 상태'); option.value = value; this.filter.append(option); }
-    this.filter.addEventListener('change', () => { this.state.filter = this.filter.value; this.render(); }); filterLabel.append(this.filter);
+    this.filter.addEventListener('change', () => { this.closeInspector(); this.state.filter = this.filter.value; this.render(); }); filterLabel.append(this.filter);
     this.runStatus = message('첫 관측을 기다리는 중'); this.runList = element('div', 'run-list');
     this.submissionNotice = element('p', 'submission-notice'); this.submissionNotice.setAttribute('role', 'status'); this.submissionNotice.hidden = true;
     this.requirements = element('section', 'requirements'); this.stepList = element('details', 'step-list');
@@ -68,6 +79,19 @@ export class DashboardView {
     layout.append(this.panel, this.sidebar); root.replaceChildren(header, this.connection, layout);
     this.zoom = 1; this.dimensions = { width: 880, height: 620 }; this.autoFit = true;
     this.resizeObserver = new ResizeObserver(() => { if (this.autoFit) this.fit(); }); this.resizeObserver.observe(this.viewport);
+    this.dismissOutside = e => {
+      if (this.inspector.hidden || this.inspector.contains(e.target)) return;
+      if (e.type !== 'wheel' && e.target.closest?.(`[data-testid="${mode}-node-select-button"], [data-testid="${mode}-step-select-button"]`)) return;
+      this.closeInspector();
+    };
+    this.dismissKey = e => {
+      if (this.inspector.hidden || this.root.querySelector('dialog[open]')) return;
+      if (e.key === 'Escape') { e.preventDefault(); this.closeInspector(true); }
+      else if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.key) && !this.inspector.contains(e.target)) this.closeInspector();
+    };
+    for (const name of ['pointerdown', 'click', 'focusin']) document.addEventListener(name, this.dismissOutside, true);
+    document.addEventListener('wheel', this.dismissOutside, { capture: true, passive: true });
+    document.addEventListener('keydown', this.dismissKey, true);
   }
   viewKey() { return `${this.state.scene}:${this.state.scene === 'run' ? this.state.run : ''}:${this.state.representation}`; }
   savePosition() { this.positions.set(this.viewKey(), { x: this.viewport.scrollLeft, y: this.viewport.scrollTop, zoom: this.zoom, autoFit: this.autoFit }); }
@@ -76,16 +100,24 @@ export class DashboardView {
     if (this.autoFit) this.fit(); else this.setZoom(p.zoom, false);
     this.viewport.scrollLeft = p?.x || 0; this.viewport.scrollTop = p?.y || 0;
   }
-  changeScene(scene) { if (scene === 'run' && !this.state.run) return; this.savePosition(); this.state.scene = scene; this.render(); this.restorePosition(); }
-  changeRepresentation(value) { this.savePosition(); this.state.representation = value; this.render(); this.restorePosition(); }
+  changeScene(scene) { if (scene === 'run' && !this.state.run) return; this.closeInspector(); this.savePosition(); this.state.scene = scene; this.render(); this.restorePosition(); }
+  changeRepresentation(value) { this.closeInspector(); this.savePosition(); this.state.representation = value; this.render(); this.restorePosition(); }
   selectRun(id, submitted = false) {
-    this.savePosition(); if (this.state.run !== id) this.state.step = null;
+    this.closeInspector(); this.savePosition();
     this.state.run = id; this.state.scene = 'run';
     if (submitted) { this.state.representation = '3d'; this.state.filter = ''; this.filter.value = ''; }
     this.onRunSelection(id); this.render(); this.restorePosition();
   }
-  selectNode(id) { this.state.node = id; this.changeScene('fleet'); }
+  selectNode(id) { this.changeScene('fleet'); this.state.node = id; this.render(); }
+  selectStep(id) { this.changeScene('run'); this.state.step = id; this.render(); }
+  closeInspector(restoreFocus = false) {
+    const node = this.state.node, step = this.state.step;
+    if (!node && !step) return;
+    this.state.node = this.state.step = null; this.inspector.hidden = true; this.render();
+    if (restoreFocus) [...this.root.querySelectorAll('[data-node-id], [data-step-id]')].find(el => node ? el.dataset.nodeId === node : el.dataset.stepId === step)?.focus({ preventScroll: true });
+  }
   setZoom(value, manual = true) {
+    if (manual) this.closeInspector();
     const old = this.zoom; this.zoom = Math.max(manual ? .15 : Number.EPSILON, Math.min(3, value)); if (manual) this.autoFit = false;
     const svg = this.canvas.querySelector('svg');
     if (svg) { svg.style.width = `${this.dimensions.width * this.zoom}px`; svg.style.height = `${this.dimensions.height * this.zoom}px`; }
@@ -117,8 +149,8 @@ export class DashboardView {
     const signature = JSON.stringify([this.state.scene, this.state.representation, this.state.node, this.state.step, this.state.run, nodes, detail, [...details], asks, nodes.map(n => nodeFacts(n, details, asks, now).expiring)]);
     if (signature !== this.canvas._signature) {
       let scene;
-      if (this.state.scene === 'fleet' && nodes.length) scene = fleetScene({ nodes, details, asks, now, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.node, onSelect: id => { this.state.node = id; this.render(); } });
-      else if (this.state.scene === 'run' && detail?.steps?.length && !detail.graphError) scene = runScene({ steps: detail.steps, nodes, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.step, onSelect: id => { this.state.step = id; this.render(); } });
+      if (this.state.scene === 'fleet' && nodes.length) scene = fleetScene({ nodes, details, asks, now, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.node, onSelect: id => this.selectNode(id) });
+      else if (this.state.scene === 'run' && detail?.steps?.length && !detail.graphError) scene = runScene({ steps: detail.steps, nodes, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.step, onSelect: id => this.selectStep(id) });
       if (scene) { this.dimensions = scene; replaceContents(this.canvas, [scene.element], signature); this.setZoom(this.zoom, false); if (this.autoFit) this.fit(); }
       else replaceContents(this.canvas, [element('div', 'scene-empty', this.state.scene === 'fleet' ? nodesResource?.data ? '현재 관측된 노드가 없습니다.' : this.resourceStatus('nodes') : detail?.graphError ? `그래프를 표시할 수 없습니다. ${detail.graphError} — 아래 단계 목록을 확인하세요.` : detail ? `${detail.state} · 아직 관측된 단계가 없습니다.` : this.resourceStatus(`detail:${this.state.run}`))], signature);
     }
@@ -145,7 +177,7 @@ export class DashboardView {
     }
     const stepItems = [element('summary', '', '단계와 의존 관계')];
     for (const s of detail?.steps || []) {
-      const b = button(`${s.seq}. ${s.id} · ${s.state} · needs: ${s.needs.join(', ') || '없음'}`, `${this.mode}-step-select-button`, () => { this.state.step = s.id; this.changeScene('run'); }, 'text-step'); b.dataset.stepId = s.id; stepItems.push(b);
+      const b = button(`${s.seq}. ${s.id} · ${s.state} · needs: ${s.needs.join(', ') || '없음'}`, `${this.mode}-step-select-button`, () => this.selectStep(s.id), 'text-step'); b.dataset.stepId = s.id; stepItems.push(b);
     }
     replaceContents(this.stepList, stepItems, JSON.stringify(detail?.steps)); this.stepList.hidden = !detail;
   }
@@ -166,7 +198,7 @@ export class DashboardView {
     const isNode = this.state.scene === 'fleet'; this.inspector.hidden = isNode ? !node : !step;
     if (this.inspector.hidden) return;
     const items = [], list = element('dl');
-    const close = button('×', `${this.mode}-inspector-close-button`, () => { if (isNode) this.state.node = null; else this.state.step = null; this.render(); }, 'inspector-close'); close.setAttribute('aria-label', '상세 닫기'); items.push(close);
+    const close = button('×', `${this.mode}-inspector-close-button`, () => this.closeInspector(true), 'inspector-close'); close.setAttribute('aria-label', '상세 닫기'); items.push(close);
     if (isNode) {
       const facts = nodeFacts(node, details, asks, now); items.push(element('h2', '', node.label || node.node_id), element('p', `node-tone-${facts.tone}`, facts.label));
       pair(list, '노드 ID', node.node_id); pair(list, 'instance', node.instance); pair(list, 'draining', node.draining || '없음');
@@ -200,5 +232,9 @@ export class DashboardView {
     }
     items.splice(3, 0, list); replaceContents(this.inspector, items, JSON.stringify([isNode, node, step, list.textContent, details.get(node?.lease?.run_id), detailResource?.error]));
   }
-  destroy() { this.resizeObserver.disconnect(); this.root.replaceChildren(); }
+  destroy() {
+    for (const name of ['pointerdown', 'click', 'focusin', 'wheel']) document.removeEventListener(name, this.dismissOutside, true);
+    document.removeEventListener('keydown', this.dismissKey, true);
+    this.resizeObserver.disconnect(); this.root.replaceChildren();
+  }
 }
