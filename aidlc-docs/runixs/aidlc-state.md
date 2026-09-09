@@ -17,7 +17,8 @@ PR #29·#30은 CI 통과 후 main `3c4137a`에 병합했다. #28에도 운영 �
 최신 main을 반영하며 사용자에게 웹에서 직접 사운드를 실행할 수 있다고 알렸다.
 [계획](construction/plans/audio-wire-plan.md), [운영 기록](construction/ui/code/audio-wire.md).
 자동 테스트는 로컬에서 생략했고 CI 결과와 실제 실행 결과를 구분한다.
-물리적 청취 및 공동 CP10 전체는 별도 확인 사항이다.
+사용자가 웹 사운드 실제 동작을 확인했다. #28은 후속 지시로 CI 생략 병합한다.
+공동 CP10 전체는 별도 확인 사항이다.
 
 **LED 직결 운영 보완**: `Runixs/fix-wire`에서 이 Mac의 enode/runctl과 Mac mini
 SSH 터널을 `/Users/runixs/enode-led-bridge`에 설치했다. Pi의 sunny 계정에
