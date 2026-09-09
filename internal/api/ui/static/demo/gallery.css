@@ -1,0 +1,23 @@
+.dashboard .gallery-card { grid-column:1 / -1; min-height:96px; text-align:left; background:linear-gradient(115deg,#142B42,#18232D); }
+.dashboard .gallery-dialog { width:min(760px,calc(100vw - 32px)); overflow:auto; }
+.dashboard .gallery-eyebrow { color:#77B6FF; font-size:11px; letter-spacing:.14em; margin:0 0 10px; }
+.dashboard .gallery-content { margin-top:20px; }
+.dashboard .gallery-form { display:grid; gap:12px; }
+.dashboard .gallery-content label { font-size:13px; font-weight:600; }
+.dashboard .gallery-content select,.dashboard .gallery-content textarea { display:block; width:100%; box-sizing:border-box; background:#0D1218; border:1px solid #45515F; border-radius:7px; padding:12px 14px; color:#E6EAF0; font:inherit; }
+.dashboard .gallery-content textarea { resize:vertical; min-height:100px; line-height:1.7; }
+.dashboard .gallery-content :is(select,textarea,button,a):focus-visible { outline:2px solid #77B6FF; outline-offset:3px; }
+.dashboard .gallery-transcript { list-style:none; padding:0; margin:20px 0; display:grid; gap:12px; }
+.dashboard .gallery-event { padding:14px 16px; border:1px solid #303B47; border-radius:8px; background:#10161C; }
+.dashboard .gallery-event strong { font-size:11px; color:#AAB8C7; }
+.dashboard .gallery-event p { white-space:pre-wrap; overflow-wrap:anywhere; margin:8px 0 0; line-height:1.75; font-size:13px; }
+.dashboard .gallery-assistant { border-left:3px solid #4B9CFF; }
+.dashboard .gallery-tool { border-left:3px solid #86CBA8; }
+.dashboard .gallery-tool strong { color:#86CBA8; }
+.dashboard .gallery-reset { margin-left:10px; }
+.dashboard .gallery-result-link { display:inline-block; padding:10px 14px; border-radius:6px; text-decoration:none; }
+.dashboard .gallery-posted-body { margin:16px 0; padding:16px; border-left:3px solid #86CBA8; white-space:pre-wrap; }
+.dashboard .task-status[data-outcome="refused"] { color:#EDBD70; }
+.dashboard .task-status[data-outcome="posted"] { color:#86CBA8; }
+.dashboard .task-status[data-outcome="error"] { color:#F0A7A7; }
+@media(max-width:550px) { .dashboard .gallery-dialog { padding:22px 18px; }.dashboard .gallery-reset { margin:12px 0 0; display:block; } }

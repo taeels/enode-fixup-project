@@ -1,6 +1,7 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → Code Generation 진행 중.
+**현재 공식 단계**: CONSTRUCTION → 갤러리 확장 Build and Test 완료·Mac mini 운영 적용.
+기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
 담당 FD와 UI 11단계·demo-back 7단계 계획은 2026-09-08T20:11:36Z
 사용자의 “응 시작해”로 승인됐다. Inception이나 FD 승인을 다시 기다리지 않는다.
@@ -14,13 +15,51 @@
 [변경·검증 기록](construction/ui/code/ui-readability.md),
 [보완 계획](construction/plans/ui-readability-plan.md). 공식 Code Generation과
 기존 공동 장면 보류는 유지한다. 사용자 지시로 미리보기를 재개하고 코드 510c6a6·0b422a7을 push했다.
-[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)을 main 대상으로 열었다. 배포·병합 전이다.
+[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)은 main에 병합됐고 이번 rebase로 인수했다. 운영 배포 전이다.
 
 **로컬 실행 상태: 중지.** 사용자 지시로 실행 장소를 다른 호스트로 옮긴다.
 이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.
 아래 LAN·Drain 결과는 종료 전 검증 기록이다. 설정·DB 데이터·로그는 보존했다.
 
-`unit/runixs-ui`는 Drain PR #7이 병합된 `origin/main@50af6cf` 위에 있다.
+**Mac mini 공개 데모는 실행 중이다.** 별도 DB·새 토큰으로 Mediator와 실제 노드를
+띄우고 Cloudflare Quick Tunnel의 HTTPS 주소로 공개했다. 외부 UI·토큰 인증과
+실제 노드의 공개 등록·claim·shell 실행·봉인 다운로드를 확인했다. 사용자에게
+소유 도메인이 없어 현재 임시 주소를 유지한다. [실행·관리 기록](construction/macmini-public-demo.md).
+이 MacBook의 서비스는 중지 상태이며 공동 LED·음원·방송 CP10은 남아 있다.
+
+**Mac mini 작업 실행은 Bedrock VM으로 전환했다.** 기존 `ccb` 연결을 별도 Lima
+VM의 일반 사용자 enode에 적용했다. 사용자가 제공한 새 키로 실제 Claude Run
+`bedrock-vm-proof-b8f111c2` 성공·봉인 결과와 격리 검사 15개를 확인했다.
+기존 Mac 직접 실행 노드는 종료했고 VM과 팀원 두 노드의 heartbeat, 공개 UI를
+재확인했다. Mediator·터널·공개 주소는 유지한다. [구성·관리·한계](construction/macmini-bedrock-sandbox.md).
+제품 OS sandbox 기능이나 공동 CP10 전체 완료로 해석하지 않는다.
+
+후속 요청으로 지정된 해커톤 갤러리 호스트의 HTTPS를 VM에 허용했다. 사용자의
+명시적인 한 댓글 지시에 따라 Run Away 게시글에 댓글을 등록하고, 로그인하지
+않은 게스트 화면에서도 노출을 확인했다. [갤러리 검증](construction/hackathon-gallery-integration.md).
+이후 사용자 승인으로 전체 참가팀 대상 Claude MCP·게스트 프롬프트 UI를 구현하고
+최신 main `a5d62cf`를 통합해 Mac mini에 적용했다. 후속 지시로 팀 선택·예시/제약
+목록·별도 게시 확인을 제거했다. 이제 메시지 한 번으로 AI가 팀 목록→해당 글→댓글
+게시까지 같은 Run에서 처리한다. 입력칸에는 Mac mini·DDTHON·Bedrock 안내와
+요청 예시 placeholder만 둔다. 모호한 팀은 되묻고 초안 전용 요청은 게시하지 않는다.
+
+공개 UI의 “Run Away 팀에 응원 댓글 달아줘”에서 실제 새 댓글
+`398167b8-ffb8-4c22-bb88-b6b55bcec63a`를 확인했다. 실행 중 새로고침에도 같은
+Run과 댓글 한 개로 완료됐으며 외부 URL 요청은 도구 호출 없이 거절됐다.
+[구현·배치](construction/demo-back/code/gallery-implementation.md),
+[Build and Test 인수](construction/build-and-test/build-and-test-summary.md).
+
+태양님 Windows 노드 `270c97c94415`는 실제 shell Run
+`teammate-connectivity-54c76943` 성공·봉인 내용·lease 해제를 확인했다.
+추가 Mac 노드 `620abcbb7e47`도 등록·heartbeat 갱신을 확인했으며 해당 노드의
+에이전트·하드웨어 작업은 아직 검증하지 않았다.
+
+공개 서버의 등록 실패를 조사해 HTTP→HTTPS 301이 등록 POST를 GET으로 바꾸는
+문제를 재현했다. 제공된 토큰은 HTTPS에서 인증됐다. 노드 설정 주소를 HTTPS로
+바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).
+실패한 다른 PC의 재시작 후 등록 성공은 아직 미확인이다.
+
+`unit/runixs-ui`는 `origin/main@16ef08c`로 rebase했고 [PR #14](https://github.com/taeels/enode-fixup-project/pull/14)로 검토한다. transcript·UI 가독성·greet-play 예제를 인수했다. 운영 Mediator는 입력칸 안내까지 포함한 `b01274b`, VM enode는 `56f2f99`이며 이번 rebase의 추가 main 변경은 아직 운영에 배포하지 않았다. 아래는 앞선 Drain 인수 기록이다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
 404를 `/ui/` 리다이렉트로 보완해 push했다. 실제 Mac 노드의 at-boundary·graceful,
@@ -43,10 +82,11 @@ UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도
 | 범위 | 완료한 것 | 남은 것 |
 |---|---|---|
 | UI 1~8 | 실 함대 관측, D1/D2/D5, 2D/3D, 투어, 제출 의도·재시도, 웹캠 조작 | 공동 실제 장면은 9~10에서 확인 |
+| 갤러리 확장 | 프롬프트 한 번·AI 팀 탐색·실제 댓글 게시·거절/되묻기, main 통합·Mac mini 적용·공개 인수 | 공동 CP6/CP10은 별도 |
 | UI 개선 | 웹캠 닫기·복원, 한글 두 단어 이름, 상세·모달·투어의 바깥 조작 닫기 | 구현·로컬 검증 완료 |
 | UI 가독성 보완 | 휠 확대·축소, 단계 그래프·함대 복귀, 임대 제출자, 기능별 상세·한국어 시각 | 구현·로컬 검증 완료, 배포 전 |
 | UI 9 | queue·sandbox 출처, c7a237d 두 시나리오의 실제 POST/GET·이름·3D 연결 | 실제 장비 광고·동작, 공개 방송 주소 |
-| UI 10~11 | 독립 검사·PR #6 병합·실제 Drain 관측과 queue 인수 | 공동 CP 장면과 전체 생성 결과 리뷰, 후속 PR #8 |
+| UI 10~11 | 독립 검사·PR #6/#8 병합·실제 Drain 관측과 queue 인수 | 공동 CP 장면과 전체 생성 결과 리뷰 |
 | demo-back 1~5 | obs·queue·실제 fixture 인수, 공개 라우트·검증·한도·재시도·DB/UI 연결 | 구현·로컬 검증 완료 |
 | demo-back 6~7 | 표준 검사·race·브라우저·문서 | 공동 장면과 전체 유닛 리뷰 |
 
@@ -72,7 +112,8 @@ UI·제출·이름·음성·봉인·방송을 확인한다. 현재 webcam 설정
 [검증 기록](construction/demo-back/code/build-and-test.md)에 소프트웨어 완료와
 실제 하드웨어/방송 게이트를 구분했다. [PR #6](https://github.com/taeels/enode-fixup-project/pull/6)은
 2026-09-09T02:25:03Z 병합됐다. 병합 사실과 공동 CP10의 실물 검증은 별개다.
-기본 주소 접속 보완과 Drain 인수 기록은 [후속 Draft PR #8](https://github.com/taeels/enode-fixup-project/pull/8)에서 리뷰한다.
+기본 주소 접속 보완과 Drain 인수 기록의 [후속 PR #8](https://github.com/taeels/enode-fixup-project/pull/8)은
+2026-09-09T02:48:47Z `main@bc41f26`으로 병합됐다.
 
 ## 검증 근거
 

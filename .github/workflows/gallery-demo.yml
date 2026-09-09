@@ -1,0 +1,22 @@
+name: gallery demo
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  bounded-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Gallery worker and publication boundaries
+        run: python3 -m unittest discover -s scripts/gallery_demo -v
+      - name: Demo UI controllers
+        run: node --test internal/api/ui/tests/*.test.mjs

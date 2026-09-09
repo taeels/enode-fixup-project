@@ -79,7 +79,7 @@ export class Submission {
   destroy() { this.generation++; this.controller?.abort(); }
 }
 export class SubmissionDialog {
-  constructor(root, { submission, canOpen = () => true }) {
+  constructor(root, { submission, canOpen = () => true, onGallery }) {
     this.submission = submission; this.canOpen = canOpen;
     this.dialog = element('dialog', 'task-dialog'); this.dialog.setAttribute('aria-labelledby', 'demo-task-title');
     const title = element('h2', '', '새 작업'); title.id = 'demo-task-title';
@@ -88,6 +88,7 @@ export class SubmissionDialog {
     this.led = button('LED Toggle', 'demo-task-led-button', () => submission.start('led-toggle'), 'scenario-button'); this.led.append(element('span', '', '보드의 LED 시나리오 요청'));
     this.audio = button('사운드 재생', 'demo-task-audio-button', () => submission.start('welcome-audio'), 'scenario-button'); this.audio.append(element('span', '', '음원 시나리오 요청'));
     const scenarios = element('div', 'scenario-choices'); scenarios.append(this.led, this.audio);
+    if (onGallery) { const gallery = button('해커톤에 의견 남기기', 'demo-task-gallery-button', () => { this.close(); onGallery(); }, 'scenario-button gallery-card'); gallery.append(element('span', '', '격리된 Claude와 댓글을 작성하고 참가팀에 기여하세요')); scenarios.append(gallery); }
     this.status = element('p', 'task-status'); this.status.setAttribute('role', 'status');
     this.retry = button('같은 요청으로 다시 확인', 'demo-task-retry-button', () => submission.retry(), 'primary');
     this.newRequest = button('다른 작업 시작', 'demo-task-new-intent-button', () => submission.newIntent());

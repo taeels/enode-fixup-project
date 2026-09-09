@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/taeels/enode/internal/proc"
 )
@@ -19,9 +20,12 @@ import (
 // node. It writes the lock file so proc.PidFromLock finds it.
 func ownedProcess(t *testing.T, cfgPath string) int {
 	t.Helper()
-	cmd := exec.Command("sh", "-c", "sleep 5", "enode", cfgPath)
+	// A shell may exec its final sleep on macOS and lose cfgPath from argv.
+	// Keep a dedicated test process whose arguments stay stable until stopped.
+	cmd := exec.Command(os.Args[0], "-test.run=^TestPanelOwnedProcessHelper$", "--", cfgPath)
+	cmd.Env = append(os.Environ(), "ENODE_PANEL_OWNED_PROCESS_TEST=1")
 	if err := cmd.Start(); err != nil {
-		t.Skipf("cannot spawn a helper process: %v", err)
+		t.Fatalf("cannot spawn a helper process: %v", err)
 	}
 	t.Cleanup(func() { _ = cmd.Process.Kill(); _, _ = cmd.Process.Wait() })
 	pid := cmd.Process.Pid
@@ -29,7 +33,7 @@ func ownedProcess(t *testing.T, cfgPath string) int {
 		t.Fatal(err)
 	}
 	if proc.PidFromLock(cfgPath) != pid {
-		t.Skip("ps-based ownership check is not available here")
+		t.Fatal("helper process did not retain its config argument")
 	}
 	return pid
 }
@@ -70,4 +74,12 @@ func TestHandleStopMediatorDown(t *testing.T) {
 	if out["mediator_reachable"] != false {
 		t.Errorf("expected mediator unreachable: %+v", out)
 	}
+}
+
+func TestPanelOwnedProcessHelper(t *testing.T) {
+	if os.Getenv("ENODE_PANEL_OWNED_PROCESS_TEST") != "1" {
+		return
+	}
+	time.Sleep(30 * time.Second)
+	os.Exit(0)
 }

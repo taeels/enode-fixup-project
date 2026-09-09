@@ -1231,3 +1231,269 @@ sandbox · agent.reason
 **AI Response**: 사용자 지시로 510c6a6·0b422a7을 unit/runixs-ui-readability에 커밋·push하고 main 대상 PR #16을 열었다. 제목은 함대 노드 간격과 그래프 탐색·정보 가독성 개선이며 URL은 https://github.com/taeels/enode-fixup-project/pull/16 이다. PR 본문에 최종 변경과 Node 52·브라우저 45/12배치·Go UI 98.4%·빌드 검증 및 공동 CP10 보류를 기록했다. Orca 미리보기 두 탭은 긴 호스트명을 표시하는 최신 소스로 갱신해 유지했다. 병합·배포는 실행하지 않았다.
 
 ---
+
+## 공개 서버의 다른 PC 노드 등록 실패 조사
+
+**Timestamp (기록 시각)**: 2026-09-09T02:53:40.423613+00:00
+
+**User Input**:
+
+```text
+지금 공개 서버에서 띄웠는데, enode등록이 다른 pc에서 안된다고하거든?? 토큰이랑 그런거 다 넣었는데 말이야. 한번 확인해봐.
+```
+
+**AI Response**: 공개 Mediator 주소·실패 PC 오류·실행 명령을 요청했다. 현재 저장소 기록과 PR에는 새 공개 주소가 없고 브라우저 탭도 비어 있어 실제 공개 서버 요청은 아직 실행하지 않았다. origin/main에서 PR #8의 bc41f26 병합을 확인했다. 코드에서 setup은 GET /v1/capabilities 확인과 설정 저장이며 실제 등록은 start 이후 POST /v1/nodes임을 확인했다. 토큰 외에 principal 또는 전역 git email이 없으면 시작 자체가 실패할 수 있다. 실제 Client와 임시 HTTP 테스트 서버로 경로를 비교해 기본 주소와 끝 /는 POST 등록이 보존되어 성공하고 /ui/가 붙은 주소는 404임을 확인했다. 끝 /만으로 등록이 실패한다는 가설은 이 Go 1.26.6 재현에서 성립하지 않았다. 이 결과는 공개 서버의 원인 확정이 아니다. 제품 코드를 변경하지 않았고 앞서 중지한 Mediator·enode·전용 DB도 재기동하지 않았다. 공개 주소와 실제 오류 응답이 다음 진단 입력이다.
+
+---
+
+## 공개 주소·설정 수령과 HTTP 리다이렉트 원인 확인
+
+**Timestamp (기록 시각)**: 2026-09-09T02:55:52.808847+00:00
+
+**User Input (인증 정보 마스킹)**:
+
+```yaml
+# enode node config.
+# The absolute path of this file is part of the node id (ADR-017):
+# moving it makes a different node.
+mediator: http://mediator.taeels.duckdns.org
+token: <redacted>
+workspace: ""
+```
+
+**AI Response**: 공개 서버에서 HTTP가 HTTPS로 301 이동함을 확인했다. 사용자 토큰은 HTTPS GET /v1/capabilities에서 200으로 인증됐고 무인증은 401이었다. 빈 node_id의 HTTPS POST /v1/nodes는 인증 후 400 node_id is missing으로 거부되어 등록 핸들러 도달을 확인했다. 실제 enode.Client로 같은 빈 광고를 HTTP 주소에 보내자 GET HTTPS /v1/nodes로 이동했고, 목록의 200 응답을 광고 성공으로 잘못 받아 오류 없음·leases null·renew_seconds 0이 됐다. 유효 node_id를 보내지 않아 공개 함대에 시험 노드를 등록하지 않았다. 실패 PC에서 mediator를 https://mediator.taeels.duckdns.org로 바꾸고 해당 노드를 재시작하도록 안내한다. 그 PC의 재시작 결과와 로그는 아직 미수령이며 principal/전역 git email 부재는 별도 시작 실패 가능성이다. 제품·공개 프록시 설정은 변경하지 않았고 이 PC의 종료된 서비스도 다시 띄우지 않았다. 토큰은 요청 전송에만 사용했고 문서·증거 파일에는 저장하지 않았다.
+
+---
+
+## Mac mini 외부 공개와 GitHub Pages 가능 범위 문의
+
+**Timestamp (기록 시각)**: 2026-09-09T02:59:31.740066+00:00
+
+**User Input**:
+
+```text
+내 MacMini에서 외부 게스트들이 접속할 수 있게 서버 띄울 수 있는 방법은 없어??? github page이런걸로 띄울 수도 없는거지?
+```
+
+**AI Response**: 현재 UI가 Mediator에 embed되어 같은 origin의 /v1 API를 호출하는 구조와 공식 호스팅 문서를 확인했다. Mac mini의 Mediator·DB를 Cloudflare Tunnel 또는 Tailscale Funnel로 공개 HTTPS 주소에 연결하는 구성이 가능하다. 고정 도메인을 사용할 공개 데모에는 Cloudflare Tunnel을 권장하고, 이미 Tailscale을 쓰는 경우 Funnel로 앱 설치 없는 외부 방문자를 받을 수 있음을 설명한다. GitHub Pages는 정적 UI만 호스팅하며 Go Mediator·DB는 별도 서버가 필요하다. 현재 UI를 Pages로 분리하면 API 주소·CORS 조정이 필요하다. Mac mini 기동·터널 생성·DNS 변경은 실행하지 않았고 방금 종료한 PC의 서비스도 중지 상태를 유지했다. 실제 운영 위치와 방식은 이 문의에서 선택되지 않았다.
+
+**확인한 공식 자료**:
+- https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages
+- https://developers.cloudflare.com/tunnel/setup/
+- https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/
+- https://tailscale.com/docs/use-cases/application-testing/share-local-dev-server-with-internet
+
+---
+
+## Mac mini 공개 실행 착수
+
+**Timestamp (기록 시각)**: 2026-09-09T03:03:01.971125+00:00
+
+**User Input**:
+
+```text
+한번 해봐
+```
+
+**AI Response**: 앞선 Mac mini 공개 서버 구성 설명을 실제 실행 지시로 받아 기존 SSH MacMini 별칭으로 접속했다. 실제 호스트는 Runixsui-Macmini.local, arm64이며 PostgreSQL 16 서비스가 이미 있다. 기존 공개 서버나 중지한 MacBook 환경을 바꾸지 않고 별도 디렉터리·DB·토큰으로 준비한다. 고정 도메인 정보가 없어 우선 Cloudflare Quick Tunnel의 임시 HTTPS 주소를 사용해 게스트 접속을 검증한다. 승인된 실행 범위 내에서 도구 설치·기동·검증을 진행하며 실제 하드웨어 CP10 완료로 표시하지 않는다.
+
+---
+
+## Mac mini 공개 검증 완료와 임시 주소 유지
+
+**Timestamp (기록 시각)**: 2026-09-09T03:11:05.032207+00:00
+
+**User Input**:
+
+```text
+주소가 왜이래??? 앞에 deutsche-football -tract-necklace이건 수정을 못해?? enode 이런걸로
+아니야 없어 그냥 진행하자
+```
+
+**AI Response**: Cloudflare Quick Tunnel이 임의의 trycloudflare.com 하위 주소를 발급하며 접두어를 지정할 수 없음을 공식 문서로 확인했다. MacBook·Mac mini에 기존 Cloudflare 인증/도메인 설정이 없고 Tailscale Funnel 설정도 비어 있었다. 연결할 도메인을 질문했고 사용자는 도메인이 없으며 그대로 진행하도록 했다. 현재 임시 주소를 유지하고 Tailscale 장치명·기존 서버 DNS를 변경하지 않았다.
+
+Mac mini의 별도 실행 디렉터리·DB·새 토큰에 166c935 arm64 바이너리를 배치하고 Mediator·실제 enode·cloudflared를 기동했다. 공개 주소는 https://deutsche-football-tract-necklace.trycloudflare.com 이며 루트는 /ui/로 이동한다. MacBook에서 공개 UI와 API 인증을 검사했고 실제 Mac mini 노드를 잠시 공개 HTTPS에 연결해 등록·claim·35초 idle 이후 shell 실행·봉인 결과 다운로드를 확인했다. macmini-public-e2e-4900838a는 SUCCEEDED이며 검증 후 자체 노드를 loopback으로 복구했다. 새 비밀 값은 원격 0600 파일에만 저장하고 로그·문서에 노출하지 않았다. README·manage.py로 상태·시작·종료 명령을 제공한다. SSH 종료 후 유지되지만 재부팅 자동 기동은 설정하지 않았다. 현재 MacBook의 중지한 서비스와 기존 태양님 서버는 유지하며 공동 LED·음원·방송 CP10은 미완료다. 제품 코드와 rc1 릴리스는 바꾸지 않았다.
+
+---
+
+## Mac mini 보안 검토·팀원 연결 확인·Bedrock VM 전환
+
+**Timestamp (기록 시각)**: 2026-09-09T03:40:29.608176+00:00
+
+**User Input**:
+
+```text
+c3f5ed9는 보안문제될 내용없지?? 내 컴퓨터를 노출시킨거니까 말이야. 곧 팀원들이 enode를 붙일거야. 그거 붙으면 너가 검증 해주면 돼.
+지금 내 MacMini에 'ccb'로 bedrock연결된 claudecode 실행 alias커맨드가 있는데, enode로 그 클로드가 실행되게 설정할 수 있나?? 샌드박스로 안전한 환경에서 말이야.
+```
+
+**AI Response**: 공개 저장소의 c3f5ed9 변경 5개 파일에 실제 API 토큰·DB 암호가 없음을 대조했다. 공개 URL·호스트명 등 운영 메타데이터는 있으며, 공개 조회·인증 경계와 공유 토큰의 넓은 권한, 기존 직접 실행 노드의 개인 호스트 접근 가능성을 설명했다. 태양님 Windows 노드 270c97c94415의 실제 shell Run teammate-connectivity-54c76943 성공·봉인 내용·heartbeat·lease 해제를 확인했다.
+
+기존 ccb의 최소 Bedrock 환경과 enode의 harness_bin 접점을 조사하고, 별도 Lima VM의 일반 사용자로 enode와 고정 버전 Claude를 배치했다. 호스트 공유·SSH agent 전달·자동 포트 전달 없이 systemd 권한·파일 제한과 작업 UID의 네트워크 제한, Mediator·Bedrock 전용 HTTPS 프록시를 적용했다. 운영 범위의 새 요청으로 수행했으며 제품의 OS sandbox 기능이나 공동 CP10 완료로 기록하지 않는다.
+
+**추가 User Input**:
+
+```text
+[사용자가 제공한 새 Bedrock 키 — 비밀 값이므로 감사 로그에서 제외]
+
+이게 새로운 키야ㅣ
+```
+
+**AI Response**: 기존 키가 실제 AWS 호출에서 403을 반환해 첫 자체 검증 Run을 취소했다. 새 키를 Mac mini ccb와 VM의 권한 제한 파일에 저장했다. 키를 출력하거나 Git에 기록하지 않았다. 실제 enode→Claude→Bedrock Run bedrock-vm-proof-b8f111c2가 SUCCEEDED이며 봉인 bedrock-proof.txt의 정확한 내용을 확인했다. 격리 검사 15개도 통과했다. 로컬 auth status만으로 키 유효성을 주장하지 않았다.
+
+기존 Mac 직접 실행 노드 3ae3a256ec68를 종료하고 VM 노드 95262f8783e9로 전환했다. VM 서비스 자동 기동과 공개 런타임의 VM 관리 경로를 설정했다. Mediator·터널 프로세스와 공개 주소는 유지했다. 전환 후 VM과 팀원 두 노드 heartbeat, lease 해제, 기존 호스트 광고 만료·프로세스 종료, 공개 UI 세 경로 HTTP 200을 확인했다. 추가 Mac 팀원 노드는 heartbeat까지 확인했으며 해당 장비의 에이전트·하드웨어 검증은 남아 있다.
+
+시작·중지·키 갱신 명령과 검증 한계를 construction/macmini-bedrock-sandbox.md 및 Mac mini 실행 디렉터리 README에 남겼다. 키 동기화 명령의 변경 없는 실행과 Python 문법 검사를 확인했다. VM 작업 간 상태와 Bedrock 키 자체를 격리하지 않으며 공유 Mediator 권한도 그대로임을 명시했다. Mac 재부팅 후 전체 자동 기동은 미설정이다. 제품 코드·rc1·영상 세션의 변경과 공동 CP10 상태를 유지했다.
+
+---
+
+## 새 작업의 Bedrock Claude 데모 시나리오 제안
+
+**Timestamp (기록 시각)**: 2026-09-09T03:43:49.187120+00:00
+
+**User Input**:
+
+```text
+그러면 '새 작업' 버튼에 뭔가 기능을 추가하는게 좋을 것 같은데 어떻게 할까?? 지금은 내 sandbox bedrock claude를 쓸 용도가 없잖아. 데모로 sandbox안에서 동작한다는 것을 보여주기 위한 데모 시나리오 좋은게 있을까???
+```
+
+**AI Response**: 현재 새 작업과 demo-back은 LED·사운드 두 시나리오만 허용하고, 결과 파일은 인증 API 뒤에 있음을 확인했다. 세 번째 고정 시나리오로 AI 버그 수정 체험을 제안했다. 합성 장바구니 계산 오류를 실제 Bedrock Claude가 수정하고 고정 검사기로 재검증하며, 같은 실행 환경에서 작업 쓰기 허용·데모 보호 영역 접근 차단을 보여준다. 경계 검사 결과는 Claude의 자기 보고와 구분하고 실제 개인 파일을 탐색하지 않는다. 화면은 기존 Run·3D 관측을 사용하고 별도 제한된 결과 요약 접점을 추가하는 안이다. 호출·대기열 총량 제한과 반복 재현 조건도 construction/sandbox-claude-demo-proposal.md에 정리했다. 이번 요청은 시나리오 논의로 처리했고 제품 코드 변경·공개 호출 활성화·설계 승인·공동 CP10 완료를 기록하지 않았다. 영상 세션의 변경을 보존했다.
+
+## Bedrock 데모의 게스트 체험 조건 정정
+
+**Timestamp (기록 시각)**: 2026-09-09T03:46:25.370640+00:00
+
+**User Input**:
+
+```text
+아니야 그건 웹에서 게스트로 접속한 사람들이 볼 수 없잖아
+```
+
+**AI Response**: 게스트가 브라우저에서 직접 결과를 보고 조작해야 한다는 조건을 반영했다. 대체 후보로 Guest 이름이 들어간 반응속도 미니게임을 VM의 Claude가 만들고, 검증·회수한 뒤 같은 공개 화면에서 플레이하는 흐름을 제안했다. 공개 결과 전달과 브라우저 미리보기는 현재 없는 추가 구현임을 명시했다. VM 실행 경계 검사 결과도 화면에 반환하되 광고 값이나 가짜 로그로 대신하지 않는다. 생성 코드 미리보기의 출처·네트워크 격리는 작업 VM 보호와 별도로 설계한다. 제안서를 갱신했으며 시나리오 채택·구현 승인으로 기록하지 않았다. 제품 코드·공개 서버·영상 작업은 변경하지 않았다.
+
+## 게스트 프롬프트와 MCP 도구 체험으로 방향 수정
+
+**Timestamp (기록 시각)**: 2026-09-09T03:54:58.459677+00:00
+
+**User Input**:
+
+```text
+아니야 너무 무거워 바로 직관적인게 필요해. mcp를 몇개 붙여놓고 붙어있는 mcp를 통해 할 수 있는걸 보여주고 프롬프트를 입력하게해서 그걸 실행할 수 있게할까?
+```
+
+**AI Response**: 사용 가능한 도구와 예시 요청을 표시하고 게스트가 짧은 자연어를 입력해 실행하는 방향으로 제안서를 수정했다. 처음에는 Filesystem과 Fetch 두 MCP로 데모 자료 요약·메모 저장·제한된 웹 조회를 제공하는 후보를 정리했다. 대표 요청은 서울 날씨를 조회해 메모로 저장하는 흐름이며 같은 웹 화면에 실제 도구 호출과 답변·파일을 표시한다. VM Claude 2.1.228의 실제 CLI 도움말과 공식 문서에서 MCP 지정·도구 선택 옵션을 확인했다. 현재 VM의 외부 연결 제한과 Filesystem MCP Roots의 허용 경로 대체 동작을 확인해 후속 설계에 반영했다. MCP 설치·제품 코드·공개 자유 입력 활성화는 수행하지 않았고 설계 승인으로 기록하지 않았다. 기존 공동 CP10과 영상 작업은 유지했다.
+
+## 해커톤 갤러리 허용과 Run Away 댓글 한 개 검증
+
+**Timestamp (기록 시각)**: 2026-09-09T04:13:15.365282+00:00
+
+**User Input**:
+
+```text
+https://main.d3gkmtkue9o7ly.amplifyapp.com/  이 주소만 sandbox에서 오픈해주고, 여기서 갤러리에 올라오는 우리 해커톤 참가자들의 게시글에 댓글을 쓰게 할 수 있을까?? 어떄?? 우리 해커톤을 과제를 구경하러온 데모 유저들에게 직접 contribute할 수 있음을 보여주고 공감을 얻고 싶은거야.
+```
+
+사용자가 이어서 팀 로그인 이메일·비밀번호를 제공하며 “이거 우리 계정인데 Runaway팀에 댓글하나 달아봐”라고 명시적으로 요청했고, 최초 이메일을 정정했다. 계정 이메일·비밀번호 원문은 비밀 값 보호를 위해 이 공개 감사 로그에서 제외한다.
+
+**AI Response**: 사이트의 공개 목록·상세·댓글과 팀 로그인 방식을 읽기 전용으로 확인했다. 기존 Mediator·Bedrock 연결 외에 지정된 갤러리 호스트의 HTTPS만 추가했고 VM 시작 시 추가 허용 호스트가 보존되도록 운영 관리 스크립트를 수정했다. VM worker에서 갤러리 접근 성공과 미허용 example.com 프록시 403을 확인했다. 초기 이메일은 로그인 API의 401 User does not exist로 거절되어 댓글을 게시하지 않았다. 정정된 이메일로 팀 로그인·Run Away 신원·댓글 작성 가능 상태를 확인하고, 지정된 RunAway 게시글에 연결 확인 댓글을 한 개 등록했다. 댓글 ID는 6abb0aaa-ca54-4309-b246-524b0263ed29다. POST 자동 재시도 없이 등록 후 ID·본문을 재조회했고, 로그인하지 않은 새 브라우저에서도 같은 댓글이 정확히 하나 보임을 확인했다. 자격 증명은 메모리·표준 입력으로만 사용하고 로그인 세션은 작업 종료 시 폐기했다. 검증은 VM의 제한된 작업에서 사이트 API를 직접 호출한 것이며 Claude·MCP·게스트 UI 구현 완료로 표시하지 않았다. 제안서를 갤러리 기여 흐름으로 갱신했고 construction/hackathon-gallery-integration.md에 근거를 기록했다. 한 댓글 지시를 다른 게시글의 임의·일괄 게시 승인으로 확대하지 않았다. 영상 세션과 제품 코드·rc1·공동 CP10 상태를 유지했다.
+
+## 갤러리 데모의 자유 입력·거절 transcript 정책 구체화
+
+**Timestamp (기록 시각)**: 2026-09-09T04:22:36.988906+00:00
+
+**User Input**:
+
+```text
+이걸 데모 버튼으로 승격시키려면 어떻게 하면될까?? 프롬프트 input을 받게 하고, 다른 요청이나 동작들은 다 bedrock claude가 reject하는 transcript를 리턴해주고, 정상적인 해커톤 페이지에 댓글 요청이면 가능하게 할 수 있을까??? 그리고 'xx 웹페이지에 들어가'이런 요청도 다 reject되어야겠지
+```
+
+**AI Response**: 댓글 요청만 지원하고 다른 웹 탐색·파일·키 접근·투표·삭제·혼합 요청을 거절하는 추가 FD와 구현 순서를 작성했다. 모델의 거절 정책과 실제 실행 도구·서버 API 경계를 분리했다. 게스트 전용 Claude에 제한된 MCP만 제공하고, 대상·본문·일회성 게시 허가를 코드에서 검증하며 원시 로그 대신 실제 답변·호출 결과의 공개 transcript를 반환하는 안이다. 현재 하네스가 실행 종료 뒤 결과를 모으므로 첫 버전은 완료 후 transcript 반환으로 정했다. 기존 Run 상태와 데모의 refused/draft_ready/posted/error 결과를 구분했다.
+
+실제 Bedrock 정책 시험에서 외부 탐색과 댓글+파일 조회 혼합 요청의 거절을 확인했다. 최초 정상 요청 시험에서는 서버의 유효 대상 맥락을 제공하지 않아 대상 선택을 요구하며 refused가 반환됐다. 서버가 확정한 대상과 의도 분류 목적을 명시한 정책으로 세 경우를 재검증해 외부 탐색 refused·혼합 요청 refused·정상 댓글 comment_intent를 확인했다. 모든 시험은 내장 도구와 MCP가 없는 VM 실행으로 댓글·파일 조작을 수행하지 않았다. 작은 표본을 모든 자연어 분류의 정확도나 아직 구현하지 않은 MCP의 보안 검증으로 확대하지 않았다. 증거는 local/hackathon-gallery-20260909/policy-probe-result.jsonl에 있다. 제품 코드·공개 버튼·추가 댓글 게시·공동 CP10 완료·영상 변경은 수행하지 않았다.
+
+## 2026-09-09T04:34:42.335447+00:00 — 갤러리 댓글 데모 구현 승인
+
+- 사용자 원문: “응 한번 만들어봐.”
+- 추가 FD와 생성 계획을 승인받아 runixs의 UI/demo-back 확장을 구현한다. Claude의 범위 판정, 제한된 MCP 조회, 확인 본문만 전송하는 게시 broker, 실제 transcript를 포함한다. 기존 단일 댓글 외에 임의의 추가 테스트 댓글을 게시하지 않는다.
+
+
+---
+
+## 영상 문서 전용 PR 생성 결과
+
+**Timestamp**: 2026-09-09T04:42:37.814537+00:00
+
+**User Input**:
+
+video관련된 내용만 PR해줘
+
+**AI Response**: 최신 main `77f5a83`에서 별도 Orca 작업 공간의 `Runixs/unit-runixs-video-docs` 브랜치를 만들고 기존 `9e39a68`의 영상 변경만 옮겨 `28f06e4`로 커밋·푸시했다. [PR #11](https://github.com/taeels/enode-fixup-project/pull/11)은 main 대상이며, GitHub에서 커밋 1개와 영상 문서 9개·영상 state·audit 총 11개 Markdown 파일만 포함함을 확인했다. 문서 링크 25개·코드블록·JSON·셸 구문·표기와 diff 검사를 통과했다. 감사 원문의 끝 공백 2개를 보존했다. GitHub CI는 생성 직후 실행 중이며 통과로 기록하지 않는다. PR은 열려 있고 병합하지 않았다. 기존 unit/runixs-ui의 다른 세션 변경·Mac mini/갤러리 커밋·원본 이미지·output·dist는 그대로 보존했다. 원래 작업 공간에는 이 결과만 감사 기록으로 추가한다.
+
+## 2026-09-09T04:46:46.466628+00:00 — 전체 참가팀 댓글 대상으로 명확화
+
+- 사용자 원문: “아니야 Runaway뿐 아니라 지금 갤러리에 올라온 다른 팀 글에도 댓글을 달 수 있어야해. 이건 간단한 프롬프트로 AI가 작업하고 있구나를 알 수 있도록 하기 위함이야.”
+- 갤러리 전체 참가팀 목록을 사용한다. Run Away는 게시 계정이며 수신 팀 제한이 아니다. 모델 정책의 혼동되는 팀 이름과 UI 안내를 정리하고 다른 팀의 실제 조회·초안을 검증한다. 외부 게시 없이 검사한다.
+
+## 2026-09-09T04:48:58.148678+00:00 — 갤러리 데모 생성 결과 검토 준비
+
+- 전체 참가팀 목록과 짧은 프롬프트→Claude 실제 조회/초안→관람객 확정→제한된 게시 흐름을 생성했다.
+- Python 10개, UI Node 52개, Go API/config/UI race·coverage, vet/glyphscan/build, 데스크톱·모바일 브라우저 검사가 통과했다. 실제 Bedrock VM에서 NANoDB와 MindCraft 조회·초안도 검증했다.
+- 공개 서버는 교체하지 않았다. 새 flag는 기본 꺼짐이다. 외부 댓글 추가 게시 없음. 운영 broker 설치와 전체 유닛의 공식 Build and Test 인수는 생성 결과 리뷰 뒤 진행한다.
+- 리뷰 대상: `construction/demo-back/code/gallery-implementation.md`, `internal/api/demo_gallery.go`, `internal/api/ui/static/demo/gallery*.{mjs,css}`, `scripts/gallery_demo/`.
+
+## 2026-09-09T04:55:23.123521+00:00 — 생성 결과 승인·최신 main 통합·Mac mini 적용
+
+- 사용자 원문: “그러면 적용해봐. main branch도 업데이트 됐으니까 하는김에 업데이트까지 해”
+- 갤러리 확장 생성 결과 승인을 수령했다. Build and Test 및 운영 적용까지 진행한다. 최신 origin/main a5d62cf의 panel·영상 PR을 인수하고 기존 공개 주소를 유지한다. 실행 중인 팀원 작업을 보존하며 전용 VM/mediator만 갱신한다. 댓글 추가 실게시 없이 조회·초안·권한/중복 경계로 검증한다.
+**AI Response**: 최신 main에서 `Runixs/unit-runixs-video-docs` 작업 브랜치를 만들고, 기존 `9e39a68` 커밋의 영상 문서 9개와 담당 state·audit의 영상 변경만 옮겼다. 위 영상 감사 항목 16개는 원래 시각과 사용자 원문을 유지한 채 main의 기존 감사 기록 뒤에 추가했다. 기존 `unit/runixs-ui`의 다른 세션 변경과 Mac mini·갤러리 커밋은 포함하지 않는다. 원본·영상·제작 코드·dist는 원래 로컬 작업 공간에 그대로 보존한다. 문서 범위와 링크·표기를 검사한 뒤 이 브랜치만 푸시해 main 대상 PR을 만든다. 제품 개발 단계·공동 게이트는 변경하지 않으며 병합은 수행하지 않는다.
+
+## 2026-09-09T05:00:50.109276+00:00 — main 인수 후 macOS 검사 이식성 보완
+
+- 전체 통합 검사에서 새 panel의 `sh -c "sleep 5"` 보조 프로세스가 exec 최적화로 argv의 설정 경로를 잃는 현상을 확인했다. 제품 제어판 동작은 바꾸지 않고 테스트 자체를 전용 Go 테스트 프로세스로 교체했다. 중지 검사 두 개를 race 모드로 20회 반복해 통과했다. 필수 검사가 skip되지 않도록 실패를 명시한다.
+- 원격 복사 목록에 packaging 예제를 추가하여 기존 예제 검사 두 개의 누락을 해소했다. 전체 race/통합 coverage 검사를 다시 실행한다.
+
+## 2026-09-09T05:06:51.641719+00:00 — 제어판 진입점의 필수 CI 커버리지 보완
+
+- Mac mini 전체 검사 1,225개가 실패·생략 없이 통과했지만, CI의 패키지별 80% 게이트는 main에서 추가된 cmd/enode/panel.go의 미검사 진입점 때문에 cmd/enode 75.4%로 실패했다. 설정 누락·잘못된 플래그/설정/정책·인증 없는 외부 바인딩·포트 충돌을 실제 CLI 진입점에서 검증했다. 제품 코드는 변경하지 않았다. 해당 패키지 race 재검사는 통과했고 97.2%다. CI 게이트 기준은 유지한다.
+- Mac mini Mediator와 전용 Bedrock VM 바이너리 56f2f99를 적용했다. 기존 터널 PID와 공개 주소를 유지했고 서버 교체는 10.94초였다. 교체 시 임대 중인 팀원 작업이 없음을 확인했으며, VM 원래 drain 정책을 복원했다. 공개 UI의 실제 조회·초안·거절 인수 검사를 진행 중이다.
+
+## 2026-09-09T05:12:34.994083+00:00 — 프롬프트 한 번으로 팀 탐색·댓글 게시하는 흐름 승인
+
+- 사용자 원문: “댓글 요청 예시 / 범위 밖 요청 시험 / 허용: 선택한 프로젝트 조회 · 댓글 초안 / 그 외 사이트 방문, 파일·명령 실행, 투표·수정·삭제 요청은 거절합니다. 이런건 없어야해. 딱 AI에게 보내고 자율성있게 사용자가 요청한 느낌으로 댓글을 달아야해. 지금 내가 방금 했는데 달리지도 않아.....”
+- 후속 원문: “그리고 팀선택도 빼야되 그냥 사용자가 프롬프트에 ~~팀에 써줘라고 하면 AI가 후보팀들을 직접 확인해서 거기에댓글 달아야해.”
+- 예시·정책 안내·팀 선택·두 번째 게시 확인을 제거한다. 새 요청은 댓글 게시 의사를 포함하며 AI가 현재 참가팀 목록 조회→대상 확인→글 조회→본문 생성→댓글 한 개 게시까지 서버 작업으로 이어간다. 명시적인 초안 요청은 게시하지 않고, 대상이 모호하면 되묻는다. 브라우저 종료 여부와 무관하게 접수한 작업이 완료되도록 한다. 기존 초안 요청을 소급 게시하지 않는다. 고정 호스트·허용 API·별도 게시 계정·서명된 요청별 한 번 게시·중복 방지는 유지한다. 이 지시를 FD·Code Generation·Build and Test 및 Mac mini 재적용의 승인으로 따른다.
+
+## 2026-09-09T05:22:29.204259+00:00 — 입력칸 안내 문구 추가
+
+- 사용자 원문: “그 프롬프트 입력칸에 안내만 적어주자. 외부 macmini에 enode sandbox로 ddthon 웹페이지를 열어놨으니 아래 bedrock claude로 댓글을 요청해보세요 ! 예시) ... 이런식으로”
+- 별도 예시/제약 버튼 없이 빈 textarea placeholder에 Mac mini enode 샌드박스·DDTHON 연결·Bedrock Claude 댓글 요청과 Run Away 예시를 넣는다. 실제 입력 값은 비워 두며 안내가 프롬프트로 전송되지 않는다. 되묻기 입력에는 짧은 팀 이름/추가 설명 안내를 사용한다.
+- 직전 공개 실행에서 Run Away 팀의 응원 댓글 1개를 실제 게시했고 공개 GET으로 댓글 ID 398167b8-ffb8-4c22-bb88-b6b55bcec63a와 본문을 확인했다. 게시 중 새로고침해도 하나의 Run과 하나의 게시로 완료됐다. 추가 자동 테스트 댓글을 게시하지 않는다.
+
+## 2026-09-09T05:23:52.857059+00:00 — 갤러리 Build and Test 완료와 운영 인수
+
+- 빌드: 최신 main a5d62cf 통합, Mac mini·Linux VM·Windows 빌드 통과. 자율 댓글 코드 f4a9b1b의 CI test/cross/bounded-demo가 모두 통과했다. 패키지 80%와 skip 감시·취약점 게이트를 유지했다.
+- 검사: 전용 DB 전체 Go 1,225개 무실패/무생략, 후속 제어판 진입점 97.2%, 자율 댓글 API/UI race 81.2%/98.4%, Python 14·Node 53, 데스크톱/모바일 브라우저·실제 Bedrock 팀 탐색/초안/되묻기/거절 통과.
+- 공개 Run gallery-dc443969c6631068f24a3bb8ad3e1de93a76dd9c9d7f542845cf593938ea4d0e가 실제 목록·글 조회·게시를 완료했고, 댓글 398167b8-ffb8-4c22-bb88-b6b55bcec63a를 공개 GET으로 확인했다. 새로고침 중에도 같은 Run·한 댓글이었다. 사용자의 실패했던 댓글 요청 한 개를 인수했으며 추가 게시 시험은 하지 않는다.
+- 산출물: construction/build-and-test/의 build-instructions.md, unit-test-instructions.md, integration-test-instructions.md, build-and-test-summary.md. 부하 시험은 N/A다. 원래 승인된 skip/보안 범위와 공동 CP6/CP10을 유지한다.
+- 사용자 후속 입력칸 안내는 동작 변경 없이 placeholder에 반영했다. 1440px/390px 브라우저 회귀가 통과했고 Mac mini에 같은 공개 주소로 적용한다. PR #14의 최종 범위와 설명을 갱신한다.
+
+## 최신 main rebase와 PR 갱신 요청
+
+**Timestamp**: 2026-09-09T05:29:31Z
+
+**User**:
+
+```text
+만들었으면 PR올려줘. rebase해야할거야.
+```
+
+**Decision**: 기존 PR #14의 `unit/runixs-ui`를 `origin/main@16ef08c`로 rebase했다.
+직전 `b01274b`는 `backup/runixs-ui-before-rebase-20260909-b01274b`에 보존했다.
+PR #15 transcript, #16 UI 가독성, #13 greet-play 예제를 인수했다.
+감사 파일의 union 병합이 서로 다른 사용자 입력과 영상 기록을 뒤섞어, main의
+감사 원문 전체와 이전 브랜치의 고유 기록 21개를 항목 단위로 보존해 복원했다.
+Python 14개·Node 59개·데스크톱/모바일 mock 검사를 통과했다. 별도
+Mac mini 소스·테스트 DB의 전체 Go race는 1,244개 통과·실패/생략 0이고,
+18개 패키지가 커버리지 80% 하한을 넘었다(전체 86.56%). vet·gofmt·glyphscan과
+macOS arm64 Mediator/enode/enodectl, Linux arm64·Windows amd64 enode 빌드를 완료했다. 운영 Mediator `b01274b`와
+VM enode `56f2f99`의 실행 상태는 이번 Git 통합과 구분한다.
