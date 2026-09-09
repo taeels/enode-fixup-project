@@ -31,3 +31,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 옮겨졌으므로 그 PR 의 비교 기준 자체가 낡았다.
 
 ---
+
+## Construction 인계 — panel · transcript
+**Timestamp**: 2026-09-09T02:38:00Z
+**User Input**: "main 에서 shin-son 님 PR merge 되었으면 panel 유닛(W3 · CP4) -> transcript(W4 · CP6) 순서로 작업 진행해." / "작업 계획부터 제출." / "이 계획으로 aws bedrock claude에게 넘기도록 handoff 문서 작성해두고, 전달할 프롬프트 작성." / "지금 경로에서 bedrock을 띄울거야." / "main 에서 새로 브랜치 따서 해야해." / "내가 git switch main을 직접 했어. 너 작업과 꼬인게 있으면 너가 맞추면 돼." / "bedrock을 이미 띄웠어."
+**AI Response**: shin-son 의 PR 둘(#5 queue · #7 drain)이 main 에 병합된 것을 확인했다. panel 의 의존 obs(#4) · drain(#7) 이 둘 다 닫혀 W3 착수 조건이 섰다. panel -> transcript 순서의 작업 계획을 내고, 그것을 AWS Bedrock 위의 Claude 가 이어받을 수 있게 핸드오프 문서와 전달 프롬프트를 construction/plans/ 에 썼다. 브랜치 unit/panel 을 origin/main(50af6cf)에서 따고 upstream 을 끊었다 — 안 끊으면 git push 가 main 으로 간다. 착수를 막는 것이 하나 남아 있다: 제어판이 데몬 Capabilities{Caps,At} 를 읽는 계약(ADR-068)이 requirements/decisions.md 에 아직 없다. 이것은 진행자 결정이므로 panel Functional Design 첫머리에서 질문 파일로 낸다.
+**Context**: CONSTRUCTION 인계. 이 커밋 이후의 panel · transcript 단계는 Bedrock 세션이 이어서 기록한다.
+
+---

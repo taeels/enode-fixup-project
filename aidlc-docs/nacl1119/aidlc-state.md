@@ -49,3 +49,10 @@
 panel 은 obs·drain 병합 뒤 W3 · transcript 는 panel 뒤 W4. panel Functional Design
 전에 Capabilities 읽기 계약(ADR-068)을 진행자와 닫는다. card-news 업데이트는 생기면
 이 브랜치에서 작업 후 PR.
+
+**의존이 닫혔다 (2026-09-09)** — obs(PR #4) · drain(PR #7) 이 main 에 있다. panel
+착수 조건이 섰고 `unit/panel` 을 `origin/main`(50af6cf)에서 땄다. 착수 길잡이는
+`construction/plans/panel-transcript-handoff.md` 다 — 규약 · 문서 루트 · 의존이 남긴
+표면 · 게이트 판정 기준 · 승인 지점이 거기 모여 있다. 정본과 어긋나면 정본이 이긴다.
+이 유닛 둘은 AWS Bedrock 위의 Claude 가 이어받는다(전달 프롬프트는 같은 폴더의
+`panel-transcript-handoff-prompt.md`).
