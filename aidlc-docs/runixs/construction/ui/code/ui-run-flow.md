@@ -57,6 +57,11 @@ HTML 형태 제출자 문자열은 텍스트로 남고 긴 이름이 카드 밖�
 배포 자산에 fixture나 새 의존성은 추가하지 않았다. 운영 서버 배포 전이며
 DB·실물 장면 CP0/CP6/CP10을 이번 UI 검사로 통과 처리하지 않는다.
 
+사용자의 PR 요청에 따라 `main@c51d923`을 인수했다. 코드 충돌 없이 rebase했고
+main과 이번 작업의 audit 원문이 모두 보존됐음을 확인했다. Node 63개·Go UI
+98.4%·Mediator 빌드·실제 demo 진입점 2환경이 다시 통과했다.
+코드 커밋 `8b4d452`, [PR #19](https://github.com/taeels/enode-fixup-project/pull/19).
+
 ## 보안 확장
 
 SECURITY-04·05·08·11·12·13·15 준수: 기존 CSP·인증·입력 검증을 보존하고

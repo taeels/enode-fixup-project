@@ -32,7 +32,8 @@
   Go UI·vet·glyphscan·Mediator embed 빌드도 확인한다.
   드롭다운의 단일 선택·키보드·포커스 복귀·작업 자동 전환도 함께 검사한다.
 - [x] 4. FD 보완과 구현·검증 결과, 담당 state/audit를 갱신한다.
-- [ ] 5. 사용자 PR 요청에 따라 변경을 커밋하고 최신 main을 인수한 뒤 검증·push·PR을 제출한다.
+- [x] 5. 사용자 PR 요청에 따라 변경을 커밋하고 최신 main을 인수한 뒤 검증·push·PR을 제출한다.
+  `main@c51d923` 인수, 코드 `8b4d452`, [PR #19](https://github.com/taeels/enode-fixup-project/pull/19).
 
 [구현·검증](../ui/code/ui-run-flow.md): Node 63개, 관측 모형 4환경과 실제 데모
 진입점 2환경, Go UI 98.4%·vet·glyphscan·Mediator 빌드 통과.

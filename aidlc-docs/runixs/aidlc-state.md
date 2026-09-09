@@ -17,6 +17,12 @@ Mediator 역할 요소, 관측 상태에 따른 실행 연결, 역할 상세, �
 [보완 계획](construction/plans/ui-run-flow-plan.md). 운영 배포 전이며
 기존 공식 단계·공동 CP6/CP10 보류를 유지한다.
 
+사용자 PR 요청으로 `main@c51d923`을 rebase해 갤러리 탐색·카드뉴스 변경을 인수했다.
+담당 audit 양쪽의 원문 보존을 확인했고 Node 63개·Go UI 98.4%·Mediator 빌드·
+실제 demo 진입점 2환경을 재검증했다. 코드 `8b4d452`를 push하고
+[PR #19](https://github.com/taeels/enode-fixup-project/pull/19)를 main 대상으로 제출했다.
+PR 제출은 main 병합·운영 배포 또는 공동 장면 승인과 구분한다.
+
 **Run 이름 표시 후속 작업**: `Runixs/UI-Update-2`에서 긴 해시 ID를 접두어와
 앞 8자리로 표시했다. 작업 그래프·목록·노드 상세·접수 안내에 적용하고 전체
 ID는 title·조회·선택·CLI에 보존한다. Node 59개·표시 12개·브라우저 4환경,
