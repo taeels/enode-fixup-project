@@ -9,7 +9,7 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 
 - **Current Phase**: CONSTRUCTION
 - **Current Unit**: drain (브랜치 `unit/drain` · `main` `310c22d`(queue 병합) 에서 · 2026-09-09T01:24:15Z 착수)
-- **Current Stage**: drain Build and Test · PR
+- **Current Stage**: drain PR #7 열림 · 병합 대기. shin-son 의 유닛 둘(queue · drain)이 끝났다
   (`construction/plans/queue-code-generation-plan.md`)
   (`construction/plans/queue-nfr-requirements-plan.md`)
   (`construction/plans/queue-functional-design-plan.md`)
@@ -32,14 +32,14 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 - [x] NFR Requirements — 승인 2026-09-09T02:07:52Z (답 A) · NFR Design · Infra Design SKIP
 - [x] Code Generation — 승인 2026-09-09T02:25:48Z (`construction/drain/code/code-summary.md`)
 - [x] CP0 · CP3 통과 (2026-09-09T02:25:48Z)
-- [x] Build and Test 문서 갱신 (2026-09-09T02:25:48Z) · PR to main (아래 링크)
+- [x] Build and Test 문서 갱신 (2026-09-09T02:25:48Z) · PR to main — https://github.com/taeels/enode-fixup-project/pull/7 (진행자 직렬 병합 대기)
 
 ## 유닛 (의존 순)
 
 - [x] queue 대기열 — CP2 · 의존 obs · **병합됨 (PR #5 · 310c22d)**
   - QUEUED · CreateQueuedRun · WakeQueued(ctx,tx) 여섯 지점 · WakeQueuedNow ·
     DrainingNodes · submit 202 분기 · mediator 기동 wake
-- [ ] drain — CP3 · 의존 queue · 진행 중
+- [x] drain — CP3 · 의존 queue · **PR #7 열림**
   - enode 정책 파일·광고 경로 · postResult at-boundary Cancel(drain:<node_id>) + WakeQueued
   - 정책 파일 위치·형식·enum 과 at-boundary tx 경계는 FD (decisions §1)
 
