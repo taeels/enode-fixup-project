@@ -3,6 +3,7 @@ import { formatRunId } from '../shared/fleet/format.mjs';
 import { retryDelay } from '../shared/fleet/client.mjs';
 import { element, button, dismissOnBackdrop } from '../shared/fleet/view.mjs';
 import { trapFocus } from './tour.mjs';
+import { DDTHON_COMMENT_NAME } from '../shared/fleet/format.mjs';
 export const PENDING_KEY = 'enode.demo.pending.v1';
 export const SCENARIOS = ['led-toggle', 'welcome-audio'];
 const validName = name => typeof name === 'string' && /^[가-힣]{1,12} [가-힣]{1,12}$/.test(name);
@@ -89,7 +90,7 @@ export class SubmissionDialog {
     this.led = button('LED Toggle', 'demo-task-led-button', () => submission.start('led-toggle'), 'scenario-button'); this.led.append(element('span', '', '보드의 LED 시나리오 요청'));
     this.audio = button('사운드 재생', 'demo-task-audio-button', () => submission.start('welcome-audio'), 'scenario-button'); this.audio.append(element('span', '', '음원 시나리오 요청'));
     const scenarios = element('div', 'scenario-choices'); scenarios.append(this.led, this.audio);
-    if (onGallery) { const gallery = button('해커톤에 의견 남기기', 'demo-task-gallery-button', () => { this.close(); onGallery(); }, 'scenario-button gallery-card'); gallery.append(element('span', '', '격리된 Claude와 댓글을 작성하고 참가팀에 기여하세요')); scenarios.append(gallery); }
+    if (onGallery) { const gallery = button(DDTHON_COMMENT_NAME, 'demo-task-gallery-button', () => { this.close(); onGallery(); }, 'scenario-button gallery-card'); gallery.append(element('span', '', '격리된 Claude와 댓글을 작성하고 참가팀에 기여하세요')); scenarios.append(gallery); }
     this.status = element('p', 'task-status'); this.status.setAttribute('role', 'status');
     this.retry = button('같은 요청으로 다시 확인', 'demo-task-retry-button', () => submission.retry(), 'primary');
     this.newRequest = button('다른 작업 시작', 'demo-task-new-intent-button', () => submission.newIntent());

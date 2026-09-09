@@ -82,7 +82,7 @@ Run과 댓글 한 개로 완료됐으며 외부 URL 요청은 도구 호출 없�
 바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).
 실패한 다른 PC의 재시작 후 등록 성공은 아직 미확인이다.
 
-[PR #14](https://github.com/taeels/enode-fixup-project/pull/14)는 모든 CI 통과 후 main `50899b0`에 병합됐다. 후속 `unit/runixs-gallery-navigation`에서 DDTHON 내부 댓글/작성 팀 탐색의 과잉 거절을 수정한다. 후속 [PR #17](https://github.com/taeels/enode-fixup-project/pull/17)로 검토한다. 운영 Mediator `1b5d8aa`와 VM Python 코드에 적용했고 VM enode 바이너리는 `56f2f99`다. 실제 Bedrock은 Runaway 댓글에서 MindCraft를 찾아 AI 표시가 있는 응원 초안을 만들었으며, 공개 UI 조회도 answered로 완료했다. 아래는 앞선 Drain 인수 기록이다.
+[PR #14](https://github.com/taeels/enode-fixup-project/pull/14)는 모든 CI 통과 후 main `50899b0`에 병합됐다. 후속 `unit/runixs-gallery-navigation`에서 DDTHON 내부 댓글/작성 팀 탐색의 과잉 거절을 수정한다. [PR #17](https://github.com/taeels/enode-fixup-project/pull/17)은 main `78be96d`에 병합됐다. 사용자 SSH 업데이트 지시로 운영 Mediator를 `78be96d`로 교체·재시작했다. 추가 검사는 사용자 지시로 생략했다. VM Python 코드는 `1b5d8aa`, enode 바이너리는 `56f2f99`다. 실제 Bedrock은 Runaway 댓글에서 MindCraft를 찾아 AI 표시가 있는 응원 초안을 만들었으며, 공개 UI 조회도 answered로 완료했다. 아래는 앞선 Drain 인수 기록이다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
 404를 `/ui/` 리다이렉트로 보완해 push했다. 실제 Mac 노드의 at-boundary·graceful,

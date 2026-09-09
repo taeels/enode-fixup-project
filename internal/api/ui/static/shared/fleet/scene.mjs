@@ -1,5 +1,5 @@
 import { COLORS, graphLayout, nodeFacts, runFlowFacts } from './model.mjs';
-import { leaseIdentity, wrapLabel } from './format.mjs';
+import { leaseIdentity, wrapLabel, runDisplayName, stepDisplayName } from './format.mjs';
 
 const NS = 'http://www.w3.org/2000/svg';
 function svg(tag, attributes = {}, text) {
@@ -78,7 +78,7 @@ export function fleetScene({ nodes, runs = [], details, asks, now, iso, mode, se
     const owner = leaseIdentity(node, runs), status = `${facts.label}${owner ? ` · ${owner.submitter}` : ''}`;
     const group = svg('g', { transform: `translate(${x} ${y})`, opacity: facts.expiring ? .65 : 1 });
     selectable(group, `${node.label || node.node_id} · ${status}`, `${mode}-node-select-button`, 'node', node.node_id, () => onSelect(node.node_id), selected === node.node_id);
-    group.append(svg('title', {}, `${node.label || node.node_id}\n${status}${owner ? `\n작업: ${owner.runId}` : ''}`));
+    group.append(svg('title', {}, `${node.label || node.node_id}\n${status}${owner ? `\n작업: ${runDisplayName(owner.runId)}\n${owner.runId}` : ''}`));
     if (iso) {
       group.append(svg('path', { d: 'M -100 30 L 0 -20 L 100 30 L 0 80 Z', fill: '#1B2027', stroke: color, 'stroke-width': selected === node.node_id ? 3 : 1.5 }));
       group.append(svg('path', { d: 'M -100 30 L 0 80 L 100 30 L 100 42 L 0 92 L -100 42 Z', fill: '#10151B' }));
@@ -174,16 +174,17 @@ export function runScene({ steps = [], nodes = [], run = {}, stale = false, comp
     const color = s.state === 'ASKED' ? COLORS.asked : s.state === 'FAILED' ? COLORS.failed : s.state === 'DONE' ? COLORS.idle : s.state === 'CLAIMED' ? COLORS.leased : COLORS.expiring;
     const group = svg('g', { transform: `translate(${s.x} ${s.y})`, opacity: s.state === 'SKIPPED' && !s.chosen ? .5 : 1, class: 'run-step' });
     const node = nodes.find(n => n.node_id === s.node), nodeLabel = node?.label || s.node || '노드 미배정';
-    selectable(group, `${s.seq}. ${s.id} · ${s.state} · ${nodeLabel}`, `${mode}-step-select-button`, 'step', s.id, () => onSelect(s.id), selected === s.id);
-    group.append(svg('title', {}, `${s.seq}. ${s.id}\n${s.state} · ${s.uses}\n실행 노드: ${nodeLabel}`));
+    const stepTitle = stepDisplayName(run.run_id, s.id);
+    selectable(group, `${s.seq}. ${stepTitle} · ${s.state} · ${nodeLabel}`, `${mode}-step-select-button`, 'step', s.id, () => onSelect(s.id), selected === s.id);
+    group.append(svg('title', {}, `${s.seq}. ${stepTitle}\n단계 ID: ${s.id}\n${s.state} · ${s.uses}\n실행 노드: ${nodeLabel}`));
     if (iso) group.append(svg('path', { d: 'M 8 150 H 200 V 8 L 210 18 V 160 H 18 Z', fill: '#0B1723', stroke: '#34495E' }));
     group.append(svg('rect', { width: 200, height: 150, rx: 12, fill: '#192B38', stroke: selected === s.id ? color : '#486074', 'stroke-width': selected === s.id ? 3 : 1.5 }));
     group.append(svg('path', { d: 'M 14 53 H 186', stroke: '#34495E' }));
     label(group, 14, 22, `STEP ${String(s.seq).padStart(2, '0')}`, { fill: '#8DA9BC', 'font-size': 9, 'letter-spacing': 1.5 });
-    label(group, 14, 42, wrapLabel(s.id, 23, 1)[0], { 'font-size': 13, 'font-weight': 600 });
+    label(group, 14, 42, wrapLabel(stepTitle, 23, 1)[0], { 'font-size': 13, 'font-weight': 600 });
     label(group, 14, 76, s.state, { fill: color, 'font-size': 12 });
     wrapLabel(nodeLabel, 26, 2).forEach((line, i) => label(group, 14, 100 + i * 15, line, { fill: '#C8D6DF', 'font-size': 11 }));
-    label(group, 14, 135, wrapLabel(s.uses || '용도 미제공', 29, 1)[0], { fill: '#92ACBF', 'font-size': 10 });
+    label(group, 14, 135, wrapLabel(stepDisplayName(run.run_id, s.uses) || '용도 미제공', 29, 1)[0], { fill: '#92ACBF', 'font-size': 10 });
     if (s.state === 'SKIPPED') label(group, 0, 184, s.chosen ? '선택됨 · 도달하지 못함' : '선택하지 않은 경로', { fill: '#98A4B3', 'font-size': 10 });
     root.append(group);
   }

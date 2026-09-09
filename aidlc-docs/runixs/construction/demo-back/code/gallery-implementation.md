@@ -6,7 +6,7 @@
 [Build and Test 인수](../../build-and-test/build-and-test-summary.md)를 따른다.
 
 [공개 데모](https://deutsche-football-tract-necklace.trycloudflare.com/ui/demo/)의
-`새 작업 → 해커톤에 의견 남기기`에서 메시지를 보낸다. 예를 들어 Run Away 팀에
+`새 작업 → Remote DDTHON Comment`에서 메시지를 보낸다. 예를 들어 Run Away 팀에
 댓글을 부탁하면 AI가 현재 참가팀을 확인하고 해당 글을 읽어 한 개를 게시한다.
 Run Away는 게시 계정이며 대상은 전체 참가팀이다. 팀이 모호하면 되묻고,
 명시적인 초안 전용 요청은 게시하지 않는다. 거절은 실제 Claude 응답으로 표시한다.
@@ -94,3 +94,5 @@ GET에서 새 댓글 ID·동일 본문·mine=true가 일치해야 posted로 표�
 Python 18개, Node 59개, API/UI race(81.5%/98.4%), vet·glyphscan과
 데스크톱/모바일의 댓글 조회 표시·answered 후 새 메시지·게시 링크 없음 검사를 통과했다.
 실제 Bedrock 탐색·운영 적용 결과는 Build and Test 후속 기록을 따른다.
+
+표시 이름은 Remote DDTHON Comment다. 작업 목록·그래프·단계/노드 상세에도 같은 이름을 사용하며, 목록은 ID의 마지막 6자를 함께 보여 실행을 구분한다. 원래 Run ID·단계 ID·API·게시 중복 방지 키는 표시와 별개로 유지한다. 이름 변경은 사용자 요청에 따라 추가 검사 없이 운영 빌드에 반영한다.

@@ -1523,6 +1523,10 @@ VM enode `56f2f99`의 실행 상태는 이번 Git 통합과 구분한다.
 
 **Timestamp**: 2026-09-09T06:01:06Z
 
+## SSH 서버 업데이트 — 추가 검사 생략
+
+**Timestamp**: 2026-09-09T06:10:42.282683+00:00
+
 **User Input**:
 
 ```text
@@ -1557,6 +1561,14 @@ UI 98.4%·vet·glyphscan 102파일·Mediator 빌드를 통과했다. demo.js는 
 ## Run 그래프의 게스트·Mediator 흐름 보완 요청
 
 **Timestamp**: 2026-09-09T06:11:05Z
+ssh로 MacMini에 떠있는 서버 업데이트 해봐. 추가적인 검사를 하지는 마.
+```
+
+**AI Response**: PR #17이 병합된 origin/main `78be96d`의 소스로 SSH에서 Mediator를 빌드·교체·재시작했다. 새 PID는 46496이며 기존 터널·공개 주소·DB·설정을 유지했다. 사용자 지시에 따라 테스트·린트·상태 API·브라우저 검사를 실행하지 않았다. 백업은 /Users/runixs/enode-public-demo/backup-server-update-20260909T061030Z에 보존했다.
+
+## Remote DDTHON Comment 표시명·서버 반영
+
+**Timestamp**: 2026-09-09T06:22:52.812364+00:00
 
 **User Input**:
 
@@ -1631,3 +1643,11 @@ Node UI 63개 무실패/무생략, Go UI 98.4%, Mediator 빌드와 실제 demo �
 [PR #19](https://github.com/taeels/enode-fixup-project/pull/19)를 생성했다.
 PR에는 Run ID 축약·요청 흐름·보기 설정과 검증 범위, 운영 배포 전 상태를 명시했다.
 기존 공동 CP 보류를 유지하며 main 병합과 배포는 수행하지 않았다.
+runctl이름을 gallary가 아니고 remote ddthon comment 이런 이름 어떄?
+```
+
+```text
+서버에 반영해야지?
+```
+
+**Decision**: 표시명을 Remote DDTHON Comment로 바꾸어 새 작업 카드·입력창·작업 목록·그래프·노드/단계 상세에 적용한다. 실행 식별자와 기존 계약은 유지하고 기존 gallery Run도 같은 표시명으로 읽는다. Mac mini Mediator를 새 소스로 빌드·교체한다. 이전 사용자 지시대로 추가 검사는 생략한다.

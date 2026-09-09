@@ -1,13 +1,14 @@
 import { element, button, dismissOnBackdrop } from '../shared/fleet/view.mjs';
 import { trapFocus } from './tour.mjs';
 import { GALLERY_ORIGIN } from './gallery.mjs';
+import { DDTHON_COMMENT_NAME } from '../shared/fleet/format.mjs';
 export class GalleryDialog {
   constructor(root, { gallery, returnFocus }) {
     this.gallery = gallery; this.returnFocus = returnFocus;
     this.dialog = element('dialog', 'task-dialog gallery-dialog'); this.dialog.setAttribute('aria-labelledby', 'gallery-title');
-    const close = button('×', 'gallery-close-button', () => this.close(), 'task-close'); close.setAttribute('aria-label', '갤러리 데모 닫기');
+    const close = button('×', 'gallery-close-button', () => this.close(), 'task-close'); close.setAttribute('aria-label', `${DDTHON_COMMENT_NAME} 닫기`);
     const eyebrow = element('p', 'gallery-eyebrow', 'CLAUDE');
-    const title = element('h2', '', '해커톤에 의견 남기기'); title.id = 'gallery-title';
+    const title = element('h2', '', DDTHON_COMMENT_NAME); title.id = 'gallery-title';
     const intro = element('p', 'muted', '어떤 팀에 어떤 말을 전하고 싶으세요?');
     this.content = element('div', 'gallery-content');
     this.status = element('p', 'task-status'); this.status.setAttribute('role', 'status');
