@@ -13,7 +13,8 @@
 피드백으로 함대 간격과 두 줄 표시도 보완했다. Node 52·브라우저 45개 단언·12가지 배치·Go UI 98.4%·vet·glyphscan·Mediator 빌드를 확인했다.
 [변경·검증 기록](construction/ui/code/ui-readability.md),
 [보완 계획](construction/plans/ui-readability-plan.md). 공식 Code Generation과
-기존 공동 장면 보류는 유지한다. 사용자 지시로 미리보기 재개·커밋·PR 제출을 진행한다. 배포·병합은 별도다.
+기존 공동 장면 보류는 유지한다. 사용자 지시로 미리보기를 재개하고 코드 510c6a6·0b422a7을 push했다.
+[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)을 main 대상으로 열었다. 배포·병합 전이다.
 
 **로컬 실행 상태: 중지.** 사용자 지시로 실행 장소를 다른 호스트로 옮긴다.
 이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.

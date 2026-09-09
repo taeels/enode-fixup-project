@@ -67,7 +67,8 @@ Orca scroll 명령은 장면 wheel 이벤트를 발생시키지 않아 휠 증�
 이번에 실행하지 않았다. 기존 공동 장면 보류를 유지한다. UI 검사는 DB가 필요 없다.
 향후 전체 장면 검사는 `scripts/testdb.sh`와 scene-gates·ci.yml을 따른다.
 임시 정적 미리보기만 127.0.0.1에서 사용하고 검증 후 종료한다. 이전에 중지한
-실제 Mediator·enode는 재시작하지 않았다. 사용자가 브라우저 확인 후 PR 제출을 요청하여 커밋·push·PR을 준비했다. main 병합·배포는 별도다.
+실제 Mediator·enode는 재시작하지 않았다. 사용자의 브라우저 확인·PR 요청과 간격 보완을 반영한 510c6a6·0b422a7을 push하고
+[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)을 main 대상으로 열었다. main 병합·배포는 별도다.
 
 ## 보안 확장
 
