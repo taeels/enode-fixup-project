@@ -1,6 +1,6 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → DDTHON 내부 댓글 탐색 보완 Build and Test 완료·Mac mini 운영 적용.
+**현재 공식 단계**: CONSTRUCTION → 갤러리 대화 기록 후속 Build and Test 완료.
 앞선 갤러리 확장은 검증·Mac mini 운영 적용·PR #14 병합을 완료했다.
 기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
@@ -8,6 +8,18 @@
 사용자의 “응 시작해”로 승인됐다. Inception이나 FD 승인을 다시 기다리지 않는다.
 
 ## 현재 기준 — 2026-09-09
+
+**갤러리 대화 기록 후속 작업**: `unit/runixs-gallery-history`에서 최신 main의
+Run 흐름 UI를 인수했다. 웹 작업 목록에서 Run 선택 → 대화 기록으로 기존 봉인
+결과를 읽는다. 게스트는 브라우저에 보존한 자기 요청 증명, 실 함대 운영자는
+토큰 인증을 사용한다. 새 메시지·새로고침에도 조회 증명을 유지하며 기존 입력과
+독립적으로 읽는다. Node 69개, API/UI race(81.6%/98.4%), 브라우저 4환경,
+vet·glyphscan·Mediator 빌드를 통과했다.
+[계획](construction/plans/gallery-history-plan.md),
+[구현·검증](construction/demo-back/code/gallery-history.md).
+사용자의 표시명 철회로 별칭을 제거하고 기존 gallery 표시로 복원했다.
+복원 커밋 `597a784`는 Mac mini에 배포했으며 운영 추가 검사는 생략했다.
+대화 기록 기능의 운영 적용은 아직 전이다. 공동 CP6/CP10 보류를 유지한다.
 
 **Run 흐름·보기 설정 후속 작업**: 같은 `Runixs/UI-Update-2`에서 게스트/제출자와
 Mediator 역할 요소, 관측 상태에 따른 실행 연결, 역할 상세, 좁은 화면 세로 흐름을

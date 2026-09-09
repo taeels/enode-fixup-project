@@ -1,5 +1,6 @@
 import { RUN_STATES, nodeFacts, runFlowFacts, observationClock, dependentClock, isStale, matches } from './model.mjs';
 import { fleetScene, runScene } from './scene.mjs';
+import { galleryParentID } from '../gallery-history.mjs';
 import { formatRunId, formatTimestamp, elapsedTime, remainingTime, leaseIdentity, capabilityName, attributeName, attributeValue, technicalAttribute, drainDescription } from './format.mjs';
 
 export function element(tag, className, text) {
@@ -52,7 +53,7 @@ function timePair(list, name, value, context) {
 }
 const shellArgument = value => "'" + value.replaceAll("'", "'\\''") + "'";
 export class DashboardView {
-  constructor(root, { mode, identity, onRetry, onLogout, onRunSelection = () => {} }) {
+  constructor(root, { mode, identity, onRetry, onLogout, onRunSelection = () => {}, onRunHistory }) {
     this.root = root; this.mode = mode; this.onRunSelection = onRunSelection;
     this.state = { scene: 'fleet', representation: mode === 'demo' ? '3d' : '2d', run: null, node: null, step: null, actor: null, filter: '' };
     this.resources = new Map(); this.positions = new Map(); this.now = performance.now();
@@ -78,6 +79,10 @@ export class DashboardView {
     this.sceneContext = element('p', 'scene-context');
     const heading = element('div', 'scene-heading'); heading.append(this.title, this.subtitle, this.sceneContext);
     sceneHeader.append(this.backButton, heading);
+    if (onRunHistory) {
+      this.historyButton = button('대화 기록', `${mode}-run-history-button`, e => onRunHistory(this.state.run, e.currentTarget), 'scene-history');
+      this.historyButton.hidden = true; sceneHeader.append(this.historyButton);
+    }
     this.viewport = element('div', 'scene-viewport'); this.viewport.tabIndex = 0; this.viewport.dataset.testid = `${mode}-scene-viewport`; this.viewport.setAttribute('aria-label', '장면 탐색 영역');
     this.canvas = element('div', 'scene-canvas'); this.viewport.append(this.canvas);
     this.inspector = element('aside', 'inspector'); this.inspector.setAttribute('aria-label', '선택 상세'); this.inspector.hidden = true;
@@ -194,6 +199,7 @@ export class DashboardView {
     this.sceneContext.hidden = isFleet;
     this.sceneContext.textContent = isFleet ? '' : `${selectedRun?.submitter || '제출자 미확인'} · ${formatRunId(this.state.run)} · ${detail?.state || selectedRun?.state || '조회 중'}`;
     this.sceneContext.title = isFleet ? '' : this.state.run;
+    if (this.historyButton) this.historyButton.hidden = isFleet || !galleryParentID(this.state.run);
     this.sceneSelect.value = this.state.scene; this.representationSelect.value = this.state.representation;
     this.sceneSelect.querySelector('[value="run"]').disabled = !this.state.run;
     this.sceneSelect.title = this.state.run ? '표시할 화면' : '목록에서 작업을 선택하면 작업 그래프를 볼 수 있어요';

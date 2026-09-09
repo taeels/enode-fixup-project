@@ -120,3 +120,11 @@ Mediator 백업은 backup-gallery-discussion-20260909T060132Z, VM 소스 백업�
 접수 POST 한 번, 게시 도구 호출·게시 링크 없음, 댓글 읽기 표시·새 메시지 정상,
 브라우저 오류 0이다. discussion-public-result.json·discussion-health.json이 증거다.
 후속 [PR #17](https://github.com/taeels/enode-fixup-project/pull/17)에서 검토한다.
+
+## 갤러리 대화 기록 후속 — 2026-09-09T06:48:44.211886+00:00
+
+웹 Run 목록의 저장된 대화 조회를 구현했다. Node 69개, 독립 PostgreSQL DB에서
+API/UI race(81.6%/98.4%), mock 브라우저 4환경, vet·glyphscan·Mediator 빌드가
+통과했다. 실제 댓글/Claude 실행과 운영 추가 검사는 하지 않았다.
+[구현·조회 경계·검증](../demo-back/code/gallery-history.md)을 따른다.
+기존 공동 CP6/CP10 보류를 유지한다.
