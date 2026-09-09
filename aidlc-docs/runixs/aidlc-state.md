@@ -1,6 +1,7 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → Build and Test 진행 중 (갤러리 확장 생성 승인 수령).
+**현재 공식 단계**: CONSTRUCTION → 갤러리 확장 Build and Test 완료·Mac mini 운영 적용.
+기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
 담당 FD와 UI 11단계·demo-back 7단계 계획은 2026-09-08T20:11:36Z
 사용자의 “응 시작해”로 승인됐다. Inception이나 FD 승인을 다시 기다리지 않는다.
@@ -36,9 +37,17 @@ VM의 일반 사용자 enode에 적용했다. 사용자가 제공한 새 키로 
 후속 요청으로 지정된 해커톤 갤러리 호스트의 HTTPS를 VM에 허용했다. 사용자의
 명시적인 한 댓글 지시에 따라 Run Away 게시글에 댓글을 등록하고, 로그인하지
 않은 게스트 화면에서도 노출을 확인했다. [갤러리 검증](construction/hackathon-gallery-integration.md).
-이후 사용자 승인으로 전체 참가팀 대상 Claude MCP·게스트 프롬프트 UI를 구현했다.
-NANoDB·MindCraft에서도 실제 조회·초안을 검증했다. 공개 새 기능은 아직 배포하지 않았다.
-[생성 결과와 검사](construction/demo-back/code/gallery-implementation.md)는 승인받았으며 최신 main 통합과 Mac mini 적용을 진행한다. [후속 제안](construction/sandbox-claude-demo-proposal.md)은 갤러리 기여 흐름으로 갱신했다.
+이후 사용자 승인으로 전체 참가팀 대상 Claude MCP·게스트 프롬프트 UI를 구현하고
+최신 main `a5d62cf`를 통합해 Mac mini에 적용했다. 후속 지시로 팀 선택·예시/제약
+목록·별도 게시 확인을 제거했다. 이제 메시지 한 번으로 AI가 팀 목록→해당 글→댓글
+게시까지 같은 Run에서 처리한다. 입력칸에는 Mac mini·DDTHON·Bedrock 안내와
+요청 예시 placeholder만 둔다. 모호한 팀은 되묻고 초안 전용 요청은 게시하지 않는다.
+
+공개 UI의 “Run Away 팀에 응원 댓글 달아줘”에서 실제 새 댓글
+`398167b8-ffb8-4c22-bb88-b6b55bcec63a`를 확인했다. 실행 중 새로고침에도 같은
+Run과 댓글 한 개로 완료됐으며 외부 URL 요청은 도구 호출 없이 거절됐다.
+[구현·배치](construction/demo-back/code/gallery-implementation.md),
+[Build and Test 인수](construction/build-and-test/build-and-test-summary.md).
 
 태양님 Windows 노드 `270c97c94415`는 실제 shell Run
 `teammate-connectivity-54c76943` 성공·봉인 내용·lease 해제를 확인했다.
@@ -50,7 +59,7 @@ NANoDB·MindCraft에서도 실제 조회·초안을 검증했다. 공개 새 기
 바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).
 실패한 다른 PC의 재시작 후 등록 성공은 아직 미확인이다.
 
-`unit/runixs-ui`는 Drain PR #7이 병합된 `origin/main@50af6cf` 위에 있다.
+`unit/runixs-ui`는 최신 `origin/main@a5d62cf`를 통합했고 [PR #14](https://github.com/taeels/enode-fixup-project/pull/14)로 검토한다. 최신 자율 댓글 구현은 `f4a9b1b`이며 이후 입력칸 안내를 보완한다. enode 실행 노드 소스는 `56f2f99`와 같다. 아래는 앞선 Drain 인수 기록이다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
 404를 `/ui/` 리다이렉트로 보완해 push했다. 실제 Mac 노드의 at-boundary·graceful,
@@ -73,6 +82,7 @@ UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도
 | 범위 | 완료한 것 | 남은 것 |
 |---|---|---|
 | UI 1~8 | 실 함대 관측, D1/D2/D5, 2D/3D, 투어, 제출 의도·재시도, 웹캠 조작 | 공동 실제 장면은 9~10에서 확인 |
+| 갤러리 확장 | 프롬프트 한 번·AI 팀 탐색·실제 댓글 게시·거절/되묻기, main 통합·Mac mini 적용·공개 인수 | 공동 CP6/CP10은 별도 |
 | UI 개선 | 웹캠 닫기·복원, 한글 두 단어 이름, 상세·모달·투어의 바깥 조작 닫기 | 구현·로컬 검증 완료 |
 | UI 가독성 보완 | 휠 확대·축소, 단계 그래프·함대 복귀, 임대 제출자, 기능별 상세·한국어 시각 | 구현·로컬 검증 완료, 배포 전 |
 | UI 9 | queue·sandbox 출처, c7a237d 두 시나리오의 실제 POST/GET·이름·3D 연결 | 실제 장비 광고·동작, 공개 방송 주소 |

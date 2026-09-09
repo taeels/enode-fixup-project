@@ -1,114 +1,79 @@
-# 갤러리 댓글 데모 생성 결과
+# 갤러리 댓글 데모 구현과 적용
 
-2026-09-09. 사용자 “응 한번 만들어봐.” 및 전체 참가팀 대상이라는 후속 지시를 구현했다.
-현재는 Construction → Code Generation 생성 결과 리뷰 단계다. 기존 공개 Mediator는
-교체하지 않았고 `demo_gallery`도 켜지 않았다. 전체 유닛의 Build and Test 및 공동
-CP10/CP6 완료를 뜻하지 않는다.
+2026-09-09. 최신 지시는 팀 선택·예시·제약 안내·두 번째 확인을 제거하고,
+사용자의 프롬프트 한 번으로 AI가 팀을 찾아 댓글까지 게시하는 것이다.
+[현재 FD](../functional-design/gallery-comment-policy.md)와
+[Build and Test 인수](../../build-and-test/build-and-test-summary.md)를 따른다.
 
-## 사용자 흐름
+[공개 데모](https://deutsche-football-tract-necklace.trycloudflare.com/ui/demo/)의
+`새 작업 → 해커톤에 의견 남기기`에서 메시지를 보낸다. 예를 들어 Run Away 팀에
+댓글을 부탁하면 AI가 현재 참가팀을 확인하고 해당 글을 읽어 한 개를 게시한다.
+Run Away는 게시 계정이며 대상은 전체 참가팀이다. 팀이 모호하면 되묻고,
+명시적인 초안 전용 요청은 게시하지 않는다. 거절은 실제 Claude 응답으로 표시한다.
 
-`새 작업 → 해커톤에 의견 남기기 → 전체 갤러리에서 참가팀 선택 → 짧은 요청`.
-예: “장점을 짚어서 응원 댓글 써줘.” AI가 선택한 게시글을 MCP로 조회하고 댓글
-초안을 작성한다. 관람객은 초안을 편집하고 `이 내용으로 게시`를 눌러 확정한다.
-Run Away는 **게시 계정**이며 댓글 대상은 **전체 참가팀의 게시글**이다.
+## 연결 구조
 
-실제 Run 진행 상태와 완료 후 실제 Claude 응답·MCP 호출 요약을 표시한다.
-외부 사이트 방문·파일 조회·명령 실행·투표·수정·삭제 등은 지원하지 않는다.
-정상 요청과 비허용 동작을 섞으면 전체 요청을 거절한다. 모델이 정책을 오판해도
-일반 브라우저·셸·파일 도구는 없고 확정되지 않은 댓글은 게시할 수 없다.
+한 enode Run에서 도구 없는 의도 판정 → 읽기 MCP를 통한 팀 목록/글 조회 → 댓글
+생성 → 게시 MCP → 별도 broker의 실제 POST/GET 확인 → 봉인 결과를 수행한다.
+게시까지 서버 작업 안에서 이어지므로 브라우저가 종료돼도 계속된다. 재접속은
+기존 Run을 조회하며 새 댓글을 자동 접수하지 않는다.
 
-## 생성한 코드
+MCP의 목록·조회 단계는 list_projects와 get_project만 제공한다. get_project는
+같은 MCP 프로세스에서 읽은 현재 목록의 ID만 받는다. 댓글 목적과 다른 웹 탐색·
+셸·파일·투표·수정·삭제 도구는 없다. 모델이 반환한 대상은 실제 성공한 조회 사건과
+같아야 한다. 게시 단계의 post_comment는 실행 코드가 고정한 대상·본문으로 호출한다.
 
-- `internal/api/demo_gallery.go`, `demo_gallery_test.go`: 공개 프로젝트 목록, 고정
-  Run 제출, 요청 소유 확인, 봉인된 공개 결과, 본문 확정 및 게시 계약.
-- `internal/config/config.go`: 기본 꺼짐 `demo_gallery`. `demo: true`와 서버 토큰도
-  있어야 라우트가 열린다. `internal/api/api.go`는 등록 호출 한 줄을 추가했다.
-- `internal/api/ui/static/demo/gallery.mjs`, `gallery-view.mjs`, `gallery.css`:
-  세션별 요청 ID, 명시적 재시도, 전체 프로젝트 선택·프롬프트·transcript·확인 UI.
-  기존 `demo.js`, `submission.mjs`, `index.html`에 연결하고 focus trap에 textarea를 포함했다.
-- `scripts/gallery_demo/common.py`, `worker.py`, `mcp.py`, `broker.py`: 고정 호스트
-  HTTP, 도구 없는 의도 판정, 읽기 전용 MCP, 확인된 본문 전용 게시 MCP와 별도 게시 서비스.
-- `scripts/gallery_demo/install.py`, `enode-gallery.service`: 격리 VM 내부 설치와
-  별도 서비스 계정·파일 권한·프록시 경계. 운영 설치는 아직 실행하지 않았다.
-- `scripts/gallery_demo/test_gallery.py`, `internal/api/ui/tests/gallery.test.mjs`,
-  `.github/workflows/gallery-demo.yml`: 경계 검사와 지속 검사 등록.
+게시 broker는 별도 VM 계정으로 동작한다. 사용자 메시지 접수에 대응하는 HMAC
+허가의 purpose/job_id/만료를 확인하고 현재 갤러리 대상과 본문을 검사한다.
+첫 대상·본문·시도 사실을 SQLite에 영구 저장한 뒤 POST를 최대 한 번 수행한다.
+같은 허가의 다른 대상/본문·재시작·응답 유실은 재게시를 만들지 않는다. POST 후
+GET에서 새 댓글 ID·동일 본문·mine=true가 일치해야 posted로 표시한다.
 
-## API 계약
+## API와 호환성
 
-| 경로 | 요청/응답 |
+| 경로 | 입력·역할 |
 |---|---|
-| GET `/v1/demo/gallery/projects` | 전체 갤러리의 `id/title/teamName`; 5분 캐시 |
-| POST `/v1/demo/gallery/runs` | 정확히 `project_id/prompt/request_id/submitter`; 기존 201/202/200 Run 응답 |
-| GET `/v1/demo/gallery/runs/{id}` | 원래 UUID를 `X-Gallery-Request-ID`로 제출; Run·초안 결과·게시 Run/결과 |
-| POST `/v1/demo/gallery/runs/{id}/publish` | 정확히 `request_id/body`; 대상은 원래 선택으로 고정 |
+| POST `/v1/demo/gallery/comments` | 정확히 prompt/request_id/submitter; 자율 댓글 Run 접수 |
+| GET `/v1/demo/gallery/runs/{id}` | X-Gallery-Request-ID로 요청 소유 확인; Run·공개 결과 |
+| GET `/v1/demo/gallery/projects` | 전체 갤러리 메타데이터; 기존 클라이언트 호환 |
+| POST `/v1/demo/gallery/runs` | 기존 project_id 포함 초안 요청 호환 |
+| POST `/v1/demo/gallery/runs/{id}/publish` | 기존 초안의 확인 본문만; 새 자율 요청에 사용할 수 없음 |
 
-UUID는 브라우저 세션에 보관하고 계약에는 해시만 남긴다. 공개 Run 목록의 ID만으로
-타인의 초안을 읽거나 게시할 수 없다. 게시 Run은 초안별 하나이며, 확정 뒤 다른 본문은
-409다. 실제 게시 권한은 HMAC 서명된 대상·본문·Run ID·만료 시각에 묶인다.
-공개 응답에 게시 허가, 비밀번호, 사이트 쿠키, Mediator 토큰을 싣지 않는다.
+기본 꺼짐 demo_gallery는 demo 모드와 서버 토큰이 함께 있어야 열린다. 브라우저의
+요청 UUID는 계약에는 해시로만 남기고, 게시 허가·팀 자격 증명·쿠키·Mediator 토큰은
+공개 결과에 넣지 않는다. 새 grant는 enode-gallery-comment-v1이며 한 요청당 한
+댓글 권한이다. 기존 enode-gallery-publish-v1은 확정 본문에 묶인 호환 경로다.
 
-게시 서비스는 POST 전에 SQLite에 시도 사실을 영구 기록한다. 응답 유실·프로세스
-재시작·같은 허가 재제출이 추가 POST로 이어지지 않는다. 실제 POST 후 authenticated
-GET에서 새 댓글 ID·확인 본문·`mine: true`를 대조한다. 확인 실패는 오류로 남긴다.
-게시 결과가 불명확하면 운영자가 갤러리를 확인하며 자동으로 새 게시를 만들지 않는다.
-
-단일 Mediator 인스턴스 기준으로 24시간 200 Run, 미완료 3 Run, 초당 2요청/버스트 4를
-제한한다. 기존 DB `work_id=manual:gallery-comments-v1`로 세므로 재시작 후에도 실행
-수를 유지한다. 요청 8KiB, 프롬프트 1,000자, 댓글 500자, 공개 결과 32KiB,
-Claude 호출 100초/최대 4턴, 프로젝트 도구 최대 2회로 제한한다.
-
-## 생성 단계 검증
-
-| 검사 | 결과 |
-|---|---|
-| Python 게시 권한·경로·중복·재시작·응답 유실·MCP 범위·실제 조회 요구 | 10개 통과 |
-| Node UI 제어기 전체 | 52개 통과, 생략 없음 |
-| Go API/config/UI `-race -cover` | 통과; 81.3% / 81.8% / 98.4% |
-| Go vet·glyphscan·전체 빌드·Mediator 바이너리 | 통과 |
-| Playwright 데스크톱 1440px·모바일 390px | 초안→확정 게시, 거절, 기존 시나리오, Escape/바깥 닫기, 링크, 넘침/JS 오류 검사 통과 |
-| 실제 Bedrock VM | 외부 사이트·혼합 요청 거절, RunAway MCP 조회·초안 통과 |
-| 전체 참가팀 후속 확인 | 현재 19개 목록; NANoDB·MindCraft에서 각각 실제 MCP 조회·짧은 응원 초안 통과 |
-
-Go 검사는 Mac mini의 별도 `enode_gallery_test_20260909` DB와 `scripts/testdb.sh`를
-사용했다. 운영 DB와 분리했다. 현지 PostgreSQL은 16이며 CI의 PostgreSQL 17 결과와
-동일하다고 주장하지 않는다. Go 1.26.6 도구 체인(저장소 go.mod)을 사용했다.
-제출자 확인 검사의 첫 실패는 `GetRun`이 submitter를 읽는다는 잘못된 검사 가정이었다.
-정본 관측 목록 `Store.Runs`에서 실제 보존을 확인하도록 수정했고 재검사는 통과했다.
-
-브라우저의 게시 검사는 mock API다. 실제 VM 검사는 읽기와 초안까지만 수행했다.
-사용자가 앞서 허용한 단일 댓글 외에 추가 실제 댓글을 게시하지 않았다.
-실제 서비스 계정 설치·공개 새 라우트→enode→봉인 결과의 운영 인수는 다음 단계다.
-
-검증 자료는 Git 제외 `local/gallery-build-20260909/`의 `go-test.txt`, `build-check.txt`,
-`live-probe.jsonl`, `gallery-*-input.png`, `gallery-*-draft.png`에 있다. 화면 캡처의
-게시 내용은 브라우저 검사 fixture이며 실제 댓글 기록으로 해석하지 않는다.
+24시간 200 Run·미완료 3 Run·초당 2요청/버스트 4, 입력 8KiB·프롬프트 1,000자·
+댓글 500자·공개 결과 32KiB를 유지한다. Claude 호출당 100초/최대 6턴,
+읽기 MCP 도구 호출 최대 5회, 게시 MCP는 고정 인자이며 broker가 한 번만 전송한다.
+기존 Run enum·DB 스키마·LED/음원 시나리오는 변경하지 않는다.
 
 ## 운영 적용 순서
 
-1. 새 Mediator 바이너리를 준비한다. 현재 검토 빌드는 Mac mini의
-   `/Users/runixs/enode-gallery-build-20260909/mediator-review`다. 현재 터널을 유지한다.
-2. `scripts/gallery_demo/`의 실행 파일과 unit을 VM `/opt/enode/gallery/`로 복사한다.
-   소스는 root 소유이며 worker가 수정할 수 없어야 한다. 현재 read/draft 검증용 Python
-   파일만 복사했고 서비스 unit과 계정 설정은 아직 설치하지 않았다.
-3. 운영자가 메모리에서 `HMAC-SHA256(mediator_token, "enode-gallery-broker-key-v1")`의
-   hex 값을 계산한다. 이 값과 게시 계정의 email/password/team_id를 installer stdin
-   JSON으로 전달한다. 값을 명령행·로그·Git에 넣지 않는다. `install.py`가
-   `/etc/enode-gallery.json`을 root:enode-gallery 0640으로 만들고 서비스를 설치한다.
-4. `enode-gallery` 서비스·소켓 권한, worker에서 자격 증명 파일 읽기 불가,
-   고정 갤러리 로그인과 댓글 작성 권한을 **읽기만으로** 확인한다. 설치 시 broker UID의
-   네트워크도 기존 VM 프록시만 통하도록 추가한다. 키 회전 시 이 서비스도 재시작한다.
-5. 작업 중인 lease가 없는 시점에 전용 VM node의 광고에 `gallery=comments-v1`을
-   추가한다. 기존 `instance=macmini-bedrock-vm`, `provider=bedrock`, `sandbox=lima-vm`을
-   유지한다. 팀원 노드·다른 VM·현재 터널을 건드리지 않는다.
-6. 실제 새 고정 계약으로 조회·거절·초안 인수 후 Mediator 설정에 `demo_gallery: true`를
-   추가하고 검토 바이너리로 적용한다. 원래 프로세스 관리 환경·DB·토큰·아티팩트 경로를
-   유지한다. 공개 UI/API와 Run 결과를 확인한다. 실제 게시 검증은 관람객의 확정으로 한다.
-7. 되돌릴 때 `demo_gallery: false`로 공개 접수를 닫는다. 이미 확인한 게시의 시도 DB는
-   삭제하지 않는다. 기존 LED/음원 데모와 원래 Run 상태 어휘는 변경하지 않는다.
+1. Mac mini의 별도 검증 디렉터리에서 Go 검사·빌드 후 같은 DB·토큰·설정을 쓰는
+   새 Mediator를 준비한다. 기존 Cloudflare 터널은 유지한다.
+2. VM 노드가 graceful이며 idle인 것을 확인한 뒤 /opt/enode/gallery 소스를
+   root 소유로 교체한다. worker는 소스를 수정할 수 없다. 기존 정책을 복원한다.
+3. 최초 설치에서는 install.py에 자격 증명을 stdin으로 전달한다. 이미 설치한
+   /etc/enode-gallery.json(root:enode-gallery 0640)을 유지하고 enode-gallery를
+   재시작한다. worker는 이 파일을 읽을 수 없다. 같은 enode-egress 프록시만 쓴다.
+4. Mediator를 교체하고 /comments의 입력 검증 응답과 공개 UI를 확인한다. VM
+   광고는 gallery=comments-v1, sandbox=lima-vm, provider=bedrock,
+   instance=macmini-bedrock-vm이다. 기존 enode 노드 바이너리는 main 통합 빌드다.
+5. 상태 검사 실패 시 이전 Mediator 바이너리/설정으로 복구한다. 공개 접수를
+   닫으려면 demo_gallery를 끄고 Mediator만 재시작한다. 게시 attempts.sqlite3는
+   삭제하지 않는다. 팀원 작업·터널·운영 DB는 보존한다.
 
-## 근거
+## 검증 이력과 한계
 
-표준 입력 MCP는 [공식 stdio 전송 규약](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports)의
-JSON-RPC 줄 단위 프레임을 사용한다. Claude 실행 프로필은
-[공식 CLI 문서](https://code.claude.com/docs/en/cli-reference)의 tools/strict MCP/bare/JSON 출력 옵션과
-설치된 Claude 2.1.228의 실제 동작으로 확인했다.
+초기 수동 확인 버전에서 Python 10·UI Node 52·Go API/config/UI race·브라우저
+검사가 통과했다. 사용자 요청 “응원 댓글 달아줘”가 draft_ready로 끝나 실제
+게시 Run이 없었던 기록을 확인했고, 최신 사용자 지시에 따라 현재 구조로 바꿨다.
+새 버전은 Python 14·UI Node 53·API/UI race, 데스크톱/모바일 프롬프트 흐름과
+실제 VM의 MindCraft 자동 탐색·초안 전용·대상 없음 되묻기를 검증했다.
+
+공개 실제 게시·재접속·거절과 CI 결과, 구체적인 배포 버전/백업은 Build and Test
+요약에 기록한다. 생성/검증 자료는 Git 제외 local/gallery-build-20260909에 있다.
+게시 의미 판정의 완전한 정확도나 제품 전체 OS sandbox·공동 CP6/CP10의 완료로
+확대하지 않는다. UI transcript는 실제 사건을 완료 후 표시하며 토큰 스트리밍은 아니다.
