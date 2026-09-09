@@ -25,8 +25,10 @@
     - 정본 충돌 기록: proc 추출은 internal/proc(net/http 없음)로 간다 — enode-features 3.1.2 는
       internal/panel 이라 했으나 그러면 enodectl.exe 심볼 상한(CP4)이 깨진다. 유닛 정본 §5 가 이김
     - [x] FD 승인됨(진행자 "진행해") · 커밋 04aa712·64b5ae2·75ef4d3 · 인계 요약 1979743
-  - [ ] NFR Requirements — 냄(`panel/nfr-requirements/nfr-requirements.md`) · 승인 대기.
+  - [x] NFR Requirements — 승인됨(진행자 "다음 단계"). `panel/nfr-requirements/nfr-requirements.md` (커밋 992d8d7)
     심볼 상한 CP4 · 커버리지 80%(panel·proc) · 바인딩/토큰 거부 경로 · 새 의존 0
+  - [ ] NFR Design — 냄(`panel/nfr-design/nfr-design.md`) · 승인 대기.
+    심볼 상한 회피 링크 그래프 · 상태 파일 쓰기 자리(advertise 뒤·At 트리거·tmp+rename) · 저하 배선 · 시험성
 - [ ] transcript — CP6 · 의존 panel · obs
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)

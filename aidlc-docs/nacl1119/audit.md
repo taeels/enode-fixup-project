@@ -87,3 +87,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · NFR Requirements 완료 · 승인 지점 3 앞.
 
 ---
+
+## panel NFR Design
+**Timestamp**: 2026-09-09T03:18:50Z
+**User Input**: "다음 단계" (NFR Requirements 승인 · NFR Design 으로)
+**AI Response**: 진행자가 NFR Requirements 를 승인했다(지점 3 닫힘). panel NFR Design 을 construction/panel/nfr-design/nfr-design.md 에 냈다: 심볼 상한 회피 링크 그래프(enodectl 은 internal/proc·os/exec 만 · internal/panel 안 임포트 · 검증은 nm 재측정) · 상태 파일 쓰기 자리와 트리거(advertise.go 뒤 · At 바뀔 때만 · tmp+rename 원자성 · 실패는 경고만) · 신뢰성 저하 배선(runctl 타임아웃·읽기 격리·부분 렌더) · 보안(isLoopback 판정·panel_token 출처·파일 권한·읽기 전용 카드) · 시험성(httptest 가짜 Mediator·TempDir·경계 테스트, DB 없이) · 이식성(빌드 태그 짝·크로스빌드) · 넓히지 않는 것(새 의존 0·광고 무변경·데몬 서버화 안 함). 완료 메시지를 2지 선택으로 낸다.
+**Context**: CONSTRUCTION · panel · NFR Design 완료 · 승인 지점 4 앞.
+
+---
