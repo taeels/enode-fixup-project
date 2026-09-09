@@ -1,4 +1,4 @@
-.dashboard .gallery-card { grid-column:1 / -1; min-height:96px; text-align:left; background:linear-gradient(115deg,#142B42,#18232D); }
+.dashboard .gallery-card { grid-column:1 / -1; min-height:170px; text-align:left; background:linear-gradient(115deg,#172D2C,#18232D); border-color:#3A6159; border-top-color:var(--scenario-accent,#88D3BE); }
 .dashboard .gallery-history-dialog { width:min(760px,calc(100vw - 32px)); max-height:85vh; box-sizing:border-box; overflow:auto; padding:28px; border:1px solid #45515F; border-radius:12px; background:#151C24; color:#E6EAF0; }
 .dashboard .gallery-history-dialog::backdrop { background:#03080dbb; }
 .dashboard .gallery-history-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }

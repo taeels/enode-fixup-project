@@ -46,7 +46,9 @@ test('clock freezes at freshness limit without inventing a third failed request'
 
 test('device geometry uses explicit advertisement attributes, never label or harness', () => {
   assert.equal(machineKind({ label: 'board-01-workstation', capabilities: [{ capability: 'agent.reason', attrs: { harness: 'claude' } }] }), 'generic');
-  assert.equal(machineKind({ capabilities: [{ attrs: { board: 'stm32' } }] }), 'board');
+  assert.equal(machineKind({ capabilities: [{ attrs: { board: 'stm32' } }] }), 'generic');
+  assert.equal(machineKind({ capabilities: [{ attrs: { board: 'stm32', os: 'windows' } }] }), 'workstation');
+  assert.equal(machineKind({ capabilities: [{ attrs: { device_type: 'board' } }] }), 'board');
   assert.equal(machineKind({ capabilities: [{ attrs: { device_type: 'workstation' } }] }), 'workstation');
 });
 

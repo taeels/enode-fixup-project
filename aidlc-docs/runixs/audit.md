@@ -1774,3 +1774,51 @@ MERGEABLE이며 head는 `d09d71e`다. 계획의 PR 제출 단계를 완료 처�
 유지한다.
 
 ---
+
+## 원격 실행 가치·장비 식별 UI 보완 요청
+
+**Timestamp**: 2026-09-09T07:01:31.926195+00:00
+
+**User Input**:
+
+```text
+지금 '새 작업'들의 버튼을 보면 이 작업을 하는데 왜 enode가 필요한지 모르겠어. 그리고 그래프를 봐도 같은 색의 노드니까 뭔가 다른 PC라고 생각이 안들고 하나의 PC안에서 동작되는 것들 처럼 보여. runctl마다 색을 조금 다르게 해주고, host명을 그래프 노드에도 누구 PC인지 어떤 장비인지, 어떤 역할인지 등이 잘 보이게 해줘야 할 것 같아.
+```
+
+**Decision**: PR #22 병합 main 4290cee에서 별도 ui 후속 브랜치를 시작했다. 현재 공개 nodes의 label/허용 광고 필드만 읽어 식별 자료를 확인했다. frontend-design 방식으로 기존 짙은 SVG UI를 확장한다. Run 작업 색과 호스트 장비 색, 기존 상태색을 구별하고 소유 handle·hostname·OS/CPU·역할을 표시한다. Windows의 board 광고는 연결 보드이므로 호스트 자체와 구분한다. 시나리오 카드에는 enode가 원격 실행/결과 전달을 맡는다는 설명을 넣는다. 계획은 ui-remote-identity-plan.md이며 기존 승인된 Construction 후속으로 진행한다.
+
+## 새 작업 카드의 직접적인 설명 문구
+
+**Timestamp**: 2026-09-09T07:08:41.994562+00:00
+
+**User Input**:
+
+```text
+그리고 '새 작업' 뱃지에 직관적인 내용을 보여주자. LED Toggle은 "타인의 에이전트로 device 컨트롤! 결과는 웹캠으로 확인", 사운드 재생도 저런 내용으로 밑에 설명 추가해주고, 해커톤 의견 남기기는 "타인의 sandbox 내 에이전트로 해커톤 댓글남기기" 이런식으로 직관적인 내용 업데이트 해줘.
+```
+
+**Decision**: 기존 그래프/장비 식별 작업을 유지하면서 카드 설명을 사용자 문구로 교체한다. LED/갤러리는 제시한 문구, 사운드는 타인의 에이전트로 음성을 만들고 원격 장비에서 재생하고 웹캠으로 확인하는 문구로 표시한다. 원래 카드 제목·gallery 단계 ID는 유지한다.
+
+## 원격 장비 UI 완료 후 PR 제출 지시
+
+**Timestamp**: 2026-09-09T07:12:57.235224+00:00
+
+**User Input**:
+
+```text
+작업 다 하면 리베이스 해서 PR올려줘
+```
+
+**Decision**: main 2d3f804로 rebase해 PR #23 기록과 PR #25 최신 YouTube Live 설정을 인수했다. 코드 충돌은 없고 union으로 섞인 audit은 main 전체와 이번 사용자 입력 두 블록을 원문 그대로 복원했다. Node 74개, Go UI race 98.4%, vet/glyphscan/Mediator 빌드가 통과했다. 브라우저 네 진입 환경의 2D/3D·Run/장비 색·소유자/호스트/역할·VM·연결 보드·이전 배정·미배정·DAG/지연·기존 대화 조회를 확인했다. 사용자 추가 문구와 첫 모바일 장면의 스크롤 위치를 반영해 해당 브라우저 검증을 재확인했다. 최종 문서 정리 후 PR을 제출한다.
+
+## 원격 장비 UI 통합 검증과 문서 정리
+
+**Timestamp**: 2026-09-09T07:15:43Z
+
+**Decision**: main의 YouTube 설정 인수 후 고정된 CSP 테스트 기대값이 실패해 데모 HTML에서 설정의 정확한 embed origin만 허용하는 기대값으로 보완했다. production CSP는 바꾸지 않았다. 최종 Go UI race 98.4%, vet·Mediator 빌드가 통과했다. iframe까지 localStorage를 초기화하던 로컬 브라우저 harness를 최상위 프레임에 한정한 뒤 네 환경 검증도 통과했다. 앞선 검증 기록은 재통과까지 포함한 최종 결과이며 실패 원인을 여기 명시한다. 최신 origin/main bc6476b의 PR #24는 recipes만 바꾸고 UI/API/설정을 바꾸지 않아 재실행 대신 diff로 영향 범위를 확인했다. 이 main까지 인수하고 담당 FD·구현·검증·상태 문서와 함께 PR을 제출한다.
+
+## 원격 장비 UI PR 제출과 운영 적용 완료
+
+**Timestamp**: 2026-09-09T07:17:15.601669+00:00
+
+**Decision**: origin/main bc6476b까지 rebase하고 작성자 runixs92@gmail.com으로 브랜치를 push해 PR #26(https://github.com/taeels/enode-fixup-project/pull/26)을 제출했다. OPEN·MERGEABLE이며 제출 당시 CI는 진행 중이다. 코드 5472651을 Mac mini의 독립 경로에서 빌드한 뒤 관리 중인 Mediator를 교체·재시작했다. 새 PID 69797, 기존 터널 PID 70718, 백업 backup-server-update-20260909T071703Z다. 설정·DB·VM·공개 주소를 보존했다. 운영 추가 검사는 사용자 지시대로 생략했다. 담당 계획을 완료 처리하고 실제 결과를 state·구현 기록에 남겼다. 공동 CP6/CP10과 main 미병합 상태는 별도로 유지한다.

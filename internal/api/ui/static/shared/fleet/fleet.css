@@ -36,6 +36,9 @@ body.dashboard { margin:0; }
 .dashboard .scene-panel[data-scene=run] { --scene-top:116px; border-color:#405A70; background:#101A24; }
 .dashboard .scene-panel[data-scene=run] .scene-header { background:#182530; }
 .dashboard .scene-panel[data-scene=run] .scene-heading h1 { color:#A9D5F4; }
+.dashboard .scene-panel[data-scene=run] { border-color:var(--run-accent,#405A70); }
+.dashboard .scene-panel[data-scene=run] .scene-header { background:var(--run-surface,#182530); }
+.dashboard .scene-panel[data-scene=run] .scene-heading h1 { color:var(--run-accent,#A9D5F4); }
 .dashboard .scene-panel[data-scene=run] .scene-viewport { background-image:radial-gradient(#3E5265 1px,transparent 1px); background-size:24px 24px; }
 .dashboard .scene-header h1 { overflow-wrap:anywhere; }
 .dashboard .scene-header span { font-size:11px; }
@@ -44,7 +47,7 @@ body.dashboard { margin:0; }
 .dashboard .scene-canvas svg { display:block; flex-shrink:0; font-family:ui-monospace,monospace; }
 .dashboard .scene-item { cursor:pointer; }
 .dashboard .scene-item:hover { filter:brightness(1.25); }
-.dashboard .scene-canvas .run-flow { font-family:inherit; }
+.dashboard .scene-canvas :is(.run-flow,.fleet-identity) { font-family:inherit; }
 .dashboard .flow-context-link { stroke-dasharray:4 6; }
 .dashboard .flow-link[data-active=true] { stroke-dasharray:7 7; animation:run-flow-travel 1.2s linear infinite; }
 .dashboard .flow-actor.is-active .flow-halo { animation:run-flow-pulse 2s ease-in-out infinite; }
@@ -86,6 +89,9 @@ body.dashboard { margin:0; }
 .dashboard .run-sidebar>.muted { font-size:11px; }
 .dashboard .run-list { display:flex; flex-direction:column; gap:8px; max-height:calc(100dvh - 370px); min-height:80px; overflow:auto; scrollbar-color:#39434F transparent; }
 .dashboard .run-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; padding:12px; text-align:left; background:var(--surface); border-color:var(--line); }
+.dashboard .run-row { border-left:4px solid var(--run-accent,#7A8698); }
+.dashboard .run-row .run-id { color:var(--run-accent,#E6EAF0); }
+.dashboard .run-row[aria-pressed=true] { background:var(--run-surface,#172B41); border-color:var(--run-accent,#4B9CFF); }
 .dashboard .run-id { font:12px ui-monospace,monospace; overflow-wrap:anywhere; }
 .dashboard .state { align-self:start; font:10px ui-monospace,monospace; padding:2px 6px; border-radius:4px; background:#ffffff08; }
 .dashboard .run-meta { grid-column:1/-1; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }

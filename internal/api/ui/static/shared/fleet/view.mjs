@@ -1,6 +1,7 @@
 import { RUN_STATES, nodeFacts, runFlowFacts, observationClock, dependentClock, isStale, matches } from './model.mjs';
 import { fleetScene, runScene } from './scene.mjs';
 import { galleryParentID } from '../gallery-history.mjs';
+import { nodeIdentity, executionIdentity, runTheme } from './identity.mjs';
 import { formatRunId, formatTimestamp, elapsedTime, remainingTime, leaseIdentity, capabilityName, attributeName, attributeValue, technicalAttribute, drainDescription } from './format.mjs';
 
 export function element(tag, className, text) {
@@ -191,11 +192,12 @@ export class DashboardView {
     this.connection.classList.toggle('is-stale', [...this.resources.values()].some(r => r.error || isStale(r, this.now)));
     this.runStatus.textContent = `${runs.length}개 작업 · ${this.resourceStatus('runs')}`;
     const isFleet = this.state.scene === 'fleet', selectedRun = runs.find(r => r.run_id === this.state.run);
-    const run = { ...selectedRun, run_id: this.state.run, state: detail?.state || selectedRun?.state };
+    const run = { ...selectedRun, run_id: this.state.run, state: detail?.state || selectedRun?.state, requires: detail?.requires, assigned: detail?.assigned || selectedRun?.assigned };
+    const theme = runTheme(this.state.run); this.panel.style.setProperty('--run-accent', theme.accent); this.panel.style.setProperty('--run-surface', theme.surface);
     const flowStale = !detailResource?.data || !!detailResource.error || isStale(detailResource, this.now);
     this.panel.dataset.scene = this.state.scene; this.backButton.hidden = isFleet;
     this.title.textContent = isFleet ? '함대' : '작업 그래프';
-    this.subtitle.textContent = isFleet ? `${nodes.length}개 노드 · 모형을 눌러 상세 확인` : `요청 → 배정 → 실행 · ${detail?.steps?.length ?? 0}개 단계${this.compact ? ' · 아래로 스크롤' : ''}`;
+    this.subtitle.textContent = isFleet ? `${nodes.length}개 enode · 호스트별 색 · 소유자와 제공 기능${this.compact ? ' · 아래로 스크롤' : ''}` : `브라우저 요청 → 서버 배정 → 장비에서 실행${this.compact ? ' · 아래로 스크롤' : ''}`;
     this.sceneContext.hidden = isFleet;
     this.sceneContext.textContent = isFleet ? '' : `${selectedRun?.submitter || '제출자 미확인'} · ${formatRunId(this.state.run)} · ${detail?.state || selectedRun?.state || '조회 중'}`;
     this.sceneContext.title = isFleet ? '' : this.state.run;
@@ -206,19 +208,23 @@ export class DashboardView {
     const signature = JSON.stringify([this.state.scene, this.state.representation, this.state.node, this.state.step, this.state.actor, this.state.run, this.compact, flowStale, selectedRun, nodes, runs.map(r => [r.run_id, r.submitter]), detail, [...details], asks, nodes.map(n => nodeFacts(n, details, asks, now).expiring)]);
     if (signature !== this.canvas._signature) {
       let scene;
-      if (this.state.scene === 'fleet' && nodes.length) scene = fleetScene({ nodes, runs, details, asks, now, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.node, onSelect: id => this.selectNode(id) });
+      if (this.state.scene === 'fleet' && nodes.length) scene = fleetScene({ nodes, runs, details, asks, now, compact: this.compact, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.node, onSelect: id => this.selectNode(id) });
       else if (this.state.scene === 'run' && (detail || selectedRun) && !detail?.graphError) scene = runScene({ steps: detail?.steps, nodes, run, stale: flowStale, compact: this.compact, iso: this.state.representation === '3d', mode: this.mode, selected: this.state.step, onSelect: id => this.selectStep(id), actor: this.state.actor, onActorSelect: id => this.selectActor(id) });
       if (scene) {
+        const firstScene = !this.canvas.querySelector('svg');
         const position = { x: this.viewport.scrollLeft, y: this.viewport.scrollTop };
         this.dimensions = scene; replaceContents(this.canvas, [scene.element], signature); this.setZoom(this.zoom, false);
         if (this.autoFit) this.fit();
         else { this.viewport.scrollLeft = position.x; this.viewport.scrollTop = position.y; }
+        // 빈 화면의 임시 확대율을 처음 받은 긴 장면의 스크롤 위치로 이어받지 않는다.
+        if (firstScene) { this.viewport.scrollLeft = 0; this.viewport.scrollTop = 0; }
       }
       else replaceContents(this.canvas, [element('div', 'scene-empty', this.state.scene === 'fleet' ? nodesResource?.data ? '현재 관측된 노드가 없습니다.' : this.resourceStatus('nodes') : detail?.graphError ? `그래프를 표시할 수 없습니다. ${detail.graphError} — 아래 단계 목록을 확인하세요.` : detail ? `${detail.state} · 아직 관측된 단계가 없습니다.` : this.resourceStatus(`detail:${this.state.run}`))], signature);
     }
     const filtered = runs.filter(r => !this.state.filter || r.state === this.state.filter);
     const rows = filtered.map(r => {
       const b = button('', `${this.mode}-run-select-button`, () => this.selectRun(r.run_id), 'run-row'); b.dataset.runId = r.run_id; b.setAttribute('aria-pressed', String(this.state.run === r.run_id));
+      const theme = runTheme(r.run_id); b.style.setProperty('--run-accent', theme.accent); b.style.setProperty('--run-surface', theme.surface);
       b.append(runLabel(r.run_id), element('span', `state state-${r.state.toLowerCase().replace(/[^a-z]/g, '')}`, r.state),
         element('span', 'run-meta', r.submitter || '제출자 미제공'), element('span', 'run-meta', formatTimestamp(r.created_at)), element('span', 'run-meta', r.assigned.length ? r.assigned.map(a => `${a.as}: ${a.nodes.map(n => n.label || n.node).join(', ')}`).join(' / ') : '노드 미배정'));
       return b;
@@ -286,6 +292,8 @@ export class DashboardView {
     const close = button('×', `${this.mode}-inspector-close-button`, () => this.closeInspector(true), 'inspector-close'); close.setAttribute('aria-label', '상세 닫기'); items.push(close);
     if (isNode) {
       const facts = nodeFacts(node, details, asks, now); items.push(element('h2', '', node.label || node.node_id), element('p', `node-tone-${facts.tone}`, facts.label));
+      const device = nodeIdentity(node); pair(list, '소유자 표시', device.owner); pair(list, '호스트', device.host); pair(list, '실행 장비', device.device); pair(list, '제공 역할', device.role);
+      if (device.attachments.length) pair(list, '연결 장치 광고', device.attachments.join(' · '));
       pair(list, '작업 수락', drainDescription(node.draining));
       if (node.lease) {
         const leaseResource = this.resources.get(`detail:${node.lease.run_id}`), dependent = [leaseResource, ...(this.mode === 'fleet' ? [this.resources.get('asks')] : [])];
@@ -323,6 +331,8 @@ export class DashboardView {
       items.push(capabilities, freshness, technical);
     } else {
       items.push(element('h2', '', step.id)); pair(list, '상태', step.state); pair(list, '용도', step.uses); pair(list, '선행 단계', step.needs.join(', ') || '없음');
+      const device = executionIdentity(step, nodes, run); pair(list, '담당 역할', device.role); pair(list, '소유자 표시', device.owner); pair(list, '호스트', device.host); pair(list, '실행 장비', device.device);
+      if (device.attachments.length) pair(list, '연결 장치 광고', device.attachments.join(' · '));
       pair(list, '경로 선택', `${step.chosen ? '선택됨' : '선택 안 됨'}${step.state === 'SKIPPED' ? step.chosen ? ' · 도달하지 못함' : ' · 실행하지 않는 경로' : ''}`);
       pair(list, '실행 노드', nodes.find(n => n.node_id === step.node)?.label || step.node); pair(list, '회차', step.attempt); timePair(list, '시작', step.started_at); timePair(list, '종료', step.ended_at);
       const b = button('이 단계의 노드 보기 →', `${this.mode}-step-node-button`, () => this.selectNode(step.node), 'text-link'); b.disabled = !nodes.some(n => n.node_id === step.node); items.push(b);

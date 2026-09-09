@@ -131,3 +131,22 @@ postMessage 연동이 필요하면 지정 origin·source·메시지 형태를 �
 웹캠은 명시적으로 닫고 다시 열 수 있으며, 노드/단계 상세는 바깥 조작이나 보기
 전환에서 닫힌다. 자동 관측 갱신과 상세 내부 조작은 닫기 원인이 아니다. 모달과
 투어도 배경 클릭으로 닫고, 접수 중 요청·미확인 재시도 정보는 유지한다.
+
+## 2026-09-09 원격 장비 식별 보완
+
+Run 전체 ID에서 구한 작업색은 목록/선택 그래프에 공유하고, hostname에서 구한
+장비색은 함대/각 단계에 공유한다. 상태는 원래 상태 문자열/색으로 별도 표시한다.
+owner 또는 canonical label의 handle을 소유자 표시로 읽고 hostname·OS/host_arch·
+역할을 표시한다. 표시용 label 파싱은 인증·매칭·장비 종류 판정에 쓰지 않는다.
+hostname 기준 수는 물리 PC 수를 보증하지 않는다.
+
+board/device는 연결 장치 광고다. Windows의 board 광고만으로 호스트 자체를
+보드 모형으로 표시하지 않는다. board 호스트는 명시적 device_type, VM은 명시적
+device_type/sandbox로 판정한다. CPU는 빌드 대상 arch로 대체하지 않는다.
+사라진 노드는 당시 assigned label을 사용하며 OS/CPU는 미관측으로 표시한다.
+step.node가 없는 단계에는 후보 노드를 임의로 배정하지 않는다. 역할은 requires의
+capability/attrs에서 찾고 단계 ID에서 추측하지 않는다.
+
+새 작업 카드에는 원격 enode의 역할과 사용자가 확인할 결과를 설명한다.
+기존 계약·단계·시나리오 ID와 gallery 이름을 유지한다.
+[구현과 검증](../code/ui-remote-identity.md)을 따른다.
