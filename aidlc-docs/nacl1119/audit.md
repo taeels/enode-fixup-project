@@ -127,3 +127,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · 시안 정렬 · PR #9 갱신.
 
 ---
+
+## PR #9 병합 확인 · 시안 정렬 갭 · PR #10
+**Timestamp**: 2026-09-09T04:08:41Z
+**User Input**: "이 브랜치 빌드로 노드를 띄워. 정리해." 이어서 "PR 한거 머지 확인해줘."
+**AI Response**: 임시 노드 데모를 준비하다(브랜치 enode 빌드 + pbranch.yaml) 진행자가 PR 병합 확인을 요청해, 데모 잔여물과 내가 띄운 패널(8081)을 정리하고(진행자의 local 노드 pid 41524 는 보존) PR #9 를 확인했다: 병합됨(merge 182da58 · 04:08:41Z). 그런데 병합이 시안 정렬 커밋(d9c11de page.go · c0fa636 audit) 앞에 일어나 main 에는 옛 밋밋한 영어 기능판이 들어갔고 시안 디자인은 빠졌다(origin/main:page.go 에 control panel 만 있고 #0B0D10 없음). main..unit/panel 이 정확히 그 두 커밋뿐이고 겹치는 파일이 없어, 후속 PR #10(base main · head unit/panel)을 열어 시안본을 올린다. transcript(W4)는 PR #10 병합 뒤 main 에서 unit/transcript 를 따서 시작한다 — internal/panel 을 공유하므로 시안본이 main 에 든 뒤가 깨끗하다.
+**Context**: CONSTRUCTION · panel · PR #9 병합됨 · PR #10 시안 정렬 대기 · transcript 대기.
+
+---
