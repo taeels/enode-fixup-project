@@ -1,0 +1,26 @@
+# tts 노드의 라벨 — ~/.config/enode/local.yaml 의 labels: 아래에 그대로 둔다.
+#
+# 매처가 완전일치라 tts 한 칸에 엔진 둘을 못 담는다. 그래서 say 는 tts 로 두고
+# (기존 계약이 이 값으로 이 노드를 부른다) Typecast 는 fmt_* 와 같은 모양으로
+# 따로 붙인다. 속성의 존재가 곧 능력이다.
+#
+# 설정을 고치는 것만으로는 광고가 안 바뀐다. enode 는 설정을 다시 읽지 않는다 —
+# 재기동해야 실린다:  kill <pid>; nohup ~/.local/bin/enode --config <이 파일> &
+labels:
+  service: tts
+  lang: ko
+  greet: bin/greet.sh
+
+  tts: say-macos
+  voice: Yuna
+
+  # Typecast API. say 와 달리 네트워크를 타고 글자당 과금된다.
+  # 키는 ~/.config/typecast/api.key. 키가 없어지면 이 셋을 지운다 —
+  # 못 하는 것을 광고에서 빼는 것이 「지금은 못 한다」다.
+  tts_typecast: "yes"
+  voice_typecast: Sanghyun
+  typecast_model: ssfm-v30
+
+  fmt_wav: "yes"
+  fmt_m4a: "yes"
+  fmt_mp3: "yes"      # lame 이 있을 때만

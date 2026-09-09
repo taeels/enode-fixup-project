@@ -1,0 +1,2 @@
+SUBSYSTEM=="leds", ACTION=="add", RUN+="/usr/bin/chgrp gpio /sys%p/brightness /sys%p/trigger"
+SUBSYSTEM=="leds", ACTION=="add", RUN+="/usr/bin/chmod g+w /sys%p/brightness /sys%p/trigger"

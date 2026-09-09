@@ -1,0 +1,36 @@
+{
+  "run_id": "greet-play-diag-__RUNID__",
+  "work": {
+    "id": {
+      "system": "manual",
+      "change_id": "greet-play-diag-__RUNID__"
+    },
+    "system": "manual"
+  },
+  "requires": [
+    {
+      "as": "board",
+      "capability": "agent.reason",
+      "audio_playback": "true",
+      "board": "rpi2b-v1.1"
+    }
+  ],
+  "steps": [
+    {
+      "id": "diag",
+      "uses": "board",
+      "run": [
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "$ErrorActionPreference='Continue';New-Item -ItemType Directory -Force $env:TEMP\\enode-diag | Out-Null;Write-Output ('whoami=' + (whoami) + '  session=' + (Get-Process -Id $PID).SessionId + '  USERPROFILE=' + $env:USERPROFILE + '  HOME_set=' + (Test-Path Env:HOME));Get-Command ssh,scp -ErrorAction SilentlyContinue | ForEach-Object { Write-Output ('  ' + $_.Name + ' -> ' + $_.Source) };Write-Output ('  git_ssh=' + (Test-Path 'C:\\Program Files\\Git\\usr\\bin\\ssh.exe'));Write-Output '--- builtin_ssh_V ---';cmd /c \"ssh -V > $env:TEMP\\enode-diag\\builtin_ssh_V.out 2> $env:TEMP\\enode-diag\\builtin_ssh_V.err\";Write-Output ('  rc=' + $LASTEXITCODE + '  out_bytes=' + (Get-Item $env:TEMP\\enode-diag\\builtin_ssh_V.out).Length + '  err_bytes=' + (Get-Item $env:TEMP\\enode-diag\\builtin_ssh_V.err).Length);Get-Content $env:TEMP\\enode-diag\\builtin_ssh_V.out -ErrorAction SilentlyContinue | Select-Object -First 4 | ForEach-Object { Write-Output ('  out: ' + $_) };Get-Content $env:TEMP\\enode-diag\\builtin_ssh_V.err -ErrorAction SilentlyContinue | Select-Object -Last 4 | ForEach-Object { Write-Output ('  err: ' + $_) };Write-Output '--- git_ssh_V ---';cmd /c \"\"\"C:\\Program Files\\Git\\usr\\bin\\ssh.exe\"\" -V > $env:TEMP\\enode-diag\\git_ssh_V.out 2> $env:TEMP\\enode-diag\\git_ssh_V.err\";Write-Output ('  rc=' + $LASTEXITCODE + '  out_bytes=' + (Get-Item $env:TEMP\\enode-diag\\git_ssh_V.out).Length + '  err_bytes=' + (Get-Item $env:TEMP\\enode-diag\\git_ssh_V.err).Length);Get-Content $env:TEMP\\enode-diag\\git_ssh_V.out -ErrorAction SilentlyContinue | Select-Object -First 4 | ForEach-Object { Write-Output ('  out: ' + $_) };Get-Content $env:TEMP\\enode-diag\\git_ssh_V.err -ErrorAction SilentlyContinue | Select-Object -Last 4 | ForEach-Object { Write-Output ('  err: ' + $_) };Write-Output '--- git_ssh_whoami ---';cmd /c \"\"\"C:\\Program Files\\Git\\usr\\bin\\ssh.exe\"\" -o BatchMode=yes -o ConnectTimeout=5 __PIHOST__ whoami > $env:TEMP\\enode-diag\\git_ssh_whoami.out 2> $env:TEMP\\enode-diag\\git_ssh_whoami.err\";Write-Output ('  rc=' + $LASTEXITCODE + '  out_bytes=' + (Get-Item $env:TEMP\\enode-diag\\git_ssh_whoami.out).Length + '  err_bytes=' + (Get-Item $env:TEMP\\enode-diag\\git_ssh_whoami.err).Length);Get-Content $env:TEMP\\enode-diag\\git_ssh_whoami.out -ErrorAction SilentlyContinue | Select-Object -First 4 | ForEach-Object { Write-Output ('  out: ' + $_) };Get-Content $env:TEMP\\enode-diag\\git_ssh_whoami.err -ErrorAction SilentlyContinue | Select-Object -Last 4 | ForEach-Object { Write-Output ('  err: ' + $_) };Write-Output '--- pi_cards ---';cmd /c \"\"\"C:\\Program Files\\Git\\usr\\bin\\ssh.exe\"\" -o BatchMode=yes -o ConnectTimeout=5 __PIHOST__ cat /proc/asound/cards > $env:TEMP\\enode-diag\\pi_cards.out 2> $env:TEMP\\enode-diag\\pi_cards.err\";Write-Output ('  rc=' + $LASTEXITCODE + '  out_bytes=' + (Get-Item $env:TEMP\\enode-diag\\pi_cards.out).Length + '  err_bytes=' + (Get-Item $env:TEMP\\enode-diag\\pi_cards.err).Length);Get-Content $env:TEMP\\enode-diag\\pi_cards.out -ErrorAction SilentlyContinue | Select-Object -First 4 | ForEach-Object { Write-Output ('  out: ' + $_) };Get-Content $env:TEMP\\enode-diag\\pi_cards.err -ErrorAction SilentlyContinue | Select-Object -Last 4 | ForEach-Object { Write-Output ('  err: ' + $_) };Write-Output '--- pi_tools ---';cmd /c \"\"\"C:\\Program Files\\Git\\usr\\bin\\ssh.exe\"\" -o BatchMode=yes -o ConnectTimeout=5 __PIHOST__ which mpg123 amixer > $env:TEMP\\enode-diag\\pi_tools.out 2> $env:TEMP\\enode-diag\\pi_tools.err\";Write-Output ('  rc=' + $LASTEXITCODE + '  out_bytes=' + (Get-Item $env:TEMP\\enode-diag\\pi_tools.out).Length + '  err_bytes=' + (Get-Item $env:TEMP\\enode-diag\\pi_tools.err).Length);Get-Content $env:TEMP\\enode-diag\\pi_tools.out -ErrorAction SilentlyContinue | Select-Object -First 4 | ForEach-Object { Write-Output ('  out: ' + $_) };Get-Content $env:TEMP\\enode-diag\\pi_tools.err -ErrorAction SilentlyContinue | Select-Object -Last 4 | ForEach-Object { Write-Output ('  err: ' + $_) };Remove-Item -Recurse -Force $env:TEMP\\enode-diag -ErrorAction SilentlyContinue"
+      ]
+    }
+  ],
+  "success_when": [
+    {
+      "step": "diag",
+      "exit_code": 0
+    }
+  ]
+}

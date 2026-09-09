@@ -1,5 +1,5 @@
 {
-  "run_id": "greet-play-__RUNID__",
+  "run_id": "greet-play-pi-__RUNID__",
   "work": {
     "id": {
       "system": "manual",
@@ -52,7 +52,7 @@
         "powershell",
         "-NoProfile",
         "-Command",
-        "$ErrorActionPreference='Stop';$f = Join-Path $env:IN 'greeting.mp3';Write-Output ('file=' + $f + ' exists=' + (Test-Path $f));if (-not (Test-Path $f)) { exit 6 };$mp = Get-Command mpg123 -ErrorAction SilentlyContinue;if ($mp) { Write-Output 'player=mpg123'; & $mp.Source -q $f; exit $LASTEXITCODE };$ff = Get-Command ffplay -ErrorAction SilentlyContinue;if ($ff) { Write-Output 'player=ffplay'; & $ff.Source -nodisp -autoexit -loglevel error $f; exit $LASTEXITCODE };Write-Output 'player=MediaPlayer';Add-Type -AssemblyName PresentationCore;$p = New-Object System.Windows.Media.MediaPlayer;$p.Open([Uri]$f);$n = 0; while (-not $p.NaturalDuration.HasTimeSpan -and $n -lt 40) { Start-Sleep -Milliseconds 100; $n++ };$d = 5.0; if ($p.NaturalDuration.HasTimeSpan) { $d = $p.NaturalDuration.TimeSpan.TotalSeconds };$p.Volume = 1.0; $p.Play();Start-Sleep -Seconds ([Math]::Ceiling($d) + 1);$p.Stop(); $p.Close();Write-Output ('played seconds=' + $d)"
+        "$ErrorActionPreference='Stop';$f = Join-Path $env:IN 'greeting.mp3';if (-not (Test-Path $f)) { Write-Output 'staged file missing'; exit 6 };$gb='C:\\Program Files\\Git\\usr\\bin';if (Test-Path ($gb + '\\ssh.exe')) { $SSH = $gb + '\\ssh.exe'; $SCP = $gb + '\\scp.exe' } else { $SSH = 'ssh'; $SCP = 'scp' };Write-Output ('ssh=' + $SSH);$target = '__PIHOST__';$dev = '__PIDEV__';$dest = '/tmp/enode-greet-' + [guid]::NewGuid().ToString('N').Substring(0,8) + '.mp3';Write-Output ('target=' + $target + ' dev=' + $dev + ' dest=' + $dest);& $SCP -o BatchMode=yes -o StrictHostKeyChecking=accept-new $f ($target + ':' + $dest);if ($LASTEXITCODE -ne 0) { Write-Output ('scp failed rc=' + $LASTEXITCODE); exit $LASTEXITCODE };$remote = \"amixer -c 1 sset PCM 100% unmute >/dev/null 2>&1; \" +          \"mpg123 -q -o alsa -a $dev '$dest'; rc=`$?; \" +          \"cat /proc/asound/card1/pcm0p/sub0/status | head -1; \" +          \"rm -f '$dest'; exit `$rc\";& $SSH -o BatchMode=yes -o StrictHostKeyChecking=accept-new $target $remote;$rc = $LASTEXITCODE;Write-Output ('mpg123 rc=' + $rc);exit $rc"
       ]
     }
   ],
