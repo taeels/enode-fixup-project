@@ -90,13 +90,17 @@ API/DB를 UI 패키지로 옮기지 않는다. 3d-view 전체 앱·서버·ui.go
   독립 검사 결과: Node 42 통과, Go 전체 1,090 통과·0 스킵·16패키지 모두 80% 이상,
   UI 98.4%, vet/build/표기/Windows 빌드/취약점 검사 통과.
   [검증 기록](../ui/code/build-and-test.md)의 환경 제한과 공동 장면 보류를 유지한다.
+  2026-09-09 main@50af6cf 인수 후 Go 1,190·Node 46·16패키지 80% 이상을 확인했다.
+  실제 Mac의 Drain 정책·경계 중단·봉인·queue 승격·UI 관측도 통과했다.
+  [Drain 인수 기록](../ui/code/drain-integration-review.md). 실물 CP10은 남아 있다.
 - [ ] **11 — 결과·리뷰·커밋**
   implementation-summary와 build-and-test, 담당 state/audit를 갱신한다.
   단계 승인 시 담당 산출물을 커밋한다. PR/main 병합은 담당 게이트가 충족된 뒤다.
   [구현 요약](../ui/code/implementation-summary.md)과 검증 기록은 작성했다.
   2026-09-08T23:28:22Z 사용자가 현재 독립 구현의 커밋을 승인했다.
   지정 이메일 `runixs92@gmail.com`으로 코드·담당 기록을 커밋한다.
-  실제 연결·전체 생성 완료 리뷰·PR 게이트는 남아 있다.
+  PR #6은 2026-09-09 병합됐고 후속 접속 보완은 Draft PR #8로 제출했다.
+  실제 하드웨어 연결·전체 생성 완료 리뷰는 남아 있다.
 
 ## 사용자 개선 — 2026-09-09
 
