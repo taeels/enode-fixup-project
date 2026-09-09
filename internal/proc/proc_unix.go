@@ -23,6 +23,12 @@ func ProcessAlive(pid int) bool {
 	return syscall.Kill(pid, 0) == nil
 }
 
+// DetachAttr 는 부모에서 떼어낸다 — 띄운 쪽(enodectl start · 제어판 start)이
+// 끝나도 노드는 살아 있어야 한다.
+func DetachAttr() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{Setsid: true}
+}
+
 // SignalStop 은 스스로 정리하고 끝나라다.
 // enode 의 signal.NotifyContext 가 이것을 받아 임대를 놓고 나간다.
 func SignalStop(pid int) error {

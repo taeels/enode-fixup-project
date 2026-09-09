@@ -56,6 +56,8 @@ func main() {
 		err = cmdStop(args)
 	case "logs":
 		err = cmdLogs(args)
+	case "serve":
+		err = cmdServe(args)
 	case "status":
 		err = cmdStatus()
 	case "-h", "--help", "help":
@@ -66,7 +68,7 @@ func main() {
 	case "--version", "-version", "version":
 		fmt.Println(build.Version("enodectl"))
 	default:
-		err = fmt.Errorf("unknown command: %s  (setup · list · id · start · stop · logs · status · version)", cmd)
+		err = fmt.Errorf("unknown command: %s  (setup · list · id · start · stop · logs · serve · status · version)", cmd)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -83,6 +85,7 @@ func usage() {
   enodectl start <name> [args…]
   enodectl stop  <name>
   enodectl logs  <name> [-f]
+  enodectl serve <name> [--listen addr]   run the host control panel (delegates to enode panel)
   enodectl status
 
 env: ENODE_CONFDIR · ENODE_STATEDIR · ENODE_BIN
@@ -162,29 +165,10 @@ func names() []string {
 // pidOf 는 그 설정을 열고 있는 프로세스의 pid 다. 없으면 0.
 //
 // 잠금 파일이 곧 상태다 — enode 가 자기 pid 를 거기 쓰고, 죽으면 커널이
-// flock 을 푼다. 따로 pid 장부를 두면 그 장부가 진실과 갈라진다.
-//
-// 그런데 파일의 존재만으로는 아무것도 못 말한다 — enode 는 끝나도 잠금
-// 파일을 안 지운다(flock 은 커널이 푼다). 그래서 그 pid 가 살아 있고 그
-// 설정을 열고 있는지 를 함께 본다.
+// flock 을 푼다. 그 pid 가 살아 있고 이 설정을 열고 있는지까지 보는 것은
+// internal/proc 가 진다 (제어판도 같은 판정을 쓴다).
 func pidOf(n string) int {
-	conf := confOf(n)
-	b, err := os.ReadFile(conf + ".lock")
-	if err != nil {
-		return 0
-	}
-	line := strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
-	pid, err := strconv.Atoi(line)
-	if err != nil || pid <= 0 {
-		return 0
-	}
-	// 그 pid 가 이 설정을 쥐고 있는지는 플랫폼마다 묻는 법이 다르다 —
-	// proc_unix.go 와 proc_windows.go 가 각각 답한다. 여기서 ps 를 직접
-	// 부르면 ps 가 없는 곳에서는 언제나 「아무것도 안 돈다」가 된다.
-	if !proc.OwnsConfig(pid, conf) {
-		return 0
-	}
-	return pid
+	return proc.PidFromLock(confOf(n))
 }
 
 // ── 명령 ─────────────────────────────────────────────────────────────────
@@ -259,7 +243,7 @@ func cmdStart(args []string) error {
 	c := exec.Command(bin, append([]string{"--config", conf}, rest...)...)
 	c.Stdout, c.Stderr = log, log
 	// 부모에서 떼어낸다 — enodectl 이 끝나도 노드는 살아 있어야 한다.
-	c.SysProcAttr = detachAttr()
+	c.SysProcAttr = proc.DetachAttr()
 	if err := c.Start(); err != nil {
 		return err
 	}

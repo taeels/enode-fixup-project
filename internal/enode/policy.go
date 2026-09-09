@@ -36,6 +36,44 @@ func PolicyPath(configPath string) string {
 	return strings.TrimSuffix(configPath, filepath.Ext(configPath)) + ".policy.yaml"
 }
 
+// ReadPolicyFile 은 제어판이 정책 파일을 읽는 자리다 (drain 과 panel_token).
+//
+// 데몬의 policyReader 는 Drain 만 접어 어휘로 좁히지만, 제어판은 파일에 적힌
+// 그대로(panel_token 포함)를 봐야 한다. 파일이 없으면 안 걸린 것이다 — 제로값.
+func ReadPolicyFile(configPath string) (Policy, error) {
+	b, err := os.ReadFile(PolicyPath(configPath))
+	if errors.Is(err, os.ErrNotExist) {
+		return Policy{}, nil
+	}
+	if err != nil {
+		return Policy{}, err
+	}
+	var p Policy
+	if err := yaml.Unmarshal(b, &p); err != nil {
+		return Policy{}, err
+	}
+	return p, nil
+}
+
+// WritePolicyFile 은 제어판의 drain 토글이 정책 파일을 쓰는 자리다.
+//
+// tmp 에 쓰고 rename 으로 바꾼다 — 데몬이 광고 직전에 반쯤 쓴 파일을 읽지 않게.
+// 권한은 소유자만 쓸 수 있게 0600 (유닉스). 윈도우는 그 디렉터리의 상속 ACL 이라
+// 모드 비트를 안 건다(checkPerms 가 윈도우를 안 보는 것과 같은 이유).
+// 부르는 쪽이 기존 Policy 를 읽어 Drain 만 바꿔 넘기면 panel_token 이 보존된다.
+func WritePolicyFile(configPath string, p Policy) error {
+	b, err := yaml.Marshal(p)
+	if err != nil {
+		return err
+	}
+	path := PolicyPath(configPath)
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
 // policyReader 는 정책 파일을 읽고 어휘 안으로 접는다.
 //
 // 틀린 값으로 노드를 세우지 않는다 — 광고는 하트비트를 겸한다 (ADR-016).

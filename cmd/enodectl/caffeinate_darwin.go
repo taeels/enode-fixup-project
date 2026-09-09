@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+
+	"github.com/taeels/enode/internal/proc"
 )
 
 // 잠자기 방지는 맥에만 있는 일이라 빌드 태그 쌍으로 가른다.
@@ -43,7 +45,7 @@ func keepAwake(pid int) {
 		return
 	}
 	c := exec.Command("caffeinate", "-i", "-s", "-w", strconv.Itoa(pid))
-	c.SysProcAttr = detachAttr()
+	c.SysProcAttr = proc.DetachAttr()
 	if err := c.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "  warning: could not start caffeinate: %v\n", err)
 		return
