@@ -870,3 +870,57 @@ runixs 기록은 전부 "CreateQueuedRun·WakeQueued 는 아직 없다" 기준�
 **AI Response**: Orca 터미널 목록이 현재 에이전트 하나로 정리되면서 새 Mediator·enode도 종료된 사실을 확인했다. 독립 세션의 Mediator와 enodectl start로 다시 기동해 터미널 수명에서 분리했다. enode의 기존 node_id가 유지됐다. LAN 172.24.82.142:8080에서 /ui/·/ui/fleet/·/ui/demo/·nodes·runs·인증된 capabilities가 모두 200이며 성공 Run과 실제 광고를 확인했다. 실제 Mediator의 루트 /는 404이고 실 함대는 /ui/fleet/이므로 릴리스 실행 안내도 그 경로로 고쳤다. 사용자가 요청한 LAN 주소·토큰은 대화로 전달했다. 담당 상태와 rc1 배포 기록을 갱신하고 기존 커밋·push 승인과 지정 이메일로 기록을 반영한다.
 
 ---
+
+## 기본 주소 404 안내 정정
+
+**Timestamp (기록 시각)**: 2026-09-09T02:20:02.041088+00:00
+
+**User Input**:
+
+```text
+http://172.24.82.142:8080 안들어가지는데?? 404 에러떠
+```
+
+**AI Response**: 노드 연결용 API 기준 주소만 안내하고 브라우저 화면 경로를 빠뜨렸음을 정정했다. 같은 LAN 주소에서 /는 404, /ui/·/ui/fleet/·/ui/demo/는 200임을 재확인하고 화면 링크를 전달한다. 노드 mediator 설정은 /ui/를 붙이지 않은 기존 기준 주소를 사용한다. 이 확인으로 배포 바이너리나 태그를 변경하지 않았다.
+
+---
+
+## Drain 인수와 접속 확인
+
+**Timestamp (기록 시각)**: 2026-09-09T02:30:13.995845+00:00
+
+**User Input**:
+
+```text
+새로운 PR(Drain)머지됐다니까 가져와서 추가 작업 진행하자. 그리고 접속이 안된다는데 확인하자.
+```
+
+**AI Response**: 첫 확인에서 PR #7은 OPEN이고 PR #6과 card-news만 main에 있었다. 후속 안내 후 PR #7의 50af6cf 병합을 확인해 main을 fast-forward했다. 미커밋 audit는 해시가 같고 영상 산출물을 보존했다. 같은 Mac의 LAN 주소 /ui/·/ui/demo/·API는 정상이고 방화벽은 해당 Mediator 바이너리의 인바운드를 허용했다. 기본 /의 404를 정확한 GET/HEAD /에서 /ui/로 이동하도록 보완한다. 다른 기기의 URL·오류·IP를 요청했으며 원격 접속 성공을 확인한 것으로 적지 않는다. 기존 승인 UI 관측 범위에서 실제 drain 정책·경계 종료·queue 승격·화면을 검증한다.
+
+---
+
+## Drain 인수와 접속 확인
+
+**Timestamp (기록 시각)**: 2026-09-09T02:30:13.996025+00:00
+
+**User Input**:
+
+```text
+이제 머지 됐대
+```
+
+**AI Response**: 첫 확인에서 PR #7은 OPEN이고 PR #6과 card-news만 main에 있었다. 후속 안내 후 PR #7의 50af6cf 병합을 확인해 main을 fast-forward했다. 미커밋 audit는 해시가 같고 영상 산출물을 보존했다. 같은 Mac의 LAN 주소 /ui/·/ui/demo/·API는 정상이고 방화벽은 해당 Mediator 바이너리의 인바운드를 허용했다. 기본 /의 404를 정확한 GET/HEAD /에서 /ui/로 이동하도록 보완한다. 다른 기기의 URL·오류·IP를 요청했으며 원격 접속 성공을 확인한 것으로 적지 않는다. 기존 승인 UI 관측 범위에서 실제 drain 정책·경계 종료·queue 승격·화면을 검증한다.
+
+---
+
+## Drain 인수·접속 보완 검증 결과
+
+**Timestamp (기록 시각)**: 2026-09-09T02:40:22.683042+00:00
+
+**AI Response**: PR #6/main@666126a와 Drain PR #7/main@50af6cf를 인수하고, 166c935에서 정확한 GET/HEAD /를 /ui/로 이동시켰다. 실/데모 모드의 루트·404·405·쓰기 인증 회귀를 추가했다. Go 1,190 통과·실패/스킵 0, 16패키지 모두 80% 이상(API 84.320%, UI 98.387%), Node 46, vet·glyphscan·Mac 실행 빌드와 Windows amd64/Linux arm7 교차 빌드가 통과했다. 첫 전체 검사는 호스트의 Homebrew 크로스 컴파일러가 빈 설정 테스트의 탐지 가정과 충돌했다. CI와 같은 도구 가용 PATH로 재실행했고 최초 로그를 남겼다. 검사 종료 뒤 테스트 유발 probe.lock PID만 복구했다.
+
+현재 런타임을 166c935b7795로 갱신하며 DB·토큰·node_id를 보존했다. 실제 enode의 at-boundary 첫 단계 DONE·다음 단계 FAILED·drain 사유·봉인 결과물, 정책 해제 뒤 대기 Run RUNNING→SUCCEEDED, graceful 두 단계 SUCCEEDED를 확인했다. 브라우저의 draining 진행 중/대기 중·목록 유지·중단 사유·성공 결과·최종 가용 노드도 일치한다. 검증용 정책은 제거했고 노드는 다시 작업을 받는다. 처음 시험 도구가 단계 상태를 RUNNING으로 기대하던 오기를 실제 wire의 CLAIMED로 바로잡아 같은 Run을 이어 확인했으며 제품 오류는 아니었다.
+
+같은 Mac의 LAN 기본 주소는 302 /ui/, UI 세 경로와 읽기 API는 200이다. macOS 방화벽의 기존 Mediator 인바운드 허용도 확인했다. 다른 기기의 URL·오류·IP 답변은 아직 없어 원격 접속 성공으로 선언하지 않는다. 코드 커밋은 지정 이메일로 push했고 후속 Draft PR #8을 열었다. 담당 상태와 계획의 PR #6 Draft 문구를 실제 병합 상태로 정정하고 본 인수 결과를 같은 PR에 반영한다. 기존 rc1 배포 자산·영상 세션 작업은 보존한다. 실제 LED·음원·방송 CP10은 미확인으로 유지하며 공식 단계는 Code Generation이다.
+
+---

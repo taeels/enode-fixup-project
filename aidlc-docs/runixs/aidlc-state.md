@@ -7,11 +7,12 @@
 
 ## 현재 기준 — 2026-09-09
 
-`unit/runixs-ui`는 queue PR #5가 병합된 `origin/main@310c22d` 위에 있다.
-2026-09-09 재확인한 main도 같은 커밋이다. rebase된 담당 커밋은 `f3a82b9`,
-`4c1265d`이며, UI 개선·queue 인수 기록 `ce8bc14`까지 커밋·push했다.
-이후 queue/sandbox 접점 정정은 `9ae9c4f`로 push했다. 사용자의 지시로 PR #6에
-추가된 진행자 `c7a237d`를 fast-forward하고 실제 LED·음원 계약을 인수했다.
+`unit/runixs-ui`는 Drain PR #7이 병합된 `origin/main@50af6cf` 위에 있다.
+UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
+미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
+404를 `/ui/` 리다이렉트로 보완해 push했다. 실제 Mac 노드의 at-boundary·graceful,
+봉인·queue 승격·화면 표시를 확인했다. [Drain 인수 기록](construction/ui/code/drain-integration-review.md).
+기존 queue/sandbox 접점과 진행자 `c7a237d`의 실제 LED·음원 계약을 유지한다.
 작성자·커미터 이메일은 사용자가 지정한 `runixs92@gmail.com`이다.
 
 **queue는 더 이상 선행 대기가 아니다.** `CreateQueuedRun`·`WakeQueued`가 있고,
@@ -31,7 +32,7 @@
 | UI 1~8 | 실 함대 관측, D1/D2/D5, 2D/3D, 투어, 제출 의도·재시도, 웹캠 조작 | 공동 실제 장면은 9~10에서 확인 |
 | UI 개선 | 웹캠 닫기·복원, 한글 두 단어 이름, 상세·모달·투어의 바깥 조작 닫기 | 구현·로컬 검증 완료 |
 | UI 9 | queue·sandbox 출처, c7a237d 두 시나리오의 실제 POST/GET·이름·3D 연결 | 실제 장비 광고·동작, 공개 방송 주소 |
-| UI 10~11 | 독립 검사·구현 및 검증 문서·커밋·push | 공동 CP 장면과 전체 생성 결과 리뷰·PR 게이트 |
+| UI 10~11 | 독립 검사·PR #6 병합·실제 Drain 관측과 queue 인수 | 공동 CP 장면과 전체 생성 결과 리뷰, 후속 PR #8 |
 | demo-back 1~5 | obs·queue·실제 fixture 인수, 공개 라우트·검증·한도·재시도·DB/UI 연결 | 구현·로컬 검증 완료 |
 | demo-back 6~7 | 표준 검사·race·브라우저·문서 | 공동 장면과 전체 유닛 리뷰 |
 
@@ -56,7 +57,8 @@ UI·제출·이름·음성·봉인·방송을 확인한다. 현재 webcam 설정
 [demo-back 구현](construction/demo-back/code/implementation-summary.md)과
 [검증 기록](construction/demo-back/code/build-and-test.md)에 소프트웨어 완료와
 실제 하드웨어/방송 게이트를 구분했다. [PR #6](https://github.com/taeels/enode-fixup-project/pull/6)은
-Draft로 유지하며 전체 CP9/10/11이나 main 병합 완료를 선언하지 않는다.
+2026-09-09T02:25:03Z 병합됐다. 병합 사실과 공동 CP10의 실물 검증은 별개다.
+기본 주소 접속 보완과 Drain 인수 기록은 [후속 Draft PR #8](https://github.com/taeels/enode-fixup-project/pull/8)에서 리뷰한다.
 
 ## 검증 근거
 
@@ -64,8 +66,16 @@ Draft로 유지하며 전체 CP9/10/11이나 main 병합 완료를 선언하지 
 태그는 CI가 통과한 `2d7bf7524d9c`에 고정했다. macOS arm64·amd64,
 Windows amd64와 별도 Mediator를 배포했고 설치·실행·다운로드 체크섬을 검증했다.
 로컬 Mac의 실제 enode 광고·shell 작업 성공·봉인 record와 LAN 접속도 확인했다.
-[rc1 배포 기록](construction/rc1-release.md). 공동 CP10과 PR 병합 게이트는 유지한다.
+[rc1 배포 기록](construction/rc1-release.md). 이후 로컬 런타임만 `166c935` 빌드로
+갱신했다. rc1 태그·다운로드 자산에는 이번 Drain 인수와 루트 보완이 포함되지 않는다.
+현재 기본 주소는 접속 화면으로 이동하며 같은 Mac의 LAN HTTP 검사가 통과했다.
+다른 팀원 기기의 URL·오류 응답은 아직 미수령이다. 공동 CP10은 남아 있다.
 
+- Drain 인수 후 Go 1,190 통과·실패/스킵 0, 16패키지 80% 이상.
+  API 84.320%, UI 98.387%. Node 46, vet·glyphscan·Mac 빌드/실행·Windows/Linux 교차 빌드 통과.
+- 실제 Mac의 at-boundary 첫 단계 DONE·다음 단계 FAILED·drain 사유·봉인 결과물,
+  정책 해제 후 QUEUED→RUNNING→SUCCEEDED와 graceful 두 단계 SUCCEEDED를 확인했다.
+  UI의 draining 진행 중/대기 중·중단 사유·목록 유지와 해제 후 가용 표시가 일치한다.
 - 최종 demo-back+실제 fixture 기준 Go 1,173 통과·0 실패·0 스킵, 16패키지 80% 이상.
   api 84.539%, demo.go 96.0%, UI 98.4%. race·vet·build·교차 빌드·govulncheck 통과.
 - 최종 안내 수정 뒤 Node 46·Go UI·브라우저 14개 단언 통과. 아래는 선행 단계의 검사다.
