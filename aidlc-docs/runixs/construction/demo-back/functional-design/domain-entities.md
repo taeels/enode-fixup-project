@@ -18,5 +18,6 @@ work.change_id와 work.id.change_id에 넣는다. 서로 다른 관람객의 작
 검토하고 이 데모에서는 Run 사이 산출 공유가 필요하지 않음을 확인한다.
 
 submitter 컬럼·CreateRun·CreateRejectedRun 저장은 obs가 이미 제공했다.
-CreateQueuedRun은 queue 인수 시 확인한다. UI가 쓰는 이름 조회는 Run 목록이다.
+CreateQueuedRun도 PR #5/main@310c22d 인수에서 submitter 저장·재접수·승격 보존을
+확인했다. [인수 증거](../../ui/code/queue-integration-review.md). UI가 쓰는 이름 조회는 Run 목록이다.
 GetRun에 새 표시 필드를 요구하거나 ui에서 store를 import하지 않는다.

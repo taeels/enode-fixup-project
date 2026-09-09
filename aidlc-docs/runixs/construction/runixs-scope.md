@@ -97,7 +97,7 @@ CreateRun/CreateQueuedRun 접수 흐름을 사용하고 스케줄러를 새로 �
 | 공개 데모 읽기 | Config.Demo에서 nodes·runs·detail 무인증 | 기존 스위치 소비, asks는 공개 조회하지 않음. obs의 진행자 인계 항목은 유지 |
 | 데모 제출 계약 | 요청은 고정 시나리오 선택+Guest 이름, 응답은 접수된 Run 식별·상태 | ui/demo-back FD에서 경로·정확한 JSON·오류를 함께 정의하고 기존 submit 결과와 대조 |
 | 고정 시나리오 | LED와 welcome 음원 두 종류 | 진행자 픽스처의 ID·파라미터·requires 확인. LED 변형은 제공된 계약에 맞춤 |
-| sandbox | capabilities[].attrs.sandbox를 광고 값으로 표시하는 결정안 | roster §6대로 진행자와 확인. 전용 필드·강도 의미를 새로 만들지 않음 |
+| sandbox | capabilities[].attrs.sandbox의 능력별 광고값, 없으면 미제공 | 2026-09-09 사용자가 최태양님 승인 전달. 실제 장비 대조는 공동 장면에 남김 |
 | 방송 임베드 | 좌하단 플로팅, Mediator 밖 전송 | 공급자·주소·허용 origin/iframe 정책을 운영 담당과 확인 |
 | 공유 파일 | 기존 Guest 인터페이스·static embed 재사용 | nacl1119 및 진행자와 실제 파일 diff·등록/설정 접점 대조 |
 

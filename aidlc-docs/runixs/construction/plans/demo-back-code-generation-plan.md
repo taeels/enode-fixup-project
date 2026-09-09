@@ -11,6 +11,7 @@
 |---|---|
 | internal/api/demo.go | 입력 검증·고정 매핑·내부 요청·제출 한도 |
 | internal/api/demo_test.go | 잘못된 요청·같은 의도 재시도·기존 submit/DB 연결 |
+| internal/api/demo_queue_test.go | 선행 인수: submitterKey부터 실제 queue 저장·목록·승격까지 회귀 검증 |
 | internal/api/api.go | Config.Demo 조건부 등록 줄. submit 본문은 재사용 |
 | internal/contract/examples | 진행자가 제공한 LED/음원 example 소비. 임의 하드웨어 명령 생성 없음 |
 | internal/store | 기존 이름 저장 재사용. queue 대조 결과 추가 변경이 필요하면 계획에 구체화 |
@@ -30,6 +31,13 @@ Config.Demo·token bucket·submitterKey·기존 submit을 재사용한다.
   재접수, 승격, 목록 submitter 보존을 확인했다. [인수 기록](../ui/code/queue-integration-review.md).
   실제 LED/음원 픽스처와 버튼 매핑·이름 주입은 아직 없어 이 단계 전체는 미완료다.
   UI 개선의 한글 이름 계약도 인수 시 적용한다. backend 생성은 픽스처를 기다린다.
+  인수 상태를 다음처럼 나눈다. queue 구현이나 진행자의 중복 확인을 기다리지 않는다.
+
+  - [x] queue PR #5/main@310c22d 병합·실제 접수·승격·목록 이름 인수.
+  - [x] demo_queue_test.go에서 내부 submitterKey를 넣은 기존 제출 경로의 이름 보존을 자동 검증.
+    201/202·재접수 200·승격 후 목록 이름 유지, 외부 헤더 무시 통과.
+  - [ ] 실제 LED/음원 계약·버튼 매핑·이름 주입·Work/ledger 인수.
+
 - [ ] **2 — 고정 요청 준비**
   demo.go의 엄격한 세 필드 검사·정규 ID·고정 매핑·Contract 사본 준비를 구현한다.
   이름/시나리오/UUID 경계, unknown/duplicate key, body/Content-Type, 입력을

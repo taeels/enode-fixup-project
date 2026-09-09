@@ -1,6 +1,10 @@
 # obs 인수 — origin/main 반영과 소비 계약
 
-**기준**: 2026-09-09 KST, `origin/main@0a159a4`.
+**기록 범위**: obs 인수 당시의 검증 기록이다. 현재는 queue PR #5/main@310c22d를
+이미 인수했고 UI 구현도 진행했다. [최신 queue 인수·접점 증거](../code/queue-integration-review.md)와
+[담당 현재 상태](../../../aidlc-state.md)를 우선한다. sandbox 출처 승인도 수령했다.
+
+**당시 기준**: 2026-09-09 KST, `origin/main@0a159a4`.
 PR #4가 `unit/obs@ccc8073`를 병합했다. `unit/runixs-ui`를 `81b526c`에서
 이 커밋으로 rebase했고 충돌은 없었다. 제품 UI 구현 단계로 넘어간 기록은 아니다.
 
@@ -38,8 +42,9 @@ obs가 `runs.submitter` 컬럼뿐 아니라 `store.Run.Submitter`, 기존 Run �
 Guest 이름을 검증하고 이 컨텍스트에 넣어 기존 접수를 사용한다. 이미 구현된
 저장을 다시 만들지 않는다. `Config.Demo`도 같은 필드를 사용한다.
 
-`CreateQueuedRun`·`WakeQueued`는 아직 없다. queue 인수 때 202/QUEUED와
-submitter 보존을 확인해야 하며, obs 병합만으로 demo-back 선행이 모두 끝나지 않는다.
+obs 인수 당시에는 `CreateQueuedRun`·`WakeQueued`가 없었다. 이후 PR #5/main@310c22d의
+202/QUEUED·재접수·승격·submitter 보존을 확인하여 queue 선행을 인수했다.
+실제 고정 시나리오 연결은 별도로 남아 있다.
 고정 시나리오 allow-list와 스텝 이름 주입은 여전히 runixs 구현 범위다.
 
 ## 4. 이 체크아웃에서 실행한 검증
@@ -63,5 +68,5 @@ PostgreSQL 17 기준의 전체 CP0 재검증, 실제 데몬 함대, queue·UI �
 
 obs 전달을 기다리는 상태는 해제한다. W1 실 함대 설계는 실제 계약으로 갱신하고,
 [담당 범위](../../runixs-scope.md)에 따라 데모 전체 FD와 제출 계약을 보완한다.
-UI 어댑터·브라우저 화면·실제 CP1/CP2는 구현 후 검증한다. sandbox 출처의 진행자
-확인, 고정 시나리오, 방송 설정, queue 선행은 별도로 남아 있다.
+당시 계획했던 UI 어댑터·브라우저와 queue 연동은 후속 구현·검증 기록을 따른다.
+queue 인수와 sandbox 출처 승인은 완료했다. 실제 고정 시나리오·방송·공동 CP 장면은 남아 있다.

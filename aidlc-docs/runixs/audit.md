@@ -678,3 +678,57 @@ Remotion도 MCP나 에이전트가 동작하나??
 **AI Response**: 완료한 UI 개선과 queue 인수 관련 담당 기록의 커밋·push 지시로 해석한다. 작성자·커미터는 Taewan Kim <runixs92@gmail.com>을 사용한다. 영상 파일·영상 별도 계획·이미지·로컬 검증 산출물은 보존하고 이번 커밋에서 제외한다. fetch 결과 원격 unit/runixs-ui는 7e4b4c7cf2e78de73d599a36069d05dc60562aa5이며, range-diff로 원격 두 커밋과 rebase한 f3a82b9/4c1265d의 내용이 같음을 확인했다. 다른 사람의 새 커밋이 없으므로 정확한 원격 SHA를 조건으로 force-with-lease push한다. Node 46·Go UI 98.4%·브라우저 24개 검증 결과를 유지하고 제출 코드 변경 없이 staged diff와 문서 범위를 확인한다. 이번 승인은 독립 변경의 저장·공유이며 Code Generation 전체 완료·공동 장면 통과·main 병합 승인은 아니다.
 
 ---
+
+## sandbox 출처 승인 전달과 작업 재개
+
+**Timestamp (기록 시각)**: 2026-09-09T01:29:41Z
+
+**User Input**:
+
+```text
+샌드박스는 최태양님이 승인 했는데, 좀 더 진행할까?
+```
+
+**AI Response**: 최태양님의 기존 sandbox 출처 결정안 승인을 사용자가 전달한 것으로 기록한다. capabilities[].attrs.sandbox의 능력별 광고 원문을 표시하고 없으면 미제공으로 처리한다. 요구 값을 노드 광고로 복사하거나 격리 보장으로 해석하지 않는다. 담당 FD·상태·계획에서 출처 승인 대기를 해제한다. 실제 장비의 설정·광고·격리 동작 검증과 공용 roster 편집은 별개다. 기존 표시 경로를 실제 로컬 API·브라우저로 확인한다.
+
+---
+
+## queue 선행에 관한 팀 코멘트 수령
+
+**Timestamp (기록 시각)**: 2026-09-09T01:29:41Z
+
+**User Input**:
+
+```text
+4. queue 는 이미 풀렸는데 runixs 가 모른다
+runixs 기록은 전부 "CreateQueuedRun·WakeQueued 는 아직 없다" 기준이다. PR #5 가 어제 main@310c22d 로 들어왔고 internal/store/queue.go:92,133 에 있다. 알려주면 UI 9단계와 demo-back 접수가 바로 풀린다. 여기서 태양님 몫은 하나 — 큐 생성 경로가 submitter 를 보존하는지 확인(obs 가 낸 컬럼과 api.submitterKey 접점이다).
+
+
+라고 코멘트가 왔어
+```
+
+**AI Response**: fetch 결과 main은 310c22d이고 현재 브랜치는 이미 그 위에 있다. ce8bc14에 queue 인수·202/승격·목록 submitter 보존의 로컬 검증 기록을 커밋·push했으나 design-review와 obs 인수 문서에 이전 미구현 문구가 남아 있었다. 현재 상태와 역사 기록을 구분해 바로잡는다. 기존 store 직접 입력 검증을 보완해 submitterKey→기존 auth/postRuns→enqueue→CreateQueuedRun→목록→승격 경로를 담당 demo-back 인수 회귀 테스트로 검증한다. queue와 sandbox 승인은 더 이상 대기 조건이 아니다. 실제 LED/음원 파일은 main examples에 없으므로 해당 연결과 방송 장면은 완료로 표시하지 않는다.
+
+---
+
+## push된 UI 범위의 Draft PR 생성
+
+**Timestamp (기록 시각)**: 2026-09-09T01:32:21.819927+00:00
+
+**User Input**:
+
+```text
+지금 push된 부분까지 PR올려줘
+```
+
+**AI Response**: 별도 대화에서 요청한 PR 생성만 실행했다. 원격 unit/runixs-ui의 ce8bc147a27f3c1456d2525f6a18a77442dd272b까지 3개 커밋으로 main 대상 Draft PR #6(https://github.com/taeels/enode-fixup-project/pull/6)을 생성하고 head·base·Draft·OPEN 상태를 재조회해 확인했다. 기존 UI·queue 검증 기록과 실제 demo-back/하드웨어/방송 연결의 미완료 범위를 PR 본문에 적었다. 현재 로컬의 추가 테스트·계획 변경·영상 산출물은 커밋하거나 push하지 않았다. 제품 코드·브랜치·인덱스·담당 단계는 변경하지 않았으며 이 요청·결과만 담당 감사 로그에 덧붙였다. 장면 게이트 완료나 main 병합은 수행하지 않았다.
+
+---
+
+## queue 코멘트 정정과 sandbox 후속 검증 결과
+
+**Timestamp (기록 시각)**: 2026-09-09T01:34:05.658973+00:00
+
+**AI Response**: 담당 현재 상태와 설계 리뷰·FD/코드 계획·이전 obs 인수 기록의 오래된 대기 문구를 정리했다. queue·sandbox 승인 대기를 해제하고 실제 시나리오·방송·장비 장면은 남겼다. internal/api/demo_queue_test.go에서 내부 submitterKey→auth/postRuns→queue→공개 목록→승격의 이름 보존과 재접수 시 최초 이름 유지, 외부 헤더 무시를 검증했다. 전용 PostgreSQL 16.14 + scripts/testdb.sh에서 API 전체 140 통과·0 실패·0 스킵, API vet·glyphscan 89파일 통과. 실제 로컬 광고 API를 소비하는 브라우저에서 2D/3D sandbox 13개 단언 통과. 제품 표시 코드를 수정할 필요는 없었다. 담당 문서와 테스트를 기존 커밋·push 지시에 따라 같은 이메일로 unit/runixs-ui에 반영한다. main·공용 roster·pen과 미추적 영상 산출물은 수정하지 않았다.
+
+---

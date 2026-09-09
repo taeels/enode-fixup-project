@@ -1,7 +1,8 @@
 # runixs 상세 설계·구현 순서 검토
 
-**상태**: 2026-09-09 담당 설계 검토안. 공식 단계는 CONSTRUCTION의 Functional
-Design 검토다. 구현 계획도 함께 구체화했으며 제품 코드 생성은 아직 시작하지 않았다.
+**상태**: 담당 FD·두 코드 생성 계획은 2026-09-08T20:11:36Z 승인됐다.
+현재 CONSTRUCTION → Code Generation 진행 중이며 UI 1~8과 개선 구현을 완료했다.
+이 문서는 2026-09-09 queue 인수·sandbox 승인까지 반영한 현재 접점 상태다.
 
 ## 1. 검토할 결과
 
@@ -12,7 +13,7 @@ Design 검토다. 구현 계획도 함께 구체화했으며 제품 코드 생�
 | 제출 | POST /v1/demo/runs, scenario_id·submitter·request_id | 서버 allow-list·기존 submitter 연결 |
 | 재시도 | 같은 의도는 같은 Run, 미확인 자동 POST 없음 | 요청 상태·sessionStorage·기존 run_id 중복 처리 |
 | 웹캠 | 좌하단 정사각형 resize·zoom/pan/fit·미니맵, 브라우저 직접 임베드 | 정적 공개 설정·CSP의 정확한 frame origin |
-| Guest | 기존 이름·카드뉴스 흐름 보존, 훼손값만 복구 | 공유 helper의 좁은 변경 |
+| Guest | 한글 두 단어 이름으로 이전, 미확인 제출 의도의 이전 이름은 보존 | 2026-09-09 사용자 개선 구현·검증 완료 |
 
 세부 문서: [UI FD 계획](plans/ui-functional-design-plan.md),
 [demo-back FD 계획](plans/demo-back-functional-design-plan.md),
@@ -25,8 +26,8 @@ Design 검토다. 구현 계획도 함께 구체화했으며 제품 코드 생�
 | 입력 | 현재 근거/상태 | 영향 |
 |---|---|---|
 | obs 응답·공개 읽기 | 0a159a4 인수 완료 | UI 소비 구현 가능 |
-| queue | 현재 CreateQueuedRun/WakeQueued 없음 | demo-back의 실제 접수·CP2/9는 인수 뒤 |
-| sandbox 출처 | obs FD도 labels→capabilities[].attrs.sandbox 설명. 실제 설정값/진행자 확인 미수령 | 표시 모듈은 광고값/미제공을 처리, 공용 확정/실제 시연 증거는 남음 |
+| queue | PR #5/main@310c22d의 CreateQueuedRun·WakeQueued 인수 완료. 202·재접수·승격·목록 submitter 확인 | queue 대기 해제. [인수 증거](ui/code/queue-integration-review.md), 실제 demo POST 연결은 runixs 구현 범위 |
+| sandbox 출처 | capabilities[].attrs.sandbox의 능력별 광고값, 없으면 미제공. 사용자가 최태양님의 승인을 전달 | 출처 승인 대기 해제. 실제 장비 광고·격리 동작 검증은 별도 |
 | 고정 시나리오 | 현재 generic example 셋뿐, 실제 LED/음원 파일 미확인 | 두 공개 별칭/검증 경계 설계, 실제 계약 활성화는 파일 인수 뒤 |
 | 방송 | 호스트형 임베드라는 결정만 있음. 공급자·공개 embed 주소 미확인 | 영역/조작/설정 없음 상태는 구현 가능, 실제 플레이어·CSP·음성 검증은 인수 뒤 |
 
@@ -49,8 +50,10 @@ Design 검토다. 구현 계획도 함께 구체화했으며 제품 코드 생�
 - 공개 제출 한도는 읽기 버킷과 분리한 2 req/s·burst 4다. 공개 호출 반복을 제한하고
   관측 polling을 막지 않는다. 실제 동시 시연에서 검증한다.
 
-이번 검증은 요구/pen/코드 대조·문서 참조/표기·정규 요청 식별과 이름 경계의
-설계 검산이다. 실제 앱·DB 제출·브라우저·하드웨어 장면 통과는 아니다.
+최초 설계 검토의 검증은 요구/pen/코드 대조·문서 참조/표기·정규 요청 식별과
+이름 경계의 설계 검산이었다. 후속 실제 앱·DB·브라우저 검증은
+[queue 인수](ui/code/queue-integration-review.md)와 [UI 개선](ui/code/ui-feedback.md)에 있다.
+실제 하드웨어·방송을 포함한 공동 장면은 남아 있다.
 security-baseline의 관련 대응은 UI/business-rules와 demo-back/business-rules에 있다.
 disabled 확장과 SKIP 단계는 그대로다. 새로운 배포·인증 체계의 승인을 요청하지 않는다.
 
@@ -63,4 +66,4 @@ Q1. 위 담당 설계와 두 코드 생성 계획의 전체 순서로 진행하�
 담당 설계와 두 구현 계획의 순서를 승인했다. 공용 입력/외부 선행 조건은 유지한다.
 
 수정 요청은 이 문서와 해당 설계/계획에 반영한다. 승인 시 담당 설계의 검토 결과를
-기록하고 코드 생성 계획의 첫 실행 가능한 단계부터 진행한다.
+기록했다. 현재 코드 계획의 완료 체크와 남은 실제 입력을 기준으로 이어간다.

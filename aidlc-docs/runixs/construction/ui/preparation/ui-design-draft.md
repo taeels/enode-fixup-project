@@ -1,6 +1,8 @@
 # ui 설계 초안 — 실 함대 모드
 
-**범위**: obs 이전 사전 준비. 정식 Functional Design 리뷰 전이다.
+**범위**: obs 이전 사전 준비 당시의 초안이다. 후속 FD 승인·UI 구현·obs/queue
+인수·sandbox 출처 승인은 [현재 담당 상태](../../../aidlc-state.md)를 따른다.
+아래 미정·미구현은 이 초안 작성 시점의 기록이며 현재 대기 조건이 아니다.
 화면 번호·동작은 `design/README.md`, `requirements/enode-features.md` §3.1.1·3.2.3,
 `scene-gates.md` §2.1 에서 가져온다. API 데이터는 [계약표](api-contract.md)를 따른다.
 
@@ -73,7 +75,7 @@ HTTP 읽기 → 응답 계약 확인 → UI 내부 데이터 → 화면 렌더�
 6. **사람 대기**: ASKED 가 연결된 카드는 일반 lease 카운트다운 대신 질문 대기를
    보인다. deadline 이 없으면 남은 시간을 만들지 않고 asked_at 기준 경과 시간을
    보인다. 인박스 실패 시에도 ASKED 사실을 일반 실행으로 되돌리지 않는다.
-7. **미정 데이터**: sandbox 는 출처 미확인으로 남긴다. submitter 미노출과
+7. **당시 미정 데이터**: sandbox는 이후 FD에서 광고값/미제공 표시로 정하고 승인받았다. submitter 미노출과
    이름이 없는 과거 작업을 구별하는 정책은 D4 에서 닫는다.
 
 ## 5. 장애·보안·시간

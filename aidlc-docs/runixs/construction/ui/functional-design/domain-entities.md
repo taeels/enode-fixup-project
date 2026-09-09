@@ -57,10 +57,11 @@ ResourceState 는 nodes/runs/asks 와 상세 runId 별로 둔다. 데이터 없�
 값이 없으면 “미제공”이다. 노드 안의 능력마다 값이 다르면 각각 보인다.
 요구 능력의 sandbox 속성은 “요구 값”으로 별도 표시하고 노드 값으로 복사하지
 않는다. none/tools/os 를 강도 순으로 정렬하거나 격리 보장으로 바꾸지 않는다.
-출처 선택은 FD 결정안이며 실제 광고에 그 값이 있다는 검증은 obs 인수 때 한다.
+출처 선택은 사용자가 전달한 최태양님의 승인으로 확정했다(2026-09-09).
 obs의 승인된 FD도 같은 labels→capabilities[].attrs.sandbox 통로를 설명한다
 (`aidlc-docs/taeels/construction/obs/functional-design/business-rules.md`).
-실제 설정값과 roster의 진행자 확인은 [통합 입력](../../design-review.md)에 남겼다.
+실제 장비 설정·광고 대조는 [통합 입력](../../design-review.md)에 남겼다.
+출처 승인과 실제 장비 검증을 구분하며 roster는 진행자가 정리한다.
 
 **verdict (D3)**: 현재 `internal/store/verdict.go` 의 객체와
 `internal/store/reap.go` 의 Cancel 저장을 확인했다. 취소 사유는 checks 안의

@@ -4,10 +4,11 @@
 사용자가 승인한 사전 준비 범위를 기록한 계획은
 [`ui-preparation-plan.md`](../../plans/ui-preparation-plan.md)다.
 
-**후속 진행**: [W1 상세 설계 계획](../../plans/ui-functional-design-plan.md)과
-[코드 생성 계획](../../plans/ui-code-generation-plan.md)을 검토안으로 작성했다.
-이 디렉터리는 처음 준비한 계약 후보와 합성 자료를 보존한다. 현재 상태는 담당
-state와 새 설계에서 확인한다.
+**후속 진행**: [상세 설계](../../plans/ui-functional-design-plan.md)와
+[코드 생성 계획](../../plans/ui-code-generation-plan.md)은 승인됐고 UI 1~8을 구현했다.
+obs·queue 인수와 sandbox 출처 승인을 완료했다. 이 디렉터리는 준비 당시의 계약
+후보·합성 자료를 보존하며 현재 대기 조건이 아니다. [담당 현재 상태](../../../aidlc-state.md)와
+[queue 인수](../code/queue-integration-review.md)를 우선한다.
 
 ## 읽는 순서
 
@@ -20,7 +21,7 @@ JSON 은 저장소 루트 기준 `internal/api/ui/testdata/obs-contract/` 에 �
 공개되는 `static/` 과 분리했다. 실패한 실제 API 를 샘플 데이터로 대신하는
 동작이나 새 mock 서버는 만들지 않았다.
 
-## 지금 확인한 접점
+## 사전 준비 당시의 접점
 
 - `requires[].as` 와 `steps[].uses` 로 요구 능력과 단계를 잇는다.
 - ADR-069 의 `requires[].attrs` 예시는 중첩 객체지만 기존
@@ -28,9 +29,9 @@ JSON 은 저장소 루트 기준 `internal/api/ui/testdata/obs-contract/` 에 �
   확인해야 한다. 두 후보 JSON 을 제공하며 어느 쪽도 구현됐다고 주장하지 않는다.
 - `lease` 부재의 null/생략과 목록의 종료 `verdict` 형태는 obs 구현에서 확인한다.
 - `chosen` 이 없다고 false 로 간주하면 기존 서버의 미구현을 숨긴다.
-- `sandbox` 의 직접 읽기 출처는 현재 `internal/contract`·광고 타입에서 확인되지
-  않았던 미정이다. 후속 FD는 기존 capabilities[].attrs.sandbox를 명시적 광고 값으로
-  읽는 결정안을 냈다. 전용 서버 필드를 추가하지 않으며 실제 값 존재는 확인 전이다.
+- `sandbox`는 사전 준비 당시 출처 미정이었다. 후속 FD의
+  capabilities[].attrs.sandbox 광고값/미제공 표시안은 최태양님의 승인을 전달받았다.
+  전용 서버 필드를 추가하지 않으며 실제 장비 광고 대조는 공동 장면에 남아 있다.
 
 ## Codex 설정
 
@@ -43,7 +44,8 @@ AI-DLC v1.0.1 규칙은 `.aidlc/aidlc-rules/` 에 있고 Codex 진입점은 루�
 
 사전 준비의 검증은 샘플과 문서의 일관성까지다. 정식 Functional Design 리뷰,
 Code Generation, CP0·CP1·CP2·CP7 및 데모 게이트의 통과를 대신하지 않는다.
-obs 반영 뒤 `api-contract.md` 의 미정과 실제 응답을 대조하는 것이 다음 일이다.
+이후 obs·queue 응답 대조는 각각의 인수 기록에 남겼다. 공동 장면의 남은 조건은
+현재 담당 상태와 코드 계획을 따른다.
 
 ## 준비 산출물 검증 — 2026-09-08
 
