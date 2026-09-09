@@ -15,7 +15,7 @@
 [변경·검증 기록](construction/ui/code/ui-readability.md),
 [보완 계획](construction/plans/ui-readability-plan.md). 공식 Code Generation과
 기존 공동 장면 보류는 유지한다. 사용자 지시로 미리보기를 재개하고 코드 510c6a6·0b422a7을 push했다.
-[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)을 main 대상으로 열었다. 배포·병합 전이다.
+[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)은 main에 병합됐고 이번 rebase로 인수했다. 운영 배포 전이다.
 
 **로컬 실행 상태: 중지.** 사용자 지시로 실행 장소를 다른 호스트로 옮긴다.
 이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.
@@ -59,7 +59,7 @@ Run과 댓글 한 개로 완료됐으며 외부 URL 요청은 도구 호출 없�
 바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).
 실패한 다른 PC의 재시작 후 등록 성공은 아직 미확인이다.
 
-`unit/runixs-ui`는 최신 `origin/main@a5d62cf`를 통합했고 [PR #14](https://github.com/taeels/enode-fixup-project/pull/14)로 검토한다. 최신 자율 댓글 구현은 `f4a9b1b`이며 이후 입력칸 안내를 보완한다. enode 실행 노드 소스는 `56f2f99`와 같다. 아래는 앞선 Drain 인수 기록이다.
+`unit/runixs-ui`는 `origin/main@16ef08c`로 rebase했고 [PR #14](https://github.com/taeels/enode-fixup-project/pull/14)로 검토한다. transcript·UI 가독성·greet-play 예제를 인수했다. 운영 Mediator는 입력칸 안내까지 포함한 `b01274b`, VM enode는 `56f2f99`이며 이번 rebase의 추가 main 변경은 아직 운영에 배포하지 않았다. 아래는 앞선 Drain 인수 기록이다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
 404를 `/ui/` 리다이렉트로 보완해 push했다. 실제 Mac 노드의 at-boundary·graceful,

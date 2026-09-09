@@ -9,15 +9,16 @@
 
 | 검사 | 결과 |
 |---|---|
-| main 통합 | origin/main a5d62cf, panel·영상 문서 PR 인수 |
-| Mac mini 전체 Go -race -coverpkg=./... | 1,225 통과·실패/생략 0; Go 1.26.6·전용 PostgreSQL 16 |
+| main 통합 | origin/main 16ef08c로 rebase; transcript·UI 가독성·greet-play 예제 인수 |
+| Mac mini 전체 Go -race -coverpkg=./... | rebase 후 1,244 통과·실패/생략 0; Go 1.26.6·전용 PostgreSQL 16 |
+| rebase 후 패키지별 커버리지 | 18개 모두 80% 이상, 전체 86.56%; API 81.18%, UI 98.39%, enode 84.57%, panel 84.89% |
 | 제어판 검사 보완 | macOS stop 검사 20회 반복 통과; cmd/enode 진입점 추가 뒤 97.2% |
 | 자율 댓글 후 Go API/UI -race -cover | 통과; 81.2% / 98.4% |
 | Python 게시·MCP·서명·중복 경계 | 14개 통과 |
-| Node UI 전체 | 53개 통과·생략 0 |
-| vet·gofmt·glyphscan | 통과, glyphscan 100파일 |
+| Node UI 전체 | rebase 후 59개 통과·생략 0 |
+| vet·gofmt·glyphscan | rebase 후 통과, glyphscan 102파일 |
 | 운영 빌드 | macOS arm64 Mediator·enode·enodectl, Linux arm64 enode, Windows amd64 enode |
-| CI | f4a9b1b의 test·cross·bounded-demo 모두 통과; PostgreSQL 17, 패키지별 80%·skip 감시 포함 |
+| 이전 CI | f4a9b1b의 test·cross·bounded-demo 모두 통과; PostgreSQL 17, 패키지별 80%·skip 감시 포함. rebase 후 PR #14에서 재실행 |
 | 브라우저 mock | 1440px/390px 입력·게시·되묻기·거절·닫기·기존 시나리오·넘침/JS 오류 통과 |
 | 실제 Bedrock VM | MindCraft를 직접 찾아 글 조회·초안만 반환, 팀 미지정이면 목록 확인 후 되묻기 |
 | 공개 실제 연결 | 단일 메시지·새로고침·동일 Run 완료·실제 댓글·외부 요청 거절 통과 |
@@ -27,6 +28,16 @@
 복사에 포함해 생략을 없앴다. CI의 cmd/enode 75.4%는 새 panel 진입점의 검사가
 없었기 때문이었다. 설정/정책 오류·인증 없는 외부 바인딩·포트 충돌을 실제 진입점에서
 검사해 97.2%로 보완했다. 게이트 하한과 제품 제어판 코드는 바꾸지 않았다.
+
+## 16ef08c rebase 인수
+
+기존 PR #14를 최신 main 위로 재배치했다. upstream 제품 파일 17개는 main과
+바이트 단위로 같으며 갤러리 제품 코드는 이전 b01274b의 구현을 유지한다.
+감사 union 병합으로 뒤섞인 항목을 복원해 main 감사 원문 전체와 이전 브랜치의
+고유 21개 항목을 보존했다. 담당 상태의 PR #16 병합 여부와 Git/운영 버전을 구분했다.
+위 전체 Go·Python·Node·브라우저·5개 실행 파일 빌드는 rebase 뒤 다시 통과했다.
+이 검증은 별도 소스 복사와 테스트 DB에서 수행했고 실제 댓글을 추가 게시하지 않았다.
+운영 Mediator는 b01274b, VM enode는 56f2f99이며 추가 main 변경은 배포 전이다.
 
 ## 공개 실제 실행
 
@@ -68,6 +79,8 @@ worker에서 별도 게시 자격 증명을 읽을 수 없고, HMAC 위조 거�
 Git 제외 local/gallery-build-20260909의 integrated-build.txt, integrated-coverage.txt,
 go-autonomous.txt, node-autonomous.txt, autonomous-live-probe.jsonl,
 autonomous-public-e2e.json, autonomous-public-*.png와 운영 배포 기록이 증거다.
+rebase 후 node-rebased.txt, coverage-rebased.json과 Mac mini 격리 빌드 경로의
+integrated-tests.jsonl도 후속 검사 증거다.
 raw 요청 UUID·설정·자격 증명·바이너리는 Git/PR에 포함하지 않는다.
 
 수용된 security-baseline 범위와 예외를 유지한다. 고정 목적/URL·허용 도구·요청별
