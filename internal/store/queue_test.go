@@ -28,7 +28,8 @@ func qAdvert(nodeID string, attrs map[string]string) contract.Advert {
 func qContract(attrs map[string]string) contract.Contract {
 	return contract.Contract{
 		Requires: []contract.Require{{As: "b", Capability: contract.CapabilityAgentReason, Attrs: attrs}},
-		Steps:    []contract.Step{{ID: "one", Uses: "b", Agent: map[string]any{}}},
+		// run 단계다 — 빈 agent 맵은 JSON 왕복(runs.contract)에서 빠져 종류를 잃는다.
+		Steps: []contract.Step{{ID: "one", Uses: "b", Run: []string{"true"}}},
 	}
 }
 

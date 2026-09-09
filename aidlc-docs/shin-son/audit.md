@@ -147,3 +147,11 @@ Q3 A"
 **Context**: CONSTRUCTION - queue - Code Generation 승인 (Step 16) · Build and Test 대기(Postgres).
 
 ---
+
+## Build and Test — queue · Postgres 도착 · CP0
+**Timestamp**: 2026-09-09T00:47:40Z
+**User Input**: "끝"
+**AI Response**: Postgres.app(PostgreSQL 18.6) 이 55434 에 서고 DSN 이 붙는 것을 확인했다. 첫 실행에서 둘이 깨졌다 — 시험 픽스처의 단계가 JSON 왕복 뒤 종류를 잃는 것(Agent {} → Run ["true"]) · 409 를 기대하던 네 번째 시험 TestRelease_OnceReleasedAnotherCanTake(놓기 전 202 · 놓으면 기다리던 것이 같은 요청 안에서 RUNNING 으로 고침). 재실행: store · api · mediator 전부 통과. 전체 `go test ./... -coverpkg` — 열여섯 패키지 하한 80% 전부 통과(전체 87.0% · api 80.6% 로 여유 3 문장) · 스킵 0 · glyphscan 통과. 병렬 실행에서 enodectl 셋 · iapadapter 하나가 흔들렸으나 단독 통과 · 이 유닛 밖. 코드 요약 3절을 결과로 바꿨다. 커밋한다. 다음은 CP2 — 실제 노드를 이 기계에 띄워 scene-gates 3절의 명령을 돈다.
+**Context**: CONSTRUCTION - queue - Build and Test (CP0 통과 · CP2 준비).
+
+---

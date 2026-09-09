@@ -53,7 +53,7 @@ NFR Requirements 둘(`.../nfr-requirements/`) · 팩 `requirements/` · `CONVENT
 - [x] 2.2 갈래 B — api (4.B)
 - [x] 2.3 갈래 C — mediator (4.C) · match 주석
 - [x] 2.4 `go build ./...` · `go vet ./...` · `gofmt` · glyphscan · emphasis-check
-- [ ] 2.5 (미실행 — DSN 없음 · 2026-09-09T00:33:58Z) DSN 이 있으면 `go test ./internal/store ./internal/api ./cmd/mediator` · 커버리지 (6절).
+- [x] 2.5 (실행 2026-09-09T00:47:40Z · 전부 통과 · 커버리지 하한 통과) DSN 이 있으면 `go test ./internal/store ./internal/api ./cmd/mediator` · 커버리지 (6절).
       없으면 「미실행」으로 적고 사용자에게 알린다 — 통과라고 적지 않는다
 - [x] 2.6 코드 요약(냄) · 상태 · 감사 갱신.  커밋은 승인 뒤 — 코드 요약 `construction/queue/code/code-summary.md` · `aidlc-state.md` · `audit.md` · 커밋
 

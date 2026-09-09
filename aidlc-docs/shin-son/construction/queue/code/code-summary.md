@@ -72,7 +72,7 @@ AI-DLC Construction · **queue 유닛**(W1 · CP2)의 Code Generation Part 2 산
                             0 이면 한 시간(설정 기본값과 같다).  nonce 는 store 의 것을 쓴다
 ```
 
-## 3. 재는 것 — 실행한 것과 못 한 것
+## 3. 재는 것 — 결과 (2026-09-09T00:47:40Z · PostgreSQL 18.6 Postgres.app · 포트 55434)
 
 ```text
    go build ./...                       통과
@@ -80,20 +80,30 @@ AI-DLC Construction · **queue 유닛**(W1 · CP2)의 Code Generation Part 2 산
    gofmt -l                             빈 출력
    go run ./scripts/glyphscan.go        87 파일 · 장식 문자 0
    크로스 빌드 4 (linux/arm64 · linux/amd64 · windows/amd64 · darwin/arm64)   통과
-   DB 안 쓰는 패키지 go test             전부 통과.  cmd/enodectl 의 TestCmdStart_ 셋이 전체 병렬
-                                        실행에서 한 번 깨졌으나 단독 재실행과 main 워크트리에서 통과 —
-                                        노드가 뜨길 기다리는 시험이 부하에 흔들린 것이고 이 유닛의
-                                        변경 밖(cmd/enodectl · internal/enode 무변경)
-
-   미실행 — Postgres 없음
-     internal/store  queue_test.go 아홉 + 기존 전부     ENODE_TEST_DATABASE_URL 이 없다
-     internal/api    queue_test.go 일곱 + 수정 셋 + 기존   (NFR 답 3=A · 사용자가 깐다)
-     cmd/mediator    wakeQueuedAtStart 둘 + 기존
-     커버리지 80% · CP0 전체 · CP2
+   go test ./internal/store ./internal/api ./cmd/mediator -count=1            전부 통과 (시험 열여덟 포함)
+   go test ./... -coverpkg=./... (ci.yml:269 의 awk)   열여섯 패키지 전부 하한 80% 통과 · 전체 87.0%
+                                        internal/api 80.6% (408/506) · internal/store 82.1% · cmd/mediator 96.4%
+   스킵                                  0
 ```
 
-**통과라고 적지 않는다.** DSN 이 오면 `eval "$(scripts/testdb.sh)" && go test ./... -count=1`
-과 ci.yml:269 의 커버리지 awk 를 돌리고 이 절을 고친다.
+**전체 병렬 실행에서 넷이 한 번 깨졌고 단독 재실행에서 전부 통과했다** —
+`cmd/enodectl` 의 `TestCmdStart_` 셋과 `cmd/iapadapter` 의
+`TestAdapter_HandleNewWorkDoesNotSubmitBeforeTheFleetSeesTheNode`. 넷 다 1초 안에
+프로세스나 함대가 서길 기다리는 시험이고 이 유닛이 만지지 않은 패키지다(`main`
+워크트리에서도 같은 조건에서 통과). 기록만 한다 — 이 유닛의 것이 아니다.
+
+**첫 실행에서 잡은 것 둘** (같은 커밋에서 고쳤다)
+- 시험 픽스처의 단계가 `Agent: {}` 라 `runs.contract` 의 JSON 왕복에서 빠져 종류를
+  잃었다 — `Run: ["true"]` 로. 승격이 계약을 DB 에서 다시 읽는다는 사실을 시험이 잡았다.
+- 409 를 기대하는 네 번째 시험 `TestRelease_OnceReleasedAnotherCanTake` — 놓기 전엔
+  202 로 기다리고, 놓으면 기다리던 것이 같은 요청 안에서 잡는 것으로 고쳤다.
+  부분 반납 지점의 깨우기를 재는 시험이 됐다.
+
+**internal/api 가 80.6% 로 하한에 가깝다.** 이 유닛이 더한 문장은 전부 덮였고
+여유는 3 문장이다 — 뒤에 이 패키지를 만지는 유닛(demo-back · mcp)이 시험 없이
+문장을 더하면 미달이 된다. 진행자에게 넘긴다(5절).
+
+**CP2 는 아직이다** — 실제 노드가 필요하다. 결과는 이 절 아래에 잇는다.
 
 ## 4. 시험 — 이름과 재는 것
 
@@ -120,5 +130,5 @@ AI-DLC Construction · **queue 유닛**(W1 · CP2)의 Code Generation Part 2 산
    ②  api_test.go 의 셋이 202 를 기대한다.  「기존 라우트 회귀」의 뜻이 「팩이 바꾼 것 빼고」다
    ③  WakeQueued 의 반환이 Woken 이다.  drain(W2)이 at-boundary 취소 뒤에 부를 때 그 모양이다 —
       다만 Cancel 이 이미 안에서 깨우므로 drain 은 Cancel 만 부르면 된다
-   ④  시험 미실행.  PR 전에 이 기계나 CI 에서 돈다
+   ④  internal/api 커버리지 80.6% — 여유 3 문장.  뒤 유닛이 시험 없이 문장을 더하면 미달
 ```

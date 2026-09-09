@@ -1863,24 +1863,22 @@ func TestRelease_OnceReleasedAnotherCanTake(t *testing.T) {
 	do(t, srv, "POST", "/v1/nodes/r1/claim", "", nil)
 	do(t, srv, "POST", "/v1/runs/rel1/steps/1/result", `{"node":"r1","exit_code":0}`, nil)
 
-	// 아직 안 놓았다 — 다른 Run 이 r1 을 못 잡는다 (I1).
-	// run_id 를 갈라 쓴다 — 409 로 거절된 Run 도 FAILED 로 기록되므로
-	// (INVARIANTS §2 의 ALLOCATING → FAILED), 같은 id 를 다시 내면 멱등 규칙이
-	// 그 FAILED 를 200 으로 돌려준다. 여기서 보려는 것은 점유이지 멱등이 아니다.
-	other := func(id string) string {
-		return contractJSON(id, []map[string]any{req("b", map[string]any{"role": "x"})},
-			[]map[string]any{runStep("solo", "b")})
-	}
-	if code, _ := do(t, srv, "POST", "/v1/runs", other("rel-before"), nil); code != 409 {
-		t.Fatalf("another took it before the release: %d — I1 wobbles", code)
+	// 아직 안 놓았다 — 다른 Run 이 r1 을 못 잡는다 (I1). 죽지 않고 기다린다
+	// (202 · QUEUED · ADR-064). 같은 id 를 다시 내면 멱등 규칙이 그 QUEUED 를
+	// 200 으로 돌려주므로 run_id 를 갈라 쓴다 — 보려는 것은 점유이지 멱등이 아니다.
+	other := contractJSON("rel-before", []map[string]any{req("b", map[string]any{"role": "x"})},
+		[]map[string]any{runStep("solo", "b")})
+	if code, body := do(t, srv, "POST", "/v1/runs", other, nil); code != 202 || body["state"] != "QUEUED" {
+		t.Fatalf("another took it before the release: %d %v — I1 wobbles", code, body)
 	}
 
 	do(t, srv, "POST", "/v1/nodes/r2/claim", "", nil)
 	do(t, srv, "POST", "/v1/runs/rel1/steps/2/result", `{"node":"r2","exit_code":0}`, nil)
 
-	// 놓았으므로 남이 잡는다
-	if code, _ := do(t, srv, "POST", "/v1/runs", other("rel-after"), nil); code != 201 {
-		t.Fatalf("released, yet another cannot take it: %d", code)
+	// 놓았으므로 기다리던 것이 잡는다 — 결과 보고가 돌아온 그 자리에서다
+	// (부분 반납 지점의 깨우기 · 같은 트랜잭션).
+	if _, run := do(t, srv, "GET", "/v1/runs/rel-before", "", nil); run["state"] != "RUNNING" {
+		t.Fatalf("released, yet the waiter did not take it: %v", run["state"])
 	}
 }
 

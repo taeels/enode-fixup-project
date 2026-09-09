@@ -658,7 +658,7 @@ func queuedContract() contract.Contract {
 	return contract.Contract{
 		Requires: []contract.Require{{As: "b", Capability: contract.CapabilityAgentReason,
 			Attrs: map[string]string{"harness": "claude"}}},
-		Steps: []contract.Step{{ID: "one", Uses: "b", Agent: map[string]any{}}},
+		Steps: []contract.Step{{ID: "one", Uses: "b", Run: []string{"true"}}},
 	}
 }
 
