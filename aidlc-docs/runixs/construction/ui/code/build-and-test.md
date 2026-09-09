@@ -1,5 +1,10 @@
 # UI 코드 생성 중 검증 기록
 
+**후속 진행 — 2026-09-09**: 진행자 c7a237d의 실제 LED/음원 fixture를 인수하고
+공개 demo-back 구현·API/DB/UI 연동을 완료했다. 아래 이전 픽스처/라우트 대기는
+[최신 demo-back 구현·검증](../../demo-back/code/implementation-summary.md)으로 대체한다.
+실제 장비·방송 공동 장면은 남아 있다.
+
 2026-09-09 · `unit/runixs-ui` · 구현 기준 `0a159a4`.
 공식 단계는 Code Generation이다. 승인된 코드 계획 10의 사전 검증이며,
 외부 입력이 필요한 공동 Build and Test 장면을 통과했다고 기록하지 않는다.

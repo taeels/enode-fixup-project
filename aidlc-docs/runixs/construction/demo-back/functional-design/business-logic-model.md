@@ -1,6 +1,6 @@
 # demo-back 업무 흐름
 
-**상태**: 검토안. `Config.Demo`와 obs의 기존 submitter 연결을 재사용한다.
+**상태**: 구현 완료, 실제 픽스처 c7a237d 연결. `Config.Demo`와 obs의 기존 submitter 연결을 재사용한다.
 
 1. 데모 모드일 때만 POST 라우트를 등록한다. 전용 요청 한도를 먼저 적용한다.
 2. 본문 크기·Content-Type·단일 JSON·세 필드의 형식을 검증한다.

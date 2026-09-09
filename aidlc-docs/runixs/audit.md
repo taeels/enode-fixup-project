@@ -732,3 +732,53 @@ runixs 기록은 전부 "CreateQueuedRun·WakeQueued 는 아직 없다" 기준�
 **AI Response**: 담당 현재 상태와 설계 리뷰·FD/코드 계획·이전 obs 인수 기록의 오래된 대기 문구를 정리했다. queue·sandbox 승인 대기를 해제하고 실제 시나리오·방송·장비 장면은 남겼다. internal/api/demo_queue_test.go에서 내부 submitterKey→auth/postRuns→queue→공개 목록→승격의 이름 보존과 재접수 시 최초 이름 유지, 외부 헤더 무시를 검증했다. 전용 PostgreSQL 16.14 + scripts/testdb.sh에서 API 전체 140 통과·0 실패·0 스킵, API vet·glyphscan 89파일 통과. 실제 로컬 광고 API를 소비하는 브라우저에서 2D/3D sandbox 13개 단언 통과. 제품 표시 코드를 수정할 필요는 없었다. 담당 문서와 테스트를 기존 커밋·push 지시에 따라 같은 이메일로 unit/runixs-ui에 반영한다. main·공용 roster·pen과 미추적 영상 산출물은 수정하지 않았다.
 
 ---
+
+## 영상 별도 세션 병렬 작업 가능 여부
+
+**Timestamp (기록 시각)**: 2026-09-09T01:41:46.749631+00:00
+
+**User Input**:
+
+```text
+다음 구현 진행하기 전에, 동영상 제작관련해서는 다른 세션에서 병렬로 진행해도 괜찮아??? conflic없어?
+```
+
+**AI Response**: 영상 파일은 output/enode-video, 별도 계획은 construction/video 아래이며 제품 구현과 파일 범위를 나눌 수 있음을 확인했다. 별도 영상 브랜치·워크트리를 권장한다. 영상 산출물은 미추적이므로 새 워크트리에 자동으로 나타나지 않아 복사 인수가 필요하다. 같은 체크아웃에서는 Git 인덱스·브랜치와 파일을 공유하므로 두 세션의 커밋/rebase가 충돌할 수 있다. 영상 전용 파일과 기록은 영상 세션, 제품 코드·담당 통합 state/audit는 현재 세션이 맡는 경계를 제안한다. UI 캡처는 특정 커밋 기준으로 고정하고 실제 제출 연동 장면은 demo-back 구현 뒤 갱신한다. 이 질문만으로 영상 생성이나 유료 요청을 재개하지 않았다.
+
+---
+
+## 담당 구현 우선·영상 순연과 demo-back 공통 구현 재개
+
+**Timestamp (기록 시각)**: 2026-09-09T01:45:24.968335+00:00
+
+**User Input**:
+
+```text
+그건 이미 이 worktree에 작업이 되어있어서 힘들고, 일단 구현 부터하고 내 할당일을 다 처리한 후에 작업하자.ㅏ
+```
+
+**AI Response**: 현재 워크트리에서 runixs 배정 구현을 먼저 진행하고 영상은 그 뒤로 미룬다는 지시다. 영상 파일은 이동하지 않고 보존한다. main@310c22d의 obs·queue를 인수했으므로 기존 승인된 demo-back 설계의 공통 백엔드를 구현한다. 앞선 계획이 실제 픽스처 인수를 모든 코드 생성의 앞에 둬 과도하게 대기하던 순서를 보완한다. 입력 검증·같은 의도 식별·전용 한도·서버 토큰/submitterKey·기존 submit 연결을 먼저 구현하고 실제 픽스처 인수는 활성화 및 공동 장면의 조건으로 유지한다. 승인된 FD의 미설정 503을 구현하므로 임의 하드웨어 계약이나 새 설정 경로를 만들지 않는다. 성공/queue 경로는 테스트 전용 기존 generic example으로 실제 DB에서 검증하고 실제 하드웨어 증거와 구분한다.
+
+---
+
+## 진행자가 추가한 실제 데모 픽스처 인수
+
+**Timestamp (기록 시각)**: 2026-09-09T01:51:59.901225+00:00
+
+**User Input**:
+
+```text
+내 PR위에 팀장님이 커밋을 추가하셨다는데 그거 가져와서 반영하자.
+```
+
+**AI Response**: PR #6의 origin/unit/runixs-ui에 taeels의 c7a237d가 추가된 것을 fetch로 확인했다. 변경은 진행자 README와 실제 example 두 파일이다. 현재 demo-back 작업 파일과 겹치지 않아 fast-forward했고 진행 중 6개 파일의 SHA-256이 그대로임을 확인했다. LED는 heartbeat→persistent 한 Run, 음원은 mac synthesize→board play와 봉인 blob이다. 이름은 synthesize.in.prompt의 정확한 자리표시자 한 곳에만 주입한다. Work는 승인된 제출 계약대로 요청별 manual 식별로 준비하고 원본 계약의 requires·needs·success_when·실행 argv와 기본 run ledger 범위를 보존한다. 실제 고정 매핑을 활성화하고 example·서버·UI 통합 검증을 다시 진행한다. 하드웨어 명령/송출 운영은 진행자 README의 담당 범위에 남긴다.
+
+---
+
+## 실제 demo-back 구현·연동 검증 결과
+
+**Timestamp (기록 시각)**: 2026-09-09T01:59:44.928902+00:00
+
+**AI Response**: c7a237d 위에서 demo.go와 회귀 테스트를 작성하고 api.go에 데모 전용 등록 3줄을 추가했다. 두 실제 example·정확한 prompt 이름 주입·본문/형식/같은 의도 식별·전용 한도·서버 토큰·기존 submit/queue 연결을 구현했다. 표준 Go 전체 1,173 통과·실패/스킵 0, 16패키지 80% 이상(api 84.539%, demo.go 96.0%). 동시 4개 재시도 race·vet·전체/교차 빌드·govulncheck 통과. 로컬 시험 도구가 탐색에 포함되던 예비 검사는 모듈 경계로 분리하고 16제품패키지 기준으로 재실행했다. 실제 Handler+fixture+로컬 광고+DB의 브라우저에서 LED 201·음원 202·승격·이름/claim·3D·목록을 검증했다. 최종 화면에서 승격 뒤 낡은 QUEUED 안내가 남는 것을 발견해 demo.js에서 관측 후 숨기도록 수정하고 Node 46·Go UI 98.4%·브라우저 14개 단언을 재검증했다. 테스트 유발 probe.lock PID는 3671709로 복구했다. 구현/검증 문서와 계획·상태를 갱신한다. 기존 커밋·push 지시에 따라 동일 이메일로 담당 브랜치에 반영하고 PR #6의 설명을 최종 범위로 갱신하되 Draft를 유지한다. 문태호의 보드/스피커 래퍼, 손신의 mac Claude+higgsfield, 최태양의 공개 webcam URL 및 실제 공동 장면은 남아 있다. 영상·공용 상태·진행자 fixture 원문은 보존했다.
+
+---

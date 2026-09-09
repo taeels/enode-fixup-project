@@ -1,5 +1,10 @@
 # queue 병합 인수 — 2026-09-09
 
+**후속 진행 — 2026-09-09**: 진행자 c7a237d의 실제 LED/음원 fixture를 인수하고
+공개 demo-back 구현·API/DB/UI 연동을 완료했다. 아래 이전 픽스처/라우트 대기는
+[최신 demo-back 구현·검증](../../demo-back/code/implementation-summary.md)으로 대체한다.
+실제 장비·방송 공동 장면은 남아 있다.
+
 **최신 접점 상태**: queue 인수 완료, sandbox 출처 승인 수령. 2026-09-09 팀 코멘트 뒤
 내부 submitterKey부터의 회귀 테스트와 sandbox 브라우저 확인을 §후속 확인에 추가했다.
 

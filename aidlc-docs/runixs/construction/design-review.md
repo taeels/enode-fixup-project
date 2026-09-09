@@ -28,7 +28,7 @@
 | obs 응답·공개 읽기 | 0a159a4 인수 완료 | UI 소비 구현 가능 |
 | queue | PR #5/main@310c22d의 CreateQueuedRun·WakeQueued 인수 완료. 202·재접수·승격·목록 submitter 확인 | queue 대기 해제. [인수 증거](ui/code/queue-integration-review.md), 실제 demo POST 연결은 runixs 구현 범위 |
 | sandbox 출처 | capabilities[].attrs.sandbox의 능력별 광고값, 없으면 미제공. 사용자가 최태양님의 승인을 전달 | 출처 승인 대기 해제. 실제 장비 광고·격리 동작 검증은 별도 |
-| 고정 시나리오 | 현재 generic example 셋뿐, 실제 LED/음원 파일 미확인 | 두 공개 별칭/검증 경계 설계, 실제 계약 활성화는 파일 인수 뒤 |
+| 고정 시나리오 | 진행자 c7a237d의 demo-led-toggle·demo-welcome-audio 인수·검증 완료 | 두 공개 별칭 연결·이름 주입·API/DB/UI 검증 완료. 실제 장비 동작은 공동 검증 |
 | 방송 | 호스트형 임베드라는 결정만 있음. 공급자·공개 embed 주소 미확인 | 영역/조작/설정 없음 상태는 구현 가능, 실제 플레이어·CSP·음성 검증은 인수 뒤 |
 
 진행자와의 확인을 runixs의 승인으로 대신하지 않는다. 위 대기 조건이 남아 있어도

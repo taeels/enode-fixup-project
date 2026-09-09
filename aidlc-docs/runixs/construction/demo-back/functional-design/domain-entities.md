@@ -1,6 +1,6 @@
 # demo-back 자료 모델
 
-**상태**: 검토안. 추가 테이블 없이 기존 Contract·Run·submitter를 사용한다.
+**상태**: 승인된 설계로 구현했다. 추가 테이블 없이 기존 Contract·Run·submitter를 사용한다.
 wire 값은 [제출 계약](submission-contract.md)이 정한다.
 
 | 자료 | 값 | 소유와 수명 |

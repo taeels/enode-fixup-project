@@ -1,7 +1,7 @@
 # 공개 데모 제출 계약 — ui · demo-back 공동 검토안
 
 **상태**: 담당 설계안. 경로·입력·오류·재시도 규칙을 이 문서 한 곳에서 정의한다.
-현재 서버에 이 라우트가 있다는 뜻은 아니다. 기준 구현은 queue 병합 `310c22d`다. UI 변경 계약은 2026-09-09 개선 요청을 반영했다.
+라우트 구현 상태는 담당 코드 계획에 기록한다. 기준 구현은 queue 병합 `310c22d`다. UI 변경 계약은 2026-09-09 개선 요청을 반영했다.
 
 ## 1. 요청
 
@@ -79,10 +79,20 @@ GET detail·목록을 다시 읽는다. 목록에 없는 접수 결과를 실제
 ## 4. 시나리오 연결의 선행 조건
 
 공개 별칭은 임의 `contract.Example(name)` 호출로 전달하지 않는다. 별도 고정
-매핑의 승인된 example과 이름 주입 함수만 실행한다. 현재 examples에는
-agent·command·multi만 있고, 실제 LED/음원 예제는 확인하지 못했다.
+매핑의 승인된 example과 이름 주입 함수만 실행한다. 진행자 c7a237d의
+`demo-led-toggle`·`demo-welcome-audio`를 각 공개 별칭에 매핑한다.
 
-진행자가 준 파일에서 requires·steps·needs·success_when·음원 blob 경로를 검토한다.
-LED의 heartbeat/persistent-on 두 계약을 한 버튼에 어떻게 연결할지는 픽스처를
-받아 확정한다. 서버 메모리의 번갈아 선택이나 추측한 하드웨어 명령은 만들지 않는다.
+진행자 README와 두 파일을 인수했다. LED 한 Run이 heartbeat→persistent를
+수행한다. 음원은 synthesize→play이며 needs와 in.from의 welcome.wav를 보존한다.
+이름은 synthesize.in.prompt의 `{{submitter}}` 한 곳에만 넣는다. 해당 단계·문자열·
+단일 자리표시자가 없으면 503으로 막는다. 실행 argv나 파일 경로를 이름으로 바꾸지 않는다.
+두 파일은 ledger가 없어 기존 run 범위가 유지되며 Work는 요청별 manual 식별이다.
 픽스처/주입 검증이 안 된 항목은 503 `demo scenario is not configured`로 막는다.
+
+## 구현·인수 결과 — 2026-09-09
+
+obs·queue 뒤 공통 HTTP 경로를 구현했고, 사용자 요청으로 PR #6에 추가된
+진행자 c7a237d를 인수해 실제 매핑까지 활성화했다. 별도 파일 경로·환경변수·
+브라우저 설정으로 임의 계약을 활성화하는 통로는 없다.
+[구현·검증 기록](../code/implementation-summary.md)에 실제 fixture의 API/DB/UI
+검증과 아직 남은 실제 LED/음원 실행·방송 장면을 구분한다.

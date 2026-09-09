@@ -1,5 +1,10 @@
 # UI 구현 결과 — 실 함대·공개 데모
 
+**후속 진행 — 2026-09-09**: 진행자 c7a237d의 실제 LED/음원 fixture를 인수하고
+공개 demo-back 구현·API/DB/UI 연동을 완료했다. 아래 이전 픽스처/라우트 대기는
+[최신 demo-back 구현·검증](../../demo-back/code/implementation-summary.md)으로 대체한다.
+실제 장비·방송 공동 장면은 남아 있다.
+
 2026-09-09, `unit/runixs-ui`, 기준 `origin/main@0a159a4`.
 사용자의 “응 시작해”(2026-09-08T20:11:36Z)가 승인한
 [11단계 코드 계획](../../plans/ui-code-generation-plan.md)의 1~8을 구현했다.
