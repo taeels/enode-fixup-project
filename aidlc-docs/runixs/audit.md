@@ -1816,3 +1816,9 @@ MERGEABLE이며 head는 `d09d71e`다. 계획의 PR 제출 단계를 완료 처�
 **Timestamp**: 2026-09-09T07:15:43Z
 
 **Decision**: main의 YouTube 설정 인수 후 고정된 CSP 테스트 기대값이 실패해 데모 HTML에서 설정의 정확한 embed origin만 허용하는 기대값으로 보완했다. production CSP는 바꾸지 않았다. 최종 Go UI race 98.4%, vet·Mediator 빌드가 통과했다. iframe까지 localStorage를 초기화하던 로컬 브라우저 harness를 최상위 프레임에 한정한 뒤 네 환경 검증도 통과했다. 앞선 검증 기록은 재통과까지 포함한 최종 결과이며 실패 원인을 여기 명시한다. 최신 origin/main bc6476b의 PR #24는 recipes만 바꾸고 UI/API/설정을 바꾸지 않아 재실행 대신 diff로 영향 범위를 확인했다. 이 main까지 인수하고 담당 FD·구현·검증·상태 문서와 함께 PR을 제출한다.
+
+## 원격 장비 UI PR 제출과 운영 적용 완료
+
+**Timestamp**: 2026-09-09T07:17:15.601669+00:00
+
+**Decision**: origin/main bc6476b까지 rebase하고 작성자 runixs92@gmail.com으로 브랜치를 push해 PR #26(https://github.com/taeels/enode-fixup-project/pull/26)을 제출했다. OPEN·MERGEABLE이며 제출 당시 CI는 진행 중이다. 코드 5472651을 Mac mini의 독립 경로에서 빌드한 뒤 관리 중인 Mediator를 교체·재시작했다. 새 PID 69797, 기존 터널 PID 70718, 백업 backup-server-update-20260909T071703Z다. 설정·DB·VM·공개 주소를 보존했다. 운영 추가 검사는 사용자 지시대로 생략했다. 담당 계획을 완료 처리하고 실제 결과를 state·구현 기록에 남겼다. 공동 CP6/CP10과 main 미병합 상태는 별도로 유지한다.

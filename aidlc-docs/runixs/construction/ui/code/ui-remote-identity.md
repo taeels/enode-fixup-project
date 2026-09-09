@@ -54,3 +54,16 @@ iframe 내부에서 storage를 만지던 로컬 브라우저 harness도 최상�
 근거는 Git 제외 `local/gallery-build-20260909/identity-node-tests.txt`,
 `browser-identity.cjs`와 `identity-*.png`다. 운영 적용은 추가 검사 없이 빌드·교체한다.
 기존 공동 CP6/CP10은 별도 미완료다.
+
+## 통합·PR·운영 적용
+
+최신 main `bc6476b`까지 rebase했다. 추가된 pi-stage 변경은 recipes뿐이며
+UI/API/설정에 변경이 없어 이미 통과한 검사를 반복하지 않았다. 작성자 이메일은
+`runixs92@gmail.com`이다. [PR #26](https://github.com/taeels/enode-fixup-project/pull/26)을
+main 대상으로 제출했다. 제출 시 OPEN·MERGEABLE, CI는 진행 중이다.
+
+2026-09-09T07:17:15Z에 코드 `5472651`을 SSH로 Mac mini의 독립 소스 경로에서
+빌드하고 관리 중인 Mediator를 교체·재시작했다. 새 PID 69797, 기존 터널 PID
+70718을 유지했다. 백업은 `backup-server-update-20260909T071703Z`다.
+설정·DB·VM enode·터널 주소를 유지했으며 운영 추가 검사는 하지 않았다.
+운영 빌드/교체 성공은 실제 하드웨어·방송 장면 검증을 뜻하지 않는다.

@@ -28,10 +28,15 @@ board/device=led/speaker는 연결 장치 광고다. Windows+board 광고를 Ras
 - [x] 3. `scene.mjs`, `view.mjs`, `fleet.css`에서 함대/Run 카드·목록·상세·간선·반응형 배치를 연결.
 - [x] 4. `demo/submission.mjs`, `demo.css`에서 원격 실행 가치와 장비 경로가 드러나는 카드 설명을 추가.
 - [x] 5. 같은/다른 호스트·VM·연결 보드·미관측·지연·DAG와 desktop/mobile 2D/3D를 검증.
-- [ ] 6. 담당 FD/state/audit·검증 기록 갱신, 커밋·PR·Mac mini 운영 반영.
+- [x] 6. 담당 FD/state/audit·검증 기록 갱신, 커밋·PR·Mac mini 운영 반영.
 
 UI 범위에서 API/DB/enode 광고와 계약 ID·인증을 변경하지 않는다. 추측한 실명이나
 장비 모델을 하드코딩하지 않는다. Gallery 이름 복원을 유지한다.
 운영 업데이트는 기존 지시에 따라 추가 검사 없이 빌드·교체한다. 개발 검증은
 fixture로만 수행하고 실제 작업을 제출하지 않는다. 기존 보안 확장·비활성 확장·
 공동 CP6/CP10 보류를 계승한다.
+
+최신 `origin/main@bc6476b`를 rebase하고
+[PR #26](https://github.com/taeels/enode-fixup-project/pull/26)을 제출했다.
+코드 `5472651`을 Mac mini에서 빌드·교체·재시작했다. 운영 추가 검사는 생략했다.
+PR 제출·배포는 main 병합이나 공동 장면 게이트 완료와 구분한다.
