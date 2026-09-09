@@ -1,0 +1,36 @@
+[Unit]
+Description=Confirmed hackathon comment publisher
+After=network-online.target enode-egress.service
+Requires=enode-egress.service
+
+[Service]
+Type=simple
+User=enode-gallery
+Group=enode-gallery
+SupplementaryGroups=enode-worker
+ExecStart=/usr/bin/python3 /opt/enode/gallery/broker.py
+WorkingDirectory=/opt/enode/gallery
+RuntimeDirectory=enode-gallery
+RuntimeDirectoryMode=0755
+StateDirectory=enode-gallery
+StateDirectoryMode=0700
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=192M
+TasksMax=32
+UMask=0077
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

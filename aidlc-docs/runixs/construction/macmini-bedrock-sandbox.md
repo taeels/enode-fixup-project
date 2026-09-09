@@ -29,7 +29,10 @@ enode systemd 서비스는 권한 상승 금지, Linux capability 제거, 시스
 전용, 홈 디렉터리 보호, 개별 임시 디렉터리·장치 제한과 자원 한도를 적용한다.
 
 작업 UID의 외부 연결은 nftables로 차단하고 로컬 HTTPS CONNECT 프록시만 허용한다.
-프록시는 현재 Mediator 호스트와 해당 리전 Bedrock 두 호스트의 443 연결만 받는다.
+프록시는 명시적으로 허용한 호스트의 443 연결만 받는다. 초기 목록은 현재
+Mediator와 해당 리전 Bedrock 두 호스트였으며, 후속 사용자 요청으로
+`main.d3gkmtkue9o7ly.amplifyapp.com` 하나를 추가했다.
+[갤러리 연결·실제 댓글 검증](hackathon-gallery-integration.md)에 근거를 기록했다.
 목적지 DNS 결과도 전역 IP인지 검사한다. 호스트 사설망과 일반 인터넷에 직접
 연결하는 기능은 이 노드에서 사용할 수 없다.
 

@@ -38,6 +38,8 @@ type Config struct {
 	// 이 필드는 접점이다 — 데모 쓰기 라우트를 여는 demo-back 이 같은
 	// 스위치를 읽는다. 담당이 갈리므로 진행자의 직렬 병합 대상이다.
 	Demo bool `yaml:"demo"`
+	// DemoGallery opens the bounded gallery demo only when Demo is also enabled.
+	DemoGallery bool `yaml:"demo_gallery"`
 }
 
 type Database struct {
