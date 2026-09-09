@@ -1,0 +1,25 @@
+#!/bin/sh
+# enode-demo-play <file>
+#
+# 데모 픽스처(demo-welcome-audio)의 play 스텝이 부르는 명령이다. 파일을 파이로 올려
+# 3.5mm 잭(card 1)으로 틀고 지운다. 확장자가 재생기를 고른다 — wav 는 aplay,
+# mp3 는 mpg123. aplay 는 mp3 를 못 읽고 장치 플래그도 -D 와 -a 로 다르다.
+#
+# 파이 주소와 카드는 환경변수로 덮는다. 기본은 mDNS 이름이다 — 주소도 서브넷도
+# 안 들어가서 기계가 바뀌어도 그대로 붙는다 (recipes/pi-stage/README.md).
+set -eu
+f=${1:?usage: enode-demo-play <file>}
+target=${ENODE_PI_TARGET:-sunny@sunnypi.local}
+card=${ENODE_PI_CARD:-1}
+[ -r "$f" ] || { echo "enode-demo-play: cannot read $f" >&2; exit 2; }
+case "$f" in
+  *.mp3) player="mpg123 -q -o alsa -a plughw:$card,0"; ext=mp3 ;;
+  *.wav) player="aplay -q -D plughw:$card,0";           ext=wav ;;
+  *) echo "enode-demo-play: unsupported extension: $f (use .mp3 or .wav)" >&2; exit 2 ;;
+esac
+# 지난 시도가 남긴 파일이 덮어쓰기를 막은 적이 있다. 이름을 매번 새로 짓는다.
+dest="/tmp/enode-demo-$(date +%Y%m%d%H%M%S)-$$.$ext"
+scp -q -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$f" "$target:$dest"
+# 볼륨은 멱등하게 올린다 — 한 번 -19.88dB 로 exit 0 이 난 적이 있다.
+ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$target" \
+  "amixer -c $card sset PCM 100% unmute >/dev/null 2>&1; $player '$dest'; rc=\$?; rm -f '$dest'; echo played=$ext card=$card rc=\$rc; exit \$rc"
