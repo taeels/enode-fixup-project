@@ -197,3 +197,27 @@ Q3 A"
 **Context**: CONSTRUCTION - drain - Functional Design 승인 (Step 9).
 
 ---
+
+## drain — NFR Requirements · 계획 · 물음 하나
+**Timestamp**: 2026-09-09T02:01:17Z
+**User Input**: (없음 — FD 승인의 후속)
+**AI Response**: NFR Requirements 계획 `construction/plans/drain-nfr-requirements-plan.md` 를 냈다. 실측 표 · 권장값(대기 길이 = 광고 주기 · 오류 로그는 원인이 바뀔 때만 · 캐시 없음) · 물음 하나 — at-boundary 취소가 DB 오류로 실패했을 때 재시도 자리(없음 vs 하트비트).
+**Context**: CONSTRUCTION - drain - NFR Requirements (Step 2~4 완료 · Step 5 답 대기).
+
+---
+
+## drain — NFR Requirements · 답 · 산출물 생성
+**Timestamp**: 2026-09-09T02:07:02Z
+**User Input**: "A"
+**AI Response**: 답 A(취소 실패는 로그 · 재시도 없음 · 수락한 위험으로 기록)를 적고 산출물 둘을 `construction/drain/nfr-requirements/` 에 냈다 — 규칙 열다섯 판정(준수 8 · 해당 없음 7 · 조건부 0) · 오용 사례 · 비-보안 NFR 다섯 축 · 진행자 표시 넷 · 기술 선택(yaml.v3 재사용 · 파일 감시 안 들임). 완료 메시지를 내고 승인을 기다린다.
+**Context**: CONSTRUCTION - drain - NFR Requirements (Step 6·7 완료 · Step 8 승인 대기).
+
+---
+
+## drain — NFR Requirements 승인 · NFR Design · Infrastructure Design 건너뜀
+**Timestamp**: 2026-09-09T02:07:52Z
+**User Input**: "승인"
+**AI Response**: 승인을 기록하고 커밋한다. NFR Design · Infrastructure Design 은 queue 와 같은 근거로 건너뛴다(어떻게는 Code Generation 계획이 진다 · 새 인프라 0). 다음은 Code Generation Part 1.
+**Context**: CONSTRUCTION - drain - NFR Requirements 승인 (Step 9).
+
+---
