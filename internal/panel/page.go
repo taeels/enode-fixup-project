@@ -120,9 +120,21 @@ const indexHTML = `<!doctype html>
   </div>
 
   <div class="card">
-    <h2>데몬 로그</h2>
+    <h2>하네스 트랜스크립트 <span class="muted">(지금 도는 것)</span></h2>
+    <div id="transcript-empty" class="muted">아직 없음 — 도는 단계가 없거나 아직 첫 글자 전이다</div>
+    <pre id="transcript" style="display:none"></pre>
+  </div>
+
+  <div class="card">
+    <h2>데몬 로그 <span class="muted">(트랜스크립트와 다른 물건)</span></h2>
     <div><button onclick="showLogs()">로그 불러오기</button></div>
     <pre id="logs" style="display:none"></pre>
+  </div>
+
+  <div class="card">
+    <h2>지난 작업</h2>
+    <div id="runs"><span class="muted">불러오는 중...</span></div>
+    <div id="record"></div>
   </div>
 
   <div class="subline" id="mediator"></div>
@@ -242,8 +254,58 @@ function showLogs(){
   fetch("/api/logs").then(function(r){return r.text();}).then(function(t){ pre.textContent=t; });
 }
 
-load();
+// 하네스 트랜스크립트 — 로컬 링 파일을 1초로 읽는다(데몬 로그와 별개 타이머).
+// generation 이 바뀌면(새 단계) 화면을 비운다.
+var lastTxGen = -1;
+function loadTranscript(){
+  fetch("/api/transcript").then(function(r){return r.json();}).then(function(t){
+    var pre=el("transcript"), empty=el("transcript-empty");
+    if(!t.available || !t.data){ pre.style.display="none"; empty.style.display="block"; return; }
+    empty.style.display="none"; pre.style.display="block";
+    if(t.generation !== lastTxGen){ lastTxGen = t.generation; }
+    pre.textContent = t.data;
+    pre.scrollTop = pre.scrollHeight;
+  }).catch(function(){});
+}
+
+// 지난 작업 — Mediator 가 가진 것을 읽어 이 노드 것만 (decisions §6.5).
+var runsById = {};
+function loadRuns(){
+  fetch("/api/runs").then(function(r){return r.json();}).then(function(res){
+    var runs = res.runs || []; runsById = {};
+    if(!runs.length){ el("runs").innerHTML = "<span class='muted'>이 노드가 한 작업이 없다</span>"; return; }
+    el("runs").innerHTML = runs.map(function(rn){
+      runsById[rn.run_id] = rn;
+      var color = rn.state==="SUCCEEDED" ? "var(--idle)" : (rn.state==="FAILED" ? "var(--stopped)" : "var(--ts)");
+      return "<div class='mode' style='cursor:pointer' onclick='loadRecord(\"" + esc(rn.run_id) + "\")'>" +
+        "<div style='flex:1'><span class='mt'>" + esc(rn.run_id) + "</span> " +
+        "<span class='badge' style='color:" + color + ";border-color:" + color + "'>" + esc(rn.state) + "</span>" +
+        "<div class='md'>" + (rn.ended_at ? esc(fmt(rn.ended_at)) : "진행 중") + "</div></div></div>";
+    }).join("");
+  }).catch(function(){ el("runs").innerHTML = "<span class='muted'>Mediator 에 못 닿았다</span>"; });
+}
+
+function loadRecord(runId){
+  var rec = el("record");
+  rec.innerHTML = "<div class='muted' style='margin-top:10px'>불러오는 중...</div>";
+  var run = runsById[runId] || {};
+  var v = run.verdict;
+  var checks = (v && v.checks != null) ? v.checks : v;
+  var verdictHtml = v ? "<div class='muted' style='margin-top:10px'>결과</div><pre>" + esc(JSON.stringify(checks, null, 2)) + "</pre>" : "";
+  fetch("/api/record?run=" + encodeURIComponent(runId)).then(function(r){return r.json();}).then(function(res){
+    var logs = res.logs || [];
+    var body = logs.length
+      ? logs.map(function(l){ return "<div class='muted' style='margin-top:10px'>" + esc(l.name) + "</div><pre>" + esc(l.content) + "</pre>"; }).join("")
+      : "<div class='muted' style='margin-top:10px'>봉인된 트랜스크립트가 없다</div>";
+    rec.innerHTML = "<div style='margin-top:12px;border-top:1px solid var(--border);padding-top:12px'>" +
+      "<div class='mt' style='font-family:var(--mono)'>" + esc(runId) + "</div>" + verdictHtml + body + "</div>";
+  }).catch(function(){ rec.innerHTML = "<div class='muted'>기록을 못 불러왔다</div>"; });
+}
+
+load(); loadTranscript(); loadRuns();
 setInterval(load, 5000);
+setInterval(loadTranscript, 1000);
+setInterval(loadRuns, 5000);
 </script>
 </body>
 </html>

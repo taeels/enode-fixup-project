@@ -3,6 +3,7 @@ package enode
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,6 +49,10 @@ type Job struct {
 	Roles  []string
 	Inject map[string]string // Credentials 가 돌려준 것 (R1)
 	Emit   func(Event)       // 스트림 사건. nil 이면 버린다.
+	// Transcript 는 하네스 원문 stdout 을 tee 할 곳이다 (decisions §6.2 Q2).
+	// nil 이면 안 흘린다 — 설정이 없는 시험은 링 파일을 안 만든다. 트랜스크립트
+	// 링(internal/enode/transcript.go)이 여기 앉아 제어판이 도는 동안 읽는다.
+	Transcript io.Writer
 }
 
 // runHarness 는 ②기동이다. 유일한 exec 지점.
@@ -92,7 +97,14 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	// 하네스 원문 stdout 을 트랜스크립트 링에도 흘린다 (decisions §6.2 Q2).
+	// Decode 와 로그 반환은 그대로 &stdout 을 읽는다 — 계약이 안 바뀐다.
+	// 링 쓰기는 실패를 삼키므로(Ring.Write) MultiWriter 가 cmd.Run 을 안 멈춘다.
+	cmd.Stdout = &stdout
+	if j.Transcript != nil {
+		cmd.Stdout = io.MultiWriter(&stdout, j.Transcript)
+	}
+	cmd.Stderr = &stderr
 	err := cmd.Run()
 
 	code := -1

@@ -135,3 +135,27 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · PR #9 병합됨 · PR #10 시안 정렬 대기 · transcript 대기.
 
 ---
+
+## transcript 착수 · Functional Design
+**Timestamp**: 2026-09-09T04:41:59Z
+**User Input**: "PR #10 머지해." 이어서 "진행" (transcript 착수)
+**AI Response**: PR #10 을 병합해 시안본 panel 이 main 에 들어간 것을 확인(origin/main:page.go 에 #0B0D10·호스트 제어판). main(77f5a83) 최신화 후 unit/transcript 를 땄다(upstream 없음). transcript 정본(unit-of-work §6 · decisions §6.2 값 셋·§6.3 링 파일·§6.4 안 하는 것·§6.5 지난 작업)과 만질 코드(runner.go:94 bytes.Buffer·claim.go:596 · runctl.Runs/Record)를 읽었다. 값이 다 닫혀 막는 결정이 없으므로(panel 의 ADR-068 같은 것 없음) FD 계획과 산출물 셋을 냈다: domain-entities(링 파일 Ring 형식 머리 magic·판·용량 512KiB·total·generation + 몸통 · TranscriptPath · Job.Transcript · 카드/지난작업 view) · business-logic-model(tee 한 겹 · 링 쓰기 WriteAt 감김 · 비우기 Reset · 읽기 재확인 · 1초 폴링 · 지난 작업 runs 필터+record tar) · business-rules(윈도우가 정한 단일 코드경로 · 권한 0600 · Mediator 무변경 · 새 의존 0 · CP6 완료 조건). 진행자 위임대로 NFR·Code Generation 으로 이어 진행한다.
+**Context**: CONSTRUCTION · transcript · FD 완료 · NFR/코드로 진행.
+
+---
+
+## transcript NFR · Infra 건너뜀 · Code Generation 착수
+**Timestamp**: 2026-09-09T04:41:59Z
+**User Input**: "나중에 화면 코드 작성할때 반드시 design 에 있는 .pen 파일들을 참고해서 같은 스타일로 만들어."
+**AI Response**: 진행자가 화면 코드는 반드시 design/*.pen 시안을 참고해 같은 스타일로 만들라고 지시했다 — 메모리에 남겼다(ui-code-follows-pen-design). transcript NFR Requirements·NFR Design 을 냈다(단일 코드경로·빌드 태그 0 · 링 원자성/찢긴 읽기 재확인 · tee 격리 · 커버리지 80% · 새 의존 0 · 심볼 상한 무영향). Infrastructure Design 은 로컬 파일뿐이라 건너뛴다. Code Generation 계획을 내고 구현으로 이어간다 — 트랜스크립트 카드 UI 는 코드 단계에서 enode-ux.pen S3/S4 를 pencil MCP 로 읽어 지금 다크 토큰에 맞춘다.
+**Context**: CONSTRUCTION · transcript · NFR 완료 · Infra 건너뜀 · Code Generation.
+
+---
+
+## transcript Code Generation 구현 · CP6 코드 게이트 초록
+**Timestamp**: 2026-09-09T05:00:19Z
+**User Input**: (진행자 위임 자동 진행 · 화면은 design/*.pen 참고)
+**AI Response**: transcript 코드를 냈다(커밋 a416289). internal/enode/transcript.go: 고정 크기 링 파일 Ring(머리 magic·판·용량·total·generation + 몸통 · WriteAt 감김 · Reset 비움 · ReadRing 재확인 · 빌드 태그 없이 단일 코드경로). runner.go 가 하네스 stdout 을, claim.go 가 명령 단계를 io.MultiWriter 로 링에 tee(Job.Transcript · 실패 삼켜 cmd.Run 안 멈춤 · Worker 가 링 열고 단계 시작 때 Reset). internal/panel: GET /api/transcript(로컬 링 1초) · /api/runs(assigned 필터) · /api/record(tar 의 logs/NN-*.log). page.go 에 하네스 트랜스크립트 카드+지난 작업을 enode-ux.pen 다크 토큰으로 더했다(pencil MCP 로 S3/S4 확인 · 정본대로 S3 카드로 살리되 시안 스타일). CP6 코드 재료 초록: 빌드 태그 0 · 심볼 상한 무영향(13·1) · panel 커버리지 86.1% · 크로스 빌드 3종 · Mediator 변경 0 · 새 의존 0. 로컬 enode 테스트 일부는 환경(Windows·Bedrock env·autocrlf) 탓 실패로 유닛과 무관 · 링/panel 테스트는 통과. 눈 검증과 push·PR 은 사람 몫이라 여기서 멈춘다.
+**Context**: CONSTRUCTION · transcript · Code Generation 완료 · CP6 코드 초록 · PR 확인 대기.
+
+---

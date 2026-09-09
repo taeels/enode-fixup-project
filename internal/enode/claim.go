@@ -301,6 +301,20 @@ type Worker struct {
 
 	// drainingNoted 는 「안 집는다」를 이미 찍었는가다 — 광고 주기마다 다시 안 찍는다.
 	drainingNoted bool
+
+	// ring 은 이 노드의 트랜스크립트 링 파일이다 (decisions §6). Run 이 한 번 열고,
+	// 단계가 시작할 때 Reset 하며, 하네스·명령 단계의 stdout 을 여기로 tee 한다.
+	// nil 이면 안 흘린다(설정 없음/열기 실패) — 능력 저하일 뿐 실행을 안 막는다.
+	ring *Ring
+}
+
+// transcript 는 tee 대상을 io.Writer 로 낸다. ring 이 nil 이면 typed-nil 이 아니라
+// 진짜 nil 을 돌려준다 — runner 의 nil 검사가 성립하게.
+func (w *Worker) transcript() io.Writer {
+	if w.ring == nil {
+		return nil
+	}
+	return w.ring
 }
 
 // report 는 보고가 닿을 때까지 다시 보낸다 (ADR-030).
@@ -351,6 +365,17 @@ func (w *Worker) creds() Credentials {
 }
 
 func (w *Worker) Run(ctx context.Context) {
+	// 트랜스크립트 링을 한 번 연다 (decisions §6). 설정이 없거나(시험) 못 열면
+	// nil 로 두고 진행한다 — tee 는 보조다.
+	if w.Ident.Config != "" {
+		if r, err := OpenRing(TranscriptPath(w.Ident.Config), DefaultTranscriptCapacity); err == nil {
+			w.ring = r
+			defer w.ring.Close() //nolint:errcheck
+		} else if w.Log != nil {
+			w.Log.Warn("cannot open the transcript ring; the panel will show no live output",
+				"path", TranscriptPath(w.Ident.Config), "err", err)
+		}
+	}
 	for ctx.Err() == nil {
 		// 소유자가 at-boundary 로 drain 을 걸었고 중앙이 받아 적었다 (ADR-063 §2.1) —
 		// 더 집지 않는다. 도는 단계는 이 분기 밖에서 이미 끝까지 간다(execute 는
@@ -422,6 +447,13 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	if _, ok := w.Held.Valid(step.RunID); !ok {
 		log.Warn("lease is not valid; not running")
 		return
+	}
+
+	// 새 단계가 시작할 때 링을 비운다 (decisions §6.2) — 끝날 때가 아니다.
+	// 떠나 있던 사람에게도 방금 끝난 것이 남아 있어야 하므로, 다음 단계의 첫
+	// 글자에서 갈린다. 화면은 세대가 바뀐 것으로 그 순간을 안다.
+	if w.ring != nil {
+		_ = w.ring.Reset()
 	}
 
 	out, err := os.MkdirTemp("", "enode-out-")
@@ -594,7 +626,13 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	cmd.Env = harnessEnv(append(commandEnv, step.Env...),
 		map[string]string{"OUT": out, "IN": in}, nil)
 	var buf bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &buf, &buf
+	// 명령 단계 stdout/stderr 도 트랜스크립트 링에 tee 한다 (unit-of-work §6).
+	// 로그 업로드·판정은 그대로 buf 를 읽는다.
+	var sink io.Writer = &buf
+	if w.ring != nil {
+		sink = io.MultiWriter(&buf, w.ring)
+	}
+	cmd.Stdout, cmd.Stderr = sink, sink
 
 	start := time.Now()
 	runErr := cmd.Run()
@@ -730,11 +768,12 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		Expect: step.Out, // 훅이 짚을 이름 — 계약이 요구한 산출물
 		// 계획 단계면 훅이 모양까지 본다 (ADR-046).
 		// expands 단계는 산출물이 정확히 하나임을 계약 검증이 보장한다.
-		Plan:   planOutName(step),
-		Roles:  step.Roles,
-		Stamp:  stamp, // 훅이 볼 기준 시각 — git 이 못 보는 것까지
-		Inject: inject,
-		Emit:   func(e Event) { log.Debug("harness event", "kind", e.Kind) },
+		Plan:       planOutName(step),
+		Roles:      step.Roles,
+		Stamp:      stamp, // 훅이 볼 기준 시각 — git 이 못 보는 것까지
+		Inject:     inject,
+		Emit:       func(e Event) { log.Debug("harness event", "kind", e.Kind) },
+		Transcript: w.transcript(), // 하네스 stdout 을 트랜스크립트 링으로 tee
 	})
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 

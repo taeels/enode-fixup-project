@@ -39,9 +39,19 @@
   - [x] PR #9 (main) — **병합됨** 2026-09-09T04:08:41Z (merge 182da58). panel 코드가 main 에 있다
   - [ ] PR #10 (main) — 제어판 화면 시안 정렬(다크 2단·한국어). PR #9 병합이 이 커밋(d9c11de·c0fa636)
     앞에 일어나 main 에 옛 기능판이 들어갔고, 이 후속 PR 이 시안본으로 바꾼다. 충돌 없음. 병합 대기
-- [ ] transcript — CP6 · 의존 panel · obs
+- [ ] transcript — CP6 · 의존 panel · obs (착수: main 77f5a83 에서 unit/transcript)
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)
+  - [x] Functional Design — 계획·산출물 셋 냄(`construction/transcript/functional-design/`).
+    막는 결정 없음(decisions §6 이 값 다 닫음). 링 형식·tee·비우기·지난 작업 확정
+  - [x] NFR Requirements · NFR Design — 냄(`transcript/nfr-requirements`·`nfr-design`).
+    단일 코드경로(빌드 태그 0) · 링 원자성/찢긴 읽기 · 커버리지 80% · 새 의존 0 · 심볼 상한 무영향
+  - [x] Infrastructure Design — 건너뜀(로컬 파일뿐 · 클라우드 자원 없음)
+  - [x] Code Generation — 구현 완료 (커밋 a416289). 요약 `transcript/code/implementation-summary.md`.
+    링 파일 tee(runner·claim) · Ring(transcript.go) · 제어판 카드+지난 작업 · 화면은 enode-ux.pen 다크 토큰
+  - [x] CP6 게이트 코드 재료 초록 — 빌드 태그 0 · 심볼 상한 무영향 · panel 커버리지 86.1% ·
+    크로스 빌드 3종 · Mediator 변경 0 · 새 의존 0. 눈 검증은 사람·함대 몫
+  - [ ] PR — push·PR (진행자 확인). 병합은 CP6 눈 검증 뒤
 
 ## 열린 미정
 
