@@ -119,3 +119,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · PR #9 열림 · 병합·transcript 대기.
 
 ---
+
+## 제어판 화면을 시안(enode-ux.pen)에 맞춤
+**Timestamp**: 2026-09-09T03:55:34Z
+**User Input**: "이거 panel이 기존 design 파일들 디자인을 참고해서 작성된건가?" 이어서 "A." (시안에 맞춘다)
+**AI Response**: 처음 page.go 는 시안을 안 보고 쓴 밋밋한 기능판이었음을 밝혔다(FD 가 레이아웃을 시안 몫으로 미룸). 진행자가 A(시안에 맞춤)를 골라, pencil MCP 로 design/enode-ux.pen 의 제어판 화면을 읽었다: S3(ppAJi 도는 노드) · S5(n9Wzng 멈춤) · C3(pxDrainActive drain 건 뒤) · 배지 C4/C5. 디자인 토큰(bg #0B0D10 · surface #14181D · 보라 #B98CFF · 상태 색 · Inter/JetBrains Mono · 반경 10)과 스크린샷을 근거로 page.go 를 다크 2단(사이드바+본문) 한국어 UI 로 다시 짰다 — 현재 작업/자원 회수(graceful·at-boundary·건 뒤 풀기)/탐지 능력 칩/데몬 로그 카드. 값·엔드포인트·동작 무변경. glyphscan 통과(가운뎃점만 씀 · 배지 점은 CSS). 로컬에서 새 빌드로 제어판을 띄워 확인(포트 8081). UI 문구는 시안대로 한국어(제품 UI · 카드뉴스와 같은 기준). 커밋 d9c11de.
+**Context**: CONSTRUCTION · panel · 시안 정렬 · PR #9 갱신.
+
+---
