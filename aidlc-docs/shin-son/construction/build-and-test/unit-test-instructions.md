@@ -35,3 +35,13 @@ go test ./... -count=1 -coverpkg=./... -coverprofile=/tmp/cover.out -json > /tmp
 `TestAdapter_HandleNewWorkDoesNotSubmitBeforeTheFleetSeesTheNode` 는 1초 안에 프로세스가
 서길 기다린다. 전체 병렬 실행에서 한 번 깨졌고 단독 재실행에서 통과했다. 이 유닛이
 만지지 않은 패키지다.
+
+---
+
+## drain 유닛의 시험 열넷 (2026-09-09 추가)
+```bash
+go test ./internal/enode -run 'TestPolicy|TestDrain_' -count=1 -v        # DB 없음 · 여덟
+go test ./internal/store -run 'TestQueue_NodeDrain' -count=1 -v          # DB · 하나
+go test ./internal/api -run 'TestDrain_' -count=1 -v                     # DB · 다섯
+```
+실측 — 전부 통과. 커버리지 `internal/api` 80.5% · `internal/enode` 85.0%.

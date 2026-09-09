@@ -32,7 +32,7 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 - [x] NFR Requirements — 승인 2026-09-09T02:07:52Z (답 A) · NFR Design · Infra Design SKIP
 - [x] Code Generation — 승인 2026-09-09T02:25:48Z (`construction/drain/code/code-summary.md`)
 - [x] CP0 · CP3 통과 (2026-09-09T02:25:48Z)
-- [ ] Build and Test · PR to main
+- [x] Build and Test 문서 갱신 (2026-09-09T02:25:48Z) · PR to main (아래 링크)
 
 ## 유닛 (의존 순)
 

@@ -44,3 +44,28 @@ run finished cp2-b 09:50:58.084. b 의 단계가 4ms 라 폴링은 RUNNING 대�
 c 는 `422 need 1, fleet has 0 - agent.reason board=no-such-board` · FAILED.
 
 화면 항목(QUEUED 행 · chosen)은 ui(runixs) 몫이다 — 여기서는 API 로만 잰다.
+
+---
+
+# Integration Test — drain (CP3 「돌려받는다」 · 2026-09-09)
+
+정본은 `scene-gates.md` 3절 CP3. queue 와 같은 판(`enode_cp2`) · Mediator · 노드 하나.
+노드 설정이 `local.yaml` 이면 정책 파일은 그 옆의 **`local.policy.yaml`** 이다.
+
+## 명령과 기대값
+```text
+   단계 둘 계약 a 제출 (각 단계가 잠시 돈다)     -> RUNNING
+   printf 'drain: at-boundary\n' > local.policy.yaml   다음 광고(≤ 광고 주기) 뒤
+   GET /v1/nodes                                -> draining "at-boundary" · lease 있음
+   단계 1 이 끝난 경계                            -> runctl status a → FAILED · verdict note "cancelled by: drain:<node_id>"
+                                                   · s1 DONE · s2 FAILED · GET /v1/nodes lease 없음
+   runctl record a                              -> 단계 1 산출이 있다 (blobs/01.0-*.txt)
+   새 계약 b                                    -> 202 QUEUED
+   rm local.policy.yaml (해제)                   -> 다음 광고 뒤 b RUNNING · draining ""
+   graceful 로 같은 절차                         -> 도는 Run 이 끝까지 SUCCEEDED
+```
+
+## 2026-09-09 실측
+전부 기대값 그대로. Mediator 로그 `run closed at a step boundary; the node is draining` ·
+`queued` · `promoted from queue`. 노드 로그 `drain acknowledged by mediator mode=at-boundary` ·
+`draining at-boundary; not claiming until the owner releases it` · `drain released; claiming again`.
