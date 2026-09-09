@@ -1,7 +1,8 @@
 # Mac mini 공개 데모 실행 기록
 
 2026-09-09. 사용자의 “한번 해봐”로 Mac mini 공개 실행을 구성했다.
-공식 단계는 Construction의 Code Generation이고 공동 실제 장면 CP10은 남아 있다.
+초기 실행은 Construction의 Code Generation에서 구성했다. 현재 단계는
+[runixs 상태](../aidlc-state.md)를 따른다. 공동 실제 장면 CP10은 남아 있다.
 
 ## 실행 상태
 
@@ -19,7 +20,16 @@ MacBook의 앞서 종료한 Mediator·노드·데모 제어판·전용 DB는 중
 Quick Tunnel의 자동 생성 주소다. 사용자는 도메인이 없으며 그대로 진행하도록 했다.
 Tailscale 이름과 기존 태양님 공개 서버의 DNS는 변경하지 않았다.
 
-## 구성
+## 갤러리 적용 — 2026-09-09 후속
+
+최신 main `a5d62cf`를 통합한 `56f2f99` 제품 빌드를 Mediator와 Bedrock VM에
+적용했다. `demo_gallery: true`, 전용 VM의 `gallery=comments-v1` 광고와 별도
+게시 서비스를 활성화했다. 공개 주소와 터널 PID를 유지했으며 교체는 10.94초였다.
+후속 자율 댓글 API/UI는 `f4a9b1b`로 갱신했다. 메시지 한 번으로 팀 탐색과 게시가
+완료되며 입력칸 안내를 추가했다. 현재 실제 노드는 VM `95262f8783e9`와 팀원 3개다. 상세 인수·백업·검사 결과는
+[Build and Test 요약](build-and-test/build-and-test-summary.md)을 따른다.
+
+## 초기 구성
 
 | 항목 | 배치·동작 |
 |---|---|

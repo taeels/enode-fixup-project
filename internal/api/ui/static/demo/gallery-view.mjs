@@ -21,8 +21,8 @@ export class GalleryDialog {
   composer(followup = false) {
     const form = element('form', 'gallery-form');
     const label = element('label', '', '메시지'); label.htmlFor = 'gallery-prompt';
-    const prompt = element('textarea'); prompt.id = 'gallery-prompt'; prompt.dataset.testid = 'gallery-prompt-input'; prompt.rows = 4; prompt.maxLength = 1000; prompt.required = true;
-    prompt.placeholder = 'AI에게 메시지 보내기'; prompt.value = this.prompt || ''; prompt.oninput = () => { this.prompt = prompt.value; };
+    const prompt = element('textarea'); prompt.id = 'gallery-prompt'; prompt.dataset.testid = 'gallery-prompt-input'; prompt.rows = 6; prompt.maxLength = 1000; prompt.required = true;
+    prompt.placeholder = followup ? '팀 이름이나 추가 설명을 적어주세요.' : '외부 Mac mini의 enode 샌드박스가\nDDTHON 페이지에 연결되어 있어요.\nBedrock Claude에게 댓글을 요청해 보세요!\n\n예시) Run Away 팀에 응원 댓글 달아줘'; prompt.value = this.prompt || ''; prompt.oninput = () => { this.prompt = prompt.value; };
     const submit = button('보내기', 'gallery-submit-button', () => {}, 'primary'); submit.type = 'submit';
     form.onsubmit = e => {
       e.preventDefault(); const message = prompt.value;
