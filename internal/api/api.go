@@ -108,6 +108,7 @@ func (s *Server) Handler() http.Handler {
 	// GET /ui/ 는 무인증이다 — enode-features.md §3.4.1(온보딩 카드뉴스 +
 	// Guest Login)과 §3.1.1(중앙 현황판)이 공유하는 정적 파일 표면이다.
 	// internal/api/ui 는 internal/store 를 참조하지 않는다(구조 불변식).
+	mux.Handle("GET /{$}", http.RedirectHandler("/ui/", http.StatusFound))
 	mux.Handle("/ui/", ui.Handler())
 	return mux
 }
