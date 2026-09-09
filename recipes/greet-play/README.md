@@ -16,16 +16,21 @@
 ```json
 "requires": [
   { "as": "tts",   "capability": "agent.reason",
-    "service": "tts", "tts": "say-macos", "fmt_mp3": "yes" },
+    "service": "tts", "tts_typecast": "yes", "voice_typecast": "Sanghyun" },
   { "as": "board", "capability": "agent.reason",
     "audio_playback": "true", "board": "rpi2b-v1.1" }
 ]
 ```
 
-`tts` 는 mp3 를 낼 수 있다고 광고한 노드다. `fmt_mp3` 가 핵심이다 —
-macOS 에는 mp3 인코더가 없어서 lame 을 따로 깔아야 하고, 안 깐 기계는
-그 라벨을 안 싣는다. 그래서 인코더 없는 기계는 **실행 시점이 아니라
-매칭에서** 걸러진다. 계약은 "mp3 를 낼 수 있는 아무나" 라고만 적는다.
+`tts` 는 Typecast 로 읽을 수 있다고 광고한 노드다. `tts_typecast` 가 핵심이다 —
+API 키가 있는 기계만 그 라벨을 싣고, 없는 기계는 안 싣는다. 그래서 키 없는
+기계는 **실행 시점이 아니라 매칭에서** 걸러진다. 계약은 "상현 목소리로 읽을
+수 있는 아무나" 라고만 적는다. `voice_typecast` 까지 요구하는 이유는 목소리가
+곧 이 인사의 정체이기 때문이다 — 다른 목소리로 성공하는 것은 성공이 아니다.
+
+처음에는 `say` 와 `lame` 으로 냈다 (`tts: say-macos`, `fmt_mp3: yes`). 노드가
+그 라벨도 그대로 광고하므로 그 계약도 여전히 이 노드에 닿는다. 엔진을 바꾼 것은
+목소리를 고르기 위해서다 — `say` 의 한국어 음성은 아홉이고 속도를 못 고른다.
 
 `board` 는 소리를 낼 수 있다고 광고한 노드다. 속성의 존재가 곧 능력이다.
 
@@ -75,13 +80,26 @@ greet-play-20260909-132909  SUCCEEDED
   board  270c97c94415  taeels@sunnybook
 ```
 
-`make` 가 낸 것:
+`make` 가 낸 것 (당시는 `say`):
 
 ```
 File type ID:   MPG3
 Data format:    1 ch, 22050 Hz, .mp3
 estimated duration: 1.933000 sec
 ```
+
+Typecast 로 바꾼 뒤 파이로 낸 것 (`greet-play-pi-20260909-154201-76258`):
+
+```
+make   wrote greeting.mp3  (voice=tc_69fc0cff784968297fb45daa model=ssfm-v30)
+       1 ch, 44100 Hz, 2.429388 sec
+play   ssh=C:\Program Files\Git\usr\bin\ssh.exe
+       target=sunny@192.168.137.50 dev=plughw:1,0
+       mpg123 rc=0        스텝 4.5초 — 클립 2.43초에 scp 와 ssh 왕복
+```
+
+파이가 `/proc/asound/cards` 로 답한 배치는 `0 vc4hdmi`, `1 bcm2835 Headphones`
+다. `plughw:1,0` 이 잭이다.
 
 `play` 가 한 것:
 
@@ -128,7 +146,34 @@ played seconds=1.959
 
    볼륨을 올린다           한 번 안 들린 적이 있고 원인이 이것이었다.
                           -19.88dB 로 exit 0 이 났다.  amixer 줄이 멱등하게 들어 있다
+
+   Git 의 ssh 를 쓴다       Windows 내장 ssh.exe 는 enode 스텝 안에서 뜨지 못한다.
+                          아래에 따로 적었다
 ```
+
+## Windows 내장 ssh 는 스텝 안에서 뜨지 못한다
+
+보드를 다른 Windows 기계로 옮긴 뒤 `scp` 가 매번 `rc=255` 로 죽었다. 같은
+기계의 터미널에서는 같은 명령이 붙었다. 키도 주소도 계정도 문제가 아니었다 —
+진단 스텝으로 좁혀 보니 **`ssh -V` 조차 rc=255 에 출력 0 바이트**였다. 네트워크도
+키도 안 건드리는 명령이 그렇다는 것은 `ssh.exe` 가 뜨자마자 죽는다는 뜻이다.
+stdin 을 `NUL` 로 주어도, 콘솔을 새로 붙여도 (`Start-Process`) 같았다.
+
+같은 기계의 Git for Windows 가 가진 ssh 는 스텝 안에서 정상이다.
+
+```text
+   C:\Windows\System32\OpenSSH\ssh.exe -V      rc=255  출력 없음
+   C:\Program Files\Git\usr\bin\ssh.exe -V     rc=0    OpenSSH_10.0p2
+```
+
+그래서 `play` 스텝이 Git 의 ssh 와 scp 가 있으면 그것을 쓰고, 없으면 예전처럼
+PATH 의 것을 쓴다. 어느 쪽을 골랐는지 첫 줄에 찍는다 (`ssh=...`). 원인은 못
+밝혔다 — 내장 ssh 가 어떤 프로세스 컨텍스트에서 죽는지는 그 기계에서 더 파야
+한다. 여기 적는 것은 증상과 우회다.
+
+`~/.ssh/config` 가 그 파이 주소를 특정 키(`IdentityFile`, `IdentitiesOnly yes`)에
+고정하고 있으면 새로 만든 키는 쓰이지 않는다. 키를 새로 심고도 안 되면 config 를
+먼저 본다.
 
 주소와 장치는 환경변수로 덮는다.
 
