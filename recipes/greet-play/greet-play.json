@@ -12,8 +12,8 @@
       "as": "tts",
       "capability": "agent.reason",
       "service": "tts",
-      "tts": "say-macos",
-      "fmt_mp3": "yes"
+      "tts_typecast": "yes",
+      "voice_typecast": "Sanghyun"
     },
     {
       "as": "board",
@@ -29,7 +29,7 @@
       "run": [
         "/bin/bash",
         "-c",
-        "set -e\n# 문장은 argv 한 칸으로 들어온다 ($1). 셸을 안 거치므로 따옴표가 있어도 안 갈린다.\ntext=$1\nenc=\"\"\nfor c in lame \"$HOME/.local/bin/lame\" /opt/homebrew/bin/lame /usr/local/bin/lame; do\n  if p=$(command -v \"$c\" 2>/dev/null); then enc=$p; break; fi\ndone\n[ -n \"$enc\" ] || { echo \"mp3 encoder missing\" >&2; exit 5; }\nw=$(mktemp -t greet).wav\ntrap 'rm -f \"$w\"' EXIT\nsay -v Yuna --file-format=WAVE --data-format=LEI16@22050 -o \"$w\" \"$text\"\n\"$enc\" --quiet -b 64 -m m \"$w\" \"$OUT/greeting.mp3\"\n[ -s \"$OUT/greeting.mp3\" ] || { echo \"empty output\" >&2; exit 4; }\nafinfo \"$OUT/greeting.mp3\" | sed -n '1,8p'\n",
+        "set -e\n# 문장은 argv 한 칸으로 들어온다 ($1). 셸을 안 거치므로 따옴표가 있어도 안 갈린다.\nbin/tts-typecast.sh \"$1\" \"$OUT/greeting.mp3\"\n",
         "greet-play",
         "__TEXT__"
       ],

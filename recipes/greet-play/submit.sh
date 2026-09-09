@@ -3,6 +3,7 @@
 #
 #   submit.sh "<문장>"            board 노드의 기본 오디오 장치로 낸다
 #   submit.sh --pi "<문장>"       그 노드에 물린 라즈베리파이 잭으로 낸다
+#   submit.sh --diag              소리 없이 board 노드의 ssh 환경만 찍어 온다
 #
 # 만드는 자리와 트는 자리가 다르다. 이 스크립트는 계약을 채워 넣기만 하고,
 # 어느 기계가 무엇을 맡을지는 매처가 고른다 (requires 의 속성이 정한다).
@@ -12,13 +13,13 @@
 set -euo pipefail
 
 target=host
-if [ "${1:-}" = "--pi" ]; then
-  target=pi
-  shift
-fi
+case "${1:-}" in
+  --pi)   target=pi;   shift ;;
+  --diag) target=diag; shift ;;
+esac
 
 text=${1:-}
-[ -n "$text" ] || { echo "submit.sh: 문장이 없다" >&2; exit 2; }
+[ "$target" = diag ] || [ -n "$text" ] || { echo "submit.sh: 문장이 없다" >&2; exit 2; }
 
 # 파이의 주소와 ALSA 장치. 환경변수로 덮어쓴다.
 #
@@ -32,8 +33,9 @@ runid="$(date +%Y%m%d-%H%M%S)-$$"
 tmp=$(mktemp -t greet-play).json
 
 case "$target" in
-  host) src="$here/greet-play.json";    prefix=greet-play    ;;
-  pi)   src="$here/greet-play-pi.json"; prefix=greet-play-pi ;;
+  host) src="$here/greet-play.json";    prefix=greet-play      ;;
+  pi)   src="$here/greet-play-pi.json"; prefix=greet-play-pi   ;;
+  diag) src="$here/diag-node.json";     prefix=greet-play-diag ;;
 esac
 
 # 문장은 argv 배열의 한 칸에 그대로 들어간다. 셸을 안 거치므로
@@ -50,5 +52,12 @@ json.dump(c, sys.stdout, ensure_ascii=False, indent=2)
 PY
 
 runctl lint "$tmp" >/dev/null
-runctl submit "$tmp" --wait
+runctl submit "$tmp" --wait || rc=$?
+
+if [ "$target" = diag ]; then
+  # 진단은 결과가 곧 답이다. 기록을 받아 로그를 그 자리에서 보여 준다.
+  tar=$(mktemp -t greet-play-diag).tar
+  runctl record "$prefix-$runid" -o "$tar" && tar xOf "$tar" "run-$prefix-$runid/logs/01-diag.log"
+fi
 echo "record: runctl record $prefix-$runid -o $prefix-$runid.tar"
+exit "${rc:-0}"
