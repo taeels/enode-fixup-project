@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/taeels/enode/internal/enode"
+	"github.com/taeels/enode/internal/proc"
 )
 
 func main() {
@@ -180,7 +181,7 @@ func pidOf(n string) int {
 	// 그 pid 가 이 설정을 쥐고 있는지는 플랫폼마다 묻는 법이 다르다 —
 	// proc_unix.go 와 proc_windows.go 가 각각 답한다. 여기서 ps 를 직접
 	// 부르면 ps 가 없는 곳에서는 언제나 「아무것도 안 돈다」가 된다.
-	if !ownsConfig(pid, conf) {
+	if !proc.OwnsConfig(pid, conf) {
 		return 0
 	}
 	return pid
@@ -290,7 +291,7 @@ func cmdStop(args []string) error {
 	}
 	// SIGTERM 이면 signal.NotifyContext 가 받아 스스로 정리하고 끝난다.
 	// 윈도우에는 그 길이 없다 — proc_windows.go 가 이유를 적는다.
-	if err := signalStop(pid); err != nil {
+	if err := proc.SignalStop(pid); err != nil {
 		return err
 	}
 	for i := 0; i < 20; i++ {
@@ -301,7 +302,7 @@ func cmdStop(args []string) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 	fmt.Fprintf(os.Stderr, "warning: did not exit within 10s; killing (pid=%d)\n", pid)
-	return signalKill(pid)
+	return proc.SignalKill(pid)
 }
 
 func cmdLogs(args []string) error {
