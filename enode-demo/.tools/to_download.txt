@@ -1,0 +1,5 @@
+libaudio2
+libout123-0t64
+libportaudio2
+libsyn123-0t64
+mpg123

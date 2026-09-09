@@ -1,0 +1,5 @@
+libaudio2|1.9.4-9|http://raspbian.raspberrypi.com/raspbian/pool/main/n/nas/libaudio2_1.9.4-9_armhf.deb|libaudio2_1.9.4-9_armhf.deb|65316|http=200|SHA256-OK
+libout123-0t64|1.32.10-1+deb13u1|http://raspbian.raspberrypi.com/raspbian/pool/main/m/mpg123/libout123-0t64_1.32.10-1+deb13u1_armhf.deb|libout123-0t64_1.32.10-1+deb13u1_armhf.deb|27772|http=200|SHA256-OK
+libportaudio2|19.6.0-1.2+b1|http://raspbian.raspberrypi.com/raspbian/pool/main/p/portaudio19/libportaudio2_19.6.0-1.2+b1_armhf.deb|libportaudio2_19.6.0-1.2+b1_armhf.deb|55720|http=200|SHA256-OK
+libsyn123-0t64|1.32.10-1+deb13u1|http://raspbian.raspberrypi.com/raspbian/pool/main/m/mpg123/libsyn123-0t64_1.32.10-1+deb13u1_armhf.deb|libsyn123-0t64_1.32.10-1+deb13u1_armhf.deb|73788|http=200|SHA256-OK
+mpg123|1.32.10-1+deb13u1|http://raspbian.raspberrypi.com/raspbian/pool/main/m/mpg123/mpg123_1.32.10-1+deb13u1_armhf.deb|mpg123_1.32.10-1+deb13u1_armhf.deb|191984|http=200|SHA256-OK

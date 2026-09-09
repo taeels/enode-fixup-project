@@ -1,0 +1,29 @@
+# 무대 노드 워크스페이스(D:\enode-demo)의 사본이다. 통째로는 129 MB 라
+# 문서와 스크립트만 실었다. 아래는 일부러 안 실은 것이고, 빈자리를 보고
+# 다음 사람이 "누가 지웠나" 를 찾지 않게 여기에 적어 둔다.
+
+# 데비안 패키지 인덱스와 거기서 판 표. 합쳐 125 MB 이고 다시 받으면 된다.
+# 파이에 인터넷이 없어서 윈도우에서 받아 dpkg 로 넘기는 경로에 쓰였다.
+.tools/Packages.txt
+.tools/Packages.gz
+.tools/pkgindex.tsv
+.tools/archprovides.tsv
+
+# 위 경로로 실제로 넘긴 armhf 패키지. 416 KB 이지만 재생성물이고 바이너리다.
+.tools/debs/
+
+# PuTTY. 뿌리의 .gitignore 가 *.exe 로 이미 막지만 여기에도 이유를 적는다 —
+# 공개키 인증이 들어간 뒤로 fallback 이고, CLAUDE.md 가 그렇게 적었다.
+.tools/plink.exe
+.tools/pscp.exe
+
+# plink 를 부르는 두 줄짜리 wrapper 와 sudo 를 태우는 스크립트 둘.
+# 넷 다 파이의 비밀번호를 평문으로 들고 있어서 뺐다. 필요하면 워크스페이스에서
+# 가져다 쓰되, 저장소에는 다시 넣지 않는다.
+.tools/pl
+.tools/plm
+.tools/rs_dry.sh
+.tools/rs_install.sh
+
+# 자격증명 (CLAUDE.md 가 fallback 으로만 남겨 둔 파일)
+ssh_cred
