@@ -39,9 +39,12 @@
   - [x] PR #9 (main) — **병합됨** 2026-09-09T04:08:41Z (merge 182da58). panel 코드가 main 에 있다
   - [ ] PR #10 (main) — 제어판 화면 시안 정렬(다크 2단·한국어). PR #9 병합이 이 커밋(d9c11de·c0fa636)
     앞에 일어나 main 에 옛 기능판이 들어갔고, 이 후속 PR 이 시안본으로 바꾼다. 충돌 없음. 병합 대기
-- [ ] transcript — CP6 · 의존 panel · obs
+- [ ] transcript — CP6 · 의존 panel · obs (착수: main 77f5a83 에서 unit/transcript)
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)
+  - [x] Functional Design — 계획·산출물 셋 냄(`construction/transcript/functional-design/`).
+    막는 결정 없음(decisions §6 이 값 다 닫음). 링 형식·tee·비우기·지난 작업 확정
+  - [ ] NFR -> Code Generation 진행 중 (진행자 위임: 결정 없으면 자동 진행)
 
 ## 열린 미정
 

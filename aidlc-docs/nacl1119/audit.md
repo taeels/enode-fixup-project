@@ -135,3 +135,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · PR #9 병합됨 · PR #10 시안 정렬 대기 · transcript 대기.
 
 ---
+
+## transcript 착수 · Functional Design
+**Timestamp**: 2026-09-09T04:41:59Z
+**User Input**: "PR #10 머지해." 이어서 "진행" (transcript 착수)
+**AI Response**: PR #10 을 병합해 시안본 panel 이 main 에 들어간 것을 확인(origin/main:page.go 에 #0B0D10·호스트 제어판). main(77f5a83) 최신화 후 unit/transcript 를 땄다(upstream 없음). transcript 정본(unit-of-work §6 · decisions §6.2 값 셋·§6.3 링 파일·§6.4 안 하는 것·§6.5 지난 작업)과 만질 코드(runner.go:94 bytes.Buffer·claim.go:596 · runctl.Runs/Record)를 읽었다. 값이 다 닫혀 막는 결정이 없으므로(panel 의 ADR-068 같은 것 없음) FD 계획과 산출물 셋을 냈다: domain-entities(링 파일 Ring 형식 머리 magic·판·용량 512KiB·total·generation + 몸통 · TranscriptPath · Job.Transcript · 카드/지난작업 view) · business-logic-model(tee 한 겹 · 링 쓰기 WriteAt 감김 · 비우기 Reset · 읽기 재확인 · 1초 폴링 · 지난 작업 runs 필터+record tar) · business-rules(윈도우가 정한 단일 코드경로 · 권한 0600 · Mediator 무변경 · 새 의존 0 · CP6 완료 조건). 진행자 위임대로 NFR·Code Generation 으로 이어 진행한다.
+**Context**: CONSTRUCTION · transcript · FD 완료 · NFR/코드로 진행.
+
+---
