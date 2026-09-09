@@ -8,7 +8,7 @@ export class TourProgress {
 }
 export function trapFocus(dialog, event) {
   if (event.key !== 'Tab') return;
-  const items = [...dialog.querySelectorAll('button, a[href], input, select, [tabindex="0"]')].filter(el => !el.disabled && !el.hidden && el.getClientRects().length);
+  const items = [...dialog.querySelectorAll('button, a[href], input, textarea, select, [tabindex="0"]')].filter(el => !el.disabled && !el.hidden && el.getClientRects().length);
   if (!items.length) { event.preventDefault(); dialog.focus(); return; }
   const first = items[0], last = items.at(-1);
   if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { event.preventDefault(); last.focus(); }

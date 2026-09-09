@@ -1,6 +1,6 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → Code Generation 진행 중.
+**현재 공식 단계**: CONSTRUCTION → Build and Test 진행 중 (갤러리 확장 생성 승인 수령).
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
 담당 FD와 UI 11단계·demo-back 7단계 계획은 2026-09-08T20:11:36Z
 사용자의 “응 시작해”로 승인됐다. Inception이나 FD 승인을 다시 기다리지 않는다.
@@ -32,6 +32,13 @@ VM의 일반 사용자 enode에 적용했다. 사용자가 제공한 새 키로 
 기존 Mac 직접 실행 노드는 종료했고 VM과 팀원 두 노드의 heartbeat, 공개 UI를
 재확인했다. Mediator·터널·공개 주소는 유지한다. [구성·관리·한계](construction/macmini-bedrock-sandbox.md).
 제품 OS sandbox 기능이나 공동 CP10 전체 완료로 해석하지 않는다.
+
+후속 요청으로 지정된 해커톤 갤러리 호스트의 HTTPS를 VM에 허용했다. 사용자의
+명시적인 한 댓글 지시에 따라 Run Away 게시글에 댓글을 등록하고, 로그인하지
+않은 게스트 화면에서도 노출을 확인했다. [갤러리 검증](construction/hackathon-gallery-integration.md).
+이후 사용자 승인으로 전체 참가팀 대상 Claude MCP·게스트 프롬프트 UI를 구현했다.
+NANoDB·MindCraft에서도 실제 조회·초안을 검증했다. 공개 새 기능은 아직 배포하지 않았다.
+[생성 결과와 검사](construction/demo-back/code/gallery-implementation.md)는 승인받았으며 최신 main 통합과 Mac mini 적용을 진행한다. [후속 제안](construction/sandbox-claude-demo-proposal.md)은 갤러리 기여 흐름으로 갱신했다.
 
 태양님 Windows 노드 `270c97c94415`는 실제 shell Run
 `teammate-connectivity-54c76943` 성공·봉인 내용·lease 해제를 확인했다.

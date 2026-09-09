@@ -94,6 +94,7 @@ func (s *Server) Handler() http.Handler {
 	if s.cfg.Demo {
 		mux.Handle("POST /v1/demo/runs", s.newDemoHandler(demoScenarios()))
 	}
+	s.registerGallery(mux)
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
 	mux.HandleFunc("GET /v1/runs/{id}", read(s.getRun))
 	mux.HandleFunc("GET /v1/capabilities", s.auth(s.getCapabilities))
