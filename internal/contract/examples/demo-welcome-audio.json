@@ -1,32 +1,76 @@
 {
   "run_id": "demo-welcome-audio",
   "work": {
-    "id": { "system": "demo", "change_id": "welcome-audio" },
+    "id": {
+      "system": "demo",
+      "change_id": "welcome-audio"
+    },
     "system": "demo"
   },
   "requires": [
-    { "as": "voice", "capability": "agent.reason", "harness": "claude", "service": "tts", "tts_typecast": "yes" },
-    { "as": "board", "capability": "agent.reason", "board": "rpi2b-v1.1", "audio_playback": "true", "os": "darwin" }
+    {
+      "as": "voice",
+      "capability": "agent.reason",
+      "harness": "claude",
+      "service": "tts",
+      "tts_typecast": "yes",
+      "voice_typecast": "Sanghyun"
+    },
+    {
+      "as": "board",
+      "capability": "agent.reason",
+      "board": "rpi2b-v1.1"
+    }
   ],
   "steps": [
     {
       "id": "synthesize",
       "uses": "voice",
-      "agent": { "max_turns": 5, "ask": "never" },
-      "in": { "prompt": "Use the existing bin/tts-typecast.sh script in this workspace to synthesize Korean audio saying exactly \"{{submitter}}님 환영합니다\". Pass that text as its first argument and $OUT/welcome.wav as its second argument. Verify the command succeeds and the output file is nonempty. Do not change the script or use another speech provider." },
-      "out": ["welcome.wav"]
+      "agent": {
+        "max_turns": 5,
+        "ask": "never"
+      },
+      "in": {
+        "prompt": "Run bin/tts-typecast.sh to synthesize a short Korean welcome audio that says exactly \"{{submitter}}님 환영합니다\", and write the resulting audio to $OUT/welcome.wav."
+      },
+      "out": [
+        "welcome.wav"
+      ]
     },
     {
       "id": "play",
       "uses": "board",
-      "needs": ["synthesize"],
-      "in": { "from": ["welcome.wav"] },
-      "run": ["sh", "-c", "enode-demo-play \"$IN/welcome.wav\" && echo ok > \"$OUT/played.txt\""],
-      "out": ["played.txt"]
+      "needs": [
+        "synthesize"
+      ],
+      "in": {
+        "from": [
+          "welcome.wav"
+        ]
+      },
+      "run": [
+        "sh",
+        "-c",
+        "set -e\nf=$IN/welcome.wav\nt=${ENODE_PI_TARGET:-sunny@sunnypi.local}\nd=/tmp/enode-demo-$$.wav\nscp -q -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \"$f\" \"$t:$d\"\nssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \"$t\" \"amixer -c 1 sset PCM 100% unmute >/dev/null 2>&1; aplay -q -D plughw:1,0 '$d'; rc=\\$?; rm -f '$d'; echo played rc=\\$rc; exit \\$rc\"\necho ok > $OUT/played.txt\n"
+      ],
+      "out": [
+        "played.txt"
+      ]
     }
   ],
   "success_when": [
-    { "step": "synthesize", "produced": ["welcome.wav"] },
-    { "step": "play", "exit_code": 0, "produced": ["played.txt"] }
+    {
+      "step": "synthesize",
+      "produced": [
+        "welcome.wav"
+      ]
+    },
+    {
+      "step": "play",
+      "exit_code": 0,
+      "produced": [
+        "played.txt"
+      ]
+    }
   ]
 }

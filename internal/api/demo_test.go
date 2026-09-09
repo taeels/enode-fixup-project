@@ -487,8 +487,8 @@ func TestDemo_FixedFixturesOnlyChangeIdentityAndApprovedName(t *testing.T) {
 func TestDemo_PublicFixedScenariosUseQueueAndPreserveWelcomeName(t *testing.T) {
 	s := demoTestServer(t)
 	h := s.Handler()
-	board := `{"node_id":"demo-board","label":"Demo board","capabilities":[{"capability":"agent.reason","attrs":{"device":"led","board":"rpi2b-v1.1","audio_playback":"true","os":"darwin"}}]}`
-	voice := `{"node_id":"demo-voice","label":"Demo voice","capabilities":[{"capability":"agent.reason","attrs":{"harness":"claude","service":"tts","tts_typecast":"yes"}}]}`
+	board := `{"node_id":"demo-board","label":"Demo board","capabilities":[{"capability":"agent.reason","attrs":{"device":"led","board":"rpi2b-v1.1"}}]}`
+	voice := `{"node_id":"demo-voice","label":"Demo voice","capabilities":[{"capability":"agent.reason","attrs":{"harness":"claude","service":"tts","tts_typecast":"yes","voice_typecast":"Sanghyun"}}]}`
 	for _, ad := range []string{board, voice} {
 		demoTestStatus(t, demoTestCall(h, "POST", "/v1/nodes", ad, s.cfg.Token), 200)
 	}
