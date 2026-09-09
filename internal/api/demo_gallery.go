@@ -74,6 +74,7 @@ func (s *Server) registerGallery(mux *http.ServeMux) {
 		CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect blocked") }}}
 	mux.HandleFunc("GET /v1/demo/gallery/projects", h.list)
 	mux.HandleFunc("POST /v1/demo/gallery/runs", h.draft)
+	mux.HandleFunc("POST /v1/demo/gallery/comments", h.comment)
 	mux.HandleFunc("GET /v1/demo/gallery/runs/{id}", h.result)
 	mux.HandleFunc("POST /v1/demo/gallery/runs/{id}/publish", h.publish)
 }
@@ -236,7 +237,7 @@ func galleryOriginal(run *store.Run) (galleryJob, error) {
 	}
 	a, _ := json.Marshal(c)
 	b, _ := json.Marshal(expected)
-	if !bytes.Equal(a, b) || job.Operation != "draft" || !galleryRunID.MatchString(run.RunID) {
+	if !bytes.Equal(a, b) || (job.Operation != "draft" && job.Operation != "comment") || !galleryRunID.MatchString(run.RunID) {
 		return job, errors.New("invalid gallery contract")
 	}
 	return job, nil
@@ -341,6 +342,40 @@ func (h *galleryHandler) draft(w http.ResponseWriter, r *http.Request) {
 	}
 	h.submit(w, r, id, galleryJob{Operation: "draft", ProjectID: fields["project_id"], Prompt: fields["prompt"], OwnerHash: galleryHash(fields["request_id"]), Submitter: fields["submitter"]})
 }
+
+// A new message authorizes one comment. The VM discovers the requested team;
+// the browser never supplies a tool, URL, contract, or publication credential.
+func (h *galleryHandler) comment(w http.ResponseWriter, r *http.Request) {
+	if !h.begin(w) {
+		return
+	}
+	fields, status := galleryFields(w, r, "prompt", "request_id", "submitter")
+	if status != 0 {
+		fail(w, status, "invalid comment request")
+		return
+	}
+	if !galleryText(fields["prompt"], 1000) || !demoIDPattern.MatchString(fields["request_id"]) || !demoNamePattern.MatchString(fields["submitter"]) {
+		fail(w, 400, "invalid comment request")
+		return
+	}
+	identity, _ := json.Marshal([]string{"comment-v1", fields["prompt"], fields["request_id"], fields["submitter"]})
+	id := "gallery-" + galleryHash(string(identity))
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if existing, err := h.server.st.GetRun(r.Context(), id); err == nil {
+		write(w, 200, h.server.view(r.Context(), existing))
+		return
+	} else if !errors.Is(err, store.ErrNotFound) {
+		fail(w, 503, "cannot check request")
+		return
+	}
+	if !h.admit(w, r) {
+		return
+	}
+	ticket, _ := json.Marshal(map[string]any{"purpose": "enode-gallery-comment-v1", "job_id": "gallery-post-" + strings.TrimPrefix(id, "gallery-"), "expires": time.Now().Add(15 * time.Minute).Unix()})
+	payload := base64.RawURLEncoding.EncodeToString(ticket)
+	h.submit(w, r, id, galleryJob{Operation: "comment", Prompt: fields["prompt"], OwnerHash: galleryHash(fields["request_id"]), Submitter: fields["submitter"], Ticket: payload + "." + gallerySign(h.signingKey(), payload)})
+}
 func (h *galleryHandler) artifact(run *store.Run) (*galleryResult, error) {
 	if run.State != store.StateSucceeded {
 		return nil, nil
@@ -365,7 +400,7 @@ func (h *galleryHandler) artifact(run *store.Run) (*galleryResult, error) {
 		return nil, errors.New("invalid result")
 	}
 	switch result.Outcome {
-	case "refused", "draft_ready", "posted", "error":
+	case "refused", "needs_project", "draft_ready", "posted", "error":
 	default:
 		return nil, errors.New("invalid outcome")
 	}
@@ -373,7 +408,7 @@ func (h *galleryHandler) artifact(run *store.Run) (*galleryResult, error) {
 		return nil, errors.New("invalid transcript")
 	}
 	for _, event := range result.Transcript {
-		if (event.Role != "user" && event.Role != "assistant" && event.Role != "system" && event.Role != "tool") || !galleryText(event.Text, 3000) || (event.Tool != "" && event.Tool != "get_project" && event.Tool != "post_confirmed_comment") {
+		if (event.Role != "user" && event.Role != "assistant" && event.Role != "system" && event.Role != "tool") || !galleryText(event.Text, 3000) || (event.Tool != "" && event.Tool != "list_projects" && event.Tool != "get_project" && event.Tool != "post_comment" && event.Tool != "post_confirmed_comment") {
 			return nil, errors.New("invalid event")
 		}
 	}
@@ -454,7 +489,7 @@ func (h *galleryHandler) publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := h.artifact(run)
-	if err != nil || result == nil || result.Outcome != "draft_ready" || result.ProjectID != job.ProjectID {
+	if err != nil || job.Operation != "draft" || result == nil || result.Outcome != "draft_ready" || result.ProjectID != job.ProjectID {
 		fail(w, 409, "draft is not ready")
 		return
 	}

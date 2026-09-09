@@ -15,6 +15,7 @@ import time
 from common import Gallery, ORIGIN, comment_body, project_id
 
 PURPOSE = 'enode-gallery-publish-v1'
+COMMENT_PURPOSE = 'enode-gallery-comment-v1'
 
 
 def verify(ticket, key, now=None):
@@ -25,15 +26,21 @@ def verify(ticket, key, now=None):
     if not hmac.compare_digest(signature, expected):
         raise ValueError('invalid signature')
     job = json.loads(base64.urlsafe_b64decode(payload + '=' * (-len(payload) % 4)))
-    if set(job) != {'purpose', 'job_id', 'project_id', 'body', 'expires'} or job['purpose'] != PURPOSE:
+    expected_fields = {'purpose', 'job_id', 'expires'}
+    if job.get('purpose') == PURPOSE:
+        expected_fields |= {'project_id', 'body'}
+    elif job.get('purpose') != COMMENT_PURPOSE:
+        raise ValueError('invalid scope')
+    if set(job) != expected_fields:
         raise ValueError('invalid scope')
     now = time.time() if now is None else now
     if type(job['expires']) is not int or not now < job['expires'] <= now + 1800:
         raise ValueError('expired ticket')
     if not re.fullmatch(r'gallery-post-[0-9a-f]{64}', job['job_id']):
         raise ValueError('invalid job')
-    project_id(job['project_id'])
-    comment_body(job['body'])
+    if job['purpose'] == PURPOSE:
+        project_id(job['project_id'])
+        comment_body(job['body'])
     return job
 
 
@@ -44,8 +51,12 @@ class Publisher:
         self.db.execute('CREATE TABLE IF NOT EXISTS attempts (id TEXT PRIMARY KEY, intent TEXT NOT NULL, result TEXT NOT NULL)')
         self.gallery = gallery or Gallery()
 
-    def publish(self, ticket):
+    def publish(self, ticket, selected=None, body=None):
         job = verify(ticket, self.config['signing_key'])
+        if job['purpose'] == COMMENT_PURPOSE:
+            job.update(project_id=project_id(selected), body=comment_body(body))
+        elif selected is not None or body is not None:
+            raise ValueError('fixed confirmation cannot be overridden')
         identity = json.dumps([job['project_id'], job['body']], ensure_ascii=False)
         existing = self.db.execute('SELECT intent, result FROM attempts WHERE id=?', (job['job_id'],)).fetchone()
         if existing:
@@ -53,6 +64,8 @@ class Publisher:
                 raise ValueError('confirmation changed')
             return json.loads(existing[1])
         # Authentication and read failures happen before any write attempt.
+        if job['purpose'] == COMMENT_PURPOSE and job['project_id'] not in {p['id'] for p in self.gallery.projects()}:
+            raise ValueError('project is not in the current gallery')
         self.gallery.project(job['project_id'])
         self.gallery.login(self.config)
         before = self.gallery.comments(job['project_id'])
@@ -73,7 +86,7 @@ class Publisher:
                        and c.get('body') == job['body'] and not c.get('deleted')
                        and c.get('mine') is True]
             if len(matches) == 1:
-                pending = {'outcome': 'posted', 'message': '확인한 댓글이 갤러리에 게시되었습니다.',
+                pending = {'outcome': 'posted', 'message': '댓글을 갤러리에 게시했습니다.',
                            'project_id': job['project_id'], 'body': job['body'],
                            'comment_id': matches[0]['id'], 'url': ORIGIN + '/projects/' + job['project_id']}
         except Exception:
@@ -91,9 +104,9 @@ class Handler(socketserver.StreamRequestHandler):
             if len(line) > 16000:
                 raise ValueError('request too large')
             data = json.loads(line)
-            if set(data) != {'ticket'}:
+            if set(data) not in ({'ticket'}, {'ticket', 'project_id', 'body'}):
                 raise ValueError('invalid request')
-            result = self.server.publisher.publish(data['ticket'])
+            result = self.server.publisher.publish(data['ticket'], data.get('project_id'), data.get('body'))
         except Exception:
             result = {'outcome': 'error', 'message': '게시 권한 또는 갤러리 연결을 확인하지 못했습니다.'}
         self.wfile.write(json.dumps(result, ensure_ascii=False).encode() + b'\n')

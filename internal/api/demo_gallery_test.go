@@ -213,3 +213,47 @@ func TestGallery_CatalogOnlyFixedURLAndCache(t *testing.T) {
 		t.Fatal("cache missed")
 	}
 }
+
+func TestGallery_CommentMessageIsOneScopedWorkflow(t *testing.T) {
+	h := galleryTestHandler(t)
+	node := `{"node_id":"gallery-test-node","label":"gallery","capabilities":[{"capability":"agent.reason","attrs":{"gallery":"comments-v1","sandbox":"lima-vm","provider":"bedrock","instance":"macmini-bedrock-vm"}}]}`
+	demoTestStatus(t, demoTestCall(h.server.Handler(), "POST", "/v1/nodes", node, h.server.cfg.Token), 200)
+	body := `{"prompt":"다른 팀에 응원 댓글 달아줘","request_id":"` + galleryProof + `","submitter":"밝은 수달"}`
+	for _, invalid := range []string{`{}`, strings.Replace(body, `"prompt"`, `"project_id":"project-1","prompt"`, 1), strings.Replace(body, "밝은 수달", "invalid", 1)} {
+		demoTestStatus(t, galleryCall(h.comment, "POST", "/v1/demo/gallery/comments", invalid, ""), 400)
+	}
+	first := galleryCall(h.comment, "POST", "/v1/demo/gallery/comments", body, "")
+	demoTestStatus(t, first, 201)
+	var view runView
+	if err := json.Unmarshal(first.Body.Bytes(), &view); err != nil {
+		t.Fatal(err)
+	}
+	run, err := h.server.st.GetRun(context.Background(), view.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := galleryOriginal(run)
+	if err != nil || job.Operation != "comment" || job.ProjectID != "" || job.Prompt != "다른 팀에 응원 댓글 달아줘" {
+		t.Fatalf("unexpected workflow: %+v %v", job, err)
+	}
+	parts := strings.Split(job.Ticket, ".")
+	if len(parts) != 2 || parts[1] != gallerySign(h.signingKey(), parts[0]) {
+		t.Fatal("invalid comment grant")
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(parts[0])
+	var scope map[string]any
+	if err != nil || json.Unmarshal(raw, &scope) != nil || len(scope) != 3 || scope["purpose"] != "enode-gallery-comment-v1" || scope["job_id"] != "gallery-post-"+strings.TrimPrefix(view.RunID, "gallery-") {
+		t.Fatal("unexpected grant scope")
+	}
+	if strings.Contains(first.Body.String(), job.Ticket) || strings.Contains(first.Body.String(), galleryProof) {
+		t.Fatal("private request information exposed")
+	}
+	demoTestStatus(t, galleryCall(h.comment, "POST", "/v1/demo/gallery/comments", body, ""), 200)
+	demoTestStatus(t, galleryCall(h.result, "GET", "/v1/demo/gallery/runs/"+view.RunID, "", galleryProof), 200)
+	demoTestStatus(t, galleryCall(h.publish, "POST", "/v1/demo/gallery/runs/"+view.RunID+"/publish", `{"request_id":"`+galleryProof+`","body":"override"}`, ""), 409)
+	for i := range 2 {
+		demoTestStatus(t, galleryCall(h.comment, "POST", "/v1/demo/gallery/comments", strings.Replace(body, "응원 댓글", strings.Repeat("응원", i+1), 1), ""), 202)
+	}
+	demoTestStatus(t, galleryCall(h.comment, "POST", "/v1/demo/gallery/comments", strings.Replace(body, "응원 댓글", "새 댓글", 1), ""), 429)
+	demoTestStatus(t, galleryCall(h.comment, "POST", "/v1/demo/gallery/comments", body, ""), 200)
+}
