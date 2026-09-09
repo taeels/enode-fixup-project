@@ -1,6 +1,6 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → 갤러리 대화 기록 후속 Build and Test 완료·Mac mini 운영 적용.
+**현재 공식 단계**: CONSTRUCTION → ui YouTube Live 웹캠 후속 Build 성공·테스트 미실행·Mac mini 운영 적용·PR #25 제출.
 앞선 갤러리 확장은 검증·Mac mini 운영 적용·PR #14 병합을 완료했다.
 기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
@@ -8,6 +8,17 @@
 사용자의 “응 시작해”로 승인됐다. Inception이나 FD 승인을 다시 기다리지 않는다.
 
 ## 현재 기준 — 2026-09-09
+
+**YouTube Live 웹캠 후속 작업**: `unit/runixs-youtube-live-webcam`에서 사용자가
+최종 지정한 영상 `8y2ln1nCHbM`을 공개 데모 웹캠 설정에 연결했다. 공개 settings와
+CSP `frame-src https://www.youtube.com`, Mediator `ce0ef4c`의 리슨을 확인했고
+기존 터널·설정·DB·runctl을 유지했다. 테스트 스위트는 선행 사용자 지시에 따라
+미실행이며 CP10·CP11을 통과로 바꾸지 않는다.
+[보완 계획](construction/plans/ui-youtube-live-webcam-plan.md),
+[변경·배포 기록](construction/ui/code/youtube-live-webcam.md).
+최신 main `4290cee`를 rebase해 갤러리 대화 이력을 인수하고
+[PR #25](https://github.com/taeels/enode-fixup-project/pull/25)를 제출했다.
+PR 제출은 테스트 통과·장면 게이트 승인·main 병합과 구분한다.
 
 **갤러리 대화 기록 후속 작업**: `unit/runixs-gallery-history`에서 최신 main의
 Run 흐름 UI를 인수했다. 웹 작업 목록에서 Run 선택 → 대화 기록으로 기존 봉인
@@ -140,10 +151,11 @@ UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도
 토큰/submitterKey로 기존 submit을 호출한다. 201/202/200·같은 의도·이름 보존과
 로컬 브라우저의 3D 전환·queue 승격·목록 갱신을 확인했다.
 
-**다음은 공동 실제 장면이다.** 문태호(nacl1119)의 enode-demo-led/enode-demo-play
-래퍼와 Windows→rpi, 손신(shin-son)의 mac Claude+higgsfield 광고/합성, 최태양
-(taeels)의 공개 webcam embed URL이 필요하다. 준비된 장비와 함께 runixs가
-UI·제출·이름·음성·봉인·방송을 확인한다. 현재 webcam 설정은 null이다.
+**공동 실제 장면은 남아 있다.** 문태호(nacl1119)의 enode-demo-led/enode-demo-play
+래퍼와 Windows→rpi, 손신(shin-son)의 mac Claude+higgsfield 광고/합성에 맞춰
+runixs가 UI·제출·이름·음성·봉인·방송을 확인한다. 공개 webcam embed URL은
+`8y2ln1nCHbM` YouTube Live로 운영 적용했다. URL 연결만으로 CP10·CP11의 실제
+하드웨어·화면 조작을 통과한 것은 아니다.
 진행자 [인수 안내](../taeels/construction/demo-fixtures/README.md)의 담당 범위를 따른다.
 
 [demo-back 구현](construction/demo-back/code/implementation-summary.md)과
