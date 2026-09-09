@@ -1651,3 +1651,15 @@ runctl이름을 gallary가 아니고 remote ddthon comment 이런 이름 어떄?
 ```
 
 **Decision**: 표시명을 Remote DDTHON Comment로 바꾸어 새 작업 카드·입력창·작업 목록·그래프·노드/단계 상세에 적용한다. 실행 식별자와 기존 계약은 유지하고 기존 gallery Run도 같은 표시명으로 읽는다. Mac mini Mediator를 새 소스로 빌드·교체한다. 이전 사용자 지시대로 추가 검사는 생략한다.
+
+## 단계 이름의 출처와 설계 설명 정정
+
+**Timestamp**: 2026-09-09T06:29:32.207677+00:00
+
+**User Input**:
+
+```text
+그러면 galley, play, make  이런건 전부 서버에서 네이밍을 붙인거야??? runctl에서 붙이는게 아니고???? 이게 데모때문에 그런건가? 아니면 원래 이게 우리 디자인이 맞는거야?
+```
+
+**Decision**: 단계 이름은 계약/계획 작성자가 steps[].id로 정하며 runctl은 파일을 읽어 POST /v1/runs에 그대로 제출한다. make/play는 greet-play 등 계약 예제에 정의되어 있고, 웹 음원 데모도 내장 계약 예제를 사용한다. gallery만 현재 갤러리 전용 데모 어댑터의 계약 생성 코드에서 고정했다. 설계 문서는 UI를 같은 제출 API의 어댑터로 허용한다. 모든 단계 이름을 Mediator가 정하는 설계라는 앞선 인상을 정정한다. Remote DDTHON Comment의 UI 별칭은 표시 편의 구현이며 원래 실행 ID를 바꾸지 않았다. 표시명 버전 d952667은 Mac mini에 교체·재시작 완료했고 추가 검사는 실행하지 않았다.
