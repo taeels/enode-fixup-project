@@ -13,7 +13,10 @@
 - [x] card-news 업데이트 2026-09-08 — CP8 재검증 초록. 상세는
   `aidlc-docs/nacl1119/construction/card-news/update-2026-09-08.md`
   - 카드 1~4 실사 일러스트, 카드 4 보드 사진 추가, 카드 5(영상) 신설
-  - [ ] 다음 업데이트는 이 파일에 새 항목으로 이어 쌓는다
+  - [x] 업데이트 2026-09-09 — 이미지/영상을 enode-img/card1~5 로 교체 · 카드뉴스 5 목업 신설
+    (`.pen` 에 카드 5 프레임 · 모든 카드 5점·N/5 · 카드 4 버튼 다음). 상세는 update-2026-09-08.md
+    - .pen 파일은 진행자가 pen.dev 에서 저장한 뒤 브랜치에 실림(design 은 진행자 몫)
+  - [ ] 다음 업데이트는 update-2026-09-08.md 에 새 항목으로 이어 쌓는다
 - [ ] panel 제어판 — CP4 · 의존 obs · drain
   - internal/proc 추출 · internal/panel · enodectl serve · cmd/enode panel · 경계 검사 테스트
   - **완료 조건에 조작 넷(status·start·stop·logs) + drain 걸기·모드·풀기 전부 나열**
