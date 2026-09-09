@@ -83,6 +83,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/stop", s.handleStop)
 	mux.HandleFunc("POST /api/start", s.handleStart)
 	mux.HandleFunc("GET /api/logs", s.handleLogs)
+	mux.HandleFunc("GET /api/transcript", s.handleTranscript)
+	mux.HandleFunc("GET /api/runs", s.handleRuns)
+	mux.HandleFunc("GET /api/record", s.handleRecord)
 	if s.cfg.PanelToken != "" {
 		return s.requireToken(mux)
 	}
