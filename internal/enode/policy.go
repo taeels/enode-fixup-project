@@ -19,10 +19,13 @@ import (
 // 거기 산다. 중앙은 광고에 실려 온 복사본을 둘 뿐이고 판정하지 않는다. 데몬은
 // 광고 직전마다 이 파일을 읽어 싣는다. 캐시가 없는 이유 — 값이 파일에 있다.
 
-// Policy 는 소유자가 정책 파일에 적는 것이다. 키 하나다 — 모르는 키는 무시한다
-// (제어판의 panel_token 이 뒤에 같은 파일에 앉는다).
+// Policy 는 소유자가 정책 파일에 적는 것이다. 데몬은 Drain 만 본다 —
+// PanelToken 은 제어판(internal/panel)이 LAN 노출을 켤 때 읽는 값이라 여기
+// 자리만 두고 데몬은 안 쓴다. policyReader.Read 가 Drain 만 접으므로 이 키를
+// 더해도 데몬 동작은 안 바뀐다.
 type Policy struct {
-	Drain string `yaml:"drain"`
+	Drain      string `yaml:"drain"`
+	PanelToken string `yaml:"panel_token"`
 }
 
 // PolicyPath 는 설정 파일 옆의 정책 파일이다 — <dir>/<stem>.policy.yaml.

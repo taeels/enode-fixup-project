@@ -119,6 +119,12 @@ type Advertiser struct {
 	// Ident.Config 옆의 파일로 만든다 — 설정이 없는 시험은 안 읽는다.
 	policy *policyReader
 
+	// lastStatusAt 는 상태 파일에 마지막으로 쓴 탐지 시각이다 (ADR-068 = A).
+	// At 이 바뀔 때만 쓴다 — 광고 주기(60초)와 탐지 주기(5분)가 달라 매 광고
+	// 쓰기는 같은 값의 낭비다. statusWarn 은 쓰기 실패를 원인이 바뀔 때만 찍는다.
+	lastStatusAt time.Time
+	statusWarn   string
+
 	// OnReady 는 첫 광고가 성공한 뒤 한 번 불린다 (탄력 노드).
 	//
 	// 왜 필요한가 — 노드를 띄운 쪽은 「떴다」와 「쓸 수 있다」 사이를
@@ -157,6 +163,10 @@ func (a *Advertiser) Run(ctx context.Context) {
 		// 디스크처럼 값싼 것은 Caps 안에서 지금 새로 보므로, 빌드가 도는
 		// 동안 디스크가 차면 다음 광고에서 바로 빠진다.
 		snap := a.Caps()
+		// 제어판이 읽을 상태 파일에 탐지 능력과 시각을 남긴다 (ADR-068 = A).
+		// 광고 경로 옆에 두는 것은 여기서 snap 을 이미 들기 때문이다 — 못 써도
+		// 막지 않는다. 능력은 광고가 이미 진다.
+		a.writeStatus(snap)
 		ad := contract.Advert{
 			NodeID:       a.Ident.NodeID,
 			Label:        a.Ident.Label,
@@ -217,4 +227,25 @@ func (a *Advertiser) readPolicy() contract.Policy {
 		a.policy = &policyReader{Path: PolicyPath(a.Ident.Config), Log: a.Log}
 	}
 	return a.policy.Read()
+}
+
+// writeStatus 는 상태 파일에 탐지 능력을 남긴다 (ADR-068 = A · 제어판이 읽는다).
+//
+// At 이 지난 쓰기와 같으면 안 쓴다. 설정 경로가 없으면(시험) 안 쓴다. 쓰기가
+// 실패해도 막지 않는다 — 능력은 광고가 이미 진다. 원인이 바뀔 때만 경고한다
+// (policy.go 의 warn 규약과 같다 — 5초마다 같은 줄이 쌓이지 않게).
+func (a *Advertiser) writeStatus(snap Capabilities) {
+	if a.Ident.Config == "" || snap.At.Equal(a.lastStatusAt) {
+		return
+	}
+	if err := WriteStatus(a.Ident.Config, snap); err != nil {
+		if reason := err.Error(); reason != a.statusWarn {
+			a.statusWarn = reason
+			a.Log.Warn("cannot write the status file; the panel will show capabilities as unknown",
+				"path", StatusPath(a.Ident.Config), "err", reason)
+		}
+		return
+	}
+	a.statusWarn = ""
+	a.lastStatusAt = snap.At
 }
