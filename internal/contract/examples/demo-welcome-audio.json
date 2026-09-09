@@ -1,0 +1,32 @@
+{
+  "run_id": "demo-welcome-audio",
+  "work": {
+    "id": { "system": "demo", "change_id": "welcome-audio" },
+    "system": "demo"
+  },
+  "requires": [
+    { "as": "voice", "capability": "agent.reason", "harness": "claude", "tts": "higgsfield" },
+    { "as": "board", "capability": "agent.reason", "device": "speaker" }
+  ],
+  "steps": [
+    {
+      "id": "synthesize",
+      "uses": "voice",
+      "agent": { "max_turns": 5, "ask": "never" },
+      "in": { "prompt": "Use the higgsfield tool to synthesize a short Korean welcome audio that says exactly \"{{submitter}}님 환영합니다\", and write the resulting audio to $OUT/welcome.wav." },
+      "out": ["welcome.wav"]
+    },
+    {
+      "id": "play",
+      "uses": "board",
+      "needs": ["synthesize"],
+      "in": { "from": ["welcome.wav"] },
+      "run": ["sh", "-c", "enode-demo-play $IN/welcome.wav && echo ok > $OUT/played.txt"],
+      "out": ["played.txt"]
+    }
+  ],
+  "success_when": [
+    { "step": "synthesize", "produced": ["welcome.wav"] },
+    { "step": "play", "exit_code": 0, "produced": ["played.txt"] }
+  ]
+}
