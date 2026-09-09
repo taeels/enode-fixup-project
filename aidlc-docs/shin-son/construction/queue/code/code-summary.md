@@ -103,7 +103,9 @@ AI-DLC Construction · **queue 유닛**(W1 · CP2)의 Code Generation Part 2 산
 여유는 3 문장이다 — 뒤에 이 패키지를 만지는 유닛(demo-back · mcp)이 시험 없이
 문장을 더하면 미달이 된다. 진행자에게 넘긴다(5절).
 
-**CP2 는 아직이다** — 실제 노드가 필요하다. 결과는 이 절 아래에 잇는다.
+**CP2 통과** (2026-09-09T00:52:59Z) — 실 Mediator · 실 노드 · runctl 로 scene-gates 3절을 그대로 쳤다. 202 QUEUED ·
+목록·상세 · a 의 결과 보고 안에서 b 승격(로그 순서: promoted 58.073 < run finished a 58.075) ·
+422 FAILED. 절차와 실측은 `construction/build-and-test/integration-test-instructions.md`.
 
 ## 4. 시험 — 이름과 재는 것
 

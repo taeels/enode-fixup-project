@@ -155,3 +155,11 @@ Q3 A"
 **Context**: CONSTRUCTION - queue - Build and Test (CP0 통과 · CP2 준비).
 
 ---
+
+## Build and Test — queue · CP2 · 산출물 다섯
+**Timestamp**: 2026-09-09T00:52:59Z
+**User Input**: (없음 — CP0 의 후속)
+**AI Response**: CP2 를 이 기계에서 쟀다 — 판 `enode_cp2` 를 따로 파고 Mediator(127.0.0.1:18080) 와 enode(보드 선언 · 5초 광고)를 띄워 scene-gates 3절 명령을 쳤다. a RUNNING · b 202 QUEUED · status QUEUED · 목록·상세(requires) · a 끝나며 같은 tx 에서 b 승격(로그 순서로 확인) · c 422 → FAILED. 첫 시도의 c 는 계약 입력 형식(속성을 형제 키로 편다)을 틀려 400 이었고 고쳐 다시 쟀다. Build and Test 산출물 다섯을 `construction/build-and-test/` 에 냈다. 커밋한다. 규칙의 물음 「Build and test instructions complete. Ready to proceed to Operations stage?」 — 이 회차에서 Operations 는 자리표시자이고 실제 다음은 PR to main 이다.
+**Context**: CONSTRUCTION - queue - Build and Test (CP2 통과 · 승인 대기).
+
+---
