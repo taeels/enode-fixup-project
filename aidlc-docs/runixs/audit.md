@@ -782,3 +782,91 @@ runixs 기록은 전부 "CreateQueuedRun·WakeQueued 는 아직 없다" 기준�
 **AI Response**: c7a237d 위에서 demo.go와 회귀 테스트를 작성하고 api.go에 데모 전용 등록 3줄을 추가했다. 두 실제 example·정확한 prompt 이름 주입·본문/형식/같은 의도 식별·전용 한도·서버 토큰·기존 submit/queue 연결을 구현했다. 표준 Go 전체 1,173 통과·실패/스킵 0, 16패키지 80% 이상(api 84.539%, demo.go 96.0%). 동시 4개 재시도 race·vet·전체/교차 빌드·govulncheck 통과. 로컬 시험 도구가 탐색에 포함되던 예비 검사는 모듈 경계로 분리하고 16제품패키지 기준으로 재실행했다. 실제 Handler+fixture+로컬 광고+DB의 브라우저에서 LED 201·음원 202·승격·이름/claim·3D·목록을 검증했다. 최종 화면에서 승격 뒤 낡은 QUEUED 안내가 남는 것을 발견해 demo.js에서 관측 후 숨기도록 수정하고 Node 46·Go UI 98.4%·브라우저 14개 단언을 재검증했다. 테스트 유발 probe.lock PID는 3671709로 복구했다. 구현/검증 문서와 계획·상태를 갱신한다. 기존 커밋·push 지시에 따라 동일 이메일로 담당 브랜치에 반영하고 PR #6의 설명을 최종 범위로 갱신하되 Draft를 유지한다. 문태호의 보드/스피커 래퍼, 손신의 mac Claude+higgsfield, 최태양의 공개 webcam URL 및 실제 공동 장면은 남아 있다. 영상·공용 상태·진행자 fixture 원문은 보존했다.
 
 ---
+
+## main 병합과 실행 가능 여부
+
+**Timestamp (기록 시각)**: 2026-09-09T02:10:40.413176+00:00
+
+**User Input**:
+
+```text
+지금 PR을 main에 머지해서 바로 실행할 수 있는거아니야?
+```
+
+**AI Response**: 대화에서 해당 요청을 접수했다. main 병합 질문에는 CI 통과·충돌 없음과 공동 장면 게이트를 설명했다. 로컬 기동은 읽기 확인 중 후속 배포 지시로 전환됐다. 중단된 배포 응답은 실제 게시 전이며 최종 rc1 지시 아래 이어간다.
+
+---
+
+## 로컬 실행 환경 기동 요청
+
+**Timestamp (기록 시각)**: 2026-09-09T02:10:40.413587+00:00
+
+**User Input**:
+
+```text
+그러면 지금 내 자리에서 enode에 필요한것 전부 띄워줘. mediator 등등
+```
+
+**AI Response**: 대화에서 해당 요청을 접수했다. main 병합 질문에는 CI 통과·충돌 없음과 공동 장면 게이트를 설명했다. 로컬 기동은 읽기 확인 중 후속 배포 지시로 전환됐다. 중단된 배포 응답은 실제 게시 전이며 최종 rc1 지시 아래 이어간다.
+
+---
+
+## 배포 우선으로 전환
+
+**Timestamp (기록 시각)**: 2026-09-09T02:10:40.413591+00:00
+
+**User Input**:
+
+```text
+맥용이랑 윈도우용으로 빌드해서 릴리즈일단 하자. 해놨어?
+```
+
+**AI Response**: 대화에서 해당 요청을 접수했다. main 병합 질문에는 CI 통과·충돌 없음과 공동 장면 게이트를 설명했다. 로컬 기동은 읽기 확인 중 후속 배포 지시로 전환됐다. 중단된 배포 응답은 실제 게시 전이며 최종 rc1 지시 아래 이어간다.
+
+---
+
+## rc1 릴리스 게시 지시
+
+**Timestamp (기록 시각)**: 2026-09-09T02:10:40.413593+00:00
+
+**User Input**:
+
+```text
+맥용이랑 윈도우용으로 빌드해서 릴리즈일단 하자. 해놨어? rc1 릴리즈 해줘
+```
+
+**AI Response**: 사용자가 macOS·Windows rc1 빌드와 게시를 명시적으로 지시했다. 이 저장소에는 기존 태그·릴리스가 없으므로 v0.1.0-rc1을 선택한다. PR #6의 CI test·cross가 통과한 2d7bf7524d9c를 기준으로 macOS arm64·amd64와 Windows amd64의 노드 도구 및 별도 Mediator 묶음을 준비한다. 기존 package/release workflow로 Windows 설치 검증을 수행하고 Mac 실행·서명·체크섬을 확인한 뒤 prerelease로 게시한다. main 병합이나 실제 하드웨어 공동 장면 완료를 뜻하지 않는다. 로컬 기동 요청은 실행 상태와 설정을 읽던 중 배포 우선 지시로 전환됐으며 신규 프로세스를 띄우지 않았다.
+
+---
+
+## rc1 게시와 로컬 런타임
+
+**Timestamp (기록 시각)**: 2026-09-09T02:16:45.279540+00:00
+
+**AI Response**: v0.1.0-rc1을 2d7bf7524d9c9f9b25bb40d93ac56938115d934b에 고정해 2026-09-09T02:14:42Z에 prerelease로 게시했다. 기존 release/package workflow 34302170013의 빌드·Windows MSI 설치와 ZIP 실행·Linux 네 배포판 검증이 모두 통과했다. Mac arm64/amd64는 기존 build-installers.sh의 동일 링커/버전 플래그로 빌드하고 아키텍처별 노드/Mediator를 별도 압축했다. 초기 BSD tar의 AppleDouble 부속 파일을 목록 검사로 발견해 명시 파일 목록으로 다시 압축했다. Mac 8개 --version, arm64 4개 서명, 4개 압축 무결성, 2개 example/lint 통과. 업로드된 배포 파일 14개를 재다운로드해 GitHub digest, CI 10개 체크섬과 로컬 Mac 4개를 대조했다. 전체 SHA256SUMS를 올리고 게시 후 다시 받아 일치를 확인했다. 설치 파일 14개와 체크섬 1개가 게시됐다.
+
+기존 로컬 기동 지시도 이어서 처리했다. 별도 enode_runixs_rc1 DB와 local/rc1-runtime 설정/바이너리로 실제 Mediator·Mac enode를 Orca 터미널에서 기동했다. node 9b2fab72b8fc의 실제 광고와 shell 작업 runixs-rc1-local-smoke-20260909 SUCCEEDED·봉인 record 다운로드를 확인했다. Claude 하네스는 탐지만 했고 과금되는 agent step이나 실제 하드웨어 시나리오는 실행하지 않았다.
+
+---
+
+## 접속 IP와 토큰 요청
+
+**Timestamp (기록 시각)**: 2026-09-09T02:16:45.279540+00:00
+
+**User Input**:
+
+```text
+접속 IP랑 토큰도 알려줘
+```
+
+**AI Response**: 현재 en0 LAN IP는 172.24.82.142다. 사용자 요청에 따라 rc1 Mediator를 0.0.0.0:8080으로 바꾸고 연결을 확인한다. 토큰은 local/rc1-runtime/config/token의 사용자 전용 파일에서 읽어 대화로 전달하며 저장소나 릴리스에 값 자체를 기록하지 않는다.
+
+---
+
+## 로컬 접속 최종 확인
+
+**Timestamp (기록 시각)**: 2026-09-09T02:19:18.694114+00:00
+
+**AI Response**: Orca 터미널 목록이 현재 에이전트 하나로 정리되면서 새 Mediator·enode도 종료된 사실을 확인했다. 독립 세션의 Mediator와 enodectl start로 다시 기동해 터미널 수명에서 분리했다. enode의 기존 node_id가 유지됐다. LAN 172.24.82.142:8080에서 /ui/·/ui/fleet/·/ui/demo/·nodes·runs·인증된 capabilities가 모두 200이며 성공 Run과 실제 광고를 확인했다. 실제 Mediator의 루트 /는 404이고 실 함대는 /ui/fleet/이므로 릴리스 실행 안내도 그 경로로 고쳤다. 사용자가 요청한 LAN 주소·토큰은 대화로 전달했다. 담당 상태와 rc1 배포 기록을 갱신하고 기존 커밋·push 승인과 지정 이메일로 기록을 반영한다.
+
+---

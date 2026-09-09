@@ -60,6 +60,12 @@ Draft로 유지하며 전체 CP9/10/11이나 main 병합 완료를 선언하지 
 
 ## 검증 근거
 
+사용자의 별도 지시로 **v0.1.0-rc1 prerelease 게시와 로컬 실행을 완료**했다.
+태그는 CI가 통과한 `2d7bf7524d9c`에 고정했다. macOS arm64·amd64,
+Windows amd64와 별도 Mediator를 배포했고 설치·실행·다운로드 체크섬을 검증했다.
+로컬 Mac의 실제 enode 광고·shell 작업 성공·봉인 record와 LAN 접속도 확인했다.
+[rc1 배포 기록](construction/rc1-release.md). 공동 CP10과 PR 병합 게이트는 유지한다.
+
 - 최종 demo-back+실제 fixture 기준 Go 1,173 통과·0 실패·0 스킵, 16패키지 80% 이상.
   api 84.539%, demo.go 96.0%, UI 98.4%. race·vet·build·교차 빌드·govulncheck 통과.
 - 최종 안내 수정 뒤 Node 46·Go UI·브라우저 14개 단언 통과. 아래는 선행 단계의 검사다.
