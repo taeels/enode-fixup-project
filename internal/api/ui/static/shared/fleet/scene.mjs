@@ -1,4 +1,4 @@
-import { COLORS, graphLayout, nodeFacts } from './model.mjs';
+import { COLORS, graphLayout, nodeFacts, runFlowFacts } from './model.mjs';
 import { leaseIdentity, wrapLabel } from './format.mjs';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -11,7 +11,6 @@ function svg(tag, attributes = {}, text) {
 function label(parent, x, y, text, attributes = {}) {
   parent.append(svg('text', { x, y, fill: '#E6EAF0', 'font-size': 13, ...attributes }, text));
 }
-const shorten = (text, length = 24) => text.length > length ? `${text.slice(0, length - 1)}…` : text;
 function selectable(el, title, testid, idKey, id, action, selected) {
   el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0');
   el.setAttribute('aria-label', title); el.setAttribute('aria-pressed', String(selected));
@@ -100,32 +99,98 @@ export function fleetScene({ nodes, runs = [], details, asks, now, iso, mode, se
   });
   return { element: root, width, height };
 }
-export function runScene({ steps, nodes = [], iso, mode, selected, onSelect }) {
-  const placed = graphLayout(steps, iso), byID = new Map(placed.map(s => [s.id, s]));
-  const width = Math.max(780, ...placed.map(s => s.x + 230)), height = Math.max(460, ...placed.map(s => s.y + 230));
-  const root = svg('svg', { width, height, viewBox: `0 0 ${width} ${height}`, 'aria-label': '작업 의존 그래프', role: 'group' });
-  for (const s of placed) for (const id of s.needs) {
-    const from = byID.get(id), x = from.x + 175, y = from.y + 58, endX = s.x, endY = s.y + 58;
-    root.append(svg('path', { d: `M ${x} ${y} C ${x + 35} ${y}, ${endX - 35} ${endY}, ${endX - 8} ${endY}`, fill: 'none', stroke: '#647386', 'stroke-width': 2 }));
-    root.append(svg('path', { d: `M ${endX - 9} ${endY - 4} l 7 4 l -7 4`, fill: 'none', stroke: '#647386' }));
+function flowLink(parent, from, to, { vertical = false, context = false, active = false, color = '#53687B' } = {}) {
+  const end = vertical ? { x: to.x, y: to.y - 8 } : { x: to.x - 8, y: to.y };
+  const bend = vertical ? Math.max(28, (to.y - from.y) / 2) : Math.max(28, (to.x - from.x) / 2);
+  const controls = vertical ? `${from.x} ${from.y + bend}, ${end.x} ${end.y - bend}` : `${from.x + bend} ${from.y}, ${end.x - bend} ${end.y}`;
+  parent.append(svg('path', { d: `M ${from.x} ${from.y} C ${controls}, ${end.x} ${end.y}`, fill: 'none', stroke: color, 'stroke-width': active ? 2.5 : 1.8, class: context ? 'flow-link flow-context-link' : 'flow-link dependency-edge', 'data-active': active }));
+  parent.append(svg('path', { d: vertical ? `M ${to.x - 4} ${to.y - 10} l 4 7 l 4 -7` : `M ${to.x - 10} ${to.y - 4} l 7 4 l -7 4`, fill: 'none', stroke: color, 'stroke-width': 1.8 }));
+}
+
+function flowActor(parent, { x, y, kind, name, status, description, color, iso, mode, selected, onSelect, active }) {
+  const group = svg('g', { transform: `translate(${x} ${y})`, class: `flow-actor${active ? ' is-active' : ''}` });
+  const title = kind === 'guest' ? mode === 'demo' ? 'Guest' : 'Submitter' : 'Mediator';
+  selectable(group, `${title} · ${name} · ${status}`, `${mode}-flow-actor-button`, 'actor', kind, () => onSelect(kind), selected === kind);
+  group.append(svg('title', {}, `${title}\n${name}\n${status}\n${description}`));
+  if (iso) group.append(svg('path', { d: 'M 8 168 H 270 V 8 L 282 20 V 180 H 20 Z', fill: '#101C26', stroke: '#3B5063' }));
+  group.append(svg('rect', { width: 270, height: 168, rx: 16, fill: '#192631', stroke: selected === kind ? color : '#42596B', 'stroke-width': selected === kind ? 3 : 1.5 }));
+  label(group, 20, 27, `${kind === 'guest' ? '01' : '02'} / ${title.toUpperCase()}`, { fill: color, 'font-size': 11, 'letter-spacing': 2 });
+  group.append(svg('circle', { cx: 45, cy: 74, r: 25, fill: '#0D1A23', stroke: color, 'stroke-opacity': .5, class: 'flow-halo' }));
+  if (kind === 'guest') {
+    group.append(svg('circle', { cx: 45, cy: 67, r: 7, fill: '#9BD8D0' }));
+    group.append(svg('path', { d: 'M 31 87 Q 31 76 45 76 Q 59 76 59 87', fill: '#9BD8D0' }));
+  } else {
+    group.append(svg('path', { d: 'M 45 56 L 60 65 L 60 83 L 45 92 L 30 83 L 30 65 Z M 30 65 L 45 74 L 60 65 M 45 74 V 92 M 45 56 V 64', fill: '#173449', stroke: color, 'stroke-width': 1.8 }));
   }
+  wrapLabel(name, 20, 2).forEach((line, i) => label(group, 84, 69 + i * 19, line, { 'font-size': 15, 'font-weight': 600 }));
+  group.append(svg('circle', { cx: 24, cy: 116, r: 3, fill: color }));
+  label(group, 35, 120, status, { fill: color, 'font-size': 12 });
+  label(group, 20, 146, wrapLabel(description, 39, 1)[0], { fill: '#B2C0CD', 'font-size': 11 });
+  parent.append(group);
+}
+
+export function runScene({ steps = [], nodes = [], run = {}, stale = false, compact = false, iso, mode, selected, onSelect, actor, onActorSelect }) {
+  const facts = runFlowFacts(run.state, steps, stale);
+  const placed = graphLayout(steps).map(s => {
+    const level = (s.x - 65) / 240, lane = (s.y - 70) / 180;
+    return { ...s, x: compact ? 46 + lane * 242 : s.x + (iso ? lane * 24 : 0), y: compact ? 654 + level * 210 : s.y + 340 + (iso ? level * 28 : 0) };
+  });
+  const byID = new Map(placed.map(s => [s.id, s]));
+  const width = Math.max(compact ? 360 : 840, ...placed.map(s => s.x + 250));
+  const height = Math.max(compact ? 870 : 640, ...placed.map(s => s.y + 210));
+  const guest = { x: compact ? (width - 270) / 2 : 55, y: compact ? 55 : 76 };
+  const mediator = { x: compact ? guest.x : 485, y: compact ? 310 : 76 };
+  const zoneY = compact ? 570 : 326;
+  const root = svg('svg', { width, height, viewBox: `0 0 ${width} ${height}`, class: 'run-flow', 'aria-label': '요청자, Mediator, enode 실행 흐름과 단계 의존 그래프', role: 'group', 'data-paused': stale });
+  root.append(svg('desc', {}, '점선은 요청과 배정의 관계, 실선은 실제 단계의 의존 관계입니다. 게스트와 Mediator를 선택하면 역할과 작업 정보를 확인할 수 있습니다.'));
+  root.append(svg('rect', { x: 24, y: zoneY, width: width - 48, height: height - zoneY - 24, rx: 20, fill: '#101C26', stroke: '#314758' }));
+  if (compact) {
+    flowLink(root, { x: guest.x + 135, y: guest.y + 168 }, { x: mediator.x + 135, y: mediator.y }, { vertical: true, context: true, color: '#6BAEA6' });
+    label(root, guest.x + 153, 269, '요청 접수', { fill: '#93BEBB', 'font-size': 11 });
+  } else {
+    flowLink(root, { x: guest.x + 270, y: guest.y + 84 }, { x: mediator.x, y: mediator.y + 84 }, { context: true, color: '#6BAEA6' });
+    label(root, 405, 142, '요청 접수', { 'text-anchor': 'middle', fill: '#93BEBB', 'font-size': 11 });
+  }
+  const links = svg('g', { class: 'run-connections' });
+  for (const s of placed.filter(s => !s.needs.length)) {
+    flowLink(links, { x: mediator.x + 135, y: mediator.y + 168 }, { x: s.x + 100, y: s.y }, { vertical: true, context: true, active: facts.activeSteps.includes(s.id), color: facts.activeSteps.includes(s.id) ? COLORS.leased : '#526E84' });
+  }
+  for (const s of placed) for (const id of s.needs) {
+    const from = byID.get(id), active = facts.activeSteps.includes(s.id);
+    const color = active ? COLORS.leased : s.state === 'FAILED' ? COLORS.failed : s.state === 'DONE' && from.state === 'DONE' ? COLORS.idle : '#53687B';
+    flowLink(links, compact ? { x: from.x + 100, y: from.y + 150 } : { x: from.x + 200, y: from.y + 75 }, compact ? { x: s.x + 100, y: s.y } : { x: s.x, y: s.y + 75 }, { vertical: compact, active, color });
+  }
+  root.append(links);
+  root.append(svg('rect', { x: 40, y: zoneY + 10, width: 185, height: 52, fill: '#101C26' }));
+  label(root, 46, zoneY + 29, '03 / ENODE', { fill: '#A3B9CA', 'font-size': 11, 'letter-spacing': 2 });
+  label(root, 46, zoneY + 52, '실제 실행 단계', { 'font-size': 16, 'font-weight': 600 });
+  label(root, width - 46, zoneY + 29, `${steps.length} STEPS`, { 'text-anchor': 'end', fill: '#819AAD', 'font-size': 10 });
+  const legendY = compact ? 526 : 290;
+  root.append(svg('rect', { x: mediator.x - 8, y: legendY - 16, width: 286, height: 24, rx: 6, fill: '#101A24' }));
+  label(root, mediator.x + 135, legendY, stale ? '관측 갱신 지연 · 마지막 상태' : facts.description, { 'text-anchor': 'middle', fill: stale ? COLORS.asked : '#9AB1C3', 'font-size': 11, class: 'flow-description' });
+  flowActor(root, { ...guest, kind: 'guest', name: run.submitter === undefined ? '제출자 미확인' : run.submitter || '제출자 미제공', status: '요청한 사람', description: '이 작업의 시작점', color: '#87CFC4', iso, mode, selected: actor, onSelect: onActorSelect, active: false });
+  flowActor(root, { ...mediator, kind: 'mediator', name: 'Mediator', status: facts.label, description: '요청 접수 · 노드 배정 · 결과 확인', color: COLORS[facts.tone], iso, mode, selected: actor, onSelect: onActorSelect, active: facts.activeSteps.length > 0 });
   for (const s of placed) {
     const color = s.state === 'ASKED' ? COLORS.asked : s.state === 'FAILED' ? COLORS.failed : s.state === 'DONE' ? COLORS.idle : s.state === 'CLAIMED' ? COLORS.leased : COLORS.expiring;
-    const group = svg('g', { transform: `translate(${s.x} ${s.y})`, opacity: s.state === 'SKIPPED' && !s.chosen ? .5 : 1 });
+    const group = svg('g', { transform: `translate(${s.x} ${s.y})`, opacity: s.state === 'SKIPPED' && !s.chosen ? .5 : 1, class: 'run-step' });
     const node = nodes.find(n => n.node_id === s.node), nodeLabel = node?.label || s.node || '노드 미배정';
     selectable(group, `${s.seq}. ${s.id} · ${s.state} · ${nodeLabel}`, `${mode}-step-select-button`, 'step', s.id, () => onSelect(s.id), selected === s.id);
     group.append(svg('title', {}, `${s.seq}. ${s.id}\n${s.state} · ${s.uses}\n실행 노드: ${nodeLabel}`));
-    if (iso) {
-      group.append(svg('path', { d: 'M 8 116 L 175 116 L 175 8 L 185 18 L 185 126 L 18 126 Z', fill: '#0B1723', stroke: '#34495E' }));
-    }
-    group.append(svg('rect', { width: 175, height: 116, rx: 8, fill: '#19232D', stroke: selected === s.id ? color : '#4B6074', 'stroke-width': selected === s.id ? 3 : 1.5 }));
-    group.append(svg('path', { d: 'M 12 36 H 163', stroke: '#34495E' }));
-    label(group, 12, 23, `${s.seq}  ${shorten(s.id, 17)}`, { 'font-size': 12, 'font-weight': 600 });
-    label(group, 12, 56, s.state, { fill: color, 'font-size': 12 });
-    label(group, 12, 76, shorten(s.uses || '용도 미제공', 23), { fill: '#B2C0CD', 'font-size': 10 });
-    label(group, 12, 98, shorten(nodeLabel, 23), { fill: '#98A4B3', 'font-size': 10 });
-    if (s.state === 'SKIPPED') label(group, 0, 148, s.chosen ? '선택됨 · 도달하지 못함' : '선택하지 않은 경로', { fill: '#98A4B3', 'font-size': 10 });
+    if (iso) group.append(svg('path', { d: 'M 8 150 H 200 V 8 L 210 18 V 160 H 18 Z', fill: '#0B1723', stroke: '#34495E' }));
+    group.append(svg('rect', { width: 200, height: 150, rx: 12, fill: '#192B38', stroke: selected === s.id ? color : '#486074', 'stroke-width': selected === s.id ? 3 : 1.5 }));
+    group.append(svg('path', { d: 'M 14 53 H 186', stroke: '#34495E' }));
+    label(group, 14, 22, `STEP ${String(s.seq).padStart(2, '0')}`, { fill: '#8DA9BC', 'font-size': 9, 'letter-spacing': 1.5 });
+    label(group, 14, 42, wrapLabel(s.id, 23, 1)[0], { 'font-size': 13, 'font-weight': 600 });
+    label(group, 14, 76, s.state, { fill: color, 'font-size': 12 });
+    wrapLabel(nodeLabel, 26, 2).forEach((line, i) => label(group, 14, 100 + i * 15, line, { fill: '#C8D6DF', 'font-size': 11 }));
+    label(group, 14, 135, wrapLabel(s.uses || '용도 미제공', 29, 1)[0], { fill: '#92ACBF', 'font-size': 10 });
+    if (s.state === 'SKIPPED') label(group, 0, 184, s.chosen ? '선택됨 · 도달하지 못함' : '선택하지 않은 경로', { fill: '#98A4B3', 'font-size': 10 });
     root.append(group);
   }
-  return { element: root, width, height };
+  if (!steps.length) {
+    flowLink(root, { x: mediator.x + 135, y: mediator.y + 168 }, { x: width / 2, y: zoneY }, { vertical: true, context: true });
+    label(root, width / 2, zoneY + 124, run.state === 'QUEUED' ? '배정할 enode를 기다리고 있어요' : '관측된 실행 단계가 없습니다', { 'text-anchor': 'middle', fill: '#C3D2DE', 'font-size': 14 });
+    label(root, width / 2, zoneY + 151, '작업 정보에서 현재 상태를 확인하세요', { 'text-anchor': 'middle', fill: '#8FA7B9', 'font-size': 11 });
+  }
+  return { element: root, width, height, compact };
 }

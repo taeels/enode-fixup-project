@@ -1,12 +1,61 @@
 # Construction 상태 — runixs (김태완)
 
-**현재 공식 단계**: CONSTRUCTION → 갤러리 확장 Build and Test 완료·Mac mini 운영 적용.
+**현재 공식 단계**: CONSTRUCTION → ui YouTube Live 웹캠 후속 Build 성공·테스트 미실행·Mac mini 운영 적용·PR #25 제출.
+앞선 갤러리 확장은 검증·Mac mini 운영 적용·PR #14 병합을 완료했다.
 기존 공동 CP6/CP10은 별도 미완료 상태를 유지한다.
 담당은 **ui**(실 함대·공개 데모)와 **demo-back**(공개 제출·CP9)이다.
 담당 FD와 UI 11단계·demo-back 7단계 계획은 2026-09-08T20:11:36Z
 사용자의 “응 시작해”로 승인됐다. Inception이나 FD 승인을 다시 기다리지 않는다.
 
 ## 현재 기준 — 2026-09-09
+
+**YouTube Live 웹캠 후속 작업**: `unit/runixs-youtube-live-webcam`에서 사용자가
+최종 지정한 영상 `8y2ln1nCHbM`을 공개 데모 웹캠 설정에 연결했다. 공개 settings와
+CSP `frame-src https://www.youtube.com`, Mediator `ce0ef4c`의 리슨을 확인했고
+기존 터널·설정·DB·runctl을 유지했다. 테스트 스위트는 선행 사용자 지시에 따라
+미실행이며 CP10·CP11을 통과로 바꾸지 않는다.
+[보완 계획](construction/plans/ui-youtube-live-webcam-plan.md),
+[변경·배포 기록](construction/ui/code/youtube-live-webcam.md).
+최신 main `4290cee`를 rebase해 갤러리 대화 이력을 인수하고
+[PR #25](https://github.com/taeels/enode-fixup-project/pull/25)를 제출했다.
+PR 제출은 테스트 통과·장면 게이트 승인·main 병합과 구분한다.
+
+**갤러리 대화 기록 후속 작업**: `unit/runixs-gallery-history`에서 최신 main의
+Run 흐름 UI를 인수했다. 웹 작업 목록에서 Run 선택 → 대화 기록으로 기존 봉인
+결과를 읽는다. 게스트는 브라우저에 보존한 자기 요청 증명, 실 함대 운영자는
+토큰 인증을 사용한다. 새 메시지·새로고침에도 조회 증명을 유지하며 기존 입력과
+독립적으로 읽는다. Node 69개, API/UI race(81.6%/98.4%), 브라우저 4환경,
+vet·glyphscan·Mediator 빌드를 통과했다.
+[계획](construction/plans/gallery-history-plan.md),
+[구현·검증](construction/demo-back/code/gallery-history.md).
+사용자의 표시명 철회로 별칭을 제거하고 기존 gallery 표시로 복원했다.
+복원 커밋 `597a784`는 Mac mini에 배포했으며 운영 추가 검사는 생략했다.
+대화 기록 코드 `9d8d1de`도 Mac mini에 빌드·교체했다(PID 60283). 운영 추가
+검사는 사용자 지시에 따라 생략했다. 최신 main `b60a8dd`를 인수하고
+[PR #22](https://github.com/taeels/enode-fixup-project/pull/22)를 제출했다.
+PR은 병합 전이며 공동 CP6/CP10 보류를 유지한다.
+
+**Run 흐름·보기 설정 후속 작업**: 같은 `Runixs/UI-Update-2`에서 게스트/제출자와
+Mediator 역할 요소, 관측 상태에 따른 실행 연결, 역할 상세, 좁은 화면 세로 흐름을
+구현했다. 상단 네 버튼은 화면·표현 드롭다운으로 교체했다. Node 63개·관측 모형
+브라우저 4환경·실제 demo 진입점 2환경·Go UI 98.4%·vet·glyphscan·Mediator 빌드가
+통과했다. [구현·검증](construction/ui/code/ui-run-flow.md),
+[보완 계획](construction/plans/ui-run-flow-plan.md). 운영 배포 전이며
+기존 공식 단계·공동 CP6/CP10 보류를 유지한다.
+
+사용자 PR 요청으로 `main@c51d923`을 rebase해 갤러리 탐색·카드뉴스 변경을 인수했다.
+담당 audit 양쪽의 원문 보존을 확인했고 Node 63개·Go UI 98.4%·Mediator 빌드·
+실제 demo 진입점 2환경을 재검증했다. 코드 `8b4d452`를 push하고
+[PR #19](https://github.com/taeels/enode-fixup-project/pull/19)를 main 대상으로 제출했다.
+PR 제출은 main 병합·운영 배포 또는 공동 장면 승인과 구분한다.
+
+**Run 이름 표시 후속 작업**: `Runixs/UI-Update-2`에서 긴 해시 ID를 접두어와
+앞 8자리로 표시했다. 작업 그래프·목록·노드 상세·접수 안내에 적용하고 전체
+ID는 title·조회·선택·CLI에 보존한다. Node 59개·표시 12개·브라우저 4환경,
+Go UI 98.4%·vet·glyphscan·Mediator 빌드를 확인했다.
+[변경·검증 기록](construction/ui/code/ui-run-label.md),
+[보완 계획](construction/plans/ui-run-label-plan.md). 운영 배포 전이며
+기존 공식 단계와 공동 CP6/CP10 보류는 유지한다.
 
 **UI 가독성 후속 작업**: `UI-update` 체크아웃의 `unit/runixs-ui-readability`
 (`a5d62cf` 기준)에서 휠 확대·축소, 작업 그래프 구분·함대 복귀, 현재 임대의
@@ -15,7 +64,7 @@
 [변경·검증 기록](construction/ui/code/ui-readability.md),
 [보완 계획](construction/plans/ui-readability-plan.md). 공식 Code Generation과
 기존 공동 장면 보류는 유지한다. 사용자 지시로 미리보기를 재개하고 코드 510c6a6·0b422a7을 push했다.
-[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)은 main에 병합됐고 이번 rebase로 인수했다. 운영 배포 전이다.
+[PR #16](https://github.com/taeels/enode-fixup-project/pull/16)은 main에 병합됐고 이번 rebase로 인수했다. Mac mini Mediator `1b5d8aa`에 운영 적용했다.
 
 **로컬 실행 상태: 중지.** 사용자 지시로 실행 장소를 다른 호스트로 옮긴다.
 이 PC의 Mediator·enode·이전 3d-view 데모 제어판과 전용 테스트 DB를 종료했다.
@@ -59,7 +108,7 @@ Run과 댓글 한 개로 완료됐으며 외부 URL 요청은 도구 호출 없�
 바꿔 재시작하도록 안내했다. [공개 등록 확인 기록](construction/ui/code/public-registration-review.md).
 실패한 다른 PC의 재시작 후 등록 성공은 아직 미확인이다.
 
-`unit/runixs-ui`는 `origin/main@16ef08c`로 rebase했고 [PR #14](https://github.com/taeels/enode-fixup-project/pull/14)로 검토한다. transcript·UI 가독성·greet-play 예제를 인수했다. 운영 Mediator는 입력칸 안내까지 포함한 `b01274b`, VM enode는 `56f2f99`이며 이번 rebase의 추가 main 변경은 아직 운영에 배포하지 않았다. 아래는 앞선 Drain 인수 기록이다.
+[PR #14](https://github.com/taeels/enode-fixup-project/pull/14)는 모든 CI 통과 후 main `50899b0`에 병합됐다. 후속 `unit/runixs-gallery-navigation`에서 DDTHON 내부 댓글/작성 팀 탐색의 과잉 거절을 수정한다. [PR #17](https://github.com/taeels/enode-fixup-project/pull/17)은 main `78be96d`에 병합됐다. 사용자 SSH 업데이트 지시로 운영 Mediator를 `78be96d`로 교체·재시작했다. 추가 검사는 사용자 지시로 생략했다. VM Python 코드는 `1b5d8aa`, enode 바이너리는 `56f2f99`다. 실제 Bedrock은 Runaway 댓글에서 MindCraft를 찾아 AI 표시가 있는 응원 초안을 만들었으며, 공개 UI 조회도 answered로 완료했다. 아래는 앞선 Drain 인수 기록이다.
 UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도 인수했다.
 미커밋 영상 작업을 보존하며 fast-forward했고, 후속 `166c935`에서 기본 주소의
 404를 `/ui/` 리다이렉트로 보완해 push했다. 실제 Mac 노드의 at-boundary·graceful,
@@ -84,7 +133,7 @@ UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도
 | UI 1~8 | 실 함대 관측, D1/D2/D5, 2D/3D, 투어, 제출 의도·재시도, 웹캠 조작 | 공동 실제 장면은 9~10에서 확인 |
 | 갤러리 확장 | 프롬프트 한 번·AI 팀 탐색·실제 댓글 게시·거절/되묻기, main 통합·Mac mini 적용·공개 인수 | 공동 CP6/CP10은 별도 |
 | UI 개선 | 웹캠 닫기·복원, 한글 두 단어 이름, 상세·모달·투어의 바깥 조작 닫기 | 구현·로컬 검증 완료 |
-| UI 가독성 보완 | 휠 확대·축소, 단계 그래프·함대 복귀, 임대 제출자, 기능별 상세·한국어 시각 | 구현·로컬 검증 완료, 배포 전 |
+| UI 가독성 보완 | 휠 확대·축소, 단계 그래프·함대 복귀, 임대 제출자, 기능별 상세·한국어 시각 | 구현·검증·Mac mini 배포 완료 |
 | UI 9 | queue·sandbox 출처, c7a237d 두 시나리오의 실제 POST/GET·이름·3D 연결 | 실제 장비 광고·동작, 공개 방송 주소 |
 | UI 10~11 | 독립 검사·PR #6/#8 병합·실제 Drain 관측과 queue 인수 | 공동 CP 장면과 전체 생성 결과 리뷰 |
 | demo-back 1~5 | obs·queue·실제 fixture 인수, 공개 라우트·검증·한도·재시도·DB/UI 연결 | 구현·로컬 검증 완료 |
@@ -102,10 +151,11 @@ UI/demo-back PR #6은 `666126a`로 병합됐다. card-news의 새 5장 구성도
 토큰/submitterKey로 기존 submit을 호출한다. 201/202/200·같은 의도·이름 보존과
 로컬 브라우저의 3D 전환·queue 승격·목록 갱신을 확인했다.
 
-**다음은 공동 실제 장면이다.** 문태호(nacl1119)의 enode-demo-led/enode-demo-play
-래퍼와 Windows→rpi, 손신(shin-son)의 mac Claude+higgsfield 광고/합성, 최태양
-(taeels)의 공개 webcam embed URL이 필요하다. 준비된 장비와 함께 runixs가
-UI·제출·이름·음성·봉인·방송을 확인한다. 현재 webcam 설정은 null이다.
+**공동 실제 장면은 남아 있다.** 문태호(nacl1119)의 enode-demo-led/enode-demo-play
+래퍼와 Windows→rpi, 손신(shin-son)의 mac Claude+higgsfield 광고/합성에 맞춰
+runixs가 UI·제출·이름·음성·봉인·방송을 확인한다. 공개 webcam embed URL은
+`8y2ln1nCHbM` YouTube Live로 운영 적용했다. URL 연결만으로 CP10·CP11의 실제
+하드웨어·화면 조작을 통과한 것은 아니다.
 진행자 [인수 안내](../taeels/construction/demo-fixtures/README.md)의 담당 범위를 따른다.
 
 [demo-back 구현](construction/demo-back/code/implementation-summary.md)과

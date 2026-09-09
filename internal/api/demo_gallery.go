@@ -76,6 +76,7 @@ func (s *Server) registerGallery(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/demo/gallery/runs", h.draft)
 	mux.HandleFunc("POST /v1/demo/gallery/comments", h.comment)
 	mux.HandleFunc("GET /v1/demo/gallery/runs/{id}", h.result)
+	mux.HandleFunc("GET /v1/demo/gallery/history/{id}", s.auth(h.history))
 	mux.HandleFunc("POST /v1/demo/gallery/runs/{id}/publish", h.publish)
 }
 
@@ -400,7 +401,7 @@ func (h *galleryHandler) artifact(run *store.Run) (*galleryResult, error) {
 		return nil, errors.New("invalid result")
 	}
 	switch result.Outcome {
-	case "refused", "needs_project", "draft_ready", "posted", "error":
+	case "refused", "needs_project", "draft_ready", "answered", "posted", "error":
 	default:
 		return nil, errors.New("invalid outcome")
 	}
@@ -408,7 +409,7 @@ func (h *galleryHandler) artifact(run *store.Run) (*galleryResult, error) {
 		return nil, errors.New("invalid transcript")
 	}
 	for _, event := range result.Transcript {
-		if (event.Role != "user" && event.Role != "assistant" && event.Role != "system" && event.Role != "tool") || !galleryText(event.Text, 3000) || (event.Tool != "" && event.Tool != "list_projects" && event.Tool != "get_project" && event.Tool != "post_comment" && event.Tool != "post_confirmed_comment") {
+		if (event.Role != "user" && event.Role != "assistant" && event.Role != "system" && event.Role != "tool") || !galleryText(event.Text, 3000) || (event.Tool != "" && event.Tool != "list_projects" && event.Tool != "get_project" && event.Tool != "get_comments" && event.Tool != "post_comment" && event.Tool != "post_confirmed_comment") {
 			return nil, errors.New("invalid event")
 		}
 	}
@@ -431,6 +432,10 @@ func (h *galleryHandler) result(w http.ResponseWriter, r *http.Request) {
 		fail(w, 404, "gallery request not found")
 		return
 	}
+	h.writeResult(w, r, run)
+}
+
+func (h *galleryHandler) writeResult(w http.ResponseWriter, r *http.Request, run *store.Run) {
 	result, err := h.artifact(run)
 	if err != nil {
 		fail(w, 503, "gallery result unavailable")

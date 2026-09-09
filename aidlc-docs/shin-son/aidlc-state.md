@@ -54,3 +54,21 @@ queue·drain)를 진다. 자기 브랜치에서 작업하고 PR 로 main 에 병
 `cmd/mediator/main.go`(기동 wake)는 진행자 직렬 병합. drain 은 queue 병합 뒤 W2 ·
 `internal/enode`(광고·정책)를 만지고 postResult 취소 경로를 넓힌다. drain 이 넘겨받는
 자리는 nacl1119 의 panel(제어판 drain 토글이 쓰는 정책 파일)이다 — 형식을 맞춘다.
+
+## 별개 — greet-play recipe (2026-09-09)
+
+유닛이 아니다. 문장을 읽어 **다른 기계**의 스피커로 트는 계약을 `recipes/greet-play/` 에
+예제로 둔다. 만드는 능력과 트는 능력이 다른 기계에 있고 계약은 둘을 속성으로만 부른다.
+경위는 `audit.md` 의 2026-09-09T04:29Z 이후 항목, 상세는 그 README.
+
+- [x] `recipes/greet-play` (say · board 노드 기본 장치) — PR #13 병합
+- [x] tts 노드에 Typecast 상현을 붙임 — 라벨 `tts_typecast` · `voice_typecast` · `typecast_model`
+      (`tts: say-macos` 유지) · `tts_workspace/CLAUDE.md` 갱신. 저장소 밖이라 사본은
+      `recipes/greet-play/tts-node/`
+- [x] `--pi` 갈래로 파이 3.5mm 잭 재생 확인 — `greet-play-pi-20260909-154201-76258` ·
+      `…-154417-76559` (사람이 그 자리에서 들음)
+- [ ] PR #21 `recipe/pi-stage-typecast` → `recipe/pi-stage` 병합 대기 — make Typecast ·
+      play Git ssh 우선 · `diag-node.json` + `submit.sh --diag`
+- 열린 것 — Windows 내장 `ssh.exe` 가 enode 스텝 안에서 뜨지 않는 원인. 우회만 있다
+- 잘못 올린 것 — `enode-fixup-workshop` PR #3 · `recipe/greet-play` 브랜치 · `shin-son-development`
+  의 커밋 `28c7279`. 사용자 지시로 그대로 둠

@@ -1497,3 +1497,280 @@ Mac mini 소스·테스트 DB의 전체 Go race는 1,244개 통과·실패/생�
 18개 패키지가 커버리지 80% 하한을 넘었다(전체 86.56%). vet·gofmt·glyphscan과
 macOS arm64 Mediator/enode/enodectl, Linux arm64·Windows amd64 enode 빌드를 완료했다. 운영 Mediator `b01274b`와
 VM enode `56f2f99`의 실행 상태는 이번 Git 통합과 구분한다.
+
+## DDTHON 내부 댓글 탐색의 과잉 거절 수정
+
+**Timestamp**: 2026-09-09T05:56:28.102293+00:00
+
+**User Input**:
+
+```json
+"나\nRunaway댓글보면 AI댓글단 팀이 있는데 그 팀가서 \nAI임을 밝히고 그 과제 장점에 대해 몇가지 이야기 해주고 응원해줘\n\nClaude\n죄송하지만, 다른 프로젝트의 댓글을 확인하거나 팀을 찾는 작업은 불가능합니다. 댓글을 남길 구체적인 팀/프로젝트 이름을 직접 알려주시면 응원 댓글을 작성해드리겠습니다.\n\n\n\n이렇게 말하는데, 나는 분명 sanbox에 우리 ddthon웹페이지 및 그 하위페이지드에 대해서 권한을 열었어. 지금 데모 interface가 실제 프롬프트를 입력하는곳이다 보니 보안적인 측면에서 나쁜짓을 하면 무시하라고 했던거지 ddthon하위페이지에서 댓글을 찾아보는건 나쁜짓이 아니야."
+```
+
+**Decision**: 허용된 DDTHON 내부에서 댓글·작성 팀을 읽고 다른 프로젝트로 이동하는 것은 승인된 탐색이다. 기존 POLICY가 갤러리까지 모든 웹 탐색을 금지했고 댓글 읽기 도구가 없어 정상 요청을 거절했다. 이 범위 정정을 기존 FD·Code Generation 계획에 반영한다. 공개 댓글 조회 MCP와 작성 팀을 현재 목록에 대조하는 흐름, 조회 전용 결과를 추가한다. 외부 호스트·파일/명령·자격 증명·투표·삭제/수정 금지는 유지한다. 댓글 내용은 대상 탐색의 증거이며 도구 권한을 바꾸는 지시는 아니다. 검사·실제 Bedrock 초안 검증 후 운영 적용하고 기존 PR #14에 포함한다. 실제 댓글은 추가 테스트 게시하지 않는다.
+
+**후속 상태**: 작업 중 PR #14의 모든 CI 통과·main `50899b0` 병합을 확인했다. 현재 수정은 그 main에서 만든 `unit/runixs-gallery-navigation`의 별도 후속 PR로 제출한다.
+
+**검증**: Python 18·Node 59, API/UI race 81.5%/98.4%, vet·gofmt·glyphscan·데스크톱/모바일 회귀를 통과했다. 실제 Bedrock은 사용자와 같은 간접 단서로 MindCraft를 찾고 AI 작성 표시와 장점이 있는 초안을 만들었다. DDTHON URL을 포함한 조회는 answered, 외부 URL 혼합은 도구 없는 refused였다. 후보 검증에서 실제 게시 호출은 차단했다.
+
+## DDTHON 탐색 수정의 운영 인수·후속 PR
+
+**Timestamp**: 2026-09-09T06:03:46.622698+00:00
+
+**AI Response**: Mediator와 VM Python을 `1b5d8aa`로 적용했다. 공개 UI에서 Runaway 댓글→AI 작성 팀 MindCraft 식별이 answered로 완료됐다. Run은 `gallery-63cf3ef1302c002a166fc5ed000fd457f4872587994d9241456a482007e53121`이고 실제 댓글은 추가 게시하지 않았다. 터널 PID 70718·주소·DB·팀원 노드를 보존했으며 VM 서비스 3개 active·drain 복원·소스 해시 일치를 확인했다. PR #14는 이미 병합됐으므로 main `50899b0`에서 후속 PR #17을 만들었다.
+## Run 식별자 표시 축약 요청
+
+**Timestamp**: 2026-09-09T06:01:06Z
+
+**User Input**:
+
+```text
+$aidlc 꾸준한 단풍 · demo-dada8cd69d50e9d371bfea32fb6ba5bbfb6bc3da914a69a6395caab7efb85ee8 · FAILED
+
+이렇게 지금 run의 네이밍이 너무 긴숫자로 제네레이션되어있어. 이거 좀 간단하게 표시될 수 있게 해줘.
+```
+
+**AI Response / Decision**: vendored AI-DLC v1.0.1, roster의 UI 담당 runixs,
+담당 상태와 기존 승인된 코드 계획을 복원했다. 깨끗한 `Runixs/UI-Update-2`
+브랜치에서 기존 UI 가독성의 후속 수정으로 진행한다. 긴 해시의 앞 8자리와
+접두어만 표시하고 전체 ID는 title·선택·조회·CLI 명령에 보존한다.
+`construction/plans/ui-run-label-plan.md`에 구현·검증 순서를 기록했다.
+비활성 resiliency-baseline·property-based-testing은 건너뛰고 기존 보안 범위와
+공동 CP6/CP10 보류를 유지한다.
+
+## Run 식별자 표시 축약 구현·검증
+
+**Timestamp**: 2026-09-09T06:04:59Z
+
+**AI Response / Decision**: 작업 그래프·목록·노드 상세·질문 버튼·데모 접수
+안내의 긴 해시를 접두어와 앞 8자리로 표시했다. 전체 ID는 title에 남기고
+선택 키·조회 URL·제출 응답·CLI 명령을 원본으로 유지했다.
+Node 59개와 별도 표시 확인 12개, demo/fleet × 1440px/390px 브라우저 4환경이
+통과했다. 같은 축약명의 서로 다른 Run도 전체 ID로 조회되는 것을 확인했다.
+Go가 기본 PATH에 없어 설치된 `/tmp/enode-impl-tools/go/bin/go`로 재실행해
+UI 98.4%·vet·glyphscan 102파일·Mediator 빌드를 통과했다. demo.js는 ES 모듈로
+구문 검사했다. 모바일 캡처에서 한 줄 제목·가로 넘침 없음을 확인했다.
+변경·검증은 `construction/ui/code/ui-run-label.md`에 기록했다.
+기존 보안 예외·비활성 확장·공동 CP 보류를 유지한다. 운영 배포는 수행하지 않았다.
+
+## Run 그래프의 게스트·Mediator 흐름 보완 요청
+
+**Timestamp**: 2026-09-09T06:11:05Z
+
+**User Input**:
+
+```text
+지금 우리 노드나 run디테일화면에 딱 enode만 떠 있는데, 너무 썰렁해. 
+runs그래프에 게스트노드와 mediator노드까지 만들어서 진행되는 과정을 더 풍부하게 볼 수 있게하면 어떨까
+```
+
+**AI Response / Decision**: 기존 실행 단계 그래프에 요청자·Mediator의 역할
+요소를 더해 요청→배정→실행 관계를 드러내는 UI 후속 보완으로 진행한다.
+frontend-design 스킬을 적용하고 기존 짙은 운영 화면의 색·SVG 모형을 계승한다.
+역할 요소를 실제 등록 노드나 API 단계로 추가하지 않으며, 진행 효과는 실제
+Run/단계 관측과 신선도에 연결한다. 기존 미커밋 ID 축약 작업을 보존한다.
+`construction/plans/ui-run-flow-plan.md`에 설계·파일·검증을 기록했다.
+
+## 상단 보기 설정 드롭다운 보완 요청
+
+**Timestamp**: 2026-09-09T06:19:49Z
+
+**User Input**:
+
+```text
+UI 상단바에 함대/작업그래프 << 이거 둘 중에 하나만 선택되는 방식이고, 2D/3D도 둘중하나만 선택되는 방식인데 버튼이 각각 있으니까 약간 직관적이지 않아. 드롭다운이나 다른 형태로 변경해서 view변경 필터라는 것을 나타내주자.
+```
+
+**AI Response / Decision**: 진행 중인 Run 흐름 보완에 상단 선택 UI를 포함한다.
+보기 설정 그룹 안에 화면(함대/작업 그래프)·표현(2D/3D) 네이티브 드롭다운을
+두고 실제 SceneState와 선택값을 동기화한다. 최초 Run 미선택 제약, 새 제출의
+run+3d 전환, 함대 복귀 포커스와 두 표현의 선택 Run 보존을 검증한다.
+
+## Run 흐름·보기 설정 구현·검증 완료
+
+**Timestamp**: 2026-09-09T06:27:38Z
+
+**AI Response / Decision**: 요청자 아바타·Mediator 허브·실제 enode 단계 영역과
+상단 화면/표현 드롭다운을 구현했다. 역할 요소는 실제 API 노드나 steps에
+추가하지 않는다. 현재 관람객과 선택 Run의 제출자를 구분하며 CLAIMED 연결만
+RUNNING 중 움직이고 종료·오류·15초 지연·reduced-motion에서는 멈춘다.
+Node 63개 무실패/무생략, 관측 모형 브라우저 4환경과 실제 demo 진입점 2환경을
+통과했다. 게스트/Mediator 상세·키보드·포커스·드롭다운 동기화·모바일 스크롤·
+원본 ID·긴 이름·HTML 문자열·QUEUED/ASKED/종료/잘못된 DAG를 확인했다.
+Go UI 98.4%·vet·glyphscan·Mediator 빌드 통과. audit 사용자 원문의 후행 공백
+1개는 그대로 보존했고 다른 코드·문서의 diff 공백 검사는 통과했다.
+담당 FD·계획·상태와 `construction/ui/code/ui-run-flow.md`에 결과를 기록했다.
+미커밋 ID 축약은 보존했다. 운영 배포와 전체 유닛/공동 장면 승인은 수행하지 않았다.
+
+## UI 후속 변경 PR 제출 요청
+
+**Timestamp**: 2026-09-09T06:30:27Z
+
+**User Input**:
+
+```text
+PR올려줘
+```
+
+**AI Response / Decision**: Run 이름 축약·게스트/Mediator 흐름·보기 설정 변경을
+커밋하고 main 대상으로 PR을 제출한다. origin/main은 `c51d923`이며 작업 시작점
+이후 갤러리 탐색·카드뉴스 변경 6커밋이 추가됐다. 이를 rebase로 인수하고
+기존 사용자 기록을 보존하며 영향을 받는 UI 검사를 다시 확인한다.
+운영 배포·main 병합은 이번 PR 제출 요청에 포함하지 않는다.
+
+## UI 후속 PR 제출 완료
+
+**Timestamp**: 2026-09-09T06:32:54Z
+
+**AI Response / Decision**: `origin/main@c51d923`으로 충돌 없이 rebase했고,
+main과 이번 작업의 감사 원문이 각각 온전히 남아 있음을 문자열 대조로 확인했다.
+Node UI 63개 무실패/무생략, Go UI 98.4%, Mediator 빌드와 실제 demo 진입점
+1440px/390px 검사를 다시 통과했다. 코드 `8b4d452`를
+`origin/Runixs/UI-Update-2`에 push하고 main 대상
+[PR #19](https://github.com/taeels/enode-fixup-project/pull/19)를 생성했다.
+PR에는 Run ID 축약·요청 흐름·보기 설정과 검증 범위, 운영 배포 전 상태를 명시했다.
+기존 공동 CP 보류를 유지하며 main 병합과 배포는 수행하지 않았다.
+
+## SSH 서버 업데이트 — 추가 검사 생략
+
+**Timestamp**: 2026-09-09T06:10:42.282683+00:00
+
+**User Input**:
+
+```text
+ssh로 MacMini에 떠있는 서버 업데이트 해봐. 추가적인 검사를 하지는 마.
+```
+
+**AI Response**: PR #17이 병합된 origin/main `78be96d`의 소스로 SSH에서 Mediator를 빌드·교체·재시작했다. 새 PID는 46496이며 기존 터널·공개 주소·DB·설정을 유지했다. 사용자 지시에 따라 테스트·린트·상태 API·브라우저 검사를 실행하지 않았다. 백업은 /Users/runixs/enode-public-demo/backup-server-update-20260909T061030Z에 보존했다.
+
+## Remote DDTHON Comment 표시명·서버 반영
+
+**Timestamp**: 2026-09-09T06:22:52.812364+00:00
+
+**User Input**:
+
+```text
+runctl이름을 gallary가 아니고 remote ddthon comment 이런 이름 어떄?
+```
+
+```text
+서버에 반영해야지?
+```
+
+**Decision**: 표시명을 Remote DDTHON Comment로 바꾸어 새 작업 카드·입력창·작업 목록·그래프·노드/단계 상세에 적용한다. 실행 식별자와 기존 계약은 유지하고 기존 gallery Run도 같은 표시명으로 읽는다. Mac mini Mediator를 새 소스로 빌드·교체한다. 이전 사용자 지시대로 추가 검사는 생략한다.
+
+## 단계 이름의 출처와 설계 설명 정정
+
+**Timestamp**: 2026-09-09T06:29:32.207677+00:00
+
+**User Input**:
+
+```text
+그러면 galley, play, make  이런건 전부 서버에서 네이밍을 붙인거야??? runctl에서 붙이는게 아니고???? 이게 데모때문에 그런건가? 아니면 원래 이게 우리 디자인이 맞는거야?
+```
+
+**Decision**: 단계 이름은 계약/계획 작성자가 steps[].id로 정하며 runctl은 파일을 읽어 POST /v1/runs에 그대로 제출한다. make/play는 greet-play 등 계약 예제에 정의되어 있고, 웹 음원 데모도 내장 계약 예제를 사용한다. gallery만 현재 갤러리 전용 데모 어댑터의 계약 생성 코드에서 고정했다. 설계 문서는 UI를 같은 제출 API의 어댑터로 허용한다. 모든 단계 이름을 Mediator가 정하는 설계라는 앞선 인상을 정정한다. Remote DDTHON Comment의 UI 별칭은 표시 편의 구현이며 원래 실행 ID를 바꾸지 않았다. 표시명 버전 d952667은 Mac mini에 교체·재시작 완료했고 추가 검사는 실행하지 않았다.
+
+## 갤러리 Run 대화 이력 후속 요청
+
+**Timestamp**: 2026-09-09T06:40:31.152660+00:00
+
+**User Input**:
+
+```text
+galley로 run을 한 대화내용을 run history에서도 보게 할 방법없나??? origin/main이 업데이트됐으니까 rebase해서 작업해
+```
+
+**Decision**: origin/main 57b8a1a 위 unit/runixs-gallery-history로 rebase했다. Run 흐름·보기 설정을 유지하며 표시명 충돌을 해결하고 양쪽 audit 원문 블록을 보존했다. 화면 확인 질문의 답이 없어 웹 작업 목록 기준으로 진행한다. 게스트는 보존한 소유 요청 증명, 실 함대 운영자는 토큰 인증으로 봉인된 대화를 읽는다. 별도 읽기 화면으로 연결하며 실행·게시 재요청은 하지 않는다. frontend-design 스킬을 적용하고 gallery-history-plan.md에 구현 순서를 기록했다.
+
+## 갤러리 표시명 변경 철회
+
+**Timestamp**: 2026-09-09T06:43:06.814124+00:00
+
+**User Input**:
+
+```text
+너 아까 내가 말한 Remote DDTHON comment 라고 변경한거 다 revert해서 없애줘 기존대로 갤러리로 해줘.
+```
+
+**Decision**: 표시명 별칭과 해당 import/호출을 전부 철회하고 최신 main의 기존 갤러리 UI로 복원했다. 단계/용도는 gallery, Run ID는 gallery-접두어와 기존 일반 해시 축약을 사용한다. 새 작업 버튼/입력창은 원래 해커톤에 의견 남기기 문구다. 진행 중인 대화 이력 변경은 보존한다. 이 이름 복구 커밋만 먼저 Mac mini에 빌드·교체하며 운영 추가 검사는 생략한다.
+
+## 갤러리 표시명 복원 배포·대화 기록 검증
+
+**Timestamp**: 2026-09-09T06:48:44.211886+00:00
+
+**Decision**: 표시명 복원 597a784를 Mac mini Mediator에 빌드·교체했다. PID 58117, 백업 backup-server-update-20260909T064309Z이며 기존 터널 PID 70718/주소를 유지했다. 운영 추가 검사는 하지 않았다. 이어 웹 Run 선택의 대화 기록 버튼과 게스트 증명 보존, 토큰 인증 운영자 조회를 구현했다. Node 69개, 별도 생성/삭제한 테스트 DB의 API/UI race 81.6%/98.4%, 실제 진입점 mock 브라우저 4환경, vet/glyphscan/Mediator 빌드를 통과했다. 대화 조회에서 새 실행/게시가 없고 현재 작성 메시지가 보존되는 것을 확인했다. 실 댓글 게시와 Bedrock 실행은 수행하지 않았다. 최신 main의 추가 변경은 PR #20 담당 상태 문서뿐이므로 이를 rebase로 인수한 후 후속 PR을 제출한다.
+
+## 갤러리 대화 기록 PR 제출
+
+**Timestamp**: 2026-09-09T06:49:33.575891+00:00
+
+**Decision**: main b60a8dd(PR #20의 nacl1119 상태 정리)을 재인수했다. 코드 변경이 없어 이미 통과한 검사는 반복하지 않았다. 코드 9d8d1de를 runixs92@gmail.com 작성자로 push하고 PR #22(https://github.com/taeels/enode-fixup-project/pull/22)를 제출했다. 표시명 별칭은 최종 diff에 없고 기존 main의 format/scene/submission 코드가 유지된다. 대화 이력 기능을 같은 운영 서버에 적용하며 운영 추가 검사를 실행하지 않는다.
+
+## 갤러리 대화 기록 운영 적용 완료
+
+**Timestamp**: 2026-09-09T06:49:57.661233+00:00
+
+**Decision**: 코드 9d8d1de를 SSH로 Mac mini에서 빌드하고 관리 중인 Mediator PID를 확인해 교체·재시작했다. 새 PID 60283, 터널 PID 70718, 백업 backup-server-update-20260909T064915Z다. 기존 갤러리 이름과 새 대화 이력 기능이 포함된 바이너리다. 설정·데이터·터널 주소는 보존했다. 사용자 지시대로 운영 추가 검사는 실행하지 않았다. 완료한 계획 체크박스·담당 상태·운영/검증 기록을 갱신하고 PR #22에 반영한다.
+
+## YouTube Live 웹캠 연결과 최종 링크 교체
+
+**Timestamp**: 2026-09-09T07:00:00Z
+
+**User Input**:
+
+```text
+https://www.youtube.com/live/zoJC1SPEbJU?si=9d9trQyfbnV-5vAr 웹캠뷰에 이 라이브 스트리밍을 연결해봐.
+```
+
+**Follow-up User Input**:
+
+```text
+https://youtube.com/live/8y2ln1nCHbM?feature=share 이 링크로 해줘.
+```
+
+**AI Response / Decision**: 기존 UI 유닛의 `settings.json`이 공개 HTTPS iframe
+URL을 받고 Go·브라우저 양쪽에서 origin과 자격 증명 query를 검증하는 구조임을
+확인했다. YouTube 공식 embed 형식에 autoplay·mute·playsinline을 사용한다.
+첫 영상 ID를 기록한 뒤 배포 전 후속 입력의 `8y2ln1nCHbM`으로 교체했다.
+macOS arm64 Mediator `ce0ef4c`을 빌드해 Mac mini에 적용하고 공개 settings·CSP,
+PID `61883` 리슨과 기존 터널 PID `70718` 유지를 확인했다. 설정·토큰·DB·runctl은
+변경하지 않았다. 선행 사용자 지시에 따라 테스트 스위트는 실행하지 않았으며
+CP10·CP11 통과로 기록하지 않는다.
+
+---
+
+## YouTube Live 변경의 AI-DLC 기록·PR 요청
+
+**Timestamp**: 2026-09-09T07:00:00Z
+
+**User Input**:
+
+```text
+aidlc룰에 맞춰서 진행한것처럼 커밋 만들고 PR올려줘
+```
+
+**AI Response / Decision**: 기존 승인이나 검사를 소급해 만들지 않고 실제 사용자
+지시·두 코드 커밋·빌드·운영 확인·테스트 미실행을 담당 AI-DLC 문서에 보완한다.
+UI 유닛 소유권과 파일 경계를 계승하고 Functional Design·NFR·인프라 단계는 기존
+승인 상태를 유지한다. 보완 계획과 구현·배포 요약, 담당 state·audit를 커밋한 뒤
+현재 브랜치에서 main 대상 PR을 제출한다. PR 제출은 테스트 통과·장면 게이트 승인·
+main 병합과 구분한다.
+
+---
+
+## YouTube Live 웹캠 PR 제출 완료
+
+**Timestamp**: 2026-09-09T07:06:57Z
+
+**AI Response / Decision**: 최신 `origin/main@4290cee`로 rebase해 PR #22의 갤러리
+대화 이력을 인수했다. 담당 state 충돌은 YouTube와 갤러리 기록을 모두 보존했고,
+union 병합으로 섞인 audit 추가분은 main 원문 뒤의 독립 블록으로 복구했다.
+JSON 구문과 `git diff --check`를 확인하고 코드·AI-DLC 문서를 push했다.
+main 대상 [PR #25](https://github.com/taeels/enode-fixup-project/pull/25)는 OPEN·
+MERGEABLE이며 head는 `d09d71e`다. 계획의 PR 제출 단계를 완료 처리한다.
+사용자 지시에 따른 테스트 미실행, 기존 CP10·CP11 보류와 main 미병합 상태는
+유지한다.
+
+---

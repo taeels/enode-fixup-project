@@ -159,3 +159,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · transcript · Code Generation 완료 · CP6 코드 초록 · PR 확인 대기.
 
 ---
+
+## card-news 이미지/영상 교체 · 카드뉴스 5 목업
+**Timestamp**: 2026-09-09T06:11:13Z
+**User Input**: "카드뉴스 5 목업 만들어. 카드뉴스 이미지와 비디오를 C:\Users\MSI\workspace\enode-img 경로에 있는 card1~5 로 교체해줘. PR까지 진행."
+**AI Response**: enode-img/card1~4.png 로 정적·design/assets-cardnews 이미지를 교체하고, 영상은 card5.mp4 로 바꿨다(index.html src·ui_test 갱신). 카드 3 은 진행자가 카드 5장에 자산 5개를 1:1로 주어 단일 이미지(card4.png)로 하고 card4-board.png·card-image-row·illustration-3b 를 제거했다. design/enode-cardnews.pen 에 카드뉴스 5 목업을 카드 4 본떠 신설(제목·영상 포스터 card5.png·진행 5/5·전 카드 5점 및 N/5·카드 4 버튼 다음). pencil MCP 로 편집·스크린샷 검증했다. 다만 MCP 편집은 앱 메모리에만 반영되고 .pen 파일 디스크 저장이 안 돼(저장 도구 없음), 이미지/영상/코드/문서를 먼저 커밋하고 .pen 은 진행자가 pen.dev 에서 저장한 뒤 브랜치에 함께 싣기로 했다(design 은 진행자 몫 · CONVENTIONS 3.2). ui 테스트 통과. 브랜치 nacl1119-cardnews-media.
+**Context**: CONSTRUCTION · card-news · 미디어 교체 + 카드 5 목업 · PR.
+
+---

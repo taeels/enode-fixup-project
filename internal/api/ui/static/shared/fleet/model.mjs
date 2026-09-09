@@ -124,6 +124,24 @@ export function graphLayout(steps, iso = false) {
   });
 }
 export const seconds = (value, now) => Math.max(0, Math.ceil((Date.parse(value) - now) / 1000));
+// Run의 관측 상태만 설명한다. 요청 전달률이나 Mediator의 건강 상태를 추정하지 않는다.
+export function runFlowFacts(state, steps = [], stale = false) {
+  const descriptions = {
+    QUEUED: ['배정 대기', '실행 가능한 enode를 기다리고 있어요', 'asked'],
+    RUNNING: ['작업 진행 중', '실행 단계의 상태를 확인하고 있어요', 'leased'],
+    VERIFYING: ['결과 검증 중', '실행 결과를 확인하고 있어요', 'asked'],
+    SUCCEEDED: ['작업 완료', '모든 실행 결과가 확인됐어요', 'idle'],
+    FAILED: ['작업 실패', '단계와 결과에서 원인을 확인하세요', 'failed'],
+  };
+  let [label, description, tone] = descriptions[state] || ['상태 확인 중', '작업 관측을 기다리고 있어요', 'expiring'];
+  if (state === 'RUNNING' && steps.some(s => s.state === 'ASKED')) {
+    [label, description, tone] = ['사람 응답 대기', '질문에 답하면 실행이 이어져요', 'asked'];
+  } else if (state === 'RUNNING' && steps.some(s => s.state === 'CLAIMED')) {
+    [label, description] = ['실행 중', '배정된 enode에서 작업하고 있어요'];
+  }
+  const activeSteps = !stale && state === 'RUNNING' ? steps.filter(s => s.state === 'CLAIMED').map(s => s.id) : [];
+  return { label, description, tone, activeSteps };
+}
 export function nodeFacts(node, details, asks, now) {
   const runID = node.lease?.run_id;
   const asked = !!runID && ((details.get(runID)?.steps || []).some(s => s.state === 'ASKED') || asks.some(a => a.run_id === runID));

@@ -13,15 +13,18 @@
 - [x] card-news 업데이트 2026-09-08 — CP8 재검증 초록. 상세는
   `aidlc-docs/nacl1119/construction/card-news/update-2026-09-08.md`
   - 카드 1~4 실사 일러스트, 카드 4 보드 사진 추가, 카드 5(영상) 신설
-  - [ ] 다음 업데이트는 이 파일에 새 항목으로 이어 쌓는다
-- [ ] panel 제어판 — CP4 · 의존 obs · drain
+  - [x] 업데이트 2026-09-09 — 이미지/영상을 enode-img/card1~5 로 교체 · 카드뉴스 5 목업 신설
+    (`.pen` 에 카드 5 프레임 · 모든 카드 5점·N/5 · 카드 4 버튼 다음). 상세는 update-2026-09-08.md
+    - .pen 파일은 진행자가 pen.dev 에서 저장한 뒤 브랜치에 실림(design 은 진행자 몫)
+  - [ ] 다음 업데이트는 update-2026-09-08.md 에 새 항목으로 이어 쌓는다
+- [x] panel 제어판 — CP4 · 의존 obs · drain (PR #9·#10 병합 · main)
   - internal/proc 추출 · internal/panel · enodectl serve · cmd/enode panel · 경계 검사 테스트
   - **완료 조건에 조작 넷(status·start·stop·logs) + drain 걸기·모드·풀기 전부 나열**
   - 심볼 상한(enodectl.exe net/http ≤50 · crypto/tls ≤10) 재측정 · 커버리지 80%(internal/panel)
   - [x] ADR-068 닫힘(A · 진행자) — 데몬이 `<stem>.status.yaml` 에 Caps·At 쓰고 제어판이 읽음.
     `decisions.md` §2 「탐지 능력 읽기(ADR-068)」 행 추가
-  - [ ] Functional Design — 계획·ADR-068(A) 커밋됨(04aa712). FD 산출물 셋 냄
-    (`panel/functional-design/` domain-entities · business-logic-model · business-rules) · 승인 대기
+  - [x] Functional Design — 계획·ADR-068(A) 커밋됨(04aa712). FD 산출물 셋 냄
+    (`panel/functional-design/` domain-entities · business-logic-model · business-rules) · 승인·병합됨
     - 정본 충돌 기록: proc 추출은 internal/proc(net/http 없음)로 간다 — enode-features 3.1.2 는
       internal/panel 이라 했으나 그러면 enodectl.exe 심볼 상한(CP4)이 깨진다. 유닛 정본 §5 가 이김
     - [x] FD 승인됨(진행자 "진행해") · 커밋 04aa712·64b5ae2·75ef4d3 · 인계 요약 1979743
@@ -37,9 +40,9 @@
     경계 테스트 · 크로스 빌드 3종 · vet · glyphscan · gofmt. 버튼 전부(status·start·stop·logs +
     drain 걸기·모드·풀기) 냄
   - [x] PR #9 (main) — **병합됨** 2026-09-09T04:08:41Z (merge 182da58). panel 코드가 main 에 있다
-  - [ ] PR #10 (main) — 제어판 화면 시안 정렬(다크 2단·한국어). PR #9 병합이 이 커밋(d9c11de·c0fa636)
-    앞에 일어나 main 에 옛 기능판이 들어갔고, 이 후속 PR 이 시안본으로 바꾼다. 충돌 없음. 병합 대기
-- [ ] transcript — CP6 · 의존 panel · obs (착수: main 77f5a83 에서 unit/transcript)
+  - [x] PR #10 (main) — **병합됨** 2026-09-09T04:27Z (merge 77f5a83). 제어판 시안 정렬(다크 2단·한국어).
+    PR #9 가 이 커밋 앞에 병합돼 옛 기능판이 먼저 들어갔고, #10 이 시안본으로 바꿔 닫음
+- [x] transcript — CP6 · 의존 panel · obs (PR #15 병합 · main)
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)
   - [x] Functional Design — 계획·산출물 셋 냄(`construction/transcript/functional-design/`).
@@ -51,7 +54,7 @@
     링 파일 tee(runner·claim) · Ring(transcript.go) · 제어판 카드+지난 작업 · 화면은 enode-ux.pen 다크 토큰
   - [x] CP6 게이트 코드 재료 초록 — 빌드 태그 0 · 심볼 상한 무영향 · panel 커버리지 86.1% ·
     크로스 빌드 3종 · Mediator 변경 0 · 새 의존 0. 눈 검증은 사람·함대 몫
-  - [ ] PR — push·PR (진행자 확인). 병합은 CP6 눈 검증 뒤
+  - [x] PR #15 (main) — **병합됨** 2026-09-09T05:05Z (merge 1a15760). CP6 최종 눈 검증(도는 카드·봉인 기록)은 사람·함대 몫
 
 ## 열린 미정
 
@@ -79,13 +82,17 @@
 
 ## 다음
 
-panel 은 obs·drain 병합 뒤 W3 · transcript 는 panel 뒤 W4. panel Functional Design
-전에 Capabilities 읽기 계약(ADR-068)을 진행자와 닫는다. card-news 업데이트는 생기면
-이 브랜치에서 작업 후 PR.
+**담당(nacl1119) Construction 완료 (2026-09-09)** — 세 유닛이 전부 `main` 에 병합됐다.
 
-**의존이 닫혔다 (2026-09-09)** — obs(PR #4) · drain(PR #7) 이 main 에 있다. panel
-착수 조건이 섰고 `unit/panel` 을 `origin/main`(50af6cf)에서 땄다. 착수 길잡이는
-`construction/plans/panel-transcript-handoff.md` 다 — 규약 · 문서 루트 · 의존이 남긴
-표면 · 게이트 판정 기준 · 승인 지점이 거기 모여 있다. 정본과 어긋나면 정본이 이긴다.
-이 유닛 둘은 AWS Bedrock 위의 Claude 가 이어받는다(전달 프롬프트는 같은 폴더의
-`panel-transcript-handoff-prompt.md`).
+```text
+   card-news   초판(PR #3) + 미디어 교체·카드 5 목업(PR #18)
+   panel       구현(PR #9) + 시안 정렬(PR #10) · CP4
+   transcript  링 tee·카드·지난 작업(PR #15) · CP6
+```
+
+실질 개발 todo 없음. 남은 것은 사람·하드웨어 몫 — **CP4/CP6 최종 눈 검증**(화면
+S3/S3b/S1/S5 · LED · 실제 Run 의 도는 트랜스크립트와 봉인 기록)은 진행자·함대가
+닫는다. 코드·자동 게이트(심볼 상한 · 커버리지 80% · 경계 · 크로스 빌드 · glyphscan ·
+CI)는 전부 초록. card-news 업데이트는 생기면 새 브랜치에서 작업 후 PR.
+
+착수·설계 길잡이 `construction/plans/panel-transcript-handoff.md` 는 이력으로 남긴다.
