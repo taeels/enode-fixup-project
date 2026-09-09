@@ -27,8 +27,12 @@
     - [x] FD 승인됨(진행자 "진행해") · 커밋 04aa712·64b5ae2·75ef4d3 · 인계 요약 1979743
   - [x] NFR Requirements — 승인됨(진행자 "다음 단계"). `panel/nfr-requirements/nfr-requirements.md` (커밋 992d8d7)
     심볼 상한 CP4 · 커버리지 80%(panel·proc) · 바인딩/토큰 거부 경로 · 새 의존 0
-  - [ ] NFR Design — 냄(`panel/nfr-design/nfr-design.md`) · 승인 대기.
-    심볼 상한 회피 링크 그래프 · 상태 파일 쓰기 자리(advertise 뒤·At 트리거·tmp+rename) · 저하 배선 · 시험성
+  - [x] NFR Design — 승인됨. `panel/nfr-design/nfr-design.md` (커밋 497a1f2)
+  - [x] Infrastructure Design — 건너뜀(로컬 프로세스뿐·새 클라우드 자원 없음·결정 불필요)
+  - [ ] Code Generation — 계획 냄(`construction/plans/panel-code-generation-plan.md`) ·
+    구현 진행 중(internal/proc · internal/enode/status.go · policy.go · advertise.go ·
+    internal/panel · cmd/enode panel · cmd/enodectl serve · 테스트)
+    - 진행자 위임: 결정 필요 없으면 게이트에서 "다음 단계"로 기록하고 진행 (2026-09-09)
 - [ ] transcript — CP6 · 의존 panel · obs
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)

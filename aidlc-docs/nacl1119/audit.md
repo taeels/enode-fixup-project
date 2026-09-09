@@ -95,3 +95,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · NFR Design 완료 · 승인 지점 4 앞.
 
 ---
+
+## panel NFR Design 승인 · Infrastructure Design 건너뜀 · Code Generation 착수
+**Timestamp**: 2026-09-09T03:23:30Z
+**User Input**: "다음 단계. 이후에도 결정이 필요한 검토 사항 없으면 \"다음 단계\" 로 기록하고 진행."
+**AI Response**: 진행자가 NFR Design 을 승인했다(지점 4 닫힘). 또한 앞으로 결정이 필요한 검토가 없으면 게이트에서 멈추지 말고 "다음 단계"로 기록하고 진행하라고 위임했다. Infrastructure Design 은 이 유닛이 로컬 프로세스뿐이고 새 클라우드 자원이 없어 건너뛴다(유닛 정본·인계문서의 제안대로 · 결정 불필요 · 지점 5 = 다음 단계). 이어 Code Generation Part 1 계획을 construction/plans/panel-code-generation-plan.md 에 내고, 결정 사항이 없으므로 Part 2(구현)로 이어 진행한다.
+**Context**: CONSTRUCTION · panel · NFR Design 승인 · Infra 건너뜀 · Code Generation 착수.
+
+---
