@@ -1,0 +1,38 @@
+{
+  "run_id": "run-asked",
+  "state": "RUNNING",
+  "assigned": [
+    {
+      "as": "worker",
+      "nodes": [
+        {
+          "node": "node-06",
+          "label": "fixture-node-06"
+        }
+      ]
+    }
+  ],
+  "requires": [
+    {
+      "as": "worker",
+      "capability": "agent.reason",
+      "attrs": {
+        "harness": "claude",
+        "os": "linux/amd64"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "seq": 1,
+      "id": "approve",
+      "state": "ASKED",
+      "uses": "worker",
+      "needs": [],
+      "chosen": false,
+      "node": "node-06",
+      "attempt": 1,
+      "started_at": "2026-09-08T11:56:30Z"
+    }
+  ]
+}

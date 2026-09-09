@@ -8,20 +8,31 @@ var guest = (function () {
   var ID_KEY = "enode.guest.id";
 
   var adjectives = [
-    "vivid", "quiet", "brisk", "gentle", "swift",
-    "steady", "keen", "bold", "calm", "bright"
+    "선명한", "조용한", "경쾌한", "다정한", "날쌘",
+    "꾸준한", "슬기로운", "용감한", "차분한", "밝은"
   ];
   var nouns = [
-    "otter", "falcon", "maple", "harbor", "ember",
-    "cedar", "heron", "meadow", "ridge", "comet"
+    "수달", "매", "단풍", "항구", "불씨",
+    "삼나무", "왜가리", "들판", "산등성이", "혜성"
   ];
+  var previousAdjectives = ["vivid", "quiet", "brisk", "gentle", "swift", "steady", "keen", "bold", "calm", "bright"];
+  var previousNouns = ["otter", "falcon", "maple", "harbor", "ember", "cedar", "heron", "meadow", "ridge", "comet"];
 
   var memoryName = null;
 
   function randomName() {
     var a = adjectives[Math.floor(Math.random() * adjectives.length)];
     var n = nouns[Math.floor(Math.random() * nouns.length)];
-    return "guest-" + a + "-" + n;
+    return a + " " + n;
+  }
+
+  // 영문 이름의 이전은 저장이 막혀도 같은 결과다. 표시 이름은 인증 신원이 아니다.
+  function migrateName(name) {
+    var parts = name.split("-");
+    var a = previousAdjectives.indexOf(parts[1]), n = previousNouns.indexOf(parts[2]);
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    return adjectives[a < 0 ? hash % adjectives.length : a] + " " + nouns[n < 0 ? Math.floor(hash / adjectives.length) % nouns.length : n];
   }
 
   function hasOnboarded() {
@@ -43,10 +54,11 @@ var guest = (function () {
   function guestName() {
     try {
       var stored = window.localStorage.getItem(ID_KEY);
-      if (stored) {
+      if (stored && /^[가-힣]{1,12} [가-힣]{1,12}$/.test(stored)) {
         return stored;
       }
-      var name = randomName();
+      var name = stored && /^guest-[a-z]{1,24}-[a-z]{1,24}$/.test(stored) ? migrateName(stored) : memoryName || randomName();
+      memoryName = name;
       window.localStorage.setItem(ID_KEY, name);
       return name;
     } catch (e) {

@@ -1,0 +1,29 @@
+{
+  "run_id": "demo-led-toggle",
+  "work": {
+    "id": { "system": "demo", "change_id": "led-toggle" },
+    "system": "demo"
+  },
+  "requires": [
+    { "as": "board", "capability": "agent.reason", "device": "led" }
+  ],
+  "steps": [
+    {
+      "id": "heartbeat",
+      "uses": "board",
+      "run": ["sh", "-c", "enode-demo-led heartbeat --seconds 10 && echo ok > $OUT/heartbeat.txt"],
+      "out": ["heartbeat.txt"]
+    },
+    {
+      "id": "persistent",
+      "uses": "board",
+      "needs": ["heartbeat"],
+      "run": ["sh", "-c", "enode-demo-led on && echo ok > $OUT/persistent.txt"],
+      "out": ["persistent.txt"]
+    }
+  ],
+  "success_when": [
+    { "step": "heartbeat", "exit_code": 0, "produced": ["heartbeat.txt"] },
+    { "step": "persistent", "exit_code": 0, "produced": ["persistent.txt"] }
+  ]
+}

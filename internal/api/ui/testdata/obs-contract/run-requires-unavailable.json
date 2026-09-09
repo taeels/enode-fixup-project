@@ -1,0 +1,56 @@
+{
+  "run_id": "run-branch",
+  "state": "RUNNING",
+  "assigned": [
+    {
+      "as": "worker",
+      "nodes": [
+        {
+          "node": "node-02",
+          "label": "fixture-node-02"
+        }
+      ]
+    }
+  ],
+  "steps": [
+    {
+      "seq": 1,
+      "id": "select",
+      "state": "DONE",
+      "uses": "worker",
+      "needs": [],
+      "chosen": false,
+      "node": "node-02",
+      "attempt": 1,
+      "started_at": "2026-09-08T11:58:00Z",
+      "ended_at": "2026-09-08T11:58:05Z"
+    },
+    {
+      "seq": 2,
+      "id": "apply",
+      "state": "CLAIMED",
+      "uses": "worker",
+      "needs": [
+        "select"
+      ],
+      "chosen": true,
+      "node": "node-02",
+      "attempt": 1,
+      "started_at": "2026-09-08T11:58:05Z"
+    },
+    {
+      "seq": 3,
+      "id": "alternate",
+      "state": "SKIPPED",
+      "uses": "worker",
+      "needs": [
+        "select"
+      ],
+      "chosen": false,
+      "ended_at": "2026-09-08T11:58:05Z"
+    }
+  ],
+  "warnings": [
+    "the contract could not be read; requires is omitted"
+  ]
+}

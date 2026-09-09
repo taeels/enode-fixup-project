@@ -91,6 +91,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/nodes/{id}/claim", s.auth(s.postClaim))
 	mux.HandleFunc("POST /v1/runs/{run}/steps/{seq}/result", s.auth(s.postResult))
 	mux.HandleFunc("POST /v1/runs", s.auth(s.postRuns))
+	if s.cfg.Demo {
+		mux.Handle("POST /v1/demo/runs", s.newDemoHandler(demoScenarios()))
+	}
 	mux.HandleFunc("POST /v1/runs/dry-run", s.auth(s.postDryRun))
 	mux.HandleFunc("GET /v1/runs/{id}", read(s.getRun))
 	mux.HandleFunc("GET /v1/capabilities", s.auth(s.getCapabilities))

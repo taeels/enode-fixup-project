@@ -74,6 +74,26 @@ go run ./cmd/enodectl -h
 package 와 release 가 그것을 돈다.
 
 읽는 순서는 `CLAUDE.md` · `CONVENTIONS.md` · `requirements/` 다.
+Codex 는 루트 `AGENTS.md` 에서 같은 규약과 AI-DLC v1.0.1 정본을 읽는다.
+
+## Codex 에서 기존 AI-DLC 이어가기
+
+이 저장소에는 v1 규칙이 이미 있다. Codex 는 `AGENTS.md` 를 진입점으로 쓰고
+`.aidlc/aidlc-rules/` 의 규칙을 그대로 읽는다. 담당은 대화에서 지정한다.
+
+이 방식은 이름이 `aidlc` 인 스킬을 설치하지 않으므로 스킬 목록에 나타나지
+않는다. 새 세션은 `AGENTS.md` 를 읽고, 이미 열린 세션에서는 그 파일과 참조
+규칙을 명시적으로 읽어 적용할 수 있다. 세션 재시작으로 스킬이 설치되지는 않는다.
+
+```text
+AI-DLC v1을 이어가자. 내 역할은 runixs다.
+aidlc-docs/runixs/aidlc-state.md와 construction-roster.md를 읽고 재개해줘.
+```
+
+같은 체크아웃에서 담당을 기억하려면 `local/aidlc-context.md` 에 handle 과
+문서 루트(`aidlc-docs/<handle>/`)를 적는다. 이 파일은 Git 에서 제외되고,
+대화에서 명시한 담당이 우선한다. Construction 기록은 담당별 디렉터리에 쌓는다.
+진행 상태와 선행 유닛을 확인한 뒤 기존 단계부터 이어간다.
 
 ---
 
@@ -83,8 +103,8 @@ package 와 release 가 그것을 돈다.
    구현            cmd/  internal/  scripts/  packaging/  .github/
    AI-DLC          .aidlc/aidlc-rules/     판은 VERSION 이 진다
    요구와 화면      requirements/  design/
-   산출물 자리      aidlc-docs/             지금 README.md 한 장뿐이다
-   규약            CLAUDE.md  CONVENTIONS.md
+   산출물 자리      aidlc-docs/             회차별 Inception · 담당별 Construction
+   규약            AGENTS.md  CLAUDE.md  CONVENTIONS.md
    설계 정본        enode-design/           서브모듈
 ```
 
@@ -94,11 +114,11 @@ ls internal/ cmd/                               # 패키지와 실행파일
 grep -c 'mux.HandleFunc' internal/api/api.go    # 등록된 라우트. api.go 가 정본이다
 ```
 
-**`aidlc-docs/` 가 비어 있는 것은 결함이 아니라 결론이다.** 이 저장소는
-브라운필드이므로 AI-DLC 가 Reverse Engineering 부터 돌고, 그 산출물이 이
-디렉터리의 첫 내용이 된다. 낡은 산출물을 미리 실으면 그 단계를 실행한 것이 아니라
-물려받은 것이 되고, 그것은 코드가 움직인 만큼 조용히 거짓이 된다. 근거와 실제로
-밟은 사고는 `aidlc-docs/README.md` 에 있다.
+**`aidlc-docs/` 에는 기존 회차의 산출물과 담당별 상태가 있다.** 공용 Reverse
+Engineering 과 승인된 Inception 을 읽고 담당별 Construction 을 이어간다.
+기록을 현재 코드와 대조하고, 문서 루트·소유권은 `CLAUDE.md` 와
+`aidlc-docs/construction-roster.md` 를 따른다. 디렉터리 안내는
+`aidlc-docs/README.md` 에 있다.
 
 **`requirements/` 는 이번 회차의 요구이고 AI-DLC 가 그것을 입력으로 읽는다.**
 `design/` 은 그 화면이다 — `enode-ux.pen` 이 원본, `exports/` 가 거기서 내보낸
@@ -145,8 +165,8 @@ Run 이 이어받는다. **완결성은 그 장면이 끝까지 도는가로 판
 에이전트를 돌리는 제품이라, 프롬프트가 한국어면 실행 중에 그 언어가 에이전트에게
 다시 주입되고 그 산출이 저장소에 쌓인다.
 
-**`CLAUDE.md` 가 AI-DLC 워크플로를 진다.** 사본을 두 벌로 두지 않고
-`.aidlc/aidlc-rules/aws-aidlc-rules/core-workflow.md` 를 그대로 끌어 쓴다.
+**Claude Code 는 `CLAUDE.md`, Codex 는 `AGENTS.md` 로 AI-DLC 를 읽는다.**
+둘 다 `.aidlc/aidlc-rules/aws-aidlc-rules/core-workflow.md` 정본에 연결된다.
 
 게이트는 둘이다.
 

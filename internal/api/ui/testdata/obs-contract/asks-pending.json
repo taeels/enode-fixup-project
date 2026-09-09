@@ -1,0 +1,27 @@
+{
+  "asks": [
+    {
+      "run_id": "run-asked",
+      "seq": 1,
+      "step": "approve",
+      "prompt": "Approve the proposed change.",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "approved": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "approved"
+        ],
+        "additionalProperties": false
+      },
+      "answerers": [
+        "reviewer@example.invalid"
+      ],
+      "asked_at": "2026-09-08T11:56:30Z",
+      "can_answer": false
+    }
+  ]
+}
