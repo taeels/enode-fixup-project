@@ -17,6 +17,14 @@
 .dashboard .scenario-choices { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:28px 0; }
 .dashboard .scenario-button { min-height:130px; text-align:left; padding:24px; font-size:20px; border-color:#4B9CFF; }
 .dashboard .scenario-button span { display:block; margin-top:12px; color:#98A4B3; font-size:12px; font-weight:400; }
+.dashboard .task-remote-intro { font-size:17px; line-height:1.7; color:#D2DFEC; max-width:510px; }
+.dashboard .scenario-button { --scenario-accent:#8CBAEC; display:flex; flex-direction:column; gap:13px; min-height:205px; border-color:#344C61; border-top:3px solid var(--scenario-accent); background:#15232E; padding:22px; }
+.dashboard .scenario-led { --scenario-accent:#E8BD78; background:#282219; border-color:#5D4B30; border-top-color:var(--scenario-accent); }
+.dashboard .scenario-audio { --scenario-accent:#A4B9F4; background:#1C2439; border-color:#435071; border-top-color:var(--scenario-accent); }
+.dashboard .scenario-gallery { --scenario-accent:#88D3BE; border-top-color:var(--scenario-accent); }
+.dashboard .scenario-button .scenario-route { margin:0; color:var(--scenario-accent); font-size:11px; font-weight:600; line-height:1.6; }
+.dashboard .scenario-button .scenario-title { font-size:20px; font-weight:650; }
+.dashboard .scenario-button .scenario-purpose { margin:0; color:#B9C5D2; line-height:1.8; word-break:keep-all; overflow-wrap:anywhere; }
 .dashboard .task-status { color:#EDBD70; overflow-wrap:anywhere; }
 .dashboard .task-dialog .muted { margin-top:12px; }
 .dashboard .webcam-window { position:absolute; left:24px; bottom:24px; z-index:3; border:1px solid #39434F; border-radius:9px; background:#10151B; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 8px 30px #0003; }

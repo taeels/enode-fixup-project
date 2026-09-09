@@ -86,16 +86,22 @@ export class SubmissionDialog {
     const title = element('h2', '', '새 작업'); title.id = 'demo-task-title';
     const close = button('×', 'demo-task-close-button', () => this.close(), 'task-close'); close.setAttribute('aria-label', '새 작업 닫기');
     this.intro = element('p', 'muted');
-    this.led = button('LED Toggle', 'demo-task-led-button', () => submission.start('led-toggle'), 'scenario-button'); this.led.append(element('span', '', '보드의 LED 시나리오 요청'));
-    this.audio = button('사운드 재생', 'demo-task-audio-button', () => submission.start('welcome-audio'), 'scenario-button'); this.audio.append(element('span', '', '음원 시나리오 요청'));
+    const remote = element('p', 'task-remote-intro', '여기서 요청하면, enode가 연결된 장비에서 실행합니다.');
+    const scenario = (title, testid, action, kind, route, purpose) => {
+      const card = button('', testid, action, `scenario-button scenario-${kind}`);
+      card.append(element('span', 'scenario-route', route), element('strong', 'scenario-title', title), element('span', 'scenario-purpose', purpose));
+      return card;
+    };
+    this.led = scenario('LED Toggle', 'demo-task-led-button', () => submission.start('led-toggle'), 'led', '브라우저 → 보드가 연결된 enode', '타인의 에이전트로 device 컨트롤! 결과는 웹캠으로 확인');
+    this.audio = scenario('사운드 재생', 'demo-task-audio-button', () => submission.start('welcome-audio'), 'audio', '음성 합성 enode → 재생 enode', '타인의 에이전트로 음성을 만들고 원격 장비에서 재생! 결과는 웹캠으로 확인');
     const scenarios = element('div', 'scenario-choices'); scenarios.append(this.led, this.audio);
-    if (onGallery) { const gallery = button('해커톤에 의견 남기기', 'demo-task-gallery-button', () => { this.close(); onGallery(); }, 'scenario-button gallery-card'); gallery.append(element('span', '', '격리된 Claude와 댓글을 작성하고 참가팀에 기여하세요')); scenarios.append(gallery); }
+    if (onGallery) { const gallery = scenario('해커톤에 의견 남기기', 'demo-task-gallery-button', () => { this.close(); onGallery(); }, 'gallery', '브라우저 → 원격 Mac mini의 enode', '타인의 sandbox 내 에이전트로 해커톤 댓글남기기'); gallery.classList.add('gallery-card'); scenarios.append(gallery); }
     this.status = element('p', 'task-status'); this.status.setAttribute('role', 'status');
     this.retry = button('같은 요청으로 다시 확인', 'demo-task-retry-button', () => submission.retry(), 'primary');
     this.newRequest = button('다른 작업 시작', 'demo-task-new-intent-button', () => submission.newIntent());
     this.warning = element('p', 'muted', '다른 작업을 시작하면 별도의 요청이 됩니다. 앞선 요청은 이미 접수됐을 수 있습니다.');
     const actions = element('div', 'dialog-actions'); actions.append(this.newRequest, this.retry);
-    this.dialog.append(close, title, this.intro, scenarios, this.status, this.warning, actions); root.append(this.dialog);
+    this.dialog.append(close, title, remote, this.intro, scenarios, this.status, this.warning, actions); root.append(this.dialog);
     this.dialog.addEventListener('cancel', e => { e.preventDefault(); this.close(); }); this.dialog.addEventListener('keydown', e => trapFocus(this.dialog, e));
     dismissOnBackdrop(this.dialog, this.dialog, () => this.close());
     this.timer = setInterval(() => this.update(submission.state), 250); this.update(submission.state);
