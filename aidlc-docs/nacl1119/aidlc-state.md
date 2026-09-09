@@ -36,7 +36,7 @@
   - [x] CP4 게이트 코드 재료 초록 — 심볼 상한 13·1(≤50·10) · 커버리지 panel 87.8%·proc 88.9% ·
     경계 테스트 · 크로스 빌드 3종 · vet · glyphscan · gofmt. 버튼 전부(status·start·stop·logs +
     drain 걸기·모드·풀기) 냄
-  - [ ] PR — 눈 검증(S3/S3b/S1/S5 · LED)은 진행자·하드웨어가 CP4 최종 확정. push·PR 은 진행자 확인 뒤
+  - [x] PR — unit/panel push 됨 · PR #9 (main). 눈 검증(S3/S3b/S1/S5 · LED)은 진행자·하드웨어가 CP4 최종 확정 후 병합
 - [ ] transcript — CP6 · 의존 panel · obs
   - enode 링 파일 tee(runner.go·claim.go) · panel 카드 · 지난 작업(runs 필터+record tar)
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)

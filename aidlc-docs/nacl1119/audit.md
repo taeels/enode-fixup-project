@@ -111,3 +111,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · panel · Code Generation 완료 · CP4 코드 초록 · PR 확인 대기.
 
 ---
+
+## panel push · PR #9
+**Timestamp**: 2026-09-09T03:55:34Z
+**User Input**: "진행해" (push·PR 승인)
+**AI Response**: git push -u origin unit/panel 로 브랜치를 처음 올리고(upstream 설정), main 으로 PR #9 를 열었다 (https://github.com/taeels/enode-fixup-project/pull/9). PR 본문에 낸 것·ADR-068=A·CP4 게이트 재료·정본 충돌·접점을 적었다. 병합은 CP4 눈 검증(화면·LED · 사람+하드웨어)이 닫힌 뒤 진행자가 한다 — advertise.go 접점이라 진행자 직렬 병합 대상. 다음 유닛 transcript(W4·CP6)는 panel 이 main 에 병합된 뒤 origin/main 에서 unit/transcript 를 새로 따서 시작한다.
+**Context**: CONSTRUCTION · panel · PR #9 열림 · 병합·transcript 대기.
+
+---
