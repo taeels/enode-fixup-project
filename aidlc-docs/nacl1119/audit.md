@@ -143,3 +143,11 @@ card-news/update-2026-09-08.md` 하나로 정리해 새로 썼다 — 완료본
 **Context**: CONSTRUCTION · transcript · FD 완료 · NFR/코드로 진행.
 
 ---
+
+## transcript NFR · Infra 건너뜀 · Code Generation 착수
+**Timestamp**: 2026-09-09T04:41:59Z
+**User Input**: "나중에 화면 코드 작성할때 반드시 design 에 있는 .pen 파일들을 참고해서 같은 스타일로 만들어."
+**AI Response**: 진행자가 화면 코드는 반드시 design/*.pen 시안을 참고해 같은 스타일로 만들라고 지시했다 — 메모리에 남겼다(ui-code-follows-pen-design). transcript NFR Requirements·NFR Design 을 냈다(단일 코드경로·빌드 태그 0 · 링 원자성/찢긴 읽기 재확인 · tee 격리 · 커버리지 80% · 새 의존 0 · 심볼 상한 무영향). Infrastructure Design 은 로컬 파일뿐이라 건너뛴다. Code Generation 계획을 내고 구현으로 이어간다 — 트랜스크립트 카드 UI 는 코드 단계에서 enode-ux.pen S3/S4 를 pencil MCP 로 읽어 지금 다크 토큰에 맞춘다.
+**Context**: CONSTRUCTION · transcript · NFR 완료 · Infra 건너뜀 · Code Generation.
+
+---

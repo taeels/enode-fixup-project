@@ -44,7 +44,11 @@
   - 링 파일 로직(머리·몸통·감김)은 FD (decisions §6.3)
   - [x] Functional Design — 계획·산출물 셋 냄(`construction/transcript/functional-design/`).
     막는 결정 없음(decisions §6 이 값 다 닫음). 링 형식·tee·비우기·지난 작업 확정
-  - [ ] NFR -> Code Generation 진행 중 (진행자 위임: 결정 없으면 자동 진행)
+  - [x] NFR Requirements · NFR Design — 냄(`transcript/nfr-requirements`·`nfr-design`).
+    단일 코드경로(빌드 태그 0) · 링 원자성/찢긴 읽기 · 커버리지 80% · 새 의존 0 · 심볼 상한 무영향
+  - [x] Infrastructure Design — 건너뜀(로컬 파일뿐 · 클라우드 자원 없음)
+  - [ ] Code Generation — 계획 냄(`plans/transcript-code-generation-plan.md`) · 구현 진행 중.
+    화면 카드는 design/enode-ux.pen 을 참고해 같은 스타일로 (진행자 지시 2026-09-09)
 
 ## 열린 미정
 
