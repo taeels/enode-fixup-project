@@ -6,6 +6,32 @@
 
 ---
 
+## 부분 재측정 (2026-09-11 · v3-run-harness-components)
+
+이 문서의 본문은 **2026-09-08T07:17:58Z** 스캔이다. `harness-components` 회차가
+착수 전에 **자기가 딛는 네 경로만** 다시 쟀다 (그 회차 Requirements 질문 1 의 답 B).
+
+```text
+   다시 잰 것    internal/enode · internal/contract · cmd/iapadapter · cmd/runctl
+                 아래 Existing Files Inventory 의 그 네 절이 2026-09-11 판이다
+   안 잰 것      나머지 전부.  2026-09-08 판 그대로다
+```
+
+**안 잰 자리에 알려진 낡음이 있다.** 다시 재지 않았으므로 고치지도 않았고,
+읽는 사람이 속지 않도록 관측값만 적는다.
+
+```text
+   internal/api 의 라우트     문서 15.  2026-09-11 실측 17
+   internal/ 패키지 수         문서 10.  2026-09-11 실측 12 (panel · proc 이 늘었다)
+   Go 파일 수                  문서 143.  2026-09-11 실측 190
+```
+
+네 경로에서 바뀐 것은 `internal/enode` 의 비테스트 소스 일곱 파일(새 파일
+셋 — `policy.go` · `status.go` · `transcript.go`)과 `internal/contract/advert.go`
+하나뿐이다. `cmd/iapadapter` · `cmd/runctl` 은 비테스트 소스가 한 줄도 안 바뀌었다.
+
+---
+
 ## Build System
 
 ### Go 모듈
@@ -207,7 +233,9 @@ github.com/taeels/enode
 ```text
    contract.go   계약 타입 모델 (Contract/Require/Step/Condition/Loop/Dispatch/
                  Acquire/Ask ...) + Contract.Validate().  문법의 단일 정본
-   advert.go     Advert/Capability 타입 + subset-match Satisfies (노드 어휘)
+   advert.go     Advert/Capability 타입 + subset-match Satisfies (노드 어휘).
+                 2026-09-11 재측정 — Advert.Policy 와 Policy{Drain} · Drain 어휘
+                 상수 셋(DrainNone/DrainGraceful/DrainAtBoundary)이 늘었다 (ADR-063 §6)
    planshape.go  PlanShape 상수 (예시로 보여주는 단계 필드 모양, 스키마가 아니다)
    checkplan.go  CheckPlan + PlanDoc (부모 계약 없이 Contract.Validate 를 재사용)
    example.go    examples/*.json embed.  ExampleNames/Example (붙여넣어 도는 계약)
@@ -281,9 +309,19 @@ github.com/taeels/enode
    lock_unix.go        단일 실행 flock (unix 반쪽)
    lock_windows.go     단일 실행 flock (windows 반쪽)
    paths.go            ConfDir/StateDir/ConfigPaths/ResolveConfig
+   policy.go           2026-09-11 새 파일.  소유자 정책 파일 (ADR-063).
+                       Policy{Drain,PanelToken} · 광고 직전마다 읽는다
    repoid.go           CanonicalRepoID · DetectRepo
-   runner.go           runHarness.  유일한 exec 지점 (IOPaths · Job)
+   runner.go           runHarness.  유일한 exec 지점 (IOPaths · Job).
+                       2026-09-11 재측정 — Job 에 Emit(스트림 사건)과
+                       Transcript(하네스 stdout tee) 가 늘었다.  계장 임시
+                       디렉터리는 여기서 os.MkdirTemp("", "enode-inst-*") 로
+                       나고 defer RemoveAll 로 단계 끝에 지워진다
    setup.go            Setup/SetupCLI 대화형 설정 부트스트랩
+   status.go           2026-09-11 새 파일.  상태 파일 (ADR-068).  데몬이 쓰고
+                       제어판이 읽는다.  Status{Caps,At}
+   transcript.go       2026-09-11 새 파일.  하네스 stdout 을 담는 고정 크기
+                       링 파일.  회전 · 자르기 · 삭제를 안 하고 WriteAt 만 쓴다
    workspace.go        Worker.Prepare/reset/clean/checkout (git sanitize) ·
                        WorkspaceSpec · Prep
 ```

@@ -44,7 +44,7 @@ C) **전부 다시 돌린다** — R/E 여덟 문서를 새로 낸다. 가장 �
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]: 
+[Answer]: B
 
 ---
 
@@ -69,7 +69,7 @@ C) **지금 담당을 정하고 Inception 과 Construction 을 겹친다** — �
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]: 
+[Answer]: B
 
 ---
 
@@ -103,7 +103,7 @@ C) **둘을 병렬로 돌리고 진행자가 직렬로 병합한다** — 손이
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]: 
+[Answer]: A
 
 ---
 

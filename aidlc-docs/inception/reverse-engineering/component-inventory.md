@@ -10,6 +10,29 @@
 태그 `ignore || glyphscan` 이라 `./...` 에 안 잡히고, 뒤엣것은 자기 `go.mod`
 를 따로 가져 본 모듈 밖이다.
 
+---
+
+## 부분 재측정 (2026-09-11 · v3-run-harness-components)
+
+본문은 **2026-09-08T07:17:58Z** 스캔이다. `harness-components` 회차가 자기가
+딛는 네 경로만 다시 쟀다 (그 회차 Requirements 질문 1 의 답 B).
+
+```text
+   internal/enode      비테스트 소스 파일 셋이 늘었다 — policy.go · status.go ·
+                       transcript.go.  테스트 파일 28 -> 31
+   internal/contract    비테스트 소스 파일 수 그대로.  advert.go 에 Policy 가 늘었다.
+                       테스트 파일 4 그대로.  examples/ 에 시연 계약 둘이 늘었다
+   cmd/iapadapter       비테스트 소스 · 테스트 둘 다 그대로 (각각 7 · 9)
+   cmd/runctl           비테스트 소스 · 테스트 둘 다 그대로 (각각 2 · 3)
+```
+
+**안 잰 자리의 알려진 낡음** — 아래 Shared Packages 표와 Total Count 는
+2026-09-08 판이다. 2026-09-11 실측으로 `internal/` 은 **12 벌**이고 (`panel` ·
+`proc` 이 늘었다) `internal/api` 의 라우트는 **17** 이다. 이 회차는 그 자리를
+안 만지므로 표를 고치지 않고 관측값만 여기 적는다.
+
+---
+
 ## Application Packages
 
 `cmd/` 아래 다섯 개가 각각 `package main` 이고 바이너리 하나로 빌드된다.
@@ -34,7 +57,7 @@
 | `internal/contract` | run 계약 문법 모델(`Contract`/`Step`/`Require`/`Condition` 등)과 `Grammar` · `PlanShape` · `CheckPlan` · 내장 `Example` |
 | `internal/schema` | 폼 검사로만 좁힌 JSON Schema. `CheckBoundary`(경계 게이트) · `Validate`(문서 검사). 품질 판정 키워드는 하드 거부 |
 | `internal/record` | 파일시스템 Run Record 를 짓고 로그 · blob 을 붙이고 `Seal`(chmod)로 봉인 · `Tar` 로 내보낸다 |
-| `internal/enode` | 실행 노드 데몬 로직. `Detector` · `Advertiser` · `Worker` · `Harness`(claude 어댑터) · `workspace` 준비 |
+| `internal/enode` | 실행 노드 데몬 로직. `Detector` · `Advertiser` · `Worker` · `Harness`(claude 어댑터) · `workspace` 준비. 2026-09-11 재측정 — 소유자 정책(`policy.go`) · 상태 파일(`status.go`) · 하네스 트랜스크립트 링(`transcript.go`) 이 늘었다 |
 | `internal/runctl` | runctl CLI 의 HTTP 클라이언트. `Submit` · `Status` · `Cancel` · `Record` · `Asks` · `Answer` · `Capabilities` 와 DTO |
 | `internal/config` | Mediator 설정 로드 · 기록 (ADR-015 §4). `Lease` 기본값(`RenewSeconds`/`NotAfterFactor`) 등 |
 | `internal/build` | 실행파일의 신원(커밋 · 판 · 날짜)을 담고 `<cmd> --version` 이 찍는 `Version` 을 낸다. 광고에는 안 싣는다 |
@@ -57,7 +80,7 @@
 | `internal/build` | 1 |
 | `internal/config` | 2 |
 | `internal/contract` | 4 |
-| `internal/enode` | 28 |
+| `internal/enode` | 31 (2026-09-11 재측정) |
 | `internal/match` | 1 |
 | `internal/record` | 1 |
 | `internal/runctl` | 1 |
