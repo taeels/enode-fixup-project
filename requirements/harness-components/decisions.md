@@ -121,3 +121,23 @@
    ADR-035    §7 「지금 열지 않는다」 -> 열렸다.  여는 조건 충족 일자와 근거(사내 실측)
    agent-runtime R6   「스킬 · MCP 는 자리만」 -> 구현됨.  플래그 목록 갱신
 ```
+
+---
+
+# 6. 회차가 실측으로 교정한 것 (2026-09-11)
+
+`v3-run-harness-components` 의 Requirements Analysis 가 팩을 오늘의 코드에 대고
+확정하면서 벗어나거나 고친 자리 셋이다. 근거 전문은
+`aidlc-docs/v3-run-harness-components/inception/requirements/requirements.md` 7절.
+
+| | 항목 | 값 | 근거 |
+|---|---|---|---|
+| ① | 알려진 키 검증 | **이미 있다.** `internal/contract/contract.go` 의 `agentKeys` 와 `knownKeys` 가 `Contract.Validate` 에서 이미 거절하고 Mediator 는 `400` 을 낸다 (`ADR-057`). 이 회차가 할 일은 그 목록에 이름 둘(`mcp` · `pack`)을 더하는 것뿐이다 | 실측. `features.md` 3.5 와 `canon.md` 2절의 `ADR-034` §5 ④ 줄은 「이 팩이 만든다」가 아니라 「이미 있다」로 읽는다. 2절의 「`agent` 의 알려진 키」 행은 값이 맞고 범위 서술만 줄어든다 |
+| ② | 팩 tar 풀기의 경로 검증 | 절대경로 항목 거부 · `..` 를 담은 항목 거부 · 심볼릭 링크 항목 거부 · 크기와 개수에 상한. `settings.json` 은 이름으로 건너뛴다. **거부는 조용하지 않다 — 그 단계를 실패로 보고한다.** 상한의 실제 값은 팩 유닛의 Functional Design 이 tar 규약과 함께 닫는다 | SECURITY-05. 팩은 계약이 적은 주소에서 받은 tar 이고 계장이 그것을 가짜 홈 **안에** 편다. 2절의 팩 형식 행은 「그 밖의 파일은 무시」만 적었고 경로를 안 적었다. `ADR-035` §3 「없음이 실패보다 나쁘다」가 여기도 같다 |
+| ③ | 팩의 기대 다이제스트 | **이월.** `HarnessResult` 의 `pack: <sha256>` 기록으로 족하다. 받는 쪽이 기대값을 적는 자리(`agent.pack_sha256` 같은 것)는 두지 않는다 | SECURITY-13 이 실행 전 검증을 요구하나 근거 셋이 기록으로 족하다고 말한다 — blob 이 `0444` · `0555` 로 봉인되고(`collect.go`), 출처가 계약 argv 와 manifest 에 박히고, 명령 단계에 파일시스템 경계가 없어(`INVARIANTS`) 같은 계약이 이미 임의의 argv 를 돌린다. 팩만 더 잠그면 위협 모델은 그대로고 능력만 좁아진다. 값이 생기는 때는 팩 저장소가 여럿이 되거나 팩을 캐시할 때다 (4절) |
+
+**계장 임시 디렉터리는 새로 만들지 않는다.** `runner.go` 가 이미
+`os.MkdirTemp("", "enode-inst-*")` 로 짓고 `defer os.RemoveAll` 로 단계 끝에
+지운다. 다만 `Fixed()` 가 인자를 안 받아 그 경로를 모른다 — 2절의 홈 변수 행을
+구현하려면 인터페이스의 모양이 걸리고, 그 모양은 Application Design 이 정한다
+(D1).

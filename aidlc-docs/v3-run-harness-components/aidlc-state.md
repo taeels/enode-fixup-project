@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Requirements Analysis 완료 · 승인 대기. 다음은 Workflow Planning
+- **Current Stage**: INCEPTION — Workflow Planning 완료 · 승인 대기. 다음은 Application Design
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -73,19 +73,66 @@ Analysis Step 5.1 에서 재확인만 한다.
    ③  팩의 기대 다이제스트는 이월       기록으로 족한 근거 셋
 ```
 
+## Execution Plan Summary
+정본은 `inception/plans/execution-plan.md` (2026-09-11T13:59:38Z).
+
+- **전체 단계**: 13 (Inception 7 · Construction 5 · Operations 1)
+- **실행**: Application Design · Units Generation · Functional Design ·
+  Code Generation · Build and Test
+- **스킵 넷**: User Stories · NFR Requirements · NFR Design · Infrastructure Design
+- **위험도**: High · 되돌리기 Moderate · 검사 복잡도 Complex
+
+스킵의 근거를 한 줄로.
+
+```text
+   User Stories            scene-gates.md 의 조각 일곱이 실행 명령으로 적힌 수용 기준이다.
+                           스토리는 그것을 약한 형태로 다시 쓰는 일이 된다
+   NFR Requirements        requirements.md 4절이 Comprehensive 로 이미 닫았고
+                           이 회차가 그 값을 안 바꾼다.  차단 확장의 집행은 단계마다 그대로 돈다
+   NFR Design              NFR Requirements 를 건너뛰므로 넘길 패턴이 없다
+   Infrastructure Design   배포 모형이 안 바뀐다.  새 포트 0 · 새 전송 0 · 클라우드 자원 0
+```
+
+값이 안 정해진 자리는 스킵과 함께 사라지지 않고 옮겨 적었다 — SEC-A 의 크기 ·
+개수 상한은 팩 유닛의 Functional Design 으로, 4.4 의 「광고 루프가 탐지를 직접
+안 부른다」는 Application Design D2 로.
+
+## Application Design 이 닫을 넷 (D1 ~ D4)
+`requirements.md` 8절이 명시로 넘긴 미결이다.
+
+| | 물음 | 어디서 왔나 |
+|---|---|---|
+| D1 | `Fixed()` 가 계장 디렉터리를 어떻게 아나 | requirements.md 2.2 |
+| D2 | Detector 가 MCP 를 어떻게 드나. 광고 루프와 어떻게 끊나 | ADR-035 §4.2 · requirements.md 4.4 |
+| D3 | 허용목록을 누가 쓰나. 팩 펴기와 같은 자리인가 | requirements.md 8절 |
+| D4 | 게이트가 transcript 링을 쓸 수 있나 | requirements.md 2.3 · 5.1 |
+
 ## Stage Progress
 
 ### INCEPTION PHASE
 - [x] Workspace Detection — 2026-09-11T13:13:54Z
 - [x] Reverse Engineering — 부분 재측정 (네 경로 · Q1=B). 전면 재실행은 안 함
-- [x] Requirements Analysis — 산출물 완료 · 승인 대기. 질문 셋의 답 수신 (B · B · A)
-- [ ] User Stories — 미정 (Workflow Planning 이 정한다. 팩과 scene-gates 가 수용 기준을 이미 진다)
-- [ ] Workflow Planning
-- [ ] Application Design — 미정
-- [ ] Units Generation — 미정 (파일 행렬 필수)
+- [x] Requirements Analysis — 승인됨 (2026-09-11T13:59:38Z · 사용자가 Workflow Planning 을 지시)
+- [x] User Stories — SKIP (실행 계획 3절의 근거 둘)
+- [x] Workflow Planning — 산출물 완료 · 승인 대기
+- [ ] Application Design — EXECUTE (D1 ~ D4 를 닫는다)
+- [ ] Units Generation — EXECUTE (파일 행렬 필수)
 
 ### CONSTRUCTION PHASE
 담당은 taeels 하나다 (Q2=B). 문서 루트는 `aidlc-docs/taeels/` 이고 유닛은
 `unit/<유닛>` 브랜치에서 직렬로 돈다.
-- [ ] 유닛별 단계 — Units Generation 뒤에 채운다
-- [ ] Build and Test
+- [ ] Functional Design — EXECUTE (유닛마다 · 형식을 안 만드는 유닛은 그 자리에서 스킵)
+- [ ] NFR Requirements — SKIP
+- [ ] NFR Design — SKIP
+- [ ] Infrastructure Design — SKIP
+- [ ] Code Generation — EXECUTE (유닛마다 · 계획 뒤 생성)
+- [ ] Build and Test — EXECUTE (조각 게이트 CA0 ~ CA6)
+
+### OPERATIONS PHASE
+- [ ] Operations — PLACEHOLDER
+
+## Current Status
+- **Lifecycle Phase**: INCEPTION
+- **Current Stage**: Workflow Planning 완료
+- **Next Stage**: Application Design
+- **Status**: 승인 대기

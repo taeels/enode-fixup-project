@@ -105,3 +105,49 @@ FR-1 ~ FR-7 이 팩 3.1 ~ 3.7 과 짝이고, 실측 교정 둘(2.1 알려진 키
 **Context**: INCEPTION · Requirements Analysis Step 7 ~ 9. 승인 대기
 
 ---
+## Requirements Analysis — 승인
+**Timestamp**: 2026-09-11T13:59:38Z
+**User Input**: "workflow planning 하자. v3-run-harness-components"
+**AI Response**: 다음 단계를 지시한 것을 Requirements Analysis 승인으로 읽었다.
+승인의 귀결로 `requirements.md` 7절이 예약해 둔 행 셋을
+`requirements/harness-components/decisions.md` 에 6절(2026-09-11 날짜 절)로
+실었다 — ① 알려진 키 검증은 이미 있다 · ② 팩 tar 풀기의 경로 검증 · ③ 팩의
+기대 다이제스트는 이월. 기존 1 ~ 5절의 번호는 안 건드렸다 (다른 문서가 4절과
+5절을 번호로 참조한다).
+**Context**: INCEPTION · Requirements Analysis Step 10 승인 · decisions.md 갱신
+
+---
+
+## Workflow Planning — 산출물 완료
+**Timestamp**: 2026-09-11T13:59:38Z
+**User Input**: (없음 — 위 지시로 착수)
+**AI Response**: `inception/plans/execution-plan.md` 를 냈다.
+실행 다섯 · 스킵 넷으로 갈랐다.
+
+실행 — Application Design (`requirements.md` 8절의 D1 ~ D4 를 닫는다) ·
+Units Generation (파일 행렬 필수) · Functional Design (유닛마다 · 새 파일 형식
+넷) · Code Generation (유닛마다) · Build and Test (조각 게이트 CA0 ~ CA6 이 곧
+시험 계획이다).
+
+스킵 — User Stories (`scene-gates.md` 의 조각 일곱이 실행 명령으로 적힌 수용
+기준이고 한 손 회차라 공유 이해의 값도 없다) · NFR Requirements
+(`requirements.md` 4절이 Comprehensive 로 이미 닫았고 값을 안 바꾼다.
+차단 확장의 집행은 스킵과 무관하게 단계마다 돈다) · NFR Design (앞을 건너뛰므로
+넘길 패턴이 없다) · Infrastructure Design (새 포트 0 · 새 전송 0 · 새 라우트 0 ·
+클라우드 자원 0).
+
+값이 안 정해진 자리는 스킵과 함께 안 버리고 옮겨 적었다 — SEC-A 의 크기 · 개수
+상한은 팩 유닛의 Functional Design 으로, 4.4 의 「광고 루프가 탐지를 직접 안
+부른다」는 Application Design D2 로.
+
+패키지 순서는 `internal/contract` 가 계약 키를 읽는 유닛보다 먼저 서고,
+가짜 홈과 허용목록의 뼈대는 계약 키 없이 `internal/enode` 안에서 먼저 설 수
+있다고 적었다. **유닛 순서는 안 박았다** — 팩이 유닛 분해를 안 주므로
+Units Generation 이 낸다 (`CONVENTIONS.md` 3.1).
+
+위험도 High · 되돌리기 Moderate · 검사 복잡도 Complex.
+security-baseline 준수 요약을 7절에 실었다 — SECURITY-11 · SECURITY-05 준수,
+나머지 열셋은 계획 문서라 N/A.
+**Context**: INCEPTION · Workflow Planning Step 7 ~ 9. 승인 대기
+
+---
