@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Application Design 승인됨. **다음은 Units Generation** (다음 세션)
+- **Current Stage**: INCEPTION — Units Generation 완료. **Inception 이 닫혔다**
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -144,7 +144,7 @@ Q5 = A 가 `claude.go` 의 `Argv` 를 이 팩의 밖으로 냈다. `constraints.
 - [x] User Stories — SKIP (실행 계획 3절의 근거 둘)
 - [x] Workflow Planning — 승인됨 (2026-09-11T23:43:28Z · 커밋 88dc120)
 - [x] Application Design — 승인됨 (2026-09-12T00:41:18Z · 커밋 3012a92). 답은 전부 A
-- [ ] Units Generation — EXECUTE (파일 행렬 필수). **여기서 이어서 시작한다**
+- [x] Units Generation — 완료 (2026-09-12). 답 다섯이 전부 A. 유닛 다섯 · 파일 행렬을 냈다
 
 ### CONSTRUCTION PHASE
 담당은 taeels 하나다 (Q2=B). 문서 루트는 `aidlc-docs/taeels/` 이고 유닛은
@@ -159,22 +159,58 @@ Q5 = A 가 `claude.go` 의 `Argv` 를 이 팩의 밖으로 냈다. `constraints.
 ### OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
 
-## Current Status
-- **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Application Design 완료 · 승인됨
-- **Next Stage**: Units Generation
-- **Status**: 다음 세션에서 이어서 시작한다
+## Units Generation 이 낸 것 (2026-09-12)
+정본은 `inception/application-design/` 의 넷이다 — `unit-of-work.md` ·
+`unit-of-work-dependency.md` · `unit-of-work-story-map.md` ·
+`unit-of-work-file-matrix.md`.
 
-## 다음 세션이 Units Generation 에서 쓸 입력
+### 유닛 다섯 · 직렬
+
+| | 유닛 | 맡는 기능 | 닫는 게이트 | 선행 |
+|---|---|---|---|---|
+| U1 | `isolation` | 3.1 · 3.2 의 최소 | CA1 | 없음 |
+| U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 |
+| U3 | `advert` | 3.3 | CA2 · CA3 완결 | U1 · U2 |
+| U4 | `sources` | 3.4 · 3.2 의 완성 | CA4 | U1 · U2 · U3 |
+| U5 | `pack` | 3.6 · 3.7 | CA5 · CA6 | U1 · U2 · U4 |
+
+착수 순서는 U1 · U2 · U3 · U4 · U5 다. **모든 유닛의 완료 조건에 CA0 가 들어간다** —
+`internal/enode` 의 커버리지 80% 를 유닛 단위로 집행한다.
+
+### 행렬이 센 것
+
 ```text
-   유닛이 만질 경로 셋      internal/enode · internal/contract · cmd/iapadapter
-                          cmd/runctl 은 0 이다 (component-methods.md 7절)
-   착수 순서의 뿌리         scene-gates.md 2절의 「먼저 서는 기능」 열.
-                          3.1 가짜 홈이 나머지 여섯의 앞이다
-   빌드 시점 의존 하나      internal/contract 의 agentKeys 가 서기 전에는
-                          agent.mcp · agent.pack 을 적은 계약이 400 이다
-   접점 하나               runner.go.  짝 팩(transcript)과 겹친다.
-                          진행자가 직렬로 병합한다.  이 팩이 먼저다
-   겉면의 정본             inception/application-design/ 다섯 문서
-   반드시 낼 것             파일 행렬 (requirements.md 9절 · constraints.md 끝 절)
+   만지는 파일     14   새 파일 둘(mcp.go · examples/mcp.json) · 고치는 파일 열둘
+   만지는 패키지    3   internal/enode · internal/contract · cmd/iapadapter
+   접점 파일 넷     mcp.go(U1·U3·U4·U5) · runner.go(U1·U4·U5) ·
+                   claude.go(U1·U5) · harness.go(U1·U5).  직렬이라 충돌이 아니다
+   짝 팩과 겹치는 것  runner.go 하나.  팩 단위로 이 팩이 먼저 전부 들어간다
+   cmd/runctl       소스 diff 0.  다만 shape_test.go 가 새 예시 위로 돈다
+```
+
+### 설계 요약 표에 없던 파일 둘 — 행렬이 세웠다
+
+```text
+   internal/enode/claim.go   U4.  Job{...} 리터럴의 유일한 제품 코드 자리(765).
+                             NodeMCP 를 안 실으면 노드 선언이 조용히 안 실린다
+   internal/enode/agent.go   U2.  AgentParams(36)와 parseAgentParams(500).
+                             components.md 1.6 은 적었고 요약 표만 빠졌다
+```
+
+## Current Status
+- **Lifecycle Phase**: INCEPTION 완료 · 다음은 CONSTRUCTION
+- **Current Stage**: Units Generation 완료
+- **Next Stage**: CONSTRUCTION — U1 `isolation` 의 Functional Design
+- **Status**: 승인 대기
+
+## 다음 세션이 CONSTRUCTION 에서 쓸 입력
+```text
+   첫 유닛          U1 isolation.  선행 없음.  CA1 을 닫는다
+   브랜치           unit/isolation 을 v3-run-harness-components 에서 딴다.
+                   게이트가 초록이면 PR 로 main (CONVENTIONS 3.1 · 3.3)
+   문서 루트         aidlc-docs/taeels/construction/isolation/
+   FD 가 닫을 것     mcp.json 의 필드 표현 (빈 파일의 모양)
+   완료 조건         unit-of-work.md 1절.  CA1 은 OAuth 노드와 게이트웨이 노드
+                   둘 다에서 사람이 한 번 띄워야 초록이다
+   같이 도는 것      CA0 — 커버리지 80% 를 이 유닛에서 이미 잰다
 ```

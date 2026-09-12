@@ -245,3 +245,62 @@ Current Status 아래에 모았다.
 **Context**: INCEPTION · Application Design Step 13 ~ 15 승인 · 커밋 · 세션 경계
 
 ---
+## Units Generation — 착수
+**Timestamp**: 2026-09-12T01:07:00Z
+**User Input**: "승인. 넘어가자"
+**AI Response**: Application Design 승인으로 읽고 Units Generation Part 1
+(Planning) 을 시작했다. 질문을 짓기 전에 코드를 먼저 읽어 설계의 요약 표
+(`application-design.md` 3절)와 실제 호출자를 대조했고 **표에 없는 파일 둘**을
+찾았다 — `internal/enode/claim.go` (`Job` 이 조립되는 유일한 자리. `NodeMCP` 를
+안 실으면 노드 선언이 조용히 안 실린다)와 `internal/enode/agent.go`
+(`AgentParams` 와 `parseAgentParams` 가 사는 자리. `components.md` 1.6 은
+적었고 요약 표만 빠졌다). `cmd/runctl` 의 소스 diff 0 은 맞으나
+`cmd/runctl/shape_test.go` 의 `TestExamples_LintClean` 이 새 예시 위로 돌므로
+행렬에 「닿는 시험」 열을 따로 둔다.
+**Context**: INCEPTION · Units Generation Part 1 Step 1 ~ 3. 착수 전 실측
+
+---
+## 협업 규칙 정리 — Units Generation Q4 가 연 것
+**Timestamp**: 2026-09-12T01:22:00Z
+**User Input**: "대회장에서 협업 규칙 적다가 빠트린 것 같은데 지금은 대회 끝나서 정리가 필요하다"
+**User Input**: "레이어링 구조가 아직 쓸만하니 고려해서 고쳐놔"
+**AI Response**: Q4 가 낸 갈림(`CONVENTIONS.md` 3.1 은 유닛이 회차 브랜치로
+모인다고, `CLAUDE.md` 는 PR 로 `main` 에 간다고 적었다)을 git 이력으로 판정했다.
+`origin/v1-run-dhseo` 가 `unit/obs` · `panel` · `drain` · `transcript` 의 조상이고
+PR 스물여섯이 전부 `main` 으로 갔다 — **두 문서가 각각 절반씩 맞았다.** 회차
+브랜치도 Inception 이 닫히면 PR 로 올리는 것으로 고쳤다 (대회 때는 회차의
+Inception 커밋이 첫 유닛 PR 에 실려 닿았고, 그 경로는 Construction 이 없는 회차에서
+끊긴다). 레이어링은 유지하고 넓혔다 — 3.2 가 적던 flat 경로 셋은 저장소에 존재하지
+않았고, 소유자별 루트로 다시 적으니 부딪히는 자리가 셋에서 `design/` 하나로 줄었다.
+`roster` 5절의 병합 정책 사본을 없애고 정본을 가리키게 했다 (두 벌이었고 그래서
+갈렸다). 파일 다섯을 커밋 `5cbf171` 로 넣었다.
+**Context**: INCEPTION · Units Generation Part 1 Step 7 ~ 8 (Q4 의 모호를 규칙으로 해소)
+
+---
+## Units Generation — 답 다섯과 생성
+**Timestamp**: 2026-09-12T01:34:00Z
+**User Input**: "권장안으로 결정하고 닫는다."
+**AI Response**: Q1 ~ Q5 를 전부 A 로 적었다. 모호한 답이 없어 후속 질문을 안 냈다
+(규칙 7 · 8 의 게이트 통과). 4절 체크박스 열여덟을 전부 완료로 표시하고 산출물
+넷을 냈다 — `unit-of-work.md` · `unit-of-work-dependency.md` ·
+`unit-of-work-story-map.md` · `unit-of-work-file-matrix.md`.
+
+유닛 다섯을 직렬로 낸다 — `isolation`(CA1) · `contract-vocab`(CA3 절반) ·
+`advert`(CA2 · CA3) · `sources`(CA4) · `pack`(CA5 · CA6). 기능 일곱 중 사상되지
+않은 것이 0 이고 담당 없는 게이트가 0 이다. 3.2 만 유닛 둘에 쪼개졌다 — 쓰는 자리
+(U1)와 정하는 자리(U4)가 이 설계의 뼈대이기 때문이다. CA3 만 유닛 둘에 걸린다 —
+400 과 lint 는 U2 가, requires 매칭과 422 는 U3 이 닫는다.
+
+**파일 행렬이 설계 요약 표에 없던 파일 둘을 세웠다** — `internal/enode/claim.go`
+(`Job{...}` 리터럴의 유일한 제품 코드 자리. `NodeMCP` 를 안 실으면 노드 선언이
+조용히 안 실린다)와 `internal/enode/agent.go` (`AgentParams` 와 `parseAgentParams`).
+`cmd/runctl` 의 소스 diff 0 은 맞으나 `shape_test.go` 가 새 예시 위로 돌므로
+「닿는 시험」을 별도 열로 적었다.
+
+생성이 답 밖에서 더 정한 것 셋 — ① `Local.MCP` 는 U3 이, `Job.NodeMCP` 와 `claim.go`
+의 싣는 줄은 U4 가 낸다 (읽는 쪽 없는 필드를 먼저 안 세운다). ② `resolveComponents`
+를 U1 이 빈 경우로 세워 `runner.go` 의 호출 자리가 U1 에서 최종형이 된다.
+③ CA3 을 유닛 둘로 쪼개 적는다.
+**Context**: INCEPTION · Units Generation Part 1 Step 7 ~ 11 · Part 2 Step 12 ~ 16
+
+---
