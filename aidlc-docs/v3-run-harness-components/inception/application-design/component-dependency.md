@@ -156,7 +156,7 @@ Q5 의 답이 A 라 겹침이 팩이 적은 것보다 **줄었다.**
 | `claude.go` `Decode` | 안 건드린다 | 스트림을 훑게 바꾼다 | 아니오 |
 | `runner.go` `Job` | `NodeMCP` 한 필드 | tee 와 사건 배출 | **예** — 같은 구조체 |
 | `runner.go` `runHarness` | 순서와 실패 규칙 | stdout 처리 | **예** — 같은 함수 |
-| `hook.go` | 훅 파일을 가짜 홈 옆으로 | 안 건드린다 | 아니오 |
+| `hook.go` | 훅 파일을 가짜 홈 **안**으로 (⑧) | 안 건드린다 | 아니오 |
 | `harness.go` `HarnessResult` | 필드 둘 | 안 건드린다 | 아니오 |
 
 **겹치는 것은 둘이다** — `runner.go` 와 `claude.go` 의 `Argv`. 진행자가 직렬로

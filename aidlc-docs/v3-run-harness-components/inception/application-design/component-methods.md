@@ -36,7 +36,11 @@ type Harness interface {
 	// 그 오류는 이미 버려진다 (runner.go:71-76).
 	//
 	// 오류를 내도 이미 얻은 플래그는 함께 돌려준다 — 보조 실패 하나가
-	// --strict-mcp-config 를 떨어뜨리면 격리의 확실한 겹이 사라진다.
+	// --strict-mcp-config 를 떨어뜨리면 격리의 겹 하나가 사라진다.
+	//
+	// 그리고 보조 오류로 조기 반환하지 않는다. 훅 쓰기가 실패해도 남은
+	// 쓰기(팩 · 허용목록)를 끝까지 하고 마지막에 감싼다. 조기 반환하면
+	// 허용목록이 아예 안 쓰이고 치명도 안 난다.
 	Instrument(dir, self string, a HookArgs, c Components) ([]string, error)
 
 	Argv(p AgentParams, io IOPaths) []string

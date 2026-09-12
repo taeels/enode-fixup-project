@@ -35,7 +35,7 @@
 | | 조각 | 확인 (실동작) | 집행자 | 대상 | 재는 기능 | 먼저 서는 기능 |
 |---|---|---|---|---|---|---|
 | CA0 | 기동이 안 깨졌다 | 앞 팩의 CP0 그대로 — `scripts/testdb.sh` 뒤 기존 테스트 전부 초록 · 커버리지 · glyphscan · 포맷 · vet · 크로스 빌드 · 심볼 상한 · 워킹트리 청결. 기존 라우트 수가 그대로다 | 기계 | 스크래치 | 바닥 | (없음) |
-| CA1 | 끊긴다 | **계정에 로그인된 기계에서** 개인 MCP 서버와 계정 커넥터가 있는 채로 아무것도 요청하지 않은 에이전트 단계를 돌린다. 로그아웃 홈에서만 재면 안 된다 — 이 설계가 `.credentials.json` 을 가짜 홈에 복사하므로 계정이 돌아온다 (`application-design.md` 4.6). `logs/` 의 `system/init` 줄(또는 `enode` 가 남긴 프로브 출력)에 `mcp_servers` 가 비어 있다. OAuth 로그인 노드와 게이트웨이 노드 둘 다에서 단계가 `Not logged in` 없이 돈다 | 사람 | 스크래치 | 3.1 · 3.2 | (없음) |
+| CA1 | 끊긴다 | `logs/` 의 `system/init` 줄로 잰다 — ⑮ 이 그 줄을 내게 했다 (옛 대안 「`enode` 가 남긴 프로브 출력」은 그것을 내는 유닛이 0 이라 기각됐다). **계정에 로그인된 기계에서** 개인 MCP 서버와 계정 커넥터가 있는 채로 아무것도 요청하지 않은 에이전트 단계를 돌린다. 로그아웃 홈에서만 재면 안 된다 — 이 설계가 `.credentials.json` 을 가짜 홈에 복사하므로 계정이 돌아온다 (`application-design.md` 4.6). `logs/` 의 `system/init` 줄(또는 `enode` 가 남긴 프로브 출력)에 `mcp_servers` 가 비어 있다. OAuth 로그인 노드와 게이트웨이 노드 둘 다에서 단계가 `Not logged in` 없이 돈다 | 사람 | 스크래치 | 3.1 · 3.2 | (없음) |
 | CA2 | 광고한다 | `enode.yaml` 에 `mcp:` 하나를 적고 노드를 띄운다. `GET /v1/nodes` 의 그 노드 `attrs` 에 `mcp.<이름>` 과 `harness.claude` 가 있고 옛 `harness` 도 있다. 실행파일을 치우고 탐지 주기 뒤에 보면 `mcp.<이름>` 이 빠져 있고 노드 로그에 이유가 있다 | 사람 | 스크래치 | 3.3 | 3.1 |
 | CA3 | 고른다 | `runctl capabilities` 에 `mcp.<이름>` 이 나온다 — 계약 작성자가 보는 면이다. `requires` 에 그 이름을 적은 계약이 그 노드에만 간다. 없는 키를 적으면 `422` 다. `agent` 에 모르는 키를 적으면 `400` 이고 `agent.mcp` 를 문자열로 적어도 `400` 이다. `runctl lint` 와 `runctl example` 의 새 예시가 통과한다 | 사람 | 함대 | 3.3 · 3.5 | 3.3 |
 | CA4 | 연다 | 노드가 서버 둘을 선언하고 워크스페이스 `.mcp.json` 에 하나가 더 있을 때, 계약이 하나만 요청하면 `mcp_servers` 에 그 하나뿐이다. `.mcp.json` 의 것을 요청하면 나타난다. 없는 이름을 요청하면 하네스가 안 뜨고 단계가 그 사유로 실패한다 | 사람 | 스크래치 | 3.2 · 3.4 · 3.5 | 3.1 |
@@ -74,8 +74,12 @@
 
    init 줄을 읽는 법 — 이 팩의 U1 이 Argv 에 --output-format stream-json --verbose
    를 더하므로 (decisions.md 6절 ⑮) 그 줄이 logs/ 에 그대로 남는다:
-     runctl record <id>      -> logs/<단계>.log 를 푼다
-     head -1 logs/<단계>.log | jq '{mcp: .mcp_servers, skills: .slash_commands}'
+     runctl record <id> -o r.tar && tar -xf r.tar
+     head -1 run-<id>/logs/*-<단계>.log | jq '{mcp: .mcp_servers, skills: .slash_commands}'
+
+   runctl record 는 tar 를 stdout 에 붓는다 — 푸는 코드가 runctl 에 없으므로 -o 로
+   받아 tar 로 푼다 (그 플래그는 이미 있다).  tar 안의 경로는 run-<id>/logs/ 이고
+   파일 이름은 NN-<단계>.log 다
 
    이것이 실물을 잰다 — enode 가 실제로 지은 가짜 홈과 실제로 쓴 허용목록으로
    돈 하네스의 증언이다.  사람이 손으로 띄우는 복제본 경로는 환경(harnessEnv 가
@@ -85,7 +89,9 @@
 ```
 
 ```text
-   CA0   앞 팩의 CP0 명령 그대로.  Mediator 라우트 수가 그대로다 —
+   CA0   decisions.md 6.1 의 열쇠 표를 돈다 — 기대값이 0 인 줄에서 0 이 아니면 빨갛다.
+         뒤집기가 반쯤 내려간 채로 다음 유닛이 착수되는 것을 막는 검사다.
+         그리고 앞 팩의 CP0 명령 그대로.  Mediator 라우트 수가 그대로다 —
          internal/api/*.go 전체에서 mux.HandleFunc 와 mux.Handle( 을 함께 센다.
          오늘 값은 26 이다 (api.go 의 HandleFunc 17 + Handle 3 · demo_gallery.go 6).
          api.go 한 파일만 HandleFunc 로 세면 17 이 나와 나머지 아홉을 놓친다

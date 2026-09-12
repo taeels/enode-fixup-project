@@ -16,7 +16,7 @@
 |---|:---:|:---:|:---:|:---:|:---:|---|
 | `internal/enode/mcp.go` (새 파일) | x | | x | x | x | **넷** |
 | `internal/enode/harness.go` | x | | | | x | **둘** |
-| `internal/enode/claude.go` | x | | | | x | **둘** |
+| `internal/enode/claude.go` | x | | | | x | **둘 · 짝 팩과도 겹친다** |
 | `internal/enode/runner.go` | x | | | x | x | **셋 · 짝 팩과도 겹친다** |
 | `internal/enode/hook.go` | x | | | | | |
 | `internal/enode/config.go` | | | x | | | |
@@ -138,7 +138,7 @@ enode 쪽 끝이라 U2 가 함께 진다 — **계약이 받는 키와 그것을
 
 ---
 
-## 5. 짝 팩(transcript)과의 접점 — 하나
+## 5. 짝 팩(transcript)과의 접점 — 둘
 
 `constraints.md` 의 접점 절이 정본이고, 이 회차의 답 둘이 그것을 줄였다.
 

@@ -63,8 +63,8 @@ Analysis Step 5.1 에서 재확인만 한다.
 | Q2 | 회차를 어디까지 · 몇 손 | B | Inception 을 돌고 Construction 까지 한 손(taeels)으로 간다. 유닛 직렬 |
 | Q3 | 짝 팩과의 순서 | A | 이 팩 먼저. 게이트의 `init` 줄은 사람이 직접 띄워 읽는다 |
 
-## 이 회차가 `decisions.md` 에 더한 행 — 열넷
-셋은 Requirements 승인 뒤에, 둘은 Application Design 이, **아홉은 2026-09-12 의
+## 이 회차가 `decisions.md` 에 더한 행 — 열여섯
+셋은 Requirements 승인 뒤에, 둘은 Application Design 이, **열하나는 2026-09-12 의
 설계 검증과 설계 질문**이 실었다.
 
 ```text
@@ -82,9 +82,12 @@ Analysis Step 5.1 에서 재확인만 한다.
    ⑫  agent.pack 이 미래 결합점이다      submit --pack 이 와도 계약 어휘는 안 는다
    ⑬  열거 면은 runctl capabilities 다   계약 작성자가 보는 면.  nodes 는 운영자 면
    ⑭  mcpUp 이 못 잡는 것 셋            뜨나는 존재이지 동작이 아니다
+   ⑮  Argv 에 stream-json 한 줄         게이트가 복제본 대신 실물을 잰다
+   ⑯  ParseClaude 가 type 을 본다        ⑮ 이 연 fail-open 을 막는다
 ```
 
-열넷 다 `requirements/harness-components/decisions.md` **6절**에 실렸다.
+열여섯 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
+**6.1 이 뒤집힌 옛 문자열을 세는 열쇠 표**를 든다 — CA0 가 그것을 돈다.
 기존 1 ~ 5절의 번호는 다른 문서가 참조하므로 안 건드리고, **2절의 낡은 행에는
 「6절이 뒤집었다」 꼬리표를 달았다** — 권장값 표가 구현자에게 먼저 읽히기 때문이다.
 

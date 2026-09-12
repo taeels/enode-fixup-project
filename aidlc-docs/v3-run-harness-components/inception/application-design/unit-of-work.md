@@ -41,6 +41,8 @@
    internal/enode/mcp.go       새 파일.  MCPServer · Components ·
                                resolveComponents (요청도 팩도 없는 경우만)
    internal/enode/harness.go   Fixed(dir) · Instrument(..., c Components) 시그니처 · errAux
+   internal/enode/harness.go   ParseClaude 에 type 검사 (⑯).  "result" 가 아니면
+                               ReasonError.  ⑮ 이 연 fail-open 을 막는다
    internal/enode/claude.go    Argv 에 --output-format stream-json --verbose 한 줄 (⑮).
                                게이트가 재는 system/init 줄이 그래야 logs/ 에 남는다.
                                Decode 는 안 건드린다 — ParseClaude 가 마지막 JSON
@@ -76,7 +78,12 @@
   뚫기 때문이다. 그 대가로 **눈 검증이 복제본을 잰다**는 한계가 남고, U1 의
   완료 조건이 그 한계를 이름으로 적는다 — 사람이 손으로 띄우는 경로는 환경 ·
   플래그 · 게이트웨이 인증에서 실물과 갈린다
-- **`init` 줄이 `logs/` 에 남는다** (⑮). `runctl record` 로 푼 로그의 첫 줄이
+- **크래시가 성공으로 안 봉인된다** (⑯). `ParseClaude` 가 `type` 을 보고
+  `"result"` 가 아니면 `ReasonError` 로 떨어진다. **시험이 그것을 직접 잰다** —
+  `stream-json` 사건 몇 줄 뒤에 잘린 stdout 을 넣고 `harness_error` 가 나오는지.
+  `harness.go:98-99` 의 「종료코드 0 을 믿지 않는다」가 ⑮ 뒤에도 참이어야 한다
+- **`init` 줄이 `logs/` 에 남는다** (⑮). `runctl record <id> -o r.tar && tar -xf r.tar`
+  로 푼 `run-<id>/logs/NN-<단계>.log` 의 첫 줄이
   `system/init` 이고 거기 `mcp_servers` 와 `slash_commands` 가 있다. **이것이
   CA1 · CA4 · CA5 를 복제본이 아니라 실물로 재게 하는 줄이다** — 그 셋이
   이 유닛 뒤에야 집행 가능해진다
