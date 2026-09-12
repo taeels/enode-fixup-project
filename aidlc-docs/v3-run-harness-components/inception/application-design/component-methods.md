@@ -192,7 +192,9 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
    ⑥  exec
    ⑦  Decode · Version · 자백 읽기  오늘 그대로
    ⑧  HarnessResult 에 MCP · Pack 을 채운다
-   ⑨  defer 가 계장 디렉터리를 지운다 — 오늘 그대로
+   ⑨  logs/ 에 실을 것을 고른다 (⑱) — init 줄 · 최종 result 봉투 · stderr.
+      중간 사건은 안 싣는다.  오늘 runner.go:155-156 은 stdout 전체를 낸다
+   ⑩  defer 가 계장 디렉터리를 지운다 — 오늘 그대로
 ```
 
 **⑨ 를 안 건드린다.** 보존 스위치를 한 번 넣었다가 뺐다 — `features.md` 3.1 이

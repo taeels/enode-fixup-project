@@ -89,6 +89,9 @@
   `TestHarnessRecordsBudget` 이 그대로 초록이어야 한다 — `type` 없는 픽스처로
   `Turns` · `CostUSD` 를 재므로 조기 반환으로 짜면 빨갛다.
   `harness.go:98-99` 의 「종료코드 0 을 믿지 않는다」가 ⑮ 뒤에도 참이어야 한다
+- **`logs/` 에 중간 사건이 안 실린다** (⑱). `init` 줄과 최종 `result` 봉투와
+  stderr 만 싣는다. **시험이 그것을 직접 잰다** — 도구 사건이 섞인 stdout 을 넣고
+  `logs/` 산출물에 그 사건이 없는지. 이것이 SECURITY-03 을 준수로 만드는 줄이다
 - **`init` 줄이 `logs/` 에 남는다** (⑮). `runctl record <id> -o r.tar && tar -xf r.tar`
   로 푼 `run-<id>/logs/NN-<단계>.log` 의 첫 줄이
   `system/init` 이고 거기 `mcp_servers` 와 `slash_commands` 가 있다. **이것이

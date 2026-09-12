@@ -63,7 +63,7 @@ Analysis Step 5.1 에서 재확인만 한다.
 | Q2 | 회차를 어디까지 · 몇 손 | B | Inception 을 돌고 Construction 까지 한 손(taeels)으로 간다. 유닛 직렬 |
 | Q3 | 짝 팩과의 순서 | A | 이 팩 먼저. 게이트의 `init` 줄은 사람이 직접 띄워 읽는다 |
 
-## 이 회차가 `decisions.md` 에 더한 행 — 열일곱
+## 이 회차가 `decisions.md` 에 더한 행 — 열여덟
 셋은 Requirements 승인 뒤에, 둘은 Application Design 이, **열하나는 2026-09-12 의
 설계 검증과 설계 질문**이 실었다.
 
@@ -84,10 +84,11 @@ Analysis Step 5.1 에서 재확인만 한다.
    ⑭  mcpUp 이 못 잡는 것 셋            뜨나는 존재이지 동작이 아니다
    ⑮  Argv 에 stream-json 한 줄         게이트가 복제본 대신 실물을 잰다
    ⑯  ParseClaude 가 type 을 본다        ⑮ 이 연 fail-open 을 막는다
-   ⑰  봉인 기록의 자격증명 누출        SECURITY-03 비준수로 적고 받아들인다
+   ⑰  봉인 기록의 자격증명 누출        준수로 만든다 (사용자 결정)
+   ⑱  logs/ 에 init 줄과 최종 봉투만    ⑮ 이 넓힌 누출 표면을 닫는다
 ```
 
-열일곱 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
+열여덟 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
 **6.1 이 뒤집힌 옛 문자열을 세는 열쇠 표**를 든다 — 진행자가 유닛 병합 전에
 돈다. 도는 스크립트가 없어 CA0 의 기계 검사가 아니다.
 기존 1 ~ 5절의 번호는 다른 문서가 참조하므로 안 건드리고, **2절의 낡은 행에는

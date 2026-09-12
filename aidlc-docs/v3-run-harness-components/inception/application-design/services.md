@@ -28,7 +28,8 @@
                                                  ⑥  exec (cwd = 워크스페이스)
                                                  ⑦  Decode · Version · 자백
                                                  ⑧  MCP · Pack 을 결과에 채운다
-                                                 ⑨  defer 가 계장을 지운다 (오늘 그대로)
+                                                 ⑨  logs/ 에 실을 것을 고른다 (⑱)
+                                                 ⑩  defer 가 계장을 지운다 (오늘 그대로)
    ◀──  로그와 HarnessResult
    $OUT 을 수확한다 · 보고한다
 ```
