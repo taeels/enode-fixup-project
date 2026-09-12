@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Application Design 산출물 완료 · 승인 대기. 다음은 Units Generation
+- **Current Stage**: INCEPTION — Application Design 승인됨. **다음은 Units Generation** (다음 세션)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -143,8 +143,8 @@ Q5 = A 가 `claude.go` 의 `Argv` 를 이 팩의 밖으로 냈다. `constraints.
 - [x] Requirements Analysis — 승인됨 (2026-09-11T13:59:38Z · 사용자가 Workflow Planning 을 지시)
 - [x] User Stories — SKIP (실행 계획 3절의 근거 둘)
 - [x] Workflow Planning — 승인됨 (2026-09-11T23:43:28Z · 커밋 88dc120)
-- [x] Application Design — 산출물 다섯 완료 · 승인 대기. 답은 전부 A (2026-09-12T00:38:40Z)
-- [ ] Units Generation — EXECUTE (파일 행렬 필수)
+- [x] Application Design — 승인됨 (2026-09-12T00:41:18Z · 커밋 3012a92). 답은 전부 A
+- [ ] Units Generation — EXECUTE (파일 행렬 필수). **여기서 이어서 시작한다**
 
 ### CONSTRUCTION PHASE
 담당은 taeels 하나다 (Q2=B). 문서 루트는 `aidlc-docs/taeels/` 이고 유닛은
@@ -161,6 +161,20 @@ Q5 = A 가 `claude.go` 의 `Argv` 를 이 팩의 밖으로 냈다. `constraints.
 
 ## Current Status
 - **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Application Design 완료
-- **Next Stage**: Units Generation (파일 행렬 필수)
-- **Status**: 승인 대기
+- **Current Stage**: Application Design 완료 · 승인됨
+- **Next Stage**: Units Generation
+- **Status**: 다음 세션에서 이어서 시작한다
+
+## 다음 세션이 Units Generation 에서 쓸 입력
+```text
+   유닛이 만질 경로 셋      internal/enode · internal/contract · cmd/iapadapter
+                          cmd/runctl 은 0 이다 (component-methods.md 7절)
+   착수 순서의 뿌리         scene-gates.md 2절의 「먼저 서는 기능」 열.
+                          3.1 가짜 홈이 나머지 여섯의 앞이다
+   빌드 시점 의존 하나      internal/contract 의 agentKeys 가 서기 전에는
+                          agent.mcp · agent.pack 을 적은 계약이 400 이다
+   접점 하나               runner.go.  짝 팩(transcript)과 겹친다.
+                          진행자가 직렬로 병합한다.  이 팩이 먼저다
+   겉면의 정본             inception/application-design/ 다섯 문서
+   반드시 낼 것             파일 행렬 (requirements.md 9절 · constraints.md 끝 절)
+```

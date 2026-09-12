@@ -235,3 +235,13 @@ Q5 = A 가 짝 팩과의 접점도 줄였다 — `constraints.md` 접점 표의 
 **Context**: INCEPTION · Application Design Step 10 ~ 12. 승인 대기
 
 ---
+## Application Design — 승인
+**Timestamp**: 2026-09-12T00:41:18Z
+**User Input**: "커밋해. 다음 세션에서 유닛 만들거야"
+**AI Response**: 산출물 다섯과 `decisions.md` 행 둘을 커밋했다 (`3012a92`).
+Units Generation 은 다음 세션에서 돈다. 그 세션이 바로 쓸 입력(만질 경로 셋 ·
+착수 순서의 뿌리 · 빌드 시점 의존 하나 · 접점 하나)을 `aidlc-state.md` 의
+Current Status 아래에 모았다.
+**Context**: INCEPTION · Application Design Step 13 ~ 15 승인 · 커밋 · 세션 경계
+
+---
