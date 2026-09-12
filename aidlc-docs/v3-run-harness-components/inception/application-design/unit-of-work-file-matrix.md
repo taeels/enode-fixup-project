@@ -16,6 +16,7 @@
 |---|:---:|:---:|:---:|:---:|:---:|---|
 | `internal/enode/mcp.go` (새 파일) | x | | x | x | x | **넷** |
 | `internal/enode/harness.go` | x | | | | x | **둘** |
+| `internal/enode/harness_test.go` | x | | | | | 시험. `TestHarnessRecordsBudget` 이 ⑯ 의 경계다 |
 | `internal/enode/claude.go` | x | | | | x | **둘 · 짝 팩과도 겹친다** |
 | `internal/enode/runner.go` | x | | | x | x | **셋 · 짝 팩과도 겹친다** |
 | `internal/enode/hook.go` | x | | | | | |
@@ -85,7 +86,8 @@
 ### 2.4 `internal/enode/harness.go` — 둘이 만진다
 
 ```text
-   U1   Harness 인터페이스의 Fixed · Instrument 시그니처 · errAux
+   U1   Harness 인터페이스의 Fixed · Instrument 시그니처 · errAux ·
+        ParseClaude 의 type 검사 (⑯).  harness_test.go 에 그 시험을 더한다
    U5   HarnessResult 의 MCP · Pack 필드
 ```
 

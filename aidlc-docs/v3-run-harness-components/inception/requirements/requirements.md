@@ -243,8 +243,10 @@ Design 이 고른다 (8절 D1).
 다이제스트(`pack: <sha256>`)를 남긴다. 봉인된 묶음만 보고 그 단계가 어느
 서버와 어느 팩으로 돌았는지 안다 (`ADR-005` 성질 4).
 
-하네스 자신의 증언(`system/init` 줄의 `mcp_servers` · `slash_commands`)은 짝
-팩의 몫이고 이 팩은 앞줄만 진다.
+하네스 자신의 증언(`system/init` 줄의 `mcp_servers` · `slash_commands`)도
+**이 팩이 나오게 한다** — `decisions.md` 6절 ⑮ 가 `Argv` 에
+`--output-format stream-json --verbose` 를 더한다. 스트림 처리와 tee 와 사건
+배출은 짝 팩의 몫이다.
 
 **수용 기준**: CA6.
 
@@ -376,10 +378,17 @@ resolve 가 프로세스를 안 띄우지만 파일시스템을 훑는다. **광
 번은 띄워야 초록이다. 앞 팩의 CP6 이 눈 검증을 보류로 남긴 채 닫혔고 그 결함이
 사내 실측에서야 드러났다.
 
-## 5.1 이 회차의 게이트 읽는 법 — 질문 3 의 답이 정했다
+## 5.1 이 회차의 게이트 읽는 법 — 2026-09-12 에 뒤집혔다
 
-답이 A 였다. 이 팩을 먼저 끝내고 transcript 를 뒤에 둔다. 그래서 `init` 줄은
-`logs/` 가 아니라 **사람이 직접 띄워서** 읽는다 (`scene-gates.md` 3절).
+답이 A 였다. 이 팩을 먼저 끝내고 transcript 를 뒤에 둔다. 그때는 `init` 줄을
+사람이 직접 띄워 읽기로 했다.
+
+**그 판정이 뒤집혔다** (`decisions.md` 6절 ⑮). U1 이 `Argv` 에
+`--output-format stream-json --verbose` 를 더하므로 그 줄이 `logs/` 에 남고
+게이트가 **실물**을 잰다. `scene-gates.md` 3절이 사람이 손으로 띄우는 복제본
+경로를 **명시로 배제한다** — 환경(`harnessEnv` 가 `os.Environ()` 을 안 얹는다) ·
+플래그(`--settings` · `--permission-mode` · `--add-dir`) · 게이트웨이 인증
+(`apiKeyHelper`)에서 실물과 갈리기 때문이다. 아래 명령줄은 뒤집기 전의 기록이다.
 
 ```text
    CLAUDE_CONFIG_DIR=<가짜 홈> claude -p --output-format stream-json --verbose \
@@ -476,7 +485,8 @@ R1 화이트리스트를 N 번 지키게 되는 것이 구멍이다.
 
 ```text
    담당          taeels 하나.  construction-roster.md 에 행을 더하지 않는다
-   병렬          없다.  접점(claude.go · runner.go · hook.go)이 한 손 안이라 충돌이 0 이다
+   병렬          없다.  이 팩이 만지는 자리가 한 손 안이라 충돌이 0 이다.
+                 짝 팩과의 접점은 둘이다 — runner.go 와 claude.go 의 Argv (⑮)
    문서 루트      Inception 은 aidlc-docs/v3-run-harness-components/
                  Construction 은 aidlc-docs/taeels/ (CLAUDE.md)
    브랜치         Inception 은 v3-run-harness-components 에서 직렬.

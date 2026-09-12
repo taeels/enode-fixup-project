@@ -89,9 +89,7 @@
 ```
 
 ```text
-   CA0   decisions.md 6.1 의 열쇠 표를 돈다 — 기대값이 0 인 줄에서 0 이 아니면 빨갛다.
-         뒤집기가 반쯤 내려간 채로 다음 유닛이 착수되는 것을 막는 검사다.
-         그리고 앞 팩의 CP0 명령 그대로.  Mediator 라우트 수가 그대로다 —
+   CA0   앞 팩의 CP0 명령 그대로.  Mediator 라우트 수가 그대로다 —
          internal/api/*.go 전체에서 mux.HandleFunc 와 mux.Handle( 을 함께 센다.
          오늘 값은 26 이다 (api.go 의 HandleFunc 17 + Handle 3 · demo_gallery.go 6).
          api.go 한 파일만 HandleFunc 로 세면 17 이 나와 나머지 아홉을 놓친다

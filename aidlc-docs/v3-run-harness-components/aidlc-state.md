@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Units Generation 완료 · **검증 루프 진행 중** (3차까지)
+- **Current Stage**: INCEPTION — Units Generation 완료 · **검증 루프 진행 중** (6차까지)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -88,7 +88,8 @@ Analysis Step 5.1 에서 재확인만 한다.
 ```
 
 열일곱 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
-**6.1 이 뒤집힌 옛 문자열을 세는 열쇠 표**를 든다 — CA0 가 그것을 돈다.
+**6.1 이 뒤집힌 옛 문자열을 세는 열쇠 표**를 든다 — 진행자가 유닛 병합 전에
+돈다. 도는 스크립트가 없어 CA0 의 기계 검사가 아니다.
 기존 1 ~ 5절의 번호는 다른 문서가 참조하므로 안 건드리고, **2절의 낡은 행에는
 「6절이 뒤집었다」 꼬리표를 달았다** — 권장값 표가 구현자에게 먼저 읽히기 때문이다.
 
