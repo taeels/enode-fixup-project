@@ -195,12 +195,13 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
    ⑨  logs/ 에 실을 것을 고른다 (⑱).  runner.go 가 직접 한다 —
       Harness 에 메서드를 안 늘린다 (R6).  경로에 예외가 없다
         허용목록  system/init 과 최종 result 만 전문이다.  그 밖의 모든 사건은
-                  껍데기만 — 사건 종류 · 도구 이름 · 성공 여부 · 시각.
+                  껍데기만 — 사건 종류 · 도구 이름 · 성공 여부.  시각은 안 넣는다.
                   assistant 의 text 도 thinking 도 도구 결과도 같다.
                   모르는 사건 종류가 와도 닫히는 쪽으로 틀린다
         stderr    전문 그대로
         표시      걷었음을 한 줄로.  그 줄은 첫 줄이 아니다 —
-                  첫 줄은 언제나 system/init 이다 (게이트가 head -1 로 읽는다)
+                  init 이 나오는 경로에서 첫 줄은 언제나 그것이다.
+                  init 이 아예 안 나오면 stderr 가 첫 줄이고 단계는 실패다
         고른다  최종 봉투는 type == "result" 로.  lastJSONObject 로 뽑으면
                 크래시 때 assistant 사건이 잡혀 ⑱ 이 닫으려던 길이 열린다
       오늘 runner.go:155-156 은 stdout 전체를 낸다

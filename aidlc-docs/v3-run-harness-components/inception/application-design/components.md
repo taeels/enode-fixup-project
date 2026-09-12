@@ -66,9 +66,11 @@
                    오류면 하네스를 안 띄우고 그 사유로 단계를 실패로 낸다
    Instrument      언제나 부른다.  os.Executable() 이 비어도 건너뛰지 않는다
    실패 등급        기본이 치명이다.  errAux 로 감싼 훅 설정 쓰기 하나만 보조다
-   logs/ 조립      도구 사건의 내용을 걷고 껍데기를 남긴다 (⑱).  허용목록이다 —
-                   system/init 과 최종 result 만 전문이고 나머지는 전부 껍데기다.
-                   첫 줄은 언제나 system/init 이다
+   logs/ 조립      허용목록이다 (⑱) — system/init 과 최종 result 는 전문이고
+                   stderr 도 전문이다.  그 밖의 모든 사건은 껍데기만 남긴다
+                   (사건 종류 · 도구 이름 · 성공 여부).  assistant 의 text 도
+                   thinking 도 도구 결과도 같다.  init 이 나오는 경로에서
+                   첫 줄은 언제나 그것이다
    Fixed           h.Fixed(tmp) 로 부른다
 ```
 

@@ -56,7 +56,8 @@
                                .credentials.json 을 0600 으로 복사하고
                                <dir>/mcp.json 을 쓴다.
                                플래그 --strict-mcp-config --mcp-config=<경로>
-   internal/enode/runner.go    logs/ 선별 (⑱).  도구 사건의 내용을 걷고 껍데기를 남긴다.
+   internal/enode/runner.go    logs/ 선별 (⑱).  허용목록 — init 과 최종 result 와
+                               stderr 만 전문이고 나머지는 껍데기다.
                                계장 디렉터리를 함수 몸통으로.  못 만들면 단계 실패.
                                resolveComponents 를 exec 전에 부른다.
                                Instrument 를 언제나 부르고 오류를 등급으로 가른다
@@ -90,15 +91,19 @@
   `TestHarnessRecordsBudget` 이 그대로 초록이어야 한다 — `type` 없는 픽스처로
   `Turns` · `CostUSD` 를 재므로 조기 반환으로 짜면 빨갛다.
   `harness.go:98-99` 의 「종료코드 0 을 믿지 않는다」가 ⑮ 뒤에도 참이어야 한다
-- **`logs/` 에 도구 사건의 내용이 안 실린다** (⑱). 껍데기(`type` · 도구 이름 ·
-  성공 여부)와 `init` 줄과 최종 `result` 봉투와 stderr 는 남는다. **경로에 예외가
+- **`logs/` 가 허용목록이다** (⑱). `system/init` 과 최종 `result` 와 stderr 는
+  **전문**이고 그 밖의 모든 사건은 **껍데기**(사건 종류 · 도구 이름 · 성공 여부)만
+  남는다. `assistant` 의 `text` 도 `thinking` 도 도구 결과도 같다. **경로에 예외가
   없다** — 봉투가 안 나오는 크래시 · 임대 만료에서도 같다. `runner.go` 가 직접
-  선별하고 `Harness` 에 메서드를 안 늘린다 (R6). **시험이 셋을 잰다** — ① 도구 사건이 섞인
-  stdout 으로 **내용이 안 남는지** · ② **봉투 없이 끊긴 stdout** 으로도 같은지
-  (없으면 「예외 없음」을 안 재는 시험이다) · ③ **껍데기와 `init` 전문과 stderr 전문이
-  남는지**. ③ 이 없으면 도구 사건을 통째로 버리는 구현이 ① ② 를 통과한다
-- **첫 줄이 언제나 `system/init` 이다.** 걷었음을 표시하는 줄은 첫 줄이 아니다 —
-  게이트 CA1 · CA4 · CA5 가 `head -1` 로 읽는다. 이 순서가 깨지면 셋이 함께 빨갛다
+  선별하고 이 팩은 `Decode` 를 못 만진다. **시험이 넷을 잰다** —
+  ① `tool_use` · `tool_result` 의 본문이 안 남는지 · ② **`assistant` 의 `text` 본문**도
+  안 남는지(「도구 사건」만 거르는 구현을 잡는 줄이다) · ③ **봉투 없이 끊긴 stdout**
+  으로도 같은지(「예외 없음」을 재는 줄) · ④ **껍데기와 `init` 전문과 stderr 전문이
+  남는지**(통째로 버리는 구현을 잡는 줄)
+- **`init` 이 나오는 경로에서 첫 줄은 언제나 `system/init` 이다.** 걷었음을 표시하는
+  줄은 첫 줄이 아니다 — 게이트 CA1 · CA4 · CA5 가 `head -1` 로 읽는다. `init` 이 아예
+  안 나오는 경로(플래그 오류 · 기동 실패)에서는 stderr 가 첫 줄이고 그 단계는
+  `harness_error` 다 (⑯)
 - **`type == "result"` 로 최종 봉투를 고른다.** `lastJSONObject` 로 뽑으면 크래시 때
   `assistant` 사건이 잡혀 ⑱ 이 닫으려던 길이 다시 열린다 (⑯ 과 같은 검사다)
 - **`stream-json` 의 사건 종류를 실측해 `decisions.md` 에 행으로 적는다.** 저장소에
