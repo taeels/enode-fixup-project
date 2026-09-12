@@ -41,7 +41,9 @@
                    ⑤ 실제 홈의 .credentials.json 이 있으면 0600 으로 복사한다
                    플래그가 는다 — --strict-mcp-config --mcp-config=<경로>
                    보조 실패에도 이미 얻은 플래그를 돌려준다 (4.3 ②)
-   Argv            안 바뀐다 (Q5 = A).  출력 형식은 짝 팩의 것이다
+   Argv            --output-format stream-json --verbose 로 바꾼다 (decisions.md 6절 ⑮).
+                   게이트가 재는 system/init 줄이 그래야 나온다.
+                   Decode 와 tee 는 안 건드린다 — 짝 팩의 것이다
    Decode          안 바뀐다
 ```
 

@@ -239,7 +239,13 @@ func (claudeHarness) Fixed(dir string) map[string]string
 func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]string, error)
 ```
 
-`Argv` 와 `Decode` 는 **안 바뀐다** (Q5 = A). 출력 형식은 짝 팩의 것이다.
+`Argv` 는 **한 줄 바뀐다** (`decisions.md` 6절 ⑮) — `-p --output-format json` 이
+`-p --output-format stream-json --verbose` 가 된다. 게이트 CA1 · CA4 · CA5 가 재는
+`system/init` 줄이 그래야 `logs/` 에 남는다.
+
+`Decode` 는 **안 바뀐다.** `ParseClaude` 가 `lastJSONObject` 로 마지막 JSON 객체를
+집으므로 stream-json 의 `result` 줄을 그대로 읽는다 — 봉투 파싱이 안 흔들린다.
+스트림을 훑는 것과 tee 와 사건 배출은 짝 팩의 것이다.
 
 ---
 

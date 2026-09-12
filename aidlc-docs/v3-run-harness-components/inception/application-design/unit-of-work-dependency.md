@@ -113,7 +113,7 @@ flowchart LR
 ```
 
 겹치는 파일은 `runner.go` 하나다 (`component-dependency.md` 5절 — Q5 = A 가
-`claude.go` 의 `Argv` 를 이 팩 밖으로 냈다). 이 팩 안에서 `runner.go` 를 만지는
+`claude.go` 의 `Argv` 는 ⑮ 로 되돌아와 겹친다). 이 팩 안에서 `runner.go` 를 만지는
 유닛은 셋(U1 · U4 · U5)이지만 **직렬이라 서로 충돌이 아니다.**
 
 **유닛마다 `main` 에 올리는 것이 이 순서를 안 깬다.** 짝 팩은 이 팩의 마지막

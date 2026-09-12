@@ -19,7 +19,7 @@
                                                     실패 -> 단계 실패
                                                  ②  resolveComponents(j)
                                                     실패 -> 단계 실패.  하네스 안 뜬다
-                                                 ③  Argv 를 조립한다
+                                                 ③  Argv 를 조립한다 (stream-json --verbose 포함)
                                                  ④  Instrument(tmp, self, a, c)
                                                     errAux 만 삼킨다 -> 그 밖은 단계 실패
                                                     삼킬 때도 플래그는 붙인다

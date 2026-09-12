@@ -79,8 +79,8 @@
    U5   Instrument 안에서 팩을 펴는 블록
 ```
 
-`Argv` 와 `Decode` 는 **어느 유닛도 안 만진다** (Q5 = A). 그것이 짝 팩과의 겹침을
-여섯에서 하나로 줄인 자리다.
+`Decode` 는 **어느 유닛도 안 만진다.** `Argv` 는 U1 이 플래그 한 줄을 더한다 (⑮) —
+그래서 짝 팩과의 겹침이 하나가 아니라 **둘**이다.
 
 ### 2.4 `internal/enode/harness.go` — 둘이 만진다
 
@@ -144,7 +144,7 @@ enode 쪽 끝이라 U2 가 함께 진다 — **계약이 받는 키와 그것을
 
 | 파일 | 이 팩 | 짝 팩 | 겹치나 |
 |---|---|---|---|
-| `claude.go` `Argv` | 안 건드린다 (Q5 = A) | 출력 형식을 바꾼다 | 아니오 |
+| `claude.go` `Argv` | `stream-json --verbose` 한 줄 (U1 · ⑮) | 출력 형식과 스트림 처리 | **예** |
 | `claude.go` `Fixed` · `Instrument` | U1 · U5 | 안 건드린다 | 아니오 |
 | `claude.go` `Decode` | 안 건드린다 | 스트림을 훑게 바꾼다 | 아니오 |
 | `hook.go` | U1 | 안 건드린다 | 아니오 |
@@ -158,7 +158,7 @@ enode 쪽 끝이라 U2 가 함께 진다 — **계약이 받는 키와 그것을
 
 `Job` 은 이미 `Transcript io.Writer` 를 들고 있다 — 짝 팩이 그 필드를 쓰고 이 팩이
 `NodeMCP` 를 더한다. **같은 구조체의 다른 필드**라 병합이 기계적이다. 실제로
-겹치는 것은 `runHarness` 의 몸통 하나이고, 이 팩은 exec **앞**을, 짝 팩은 exec
+겹치는 것은 `runHarness` 의 몸통과 `Argv` 둘이고, 이 팩은 exec **앞**을, 짝 팩은 exec
 **뒤**(stdout 처리)를 만진다.
 
 ---

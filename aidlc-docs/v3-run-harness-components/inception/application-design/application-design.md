@@ -46,8 +46,12 @@
 
    Q4 = A   결정과 쓰기를 가른다.  정책 실패는 exec 전에 단계를 죽인다
 
-   Q5 = A   출력 형식을 안 건드린다.  게이트는 사람 경로
-            짝 팩과의 접점이 여섯에서 하나로 준다
+   Q5 = A*  출력 형식의 대부분은 짝 팩의 것으로 둔다.  Decode · tee · 사건 배출은 안 건드린다
+
+            * 2026-09-12 에 부분으로 뒤집혔다 (decisions.md 6절 ⑮).
+              Argv 에 --output-format stream-json --verbose 한 줄만 가져온다 —
+              그러지 않으면 CA1 · CA4 · CA5 가 재려는 system/init 줄이
+              이 회차에 존재하지 않는다.  짝 팩과의 접점이 하나에서 둘로 는다
 ```
 
 ---
@@ -58,7 +62,7 @@
 |---|---|---|
 | `internal/enode/mcp.go` | 새 파일 — `MCPServer` · `Components` · `Pack` · `resolveComponents` · `readPack` · `mcpUp` · `mcpFP` | 새로 |
 | `internal/enode/harness.go` | `Fixed` · `Instrument` 시그니처 · `HarnessResult` 필드 둘 · `errAux` | 확장 |
-| `internal/enode/claude.go` | `Fixed(dir)` · `Instrument` 가 가짜 홈 · 팩 · 허용목록을 쓴다 | 확장 |
+| `internal/enode/claude.go` | `Fixed(dir)` · `Instrument` 가 가짜 홈 · 팩 · 허용목록을 쓴다 · `Argv` 에 `stream-json --verbose` 한 줄 (⑮) | 확장 |
 | `internal/enode/runner.go` | `Job.NodeMCP` · 순서와 실패 등급 | 확장 |
 | `internal/enode/claim.go` | `Job` 리터럴에 `NodeMCP` 를 싣는 줄 하나 (`claim.go:765`) | 확장 |
 | `internal/enode/detect.go` | `costlyAttrs` 를 `Fingerprinter` 순회로 · `break` 제거 · `harness.<이름>` | 확장 |

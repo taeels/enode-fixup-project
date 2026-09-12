@@ -151,8 +151,10 @@ Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 �
    D1   Fixed(dir string) map[string]string 으로 인터페이스를 바꾼다 (Q1 = A)
    D2   costlyAttrs 를 Fingerprinter 순회로 바꾼다 (Q3 = B · 2026-09-12 뒤집힘)
    D3   결정(resolveComponents)과 쓰기(Instrument)를 가른다 (Q4 = A)
-   D4   못 쓴다.  Argv 가 --output-format json 이라 system/init 줄이 안 나온다.
-        출력 형식은 짝 팩의 것으로 둔다 (Q5 = A).  게이트는 사람 경로
+   D4   2026-09-12 에 뒤집혔다 (decisions.md 6절 ⑮).  Argv 에
+        --output-format stream-json --verbose 한 줄을 U1 이 가져온다 —
+        그러지 않으면 CA1 · CA4 · CA5 가 재려는 줄이 이 회차에 없다.
+        게이트는 logs/ 경로다.  Decode 와 tee 는 짝 팩의 것으로 둔다
 ```
 
 설계가 답 밖에서 더 정한 둘 — `Instrument` 의 오류를 등급으로 가르고(뒤에 ⑨ · ⑪ 이 방향을 뒤집었다. 그때는 `errComponents`
@@ -165,8 +167,10 @@ Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 �
 구조체에서 뽑는다. Units Generation 의 파일 행렬이 이 값을 쓴다.
 
 ## 짝 팩과 실제로 겹치는 파일은 하나다
-Q5 = A 가 `claude.go` 의 `Argv` 를 이 팩의 밖으로 냈다. `constraints.md` 접점
-표의 여섯 줄 중 남는 것은 **`runner.go` 하나**다 (`component-dependency.md` 5절).
+`constraints.md` 접점 표의 여섯 줄 중 남는 것은 **둘**이다 — `runner.go` 와
+`claude.go` 의 `Argv` (`component-dependency.md` 5절). `Argv` 는 Q5 = A 로 한 번
+빠졌다가 ⑮ 로 되돌아왔다. 이 팩이 플래그 한 줄을 더하고 짝 팩이 그 위에서
+출력 처리를 자라게 하는 모양이라 병합이 기계적이다.
 
 ## Stage Progress
 

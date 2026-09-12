@@ -41,7 +41,11 @@
    internal/enode/mcp.go       새 파일.  MCPServer · Components ·
                                resolveComponents (요청도 팩도 없는 경우만)
    internal/enode/harness.go   Fixed(dir) · Instrument(..., c Components) 시그니처 · errAux
-   internal/enode/claude.go    Fixed 가 CLAUDE_CONFIG_DIR 을 박는다.
+   internal/enode/claude.go    Argv 에 --output-format stream-json --verbose 한 줄 (⑮).
+                               게이트가 재는 system/init 줄이 그래야 logs/ 에 남는다.
+                               Decode 는 안 건드린다 — ParseClaude 가 마지막 JSON
+                               객체를 집으므로 봉투가 안 흔들린다.
+                               Fixed 가 CLAUDE_CONFIG_DIR 을 박는다.
                                Instrument 가 <dir>/home 을 가장 먼저 짓고
                                훅 설정을 그 안의 settings.json 으로 쓰고
                                .credentials.json 을 0600 으로 복사하고
@@ -72,6 +76,10 @@
   뚫기 때문이다. 그 대가로 **눈 검증이 복제본을 잰다**는 한계가 남고, U1 의
   완료 조건이 그 한계를 이름으로 적는다 — 사람이 손으로 띄우는 경로는 환경 ·
   플래그 · 게이트웨이 인증에서 실물과 갈린다
+- **`init` 줄이 `logs/` 에 남는다** (⑮). `runctl record` 로 푼 로그의 첫 줄이
+  `system/init` 이고 거기 `mcp_servers` 와 `slash_commands` 가 있다. **이것이
+  CA1 · CA4 · CA5 를 복제본이 아니라 실물로 재게 하는 줄이다** — 그 셋이
+  이 유닛 뒤에야 집행 가능해진다
 - **CA1 이 초록이다** — 개인 MCP 서버와 계정 커넥터가 있는 기계에서 아무것도
   요청하지 않은 단계를 돌려 `init` 줄의 `mcp_servers` 가 비어 있다.
   **OAuth 노드와 게이트웨이 노드 둘 다에서** `Not logged in` 없이 돈다

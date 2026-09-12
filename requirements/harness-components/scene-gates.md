@@ -72,12 +72,16 @@
      export T=<bootstrap 토큰>
      jq 가 필요하다.  가짜 서버는 PATH 의 true 로 족하다
 
-   init 줄을 읽는 법 — transcript 팩이 먼저 병합됐으면 logs/ 에 그 줄이 있다.
-   아니면 어댑터가 넘기는 것과 같은 환경과 플래그로 사람이 한 번 띄운다:
-     CLAUDE_CONFIG_DIR=<가짜 홈> claude -p --output-format stream-json --verbose \
-       --setting-sources "" --strict-mcp-config --mcp-config=<허용목록> "say hi" < /dev/null \
-       | head -1 | jq '{mcp: .mcp_servers, skills: .slash_commands}'
-   claude mcp list 는 쓰지 않는다 — strict 와 mcp-config 를 반영하지 않는다
+   init 줄을 읽는 법 — 이 팩의 U1 이 Argv 에 --output-format stream-json --verbose
+   를 더하므로 (decisions.md 6절 ⑮) 그 줄이 logs/ 에 그대로 남는다:
+     runctl record <id>      -> logs/<단계>.log 를 푼다
+     head -1 logs/<단계>.log | jq '{mcp: .mcp_servers, skills: .slash_commands}'
+
+   이것이 실물을 잰다 — enode 가 실제로 지은 가짜 홈과 실제로 쓴 허용목록으로
+   돈 하네스의 증언이다.  사람이 손으로 띄우는 복제본 경로는 환경(harnessEnv 가
+   os.Environ() 을 안 얹는다) · 플래그(--settings · --permission-mode · --add-dir) ·
+   게이트웨이 인증(apiKeyHelper)에서 실물과 갈리므로 쓰지 않는다.
+   claude mcp list 도 쓰지 않는다 — strict 와 mcp-config 를 반영하지 않는다
 ```
 
 ```text
