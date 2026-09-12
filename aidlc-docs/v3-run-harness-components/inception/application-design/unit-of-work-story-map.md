@@ -121,7 +121,7 @@ CA3 은 네 줄을 재는데 그 넷이 두 유닛에서 온다.
 
 ## 3. 요구 문서의 확정이 어느 유닛에 앉나
 
-`requirements.md` 가 확정으로 건 줄과 `decisions.md` 6절의 행 열일곱이다.
+`requirements.md` 가 확정으로 건 줄과 `decisions.md` 6절의 행 열여덟이다.
 
 | 확정 | 유닛 |
 |---|---|

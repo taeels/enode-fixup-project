@@ -106,7 +106,8 @@
          true 를 PATH 에서 못 찾게 한 뒤 (command 를 없는 경로로) 탐지 주기를 기다린다
            -> mcp.probe 가 없다.  노드 로그에 dropped 사유
 
-   CA3   requires 에 "mcp.probe": "1" 을 적은 계약 -> 그 노드에 배정 (GET /v1/runs/{id} 의 assigned)
+   CA3   runctl capabilities | grep mcp.probe   -> 나온다 (계약 작성자가 보는 면.  6절 ⑬)
+         requires 에 "mcp.probe": "1" 을 적은 계약 -> 그 노드에 배정 (GET /v1/runs/{id} 의 assigned)
          "mcp.nope": "1" -> 422 (runctl 은 stderr 에 낸다)
          agent 에 "mcp_servers": [] 같은 모르는 키 -> 400
          runctl example mcp > m.json && runctl lint m.json -> ok

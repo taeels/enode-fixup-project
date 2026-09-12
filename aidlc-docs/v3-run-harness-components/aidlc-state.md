@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Units Generation 완료 · **검증 루프 진행 중** (8차까지)
+- **Current Stage**: INCEPTION — Units Generation 완료 · **검증 루프 진행 중** (10차까지)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -64,8 +64,8 @@ Analysis Step 5.1 에서 재확인만 한다.
 | Q3 | 짝 팩과의 순서 | A | 이 팩 먼저. 게이트의 `init` 줄은 사람이 직접 띄워 읽는다 |
 
 ## 이 회차가 `decisions.md` 에 더한 행 — 열여덟
-셋은 Requirements 승인 뒤에, 둘은 Application Design 이, **열하나는 2026-09-12 의
-설계 검증과 설계 질문**이 실었다.
+셋은 Requirements 승인 뒤에, 둘은 Application Design 이, **열셋은 2026-09-12 의
+검증 루프 열 바퀴**가 실었다.
 
 ```text
    ①  알려진 키 검증은 이미 있다        3.5 의 범위가 목록 추가로 준다

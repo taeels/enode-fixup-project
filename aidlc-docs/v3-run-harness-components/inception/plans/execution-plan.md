@@ -89,7 +89,7 @@ flowchart TD
         WD["Workspace Detection<br/><b>COMPLETED</b>"]
         RE["Reverse Engineering<br/><b>COMPLETED (부분)</b>"]
         RA["Requirements Analysis<br/><b>COMPLETED</b>"]
-        US["User Stories<br/><b>SKIP</b>"]
+        US["User Stories<br/><b>EXECUTE (minimal)</b>"]
         WP["Workflow Planning<br/><b>IN PROGRESS</b>"]
         AD["Application Design<br/><b>EXECUTE</b>"]
         UG["Units Generation<br/><b>EXECUTE</b>"]

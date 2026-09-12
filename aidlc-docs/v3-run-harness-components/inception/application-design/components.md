@@ -85,7 +85,9 @@
 것까지는 오늘 동작을 안 바꾸고 된다」로 이 시점을 지목했다.
 
 ```text
-   Fingerprinter   새 인터페이스.  Kind() string · Probe(ctx, l Local) (map, error)
+   Fingerprinter   새 인터페이스.  Kind() string ·
+                   Probe(ctx, l Local, log *slog.Logger) (map, error)
+                   logger 를 받는 이유 — FR-3 의 서버별 누락 사유가 갈 자리다
                    이름이 Detector 가 아닌 이유 — ADR-068 의 시계가 그 이름을 쓴다.
                    Nomad 의 단어를 따른다 (§4.2 가 든 유비다)
    costlyAttrs     셋을 순회한다 — harnessFP · repoFP · mcpFP.  동작 중립이다
