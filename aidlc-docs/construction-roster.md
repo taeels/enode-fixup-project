@@ -1,8 +1,17 @@
-# Construction 배정 — 유닛 · 담당 · 웨이브
+# Construction 배정 — handle 과 회차별 배정
 
-CONSTRUCTION 을 이 배정으로 돈다. 유닛 정본은
-`v1-run-dhseo/inception/application-design/unit-of-work.md`, 의존·파일 행렬은
-`unit-of-work-dependency.md`, 게이트·기능 매핑은 `unit-of-work-story-map.md` 가 진다.
+**1절의 handle 표가 살아 있는 값이다.** `CLAUDE.md` 가 문서 루트
+`aidlc-docs/<handle>/` 를 여기서 읽는다.
+
+**2 ~ 6절은 `v1-run-dhseo` 회차(대회)의 배정 기록이고 그 회차는 끝났다.** 배정은
+회차마다 다르므로 여기 이월하지 않는다 — 새 회차의 배정은 그 회차 문서 루트의
+Units Generation 산출물이 낸다.
+
+```text
+   유닛 정본     aidlc-docs/<회차>/inception/application-design/unit-of-work.md
+   의존·행렬     같은 자리의 unit-of-work-dependency.md
+   게이트 매핑   같은 자리의 unit-of-work-story-map.md
+```
 
 ## 1. 담당 (handle · 이름)
 
@@ -13,7 +22,7 @@ CONSTRUCTION 을 이 배정으로 돈다. 유닛 정본은
    runixs     김태완
 ```
 
-## 2. 웨이브 x 담당 x 유닛
+## 2. 웨이브 x 담당 x 유닛 (v1-run-dhseo · 기록)
 
 ```text
    웨이브  유닛               담당       게이트         의존
@@ -71,27 +80,22 @@ runixs 의 `ui` 는 한 유닛이지만 딛는 게 갈린다.
 W1 에 착수해 W3 에 완료로 걸치는 것 — demo-back(W2)의 제출 라우트를 딛는다. 가치
 게이트 **CP10**(데모 완주)은 ui(데모 모드)·demo-back·하드웨어가 W3 에 닫는다.
 
-## 5. 문서 · 브랜치 · 병합 정책
+## 5. 접점 (v1-run-dhseo · 기록)
+
+**문서 루트 · 브랜치 · 병합의 정본은 `CONVENTIONS.md` 3절과 `CLAUDE.md` 의 문서 루트
+규약이다.** 여기 두 벌로 두지 않는다 — 대회 때 두 벌이었고 그래서 갈렸다
+(`CONVENTIONS.md` 3.1 은 유닛이 회차 브랜치로 모인다고 적었는데 실제로는 PR 이
+`main` 으로 갔다). 그 회차에서만 참인 접점만 남긴다.
 
 ```text
-   문서 루트   CONSTRUCTION 산출물은 담당별로 aidlc-docs/<handle>/ 아래 둔다
-              (예: aidlc-docs/taeels/).  자기 유닛의 functional-design · nfr ·
-              code 요약과 자기 aidlc-state.md · audit.md 를 거기 쓴다
-   공용        RE = aidlc-docs/inception/reverse-engineering/ · 요구 팩 = requirements/ ·
-              유닛 정본 = aidlc-docs/v1-run-dhseo/inception/application-design/
-   브랜치      각자 자기 브랜치 위에서 작업한다 (담당·유닛별)
-   병합        자기 브랜치에서 PR 을 열어 main 에 merge 한다 —
-              그 유닛의 장면 게이트가 초록인 뒤에만 (scene-gates)
-   접점        internal/store · internal/api/api.go · internal/panel ·
-              cmd/mediator/main.go 는 여러 담당이 만진다.  PR 을 직렬로 병합하고
-              api.go 는 등록 줄만 (constraints).  internal/panel 은 panel·transcript
-              둘 다 nacl1119 라 한 손 안이다.  internal/api/ui 는 runixs(ui)와
-              nacl1119(card-news)가 나눈다
-   진행자만    aidlc-state.md(회차·공용) · design/*.pen 은 진행자가 병합 뒤 정리.
-              audit.md 는 .gitattributes 의 merge=union 으로 git 이 합친다
+   여러 담당이 만진 파일   internal/store · internal/api/api.go · internal/panel ·
+                        cmd/mediator/main.go.  PR 을 직렬로 병합하고
+                        api.go 는 등록 줄만 (constraints)
+   한 손 안이었던 것      internal/panel 은 panel·transcript 둘 다 nacl1119
+   나눠 가진 것          internal/api/ui 를 runixs(ui)와 nacl1119(card-news)가
 ```
 
-## 6. 열린 미정 (해당 유닛 담당이 FD 전에 진행자와 닫는다)
+## 6. 열린 미정 (v1-run-dhseo · 기록)
 
 ```text
    Capabilities{Caps,At} 읽기 계약 (ADR-068)   panel · nacl1119.  진행자 decisions
