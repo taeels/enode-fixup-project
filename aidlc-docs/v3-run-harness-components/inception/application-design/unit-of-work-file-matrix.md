@@ -34,6 +34,8 @@
    만지는 패키지    3  internal/enode · internal/contract · cmd/iapadapter
    cmd/runctl       0  소스 diff 가 없다.  3절이 닿는 시험을 따로 적는다
    internal/api     0  등록 줄조차 안 는다
+   internal/match   0  코드 diff 0.  다만 정렬 기준이 광고 attr 개수라
+                       동작은 CA3 이 잰다 (application-design.md 6.4)
    internal/store · panel · api/ui   0
 ```
 
@@ -83,7 +85,7 @@
 ### 2.4 `internal/enode/harness.go` — 둘이 만진다
 
 ```text
-   U1   Harness 인터페이스의 Fixed · Instrument 시그니처 · errComponents
+   U1   Harness 인터페이스의 Fixed · Instrument 시그니처 · errAux
    U5   HarnessResult 의 MCP · Pack 필드
 ```
 

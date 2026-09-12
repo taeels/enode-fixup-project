@@ -19,7 +19,8 @@
    전환 유형     단일 아키텍처 안의 기능 추가.  아키텍처 전환이 아니다
    주 변경       하네스 실행 경계를 값으로 닫고(가짜 홈 · 허용목록),
                  노드에 묶인 MCP 를 광고 · 매칭 · 요청의 세 자리에 잇는다
-   관련 경로     internal/enode · internal/contract · cmd/iapadapter · cmd/runctl 넷
+   관련 경로     internal/enode · internal/contract · cmd/iapadapter 셋
+                 (`cmd/runctl` 은 소스 diff 가 0 이다 — Application Design 의 측정)
    안 만지는 곳   internal/api · internal/store · internal/panel · internal/api/ui
    배포 모형     무변경.  새 포트 0 · 새 전송 0 · 새 라우트 0
 ```
@@ -42,7 +43,8 @@
    공유 컴포넌트   internal/contract   Mediator 와 enode 가 함께 본다.
                                        알려진 키 · Grammar · 예시
    소비 컴포넌트   cmd/iapadapter      설정 키 하나 · 템플릿의 팩 단계
-                  cmd/runctl          example 하나.  schema 는 구조체에서 저절로 는다
+                  cmd/runctl          소스 diff 0.  example 이 임베드 FS 를 돌고
+                                      schema 는 Step.Agent 가 map 이라 안 는다
    영향만 받는 곳  internal/api/ui     노드 카드가 새 attrs 키를 자동으로 칩으로 그린다.
                   internal/panel      코드 변경 0
 ```
@@ -172,14 +174,29 @@ flowchart TD
   - **근거**: 질문 1 의 답이 B 였다. 이 팩이 딛는 네 경로만 다시 쟀고
     공용 `aidlc-docs/inception/reverse-engineering/` 에 실었다
 - [x] Requirements Analysis (COMPLETED)
-- [ ] User Stories — SKIP
+- [x] User Stories — **EXECUTE (minimal)** — 2026-09-12 에 스킵에서 되살렸다
   - **근거**: 수용 기준이 이미 있고 더 강하다. `scene-gates.md` 의 조각 일곱은
     페르소나와 문장이 아니라 **실행 명령**으로 적혀 있고, 집행자 · 대상 ·
     재는 기능 · 먼저 서는 기능까지 표로 붙어 있다. 스토리를 세우면 그 표를
     약한 형태로 다시 쓰는 일이 된다
   - **근거 둘**: 페르소나 셋(노드 소유자 · 계약 작성자 · 진행자)이 이미
-    `features.md` 2절의 용어와 3절의 각 기능 안에 이름으로 박혀 있다.
-    이 회차는 한 손이라(Q2=B) 팀 간 공유 이해를 위한 스토리의 값도 없다
+    `features.md` 2절의 용어와 3절의 각 기능 안에 이름으로 박혀 있다
+  - **위 근거는 규칙의 SKIP 조건에 안 걸렸다** (2026-09-12 검증). `core-workflow.md`
+    의 User Stories 절은 ALWAYS Execute IF 에 다섯 줄이 걸리고(새 사용자 대면
+    기능 · 페르소나 여럿 · 수용 기준이 필요한 복잡한 요구 · 고객 대면 API 변경 ·
+    새 제품 능력) SKIP ONLY IF 여섯 줄에는 **한 줄도 안 걸린다** — 여섯이 전부
+    「사용자 영향 0」을 전제하는데 이 회차는 노드 소유자가 `enode.yaml` 을 편집하고
+    계약 작성자가 `agent.mcp` 를 적는 표면을 새로 만든다. `inception/user-stories.md`
+    의 Default Decision Rule 도 「When in doubt, include」이고, 이 계획은 스스로
+    위험을 **High** 로 적었다. **규칙에서 벗어나는 스킵이다**
+  - **그래서 최소 형태로 되살렸다** (사용자 결정 2026-09-12). 산출물은
+    `inception/user-stories/personas.md` 와 `user-stories.md` 다. 행복 경로는
+    안 쓴다 — `scene-gates.md` 가 더 촘촘하다. **저작 경로와 오류 경로만** 짓는다.
+    스토리 열 중 셋이 새 완료 조건을 낳았고(`enode.yaml` 검증 · `agent.mcp` 타입 ·
+    `runctl capabilities` 노출) 나머지는 기존 게이트를 가리킨다
+  - **하류가 이제 안 깨진다**: `units-generation.md` 가 유닛을 「stories 의 묶음」으로
+    정의하고 `construction/functional-design.md` 가 story map 에서 배정된 스토리를
+    읽는데, 그 자리에 실물이 생겼다
 - [x] Workflow Planning (IN PROGRESS)
 - [ ] Application Design — EXECUTE
   - **근거**: `requirements.md` 8절이 이 단계에 미결 넷을 명시로 넘겼다.
@@ -221,10 +238,24 @@ flowchart TD
   - **적용 범위**: 형식을 안 만드는 유닛(예 `runctl example` 만 더하는 유닛)은
     그 자리에서 스킵하고 근거를 적는다
 - [ ] NFR Requirements — SKIP
-  - **근거**: `requirements.md` 4절이 이미 Comprehensive 로 닫았다 — 차단 게이트
-    다섯의 값 · security-baseline 열다섯 규칙의 적용과 처리 표 · 오용 시나리오
-    넷 · 성능 한 줄. **이 회차가 그 값을 바꾸지 않는다.** 유닛마다 그 표를
-    다시 자르는 것은 결정이 아니라 복사다
+  - **근거**: `requirements.md` 4절이 대부분을 닫았다 — 차단 게이트 다섯의 값 ·
+    security-baseline 열다섯 규칙의 적용과 처리 표 · 오용 시나리오 넷 · 성능 한 줄.
+    **이 회차가 그 값을 바꾸지 않는다.** 유닛마다 그 표를 다시 자르는 것은 결정이
+    아니라 복사다
+  - **「이미 닫았다」는 두 자리에서 과장이다** (2026-09-12 검증).
+    SEC-A 의 크기 · 개수 상한은 닫힘이 아니라 **이송**이고(U5 의 FD),
+    확장성은 절 자체가 없다 — MCP 「뜨나」가 노드마다 5분마다 선언 수만큼
+    파일시스템을 훑는데 함대 규모에 대한 값이 한 줄도 없다.
+    `core-workflow.md` 의 Skip IF 는 둘뿐이고(NFR 이 없다 · 스택이 정해졌다)
+    이 회차는 NFR 이 **있다** — 1.2 의 표가 스스로 그렇게 적었다.
+    **규칙에서 벗어나는 스킵이다**
+  - **가용성 하나가 유닛 밖에 남는다**: `TMPDIR` 이 찬 노드를 떨어뜨리는 경로가
+    없다. `hasRoom`(`detect.go:229`)은 `Workspace` 를 재고 떨어뜨리는 것도 `arch`
+    하나뿐이라, 그 노드가 `mcp.<이름>` 을 계속 광고하고 계속 뽑히며 에이전트 단계를
+    전부 실패시킨다. **이 팩이 만든 결함은 아니다** — `claim.go:459` · `:495` 가
+    이미 같은 `os.TempDir()` 에서 죽는다. 다만 이 팩이 그 사고를 처음으로
+    보고하게 만든다. 값은 이 회차 밖으로 이월하고 `decisions.md` 4절에 안 적는다 —
+    팩의 범위가 아니라 노드 탐지의 범위다
   - **스킵이 무엇을 안 미루나**: 차단 확장의 집행은 스킵과 무관하게 **단계마다**
     돈다 (core-workflow 의 Enforcement). 단계 완료 보고마다 준수 요약을 싣는다
   - **값이 안 정해진 자리는 옮겼다**: SEC-A 의 크기 · 개수 상한은 팩 유닛의
@@ -268,7 +299,7 @@ flowchart TD
                        CA1 이 아무것도 요청하지 않은 단계를 재므로 계약 문법을 안 쓴다
 
    cmd/iapadapter      둘 다 선 뒤.  설정 키가 팩 단계를 템플릿에 낸다
-   cmd/runctl          둘 다 선 뒤.  example 이 새 문법을 쓴다
+   cmd/runctl          소스 diff 0.  예시 파일은 internal/contract 에 산다
 ```
 
 **조율 지점 둘.**
@@ -294,7 +325,7 @@ flowchart TD
                 Construction 3 (Functional Design · Code Generation · Build and Test)
    스킵 단계    4 (User Stories · NFR Requirements · NFR Design · Infrastructure Design)
    유닛 수      미정.  Units Generation 이 낸다.  기능 일곱과 게이트 일곱이 입력이다
-   만지는 경로  4 (internal/enode · internal/contract · cmd/iapadapter · cmd/runctl)
+   만지는 경로  3 (internal/enode · internal/contract · cmd/iapadapter)
    게이트       7 (CA0 ~ CA6).  기계 1 · 사람 6 · 그중 사내 함대 1
 ```
 

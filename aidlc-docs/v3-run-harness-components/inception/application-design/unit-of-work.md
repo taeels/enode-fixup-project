@@ -35,30 +35,50 @@
 
 겹이 둘이라는 것이 이 유닛의 값이다 (`services.md` 1.2) — 가짜 홈이 사람의
 `~/.claude` 를 끊고, `--strict-mcp-config` 가 우리가 준 파일 밖을 안 뜨게 한다.
+**첫 겹은 로그아웃 홈에서만 쟀다** — CA1 이 로그인된 홈에서 다시 잰다.
 
 ```text
    internal/enode/mcp.go       새 파일.  MCPServer · Components ·
                                resolveComponents (요청도 팩도 없는 경우만)
-   internal/enode/harness.go   Fixed(dir) · Instrument(..., c Components) 시그니처 ·
-                               errComponents
+   internal/enode/harness.go   Fixed(dir) · Instrument(..., c Components) 시그니처 · errAux
    internal/enode/claude.go    Fixed 가 CLAUDE_CONFIG_DIR 을 박는다.
-                               Instrument 가 <dir>/home 을 짓고 .credentials.json 을
-                               0600 으로 복사하고 <dir>/mcp.json 을 쓴다.
+                               Instrument 가 <dir>/home 을 가장 먼저 짓고
+                               훅 설정을 그 안의 settings.json 으로 쓰고
+                               .credentials.json 을 0600 으로 복사하고
+                               <dir>/mcp.json 을 쓴다.
                                플래그 --strict-mcp-config --mcp-config=<경로>
    internal/enode/runner.go    계장 디렉터리를 함수 몸통으로.  못 만들면 단계 실패.
                                resolveComponents 를 exec 전에 부른다.
                                Instrument 를 언제나 부르고 오류를 등급으로 가른다
-   internal/enode/hook.go      self 가 비어도 돈다.  훅 블록만 빠진다
+                               (기본이 치명 · errAux 만 보조 · 삼켜도 플래그는 붙인다)
+   internal/enode/hook.go      훅 파일을 가짜 홈 안으로 옮긴다.
+                               self 가 비면 hooks 키 자체를 안 쓴다 —
+                               shellJoin 이 앞이 빈 명령을 만드는 것을 막는다
 ```
 
 **완료 조건**
 
 - `components.md` 3절의 실패 등급 표 중 계장 디렉터리 · 가짜 홈 · 허용목록 쓰기 ·
   자격증명 복사 네 줄이 코드로 있다. **치명이 전부 exec 앞이다**
+- **기본이 치명이다** (`application-design.md` 4.1). `errAux` 로 감싼 자리가
+  훅과 기준 시각 둘뿐임을 시험이 잰다
+- **불변식 둘이 코드로 있다** (4.3) — `<dir>/home` 을 가장 먼저 만든다 ·
+  보조 실패에도 이미 얻은 플래그를 돌려준다. 뒤엣것을 시험이 직접 잰다:
+  훅 쓰기를 실패시켜도 `--strict-mcp-config` 가 argv 에 있다
+- **계장 보존 스위치를 안 만든다.** 한 번 넣었다가 뺐다 — `features.md` 3.1 의
+  「복사한 자격증명은 계장 디렉터리와 함께 단계 끝에 지워진다」(SECURITY-12)를
+  뚫기 때문이다. 그 대가로 **눈 검증이 복제본을 잰다**는 한계가 남고, U1 의
+  완료 조건이 그 한계를 이름으로 적는다 — 사람이 손으로 띄우는 경로는 환경 ·
+  플래그 · 게이트웨이 인증에서 실물과 갈린다
 - **CA1 이 초록이다** — 개인 MCP 서버와 계정 커넥터가 있는 기계에서 아무것도
   요청하지 않은 단계를 돌려 `init` 줄의 `mcp_servers` 가 비어 있다.
   **OAuth 노드와 게이트웨이 노드 둘 다에서** `Not logged in` 없이 돈다
   (인증 경로가 둘이라 한 번으로 안 끝난다 — `application-design-plan.md` 1.4)
+- **CA1 이 「로그인된 가짜 홈에서도」를 잰다** (4.6). 팩의 실측은 로그아웃 홈에서
+  커넥터가 끊긴 것을 봤고, 이 설계는 `.credentials.json` 을 복사해 계정을 되돌린다.
+  확실히 끊는 겹은 `--strict-mcp-config` 하나이므로 그 상태에서 재야 참이다
+- **집행자는 U1 을 구현하지 않은 사람이다** (`scene-gates.md` 2절 머리). 한 손이
+  전부 구현하면 자격자가 0 이 된다 — `unit-of-work-dependency.md` 8절이 그 배정을 진다
 - CA0 가 초록이다. `internal/enode` 커버리지 80% 를 넘는다
 - 하네스 실행파일 없이 도는 시험으로 채운다 — `Fixed(dir)` 는 문자열 비교,
   `Instrument` 는 `t.TempDir()` 에 쓰고 난 파일을 읽는다 (`application-design.md` 6.2)
@@ -80,7 +100,7 @@
    internal/contract/grammar.go        agent.mcp · agent.pack 을 계획에게 가르치는 줄
    internal/contract/examples/mcp.json 새 예시 하나
    internal/enode/agent.go             AgentParams.MCP · .Pack.
-                                       parseAgentParams 가 받는다
+                                       parseAgentParams 가 받고 타입을 검증한다
 ```
 
 **`internal/contract` 를 만지는 유일한 유닛이다** (계획 Q2 = A). 그 패키지의
@@ -89,6 +109,10 @@
 **완료 조건**
 
 - `agent` 에 모르는 키를 적은 계약이 `400` 이다 (오늘 그대로 — 검증기가 이미 있다)
+- **타입이 틀린 값이 노드에서 안 죽는다.** `agentKeys` 는 키 이름만 보므로
+  `agent.mcp` 를 문자열로 적으면 `400` 이 아니라 노드 위 `json.Unmarshal` 에서
+  죽는다. `parseAgentParams` 가 그것을 문구로 낸다 —
+  `agent.mcp must be an array of server names` · `agent.pack must be a blob name`
 - `runctl example mcp` 가 나오고 `runctl lint` 가 경고 0 으로 통과한다
 - **닿는 시험 둘이 초록이다** — `internal/contract/example_test.go` 와
   `cmd/runctl/shape_test.go` 의 `TestExamples_LintClean`. 둘 다
@@ -112,16 +136,26 @@
 **프로세스를 안 띄운다.**
 
 ```text
-   internal/enode/config.go   Local.MCP map[string]MCPServer · SampleLocal 주석 한 줄
+   internal/enode/config.go   Local.MCP map[string]MCPServer · SampleLocal 주석 한 줄.
+                              mcp: 절의 값 검증 — 모양이 틀리면 노드가 안 뜬다
    internal/enode/mcp.go      mcpUp (stdio 는 PATH · remote 는 환경변수 이름) ·
-                              mcpAttrs (뜨는 것만 속성으로)
-   internal/enode/detect.go   costlyAttrs 에 mcpAttrs 합침 · 하네스 순회의 break 제거 ·
+                              mcpFP (Fingerprinter 의 한 종류)
+   internal/enode/detect.go   Fingerprinter 인터페이스와 순회.  harnessFP · repoFP · mcpFP.
+                              Probe 가 logger 를 받는다 — 서버별 누락 사유(FR-3)와
+                              오늘의 log.Warn(ADR-059)이 갈 자리다.
+                              repoFP 는 WorkspaceID fallback(ADR-036)을 그대로 옮긴다 —
+                              git 없는 노드에서 repo 속성이 사라지면 동작 중립이 깨진다.
+                              break 가 순회로 저절로 걷힌다.
                               harness.<이름> 과 옛 harness 를 같이 싣는다
 ```
 
-**`Detector`(시계)를 안 건드린다** (Q3 = A · `decisions.md` 6절 ⑤). `ADR-035` §4.2 가
-지키려던 값은 `ADR-068` 이 이미 세웠다 — `Capabilities()` 가 외부 프로세스를 안
-띄우므로 광고 루프가 탐지에서 멈출 수 없다.
+**`costlyAttrs` 를 탐지기 순회로 바꾼다** (Q3 = B · `decisions.md` 6절 ⑤).
+`ADR-035` §4.2 의 정본 결정이고 `ADR-035:246-248` 이 「`ADR-034` 를 구현하면서
+바꾸는 것까지는 오늘 동작을 안 바꾸고 된다」로 이 시점을 지목했다. 이름은
+`Fingerprinter` 다 — `Detector` 는 `ADR-068` 의 시계가 이미 쓴다.
+
+**`Detector`(시계)와 `cheapAttrs` 는 안 건드린다.** 광고 루프가 탐지에서 멈출 수
+없다는 값은 `ADR-068` 이 이미 세웠고 순회는 그 갈래를 안 건드린다.
 
 **완료 조건**
 
@@ -132,10 +166,21 @@
   `mcp.<이름>` 칩이 보인다. **보류로 안 넘긴다** (`scene-gates.md` 4절)
 - **CA3 이 완결된다** — `requires` 에 `mcp.<이름>` 을 적은 계약이 그 노드에만 가고,
   없는 키는 `422` 다. U2 가 닫은 `400` · lint 와 합쳐 CA3 한 조각이 된다
-- `cheapAttrs` · `capabilities` · `Detector` 에 diff 가 0 이다
+- `cheapAttrs` · `capabilities` · `Detector`(시계)에 diff 가 0 이다
+- **순회가 동작 중립이다.** 기존 탐지 시험이 그대로 초록이다. 그것이 이 리팩터의
+  안전망이고, 안 그러면 `ADR-035:246-248` 의 전제가 깨진 것이다
+- **`runctl capabilities` 에 `mcp.<이름>` 이 나온다** (`decisions.md` 6절 ⑬ · US-4).
+  계약 작성자가 보는 면이 그것이다 — `GET /v1/nodes` 는 운영자 면이다. 코드는 안 는다
+  (attrs 집계가 자동으로 싣는다). **게이트가 그것을 본다는 것이 이 줄의 값이다**
+- **`enode.yaml` 의 `mcp:` 가 검증된다** (SECURITY-05 · US-2). 모양이 틀리면 노드가 안 뜨고
+  사유를 로그에 낸다. `decisions.md` 2절이 「그 밖의 키는 그대로 허용목록에 옮긴다」로
+  미지의 키 통과를 값으로 박았으므로, **검증하는 것은 아는 키의 모양**이다
 - CA0 가 초록이다
 
-**어디서 왔나** — `features.md` 3.3 · `requirements.md` 4.4 · `ADR-012` · `ADR-063` ·
+**옛 `harness` 키를 언제 걷는지는 이 유닛이 안 정한다.** 걷는 날 매처의 attrCount 가
+노드마다 1 씩 줄어 정렬이 움직인다 (`application-design.md` 6.4).
+
+**어디서 왔나** — `features.md` 3.3 · `requirements.md` 4.4 · `ADR-012` · `ADR-035` §4.2 ·
 `scene-gates.md` CA2 · CA3 · 2.1.
 
 **선행** — U1 (CA2 의 「먼저 서는 기능」이 3.1) · U2 (CA3 의 lint 와 400).
@@ -151,7 +196,8 @@
    internal/enode/mcp.go      resolveComponents 가 출처 둘을 합친다 —
                               노드 선언 중 요청된 것 · 워크스페이스 .mcp.json 중
                               요청된 것.  겹치면 노드가 이긴다.  없으면 거절한다.
-                              겹침과 빠짐을 Notes 에 남긴다
+                              겹침과 빠짐을 Notes 에 남긴다.
+                              요청 필터를 여기서 세운다 — U5 의 팩 출처가 그것을 탄다
    internal/enode/runner.go   Job.NodeMCP 필드
    internal/enode/claim.go    Job 리터럴에 NodeMCP: w.Local.MCP 한 줄
 ```
@@ -189,7 +235,9 @@
 
 ```text
    internal/enode/mcp.go        Pack · PackFile · PackLimits · readPack.
-                                resolveComponents 에 팩 출처를 더한다 (팩이 이긴다)
+                                resolveComponents 에 팩 출처를 더한다.  팩도
+                                agent.mcp 필터를 탄다 (application-design.md 4.4).
+                                노드 선언 이름을 덮으면 거절한다 (4.5)
    internal/enode/claude.go     Instrument 가 <dir>/home/skills/ · agents/ 를 편다
    internal/enode/harness.go    HarnessResult.MCP · .Pack
    internal/enode/runner.go     ⑧ 에서 두 필드를 채운다
@@ -210,7 +258,13 @@
 - **SEC-A 가 코드로 있다** — 절대경로 · `..` · 심볼릭 링크 · 크기 상한 · 개수 상한을
   거부하고 **파일을 쓰기 전에** 한다. `settings.json` 은 이름으로 건너뛴다.
   거부는 조용하지 않다 — 그 단계를 실패로 보고한다
-- 상한의 **실제 값**을 이 유닛의 Functional Design 이 닫는다 (`PackLimits`)
+- 상한의 **실제 값**을 이 유닛의 Functional Design 이 닫는다 (`PackLimits`).
+  **전송은 이미 막혀 있다** — Mediator 의 `MaxBlobBytes` 기본 10 MiB 가 tar 를
+  막는다. 안 막힌 것은 **푼 뒤의 크기**(tar bomb)이고 `MaxBytes` 가 그것을 진다
+- **팩이 노드 선언 이름을 덮으면 거절한다** (4.5). 문구는
+  `pack redefines node-declared mcp server <이름>` 이고 CA5 가 그것을 찾는다
+- **팩이 실었으나 요청 안 한 서버는 0 이다** (4.4). 팩의 `mcp.json` 에 있어도
+  `agent.mcp` 가 이름을 안 적으면 안 실린다. Notes 에 남는다
 - `readPack` 이 `io.Reader` 하나로 덮인다 — 악성 tar 를 메모리에서 지어 넣는다
 - **CA6 이 초록이다** — 사내 함대에서 `scene-gates.md` 1절 ① ~ ⑦ 을 끝까지.
   `runctl record` 로 푼 `steps/NN-*.json` 에 `harness.mcp` 와 `harness.pack` 이 있다
@@ -234,11 +288,25 @@
 유닛이 하한을 깼는지 모르는 채로 다섯 유닛치 코드를 받는다.
 
 ```text
-   유닛마다 도는 것   scripts/testdb.sh 뒤 기존 테스트 전부 · 커버리지 · glyphscan ·
+   유닛마다 도는 것   scripts/testdb.sh 뒤 기존 테스트 전부 · 커버리지 ·
+                     허용목록 밖의 스킵 0 · glyphscan · U+2605 0 ·
                      포맷 · vet · 크로스 빌드 · 심볼 상한 · 워킹트리 청결 ·
-                     grep -c 'mux.HandleFunc' internal/api/api.go 가 17
+                     Mediator 라우트 수
    비용              CA0 이 여섯 번 돈다 (착수 전 한 번 + 유닛 다섯)
 ```
+
+**라우트 수를 세는 명령이 부족하다.** `grep -c 'mux.HandleFunc' internal/api/api.go`
+는 17 을 내지만 실제 라우트는 **26** 이다 — `api.go` 가 `mux.Handle` 로 셋을 더 걸고
+`internal/api/demo_gallery.go` 가 여섯을 더 등록한다. 「라우트 0 개 는다」를 집행하려면
+`internal/api/*.go` 전체에서 `mux.HandleFunc` 와 `mux.Handle(` 을 함께 세야 한다.
+
+```text
+   세는 명령   grep -rho 'mux\.HandleFunc\|mux\.Handle(' internal/api/*.go | wc -l
+   오늘 값     26   (api.go 20 · demo_gallery.go 6)
+```
+
+이 팩은 `internal/api` 를 안 만지므로 오늘은 안 물리지만, **세는 명령을 그 값으로
+굳힌다.** `scene-gates.md` 3절의 CA0 줄도 같이 고쳤다.
 
 ---
 
@@ -248,11 +316,16 @@
 
 ```text
    PackLimits 의 실제 값        U5 의 Functional Design.  SEC-A 가 값을 안 줬다
-   mcp.json 의 필드 표현        U1 (빈 파일) · U4 (채운 파일) 의 Functional Design
    enode.yaml mcp: 절의 필드    U3 의 Functional Design.  Env 의 표현을 포함한다
    HarnessResult 직렬화         U5 의 Functional Design
    scene-gates.md 3절의 명령    유닛마다의 Code Generation 계획이 스크립트로 굳힌다
 ```
+
+**`mcp.json` 의 모양은 FD 로 안 넘긴다 — 팩이 이미 닫았다.**
+`decisions.md` 2절이 `{"mcpServers": {...}}` 로 값을 박았다. 하네스가 읽는 형식과
+같아야 하므로 지어낼 자리가 아니다. 노드 선언의 「그 밖의 키는 그대로 허용목록에
+옮긴다」도 같은 절이 닫았다 — `MCPServer` 가 아는 필드만 들면 소유자가 적은 미지의
+키가 YAML 언마샬에서 조용히 사라진다. **U3 의 FD 가 그 통과 경로를 든다.**
 
 **형식을 안 만드는 유닛은 Functional Design 을 그 자리에서 스킵한다**
 (실행 계획). U2 가 그 후보다 — 계약 어휘는 `contract.go` 의 기존 구조체를 늘릴 뿐

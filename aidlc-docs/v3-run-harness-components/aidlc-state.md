@@ -90,8 +90,10 @@ Analysis Step 5.1 에서 재확인만 한다.
 스킵의 근거를 한 줄로.
 
 ```text
-   User Stories            scene-gates.md 의 조각 일곱이 실행 명령으로 적힌 수용 기준이다.
-                           스토리는 그것을 약한 형태로 다시 쓰는 일이 된다
+   User Stories            **되살렸다** (2026-09-12).  스킵 근거가 규칙의 SKIP 조건에
+                           안 걸렸고 하류(units-generation · functional-design)가
+                           story map 을 읽는다.  최소 형태로 돈다 — 행복 경로는 안 쓰고
+                           저작 경로와 오류 경로만 짓는다
    NFR Requirements        requirements.md 4절이 Comprehensive 로 이미 닫았고
                            이 회차가 그 값을 안 바꾼다.  차단 확장의 집행은 단계마다 그대로 돈다
    NFR Design              NFR Requirements 를 건너뛰므로 넘길 패턴이 없다
@@ -101,6 +103,27 @@ Analysis Step 5.1 에서 재확인만 한다.
 값이 안 정해진 자리는 스킵과 함께 사라지지 않고 옮겨 적었다 — SEC-A 의 크기 ·
 개수 상한은 팩 유닛의 Functional Design 으로, 4.4 의 「광고 루프가 탐지를 직접
 안 부른다」는 Application Design D2 로.
+
+## 설계 검증 (2026-09-12) — 에이전트 일곱
+
+승인 뒤 검증을 돌렸다. 축 셋(코드 대조 · 정본 대조 · 요구 팩과 내부 일관성)과
+단계별 반대 심문 넷이다. **답 열셋이 전부 권장안이었던 쏠림의 원인이 구조로 밝혀졌다** —
+질문을 내는 단계 셋(User Stories · NFR Requirements · NFR Design)을 스킵했고,
+Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 은 네 번째 길을 안 보였다.
+
+```text
+   뒤집힌 결정     Q3 = A -> B.  근거 둘이 다 오독이었다
+   설계 결함 여섯   decisions.md 6절 ⑥ ~ ⑩ 과 application-design.md 4.3 ~ 4.6
+   규칙 위반 셋     User Stories 스킵 · NFR Requirements 스킵 ·
+                  Workspace Detection 이 규칙 분기 대신 질문으로 돌린 것
+   집행자 0 명     scene-gates.md 2절 머리를 회차가 안 옮겨 적었다.
+                  unit-of-work-dependency.md 8절이 그 배정을 진다
+   측정 오류 셋     exec 이 한 자리가 아니다 · 라우트는 17 이 아니라 24 ·
+                  매처가 분류에서 빠졌다
+```
+
+검증 도구를 `.claude/agents/aidlc-verify.md` 로 굳혔다 — 다음 회차가 같은
+프롬프트를 다시 짓지 않는다.
 
 ## Application Design 이 닫을 넷 (D1 ~ D4)
 `requirements.md` 8절이 명시로 넘긴 미결이다.
@@ -116,7 +139,7 @@ Analysis Step 5.1 에서 재확인만 한다.
 
 ```text
    D1   Fixed(dir string) map[string]string 으로 인터페이스를 바꾼다 (Q1 = A)
-   D2   costlyAttrs 에 mcpAttrs 함수 하나.  Detector 인터페이스는 안 세운다 (Q3 = A)
+   D2   costlyAttrs 를 Fingerprinter 순회로 바꾼다 (Q3 = B · 2026-09-12 뒤집힘)
    D3   결정(resolveComponents)과 쓰기(Instrument)를 가른다 (Q4 = A)
    D4   못 쓴다.  Argv 가 --output-format json 이라 system/init 줄이 안 나온다.
         출력 형식은 짝 팩의 것으로 둔다 (Q5 = A).  게이트는 사람 경로
@@ -141,7 +164,7 @@ Q5 = A 가 `claude.go` 의 `Argv` 를 이 팩의 밖으로 냈다. `constraints.
 - [x] Workspace Detection — 2026-09-11T13:13:54Z
 - [x] Reverse Engineering — 부분 재측정 (네 경로 · Q1=B). 전면 재실행은 안 함
 - [x] Requirements Analysis — 승인됨 (2026-09-11T13:59:38Z · 사용자가 Workflow Planning 을 지시)
-- [x] User Stories — SKIP (실행 계획 3절의 근거 둘)
+- [x] User Stories — **EXECUTE (minimal)** — 2026-09-12 에 되살렸다. 스킵이 규칙의 SKIP 조건 여섯 중 0 에 걸렸다
 - [x] Workflow Planning — 승인됨 (2026-09-11T23:43:28Z · 커밋 88dc120)
 - [x] Application Design — 승인됨 (2026-09-12T00:41:18Z · 커밋 3012a92). 답은 전부 A
 - [x] Units Generation — 완료 (2026-09-12). 답 다섯이 전부 A. 유닛 다섯 · 파일 행렬을 냈다

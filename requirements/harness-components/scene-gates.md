@@ -18,7 +18,8 @@
    ③  계약이 requires 에 mcp.<이름> 을 적고, 단계가 agent.mcp 로 그 이름을 요청한다.
       첫 단계는 팩 저장소에서 tar 를 받는 명령 단계다
    ④  그 노드에만 배정된다.  키가 없는 노드는 후보에서 빠진다
-   ⑤  하네스가 뜬다.  init 줄의 mcp_servers 에 그 서버와 팩의 서버뿐이다.
+   ⑤  하네스가 뜬다.  init 줄의 mcp_servers 에 agent.mcp 가 적은 이름뿐이다 —
+      노드 것이든 팩 것이든 요청한 것만 실린다 (decisions.md 6절 ⑥).
       개인 서버 0 · 계정 커넥터 0.  팩의 스킬이 slash_commands 에 있다
    ⑥  에이전트가 그 도구를 불러 산출물을 낸다.  success_when 이 그것을 판정한다
    ⑦  runctl record 로 푼 묶음에 서버 이름과 팩 다이제스트가 있다
@@ -34,9 +35,9 @@
 | | 조각 | 확인 (실동작) | 집행자 | 대상 | 재는 기능 | 먼저 서는 기능 |
 |---|---|---|---|---|---|---|
 | CA0 | 기동이 안 깨졌다 | 앞 팩의 CP0 그대로 — `scripts/testdb.sh` 뒤 기존 테스트 전부 초록 · 커버리지 · glyphscan · 포맷 · vet · 크로스 빌드 · 심볼 상한 · 워킹트리 청결. 기존 라우트 수가 그대로다 | 기계 | 스크래치 | 바닥 | (없음) |
-| CA1 | 끊긴다 | 개인 MCP 서버와 계정 커넥터가 있는 기계에서 아무것도 요청하지 않은 에이전트 단계를 돌린다. `logs/` 의 `system/init` 줄(또는 `enode` 가 남긴 프로브 출력)에 `mcp_servers` 가 비어 있다. OAuth 로그인 노드와 게이트웨이 노드 둘 다에서 단계가 `Not logged in` 없이 돈다 | 사람 | 스크래치 | 3.1 · 3.2 | (없음) |
+| CA1 | 끊긴다 | **계정에 로그인된 기계에서** 개인 MCP 서버와 계정 커넥터가 있는 채로 아무것도 요청하지 않은 에이전트 단계를 돌린다. 로그아웃 홈에서만 재면 안 된다 — 이 설계가 `.credentials.json` 을 가짜 홈에 복사하므로 계정이 돌아온다 (`application-design.md` 4.6). `logs/` 의 `system/init` 줄(또는 `enode` 가 남긴 프로브 출력)에 `mcp_servers` 가 비어 있다. OAuth 로그인 노드와 게이트웨이 노드 둘 다에서 단계가 `Not logged in` 없이 돈다 | 사람 | 스크래치 | 3.1 · 3.2 | (없음) |
 | CA2 | 광고한다 | `enode.yaml` 에 `mcp:` 하나를 적고 노드를 띄운다. `GET /v1/nodes` 의 그 노드 `attrs` 에 `mcp.<이름>` 과 `harness.claude` 가 있고 옛 `harness` 도 있다. 실행파일을 치우고 탐지 주기 뒤에 보면 `mcp.<이름>` 이 빠져 있고 노드 로그에 이유가 있다 | 사람 | 스크래치 | 3.3 | 3.1 |
-| CA3 | 고른다 | `requires` 에 `mcp.<이름>` 을 적은 계약이 그 노드에만 간다. 없는 키를 적으면 `422` 다. `agent` 에 모르는 키를 적으면 `400` 이다. `runctl lint` 와 `runctl example` 의 새 예시가 통과한다 | 사람 | 함대 | 3.3 · 3.5 | 3.3 |
+| CA3 | 고른다 | `runctl capabilities` 에 `mcp.<이름>` 이 나온다 — 계약 작성자가 보는 면이다. `requires` 에 그 이름을 적은 계약이 그 노드에만 간다. 없는 키를 적으면 `422` 다. `agent` 에 모르는 키를 적으면 `400` 이고 `agent.mcp` 를 문자열로 적어도 `400` 이다. `runctl lint` 와 `runctl example` 의 새 예시가 통과한다 | 사람 | 함대 | 3.3 · 3.5 | 3.3 |
 | CA4 | 연다 | 노드가 서버 둘을 선언하고 워크스페이스 `.mcp.json` 에 하나가 더 있을 때, 계약이 하나만 요청하면 `mcp_servers` 에 그 하나뿐이다. `.mcp.json` 의 것을 요청하면 나타난다. 없는 이름을 요청하면 하네스가 안 뜨고 단계가 그 사유로 실패한다 | 사람 | 스크래치 | 3.2 · 3.4 · 3.5 | 3.1 |
 | CA5 | 싣는다 | 팩 단계가 `$OUT/pack` 에 tar 를 낸다. 다음 에이전트 단계의 `init` 줄에 팩의 스킬이 `slash_commands` 로, 팩의 서버가 `mcp_servers` 로 있다. 워크스페이스 `.claude/skills/` 가 스스로 읽히는지 같은 줄로 판정해 `decisions.md` 에 적는다 | 사람 | 스크래치 | 3.6 | 3.1 · 3.2 |
 | CA6 | 한 장면 | 1절 ① ~ ⑦ 을 끝까지. 사내 MCP 의 도구가 실제로 불리고 산출물이 나오며 `record` 에 서버 이름과 팩 다이제스트가 있다 | 사람 | 사내 함대 | 전부 | 전부 |
@@ -80,7 +81,10 @@
 ```
 
 ```text
-   CA0   앞 팩의 CP0 명령 그대로.  grep -c 'mux.HandleFunc' internal/api/api.go 가 그대로다
+   CA0   앞 팩의 CP0 명령 그대로.  Mediator 라우트 수가 그대로다 —
+         internal/api/*.go 전체에서 mux.HandleFunc 와 mux.Handle( 을 함께 센다.
+         오늘 값은 26 이다 (api.go 의 HandleFunc 17 + Handle 3 · demo_gallery.go 6).
+         api.go 한 파일만 HandleFunc 로 세면 17 이 나와 나머지 아홉을 놓친다
 
    CA1   개인 서버가 있는 기계에서 (claude mcp list 로 있음을 먼저 본다)
          runctl example agent > a.json  (agent.mcp 없음)
@@ -107,8 +111,12 @@
 
    CA5   팩 tar 를 만든다 — skills/hello/SKILL.md · mcp.json 에 probe4
          첫 단계 run: ["curl", "-o", "$OUT/pack", "<tar 주소>"]  (또는 git archive --remote)
-         둘째 단계 agent.pack: "pack" · in.from: ["fetch.pack"]
+         둘째 단계 agent.pack: "pack" · agent.mcp: ["probe4"] · in.from: ["fetch.pack"]
          init 의 slash_commands 에 hello · mcp_servers 에 probe4
+         agent.mcp 를 빼고 같은 팩으로 한 번 더 -> mcp_servers 가 비어 있다
+           (팩도 필터를 탄다.  스킬은 그대로 뜬다)
+         팩의 mcp.json 에 노드가 선언한 이름(probe)을 넣어 한 번 더
+           -> 단계 error 에 pack redefines node-declared mcp server probe
          워크스페이스에 .claude/skills/ws-skill/SKILL.md 를 두고 팩 없이 돌려
            ws-skill 이 slash_commands 에 있는지 본다 -> decisions.md 에 적는다
 

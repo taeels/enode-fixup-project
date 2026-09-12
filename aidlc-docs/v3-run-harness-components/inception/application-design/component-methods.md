@@ -28,17 +28,24 @@ type Harness interface {
 	// c 는 이미 해소된 구성요소다 — 이 메서드는 무엇을 열지 결정하지 않는다.
 	// 결정은 resolveComponents 가 exec 전에 끝냈다.
 	//
-	// 오류에 등급이 있다. 훅을 못 심은 것은 보조 실패라 부르는 쪽이
-	// 삼킨다. 가짜 홈 · 허용목록 · 팩을 못 쓴 것은 errComponents 로 감싸고,
-	// 그것은 단계를 죽인다.
+	// 오류에 등급이 있고 기본이 치명이다. 훅 설정 쓰기만 errAux 로
+	// 감싸 보조로 내리고, 감싸지 않은 오류는 전부 단계를 죽인다.
+	// 빠뜨림이 닫히는 쪽으로 틀리게 하려는 것이다.
+	//
+	// 기준 시각은 여기 안 온다. writeStamp 는 Instrument 앞에서 불리고
+	// 그 오류는 이미 버려진다 (runner.go:71-76).
+	//
+	// 오류를 내도 이미 얻은 플래그는 함께 돌려준다 — 보조 실패 하나가
+	// --strict-mcp-config 를 떨어뜨리면 격리의 확실한 겹이 사라진다.
 	Instrument(dir, self string, a HookArgs, c Components) ([]string, error)
 
 	Argv(p AgentParams, io IOPaths) []string
 	Decode(r io.Reader, exitCode int, emit func(Event)) HarnessResult
 }
 
-// errComponents 는 구성요소를 못 깔았다는 뜻이다. 훅 실패와 등급이 다르다.
-var errComponents = errors.New("cannot lay out the harness components")
+// errAux 는 보조 실패다. 이것으로 감싼 오류만 부르는 쪽이 삼킨다.
+// 감싸는 자리는 하나다 — 훅 설정 쓰기(hook.go 의 Marshal 과 WriteFile).
+var errAux = errors.New("auxiliary instrumentation failure")
 ```
 
 `HarnessResult` 에 두 필드가 는다.
@@ -113,7 +120,13 @@ type PackLimits struct {
 // 파일을 하나도 안 만진다. 그래서 시험이 하네스도 디스크도 안 쓰고,
 // 오류가 곧 단계 실패다 — 부르는 쪽이 exec 전에 부른다.
 //
-// 세 출처를 합치고 이름이 겹치면 팩 · 노드 · 워크스페이스 순으로 앞이 이긴다.
+// 세 출처 다 agent.mcp 가 적은 이름만 집는다. 팩도 필터를 탄다 —
+// 팩은 정의의 출처이지 허가의 출처가 아니다.
+//
+// 이름이 겹치면 팩 · 노드 · 워크스페이스 순으로 앞이 이긴다. 다만 노드가
+// 선언한 이름을 팩이 덮는 것은 오류다. 그것을 허용하면 매칭은 소유자의
+// 값으로 하고 실행은 계약의 값으로 하게 된다.
+//
 // 요청한 이름이 셋 어디에도 없으면 오류다.
 func resolveComponents(j Job) (Components, error)
 
@@ -129,16 +142,22 @@ func mcpUp(s MCPServer) error
 // 이름으로 건너뛰고, 규약 밖의 항목은 이름만 Notes 로 남긴다.
 func readPack(r io.Reader, lim PackLimits) (*Pack, []string, error)
 
-// mcpAttrs 는 뜨는 서버만 광고 속성으로 낸다 (FR-3).
+// mcpFP 는 뜨는 서버만 광고 속성으로 낸다 (FR-3).
 //
-// costlyAttrs 가 부른다. 프로세스를 안 띄우지만 PATH 를 훑으므로
-// 값싼 쪽에 안 둔다 (requirements.md 4.4).
-func mcpAttrs(l Local, log *slog.Logger) map[string]string
+// Fingerprinter 의 한 종류다. 프로세스를 안 띄우지만 호출 수가 노드
+// 설정에 비례하므로 값싼 쪽에 안 둔다 (requirements.md 4.4).
+type mcpFP struct{}
+
+func (mcpFP) Kind() string
+func (mcpFP) Probe(ctx context.Context, l Local, log *slog.Logger) (map[string]string, error)
 ```
 
-**오류 문구는 계약이다.** `resolveComponents` 가 이름을 못 찾았을 때 내는 문자열은
-`mcp server <이름> is not available on this node` 이고, 게이트 CA4 가 단계 error
-안에서 그것을 **부분 문자열로** 찾는다.
+**오류 문구는 계약이다.** 게이트가 단계 error 안에서 **부분 문자열로** 찾는다.
+
+```text
+   mcp server <이름> is not available on this node        CA4
+   pack redefines node-declared mcp server <이름>          CA5
+```
 
 ---
 
@@ -163,17 +182,29 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
    ①  계장 디렉터리를 짓는다        실패 -> 단계 실패 (Q2 = A)
    ②  resolveComponents(j)        실패 -> 단계 실패.  하네스를 안 띄운다
    ③  Argv 를 조립한다
-   ④  Instrument(tmp, self, a, c)  errComponents -> 단계 실패
-                                   그 밖의 오류 -> 삼킨다 (오늘 그대로)
+   ④  Instrument(tmp, self, a, c)  errAux 로 감싼 오류만 삼킨다.  그 밖은 단계 실패.
+                                   삼킬 때도 돌려받은 플래그는 붙인다
    ⑤  Fixed(tmp) 를 합친다
    ⑥  exec
    ⑦  Decode · Version · 자백 읽기  오늘 그대로
    ⑧  HarnessResult 에 MCP · Pack 을 채운다
+   ⑨  defer 가 계장 디렉터리를 지운다 — 오늘 그대로
 ```
+
+**⑨ 를 안 건드린다.** 보존 스위치를 한 번 넣었다가 뺐다 — `features.md` 3.1 이
+「복사한 자격증명은 계장 디렉터리와 함께 **단계 끝에 지워진다**」를 보안 요구로
+못 박았고(SECURITY-12), 남기는 스위치는 그것을 뚫는다.
+
+**대가는 눈 검증이 복제본을 잰다는 것이다.** 사람이 `init` 줄을 읽으려고 손으로
+띄울 때 실물 가짜 홈과 실물 허용목록이 없어서 다시 짓게 되고, 그 복제본은 환경
+(`harnessEnv` 는 `os.Environ()` 을 안 얹는다) · 플래그(`--settings` ·
+`--permission-mode` · `--add-dir` 이 빠진다) · 게이트웨이 인증(`apiKeyHelper` 가
+빠져 `Not logged in` 이 난다)에서 실물과 갈린다. **그 한계를 게이트가 명시로 안다.**
 
 **`Instrument` 를 언제나 부른다.** 오늘은 `os.Executable()` 이 빈 문자열이면 계장을
 통째로 건너뛰는데, 그 경로로 가면 허용목록이 조용히 안 쓰인다. `self` 가 비면
-훅 블록만 빠지고 나머지는 그대로 돈다 — 보조 실패다.
+`settings.json` 에서 `hooks` 키만 빠지고 나머지는 그대로 돈다 — 보조 실패다.
+**키를 빼는 것이지 빈 값을 쓰는 것이 아니다** (`application-design.md` 4.2).
 
 새 Reason 값은 안 만든다. 치명은 `HarnessResult{Reason: ReasonError, Message: <사유>}`
 로 보고한다. 근거 — Record 어휘를 늘리는 것은 팩의 제외 여덟 중 「기존 계약
@@ -192,12 +223,16 @@ func (claudeHarness) Fixed(dir string) map[string]string
 
 // Instrument 는 훅 · 가짜 홈 · 팩 · 허용목록을 심고 플래그를 돌려준다.
 //
-//	<dir>/enode-settings.json   훅 (오늘 그대로)
-//	<dir>/home/                 가짜 홈.  CLAUDE_CONFIG_DIR 이 가리킨다
-//	<dir>/home/skills/…         팩의 스킬
-//	<dir>/home/agents/…         팩의 서브에이전트
+//	<dir>/home/                   가짜 홈.  가장 먼저 만든다.  CLAUDE_CONFIG_DIR 이 가리킨다
+//	<dir>/home/settings.json      훅.  features.md 3.1 의 요구대로 홈 안이다
+//	<dir>/home/skills/…           팩의 스킬
+//	<dir>/home/agents/…           팩의 서브에이전트
 //	<dir>/home/.credentials.json  실제 홈에 있으면 0600 으로 복사
-//	<dir>/mcp.json              허용목록
+//	<dir>/mcp.json                허용목록
+//
+// self 가 비면 settings.json 에서 hooks 키 자체를 뺀다. 빈 첫 원소를
+// shellJoin 이 그대로 이어 붙여 앞이 빈 명령이 실리는 것을 막는다.
+// gatewayAuthFields() 는 그때도 얹는다.
 //
 // 플래그: --settings <경로> --setting-sources "" (오늘)
 //         --strict-mcp-config --mcp-config=<경로> (새로. 등호 형태)
@@ -230,15 +265,31 @@ type Local struct {
 ## 6. `internal/enode/detect.go` — 광고
 
 ```go
-// costlyAttrs 에 두 줄이 바뀐다.
+// Fingerprinter 는 비싼 사실 한 종류다 (ADR-035 §4.2).
 //
-//	하네스 순회에서 break 를 걷고 harness.<이름> 을 싣는다.
-//	옛 harness 키는 첫 번째로 쓸 수 있는 하네스의 이름으로 이 회차 동안 같이 싣는다.
-//	mcpAttrs(l, log) 를 합친다.
+// 이름이 Detector 가 아닌 이유 — 그 이름은 ADR-068 의 주기 장치가 쓴다.
+// Nomad 의 fingerprint 가 §4.2 가 든 유비이고 그 단어를 따른다.
+type Fingerprinter interface {
+	Kind() string // "harness" | "repo" | "mcp"
+
+	// Probe 는 logger 를 받는다. 오늘 costlyAttrs 안에서 도는 log.Warn
+	// (ADR-059) 과 FR-3 이 요구하는 서버별 누락 사유가 갈 자리다.
+	Probe(ctx context.Context, l Local, log *slog.Logger) (map[string]string, error)
+}
+
+var fingerprinters = []Fingerprinter{harnessFP{}, repoFP{}, mcpFP{}}
+
+// costlyAttrs 가 셋을 순회해 합친다. 동작 중립이다 —
+// 하네스 순회의 break 는 harnessFP 안에서 저절로 걷힌다 (ADR-035 §4.3).
+//
+// repoFP 는 DetectRepo 의 WorkspaceID fallback (ADR-036) 을 그대로 옮긴다.
+// 안 옮기면 git 없는 노드에서 repo 속성이 사라져 중립이 깨진다.
 func costlyAttrs(ctx context.Context, l Local, log *slog.Logger) map[string]string
 ```
 
-`cheapAttrs` · `capabilities` · `Detector` 는 **안 건드린다.**
+`cheapAttrs` · `capabilities` · `Detector`(시계)는 **안 건드린다.** 순회로 바꾸는
+것은 `ADR-035:246-248` 이 「오늘 동작을 안 바꾸고 된다」고 적은 리팩터이고, 기존
+탐지 시험이 그 중립성의 안전망이다.
 
 ---
 
@@ -262,6 +313,11 @@ var agentKeys = []string{
 
 `internal/contract/examples/mcp.json` 하나가 는다 — 사내 MCP 하나를 `requires` 로
 요구하고 `agent.mcp` 로 요청하며 앞 단계가 팩을 받는 최소 계약이다.
+
+**`agentKeys` 는 키 이름만 본다.** `agent.mcp` 를 배열이 아니라 문자열로 적으면
+`400` 이 아니라 노드 위 `parseAgentParams` 의 `json.Unmarshal` 에서 죽는다. 그래서
+`parseAgentParams` 가 두 키의 **타입을 검증**하고 사유를 문구로 낸다 —
+`agent.mcp must be an array of server names` · `agent.pack must be a blob name`.
 
 **`cmd/runctl` 의 diff 는 0 이다.** `runctl example` 이 `contract.ExampleNames()`
 로 임베드 FS 를 읽으므로 파일 하나를 더하면 목록과 출력이 함께 는다.

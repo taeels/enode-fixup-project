@@ -9,10 +9,13 @@
 `internal/contract/examples/` 에 살고, `runctl schema steps` 는 구조체에서 뽑는다.
 
 ```text
-   internal/enode      Major     새 표면 전부.  새 파일 mcp.go 하나
+   internal/enode      Major     새 표면 전부.  새 파일 mcp.go 하나.
+                                 claim.go · agent.go 도 여기다 (표에 빠져 있었다)
    internal/contract   Minor     알려진 키 둘 · Grammar 줄 · 예시 파일 하나
    cmd/iapadapter      Minor     설정 키 하나 · 템플릿 분기 하나
-   cmd/runctl          없음      저절로 는다
+   cmd/runctl          없음      example 이 임베드 FS 를 돈다.  schema 는 안 는다
+   internal/match      없음      코드 diff 0.  다만 동작은 따로 잰다 —
+                                 정렬 기준이 광고 attr 개수다 (application-design.md 6.4)
 ```
 
 `requirements.md` 6.3 과 `constraints.md` 의 「새 코드가 사는 자리」가 넷을 적었고,
@@ -80,7 +83,8 @@ flowchart LR
      claude.go   ->  mcp.go     Components 를 파일로 쓴다
      claude.go   ->  hook.go    오늘 그대로
 
-   internal/api    광고 속성을 매처가 읽는다.  코드는 한 줄도 안 는다
+   internal/match  광고 속성을 매처가 읽는다.  코드는 한 줄도 안 는다.
+                   매처는 internal/api 가 아니라 internal/match 다
 ```
 
 **새 임포트 간선이 0 이다.** `mcp.go` 는 `internal/enode` 안의 새 파일이고,
@@ -94,10 +98,14 @@ flowchart LR
 |---|---|---|
 | `internal/panel` -> `internal/store` | 아니오 | `panel` 을 안 건드린다 |
 | `internal/panel` -> `internal/api` | 아니오 | 같다 |
-| `internal/api/ui` -> `internal/store` | 아니오 | `api/ui` 를 안 건드린다 |
+| `internal/api/ui` -> `internal/store` | 아니오 | `api/ui` 를 안 건드린다. **이 줄만 경계 시험이 없다** — 사실로는 `go list -deps internal/api/ui` 에 내부 패키지가 0 이다 |
 | `internal/enode` -> `internal/panel` | 아니오 | 새 임포트가 0 이다 |
 
 경계 검사 테스트는 그대로 돈다. **표에 줄이 늘지 않는다** — 새 패키지가 없다.
+
+다만 `internal/panel/boundary_test.go` 의 `TestImportBoundaries` 가 재는 것은
+**넷 중 셋**이다. `api/ui -> store` 는 기계가 안 잰다 — CA0 의 근거로 쓸 때
+그것을 안다.
 
 ---
 
