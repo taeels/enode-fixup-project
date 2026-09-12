@@ -67,7 +67,8 @@
    U1   MkdirTemp 를 함수 몸통으로 · 실패 등급 · Instrument 를 언제나 호출 ·
         resolveComponents 호출 자리 · h.Fixed(tmp)
    U4   Job.NodeMCP 필드
-   U1   logs/ 에 실을 것을 고르는 자리 (⑱).  오늘 stdout 전체를 내는 줄이다
+   U1   링 tee 를 끄는 자리 (⑲ · :104-105) · logs/ 에 실을 것을 고르는 자리 (⑱ · :155-156).
+        둘 다 exec 뒤다 — 짝 팩의 스트림 처리와 겹친다
    U5   ⑧ 에서 HarnessResult.MCP · .Pack 을 채운다
 ```
 

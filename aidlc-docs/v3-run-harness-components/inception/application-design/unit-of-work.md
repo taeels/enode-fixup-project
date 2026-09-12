@@ -56,7 +56,8 @@
                                .credentials.json 을 0600 으로 복사하고
                                <dir>/mcp.json 을 쓴다.
                                플래그 --strict-mcp-config --mcp-config=<경로>
-   internal/enode/runner.go    logs/ 선별 (⑱).  허용목록 — init 과 최종 result 와
+   internal/enode/runner.go    stream-json 동안 링 tee 를 끈다 (⑲ · :104-105).
+                               logs/ 선별 (⑱).  허용목록 — init 과 최종 result 와
                                stderr 만 전문이고 나머지는 껍데기다.
                                계장 디렉터리를 함수 몸통으로.  못 만들면 단계 실패.
                                resolveComponents 를 exec 전에 부른다.
@@ -91,6 +92,11 @@
   `TestHarnessRecordsBudget` 이 그대로 초록이어야 한다 — `type` 없는 픽스처로
   `Turns` · `CostUSD` 를 재므로 조기 반환으로 짜면 빨갛다.
   `harness.go:98-99` 의 「종료코드 0 을 믿지 않는다」가 ⑮ 뒤에도 참이어야 한다
+- **`stream-json` 동안 트랜스크립트 링이 닫힌다** (⑲). `runner.go:104-105` 의
+  tee 가 ⑱ 의 선별 **앞**이라 그것만으로는 누출이 링으로 그대로 간다. 링은
+  512 KiB 파일로 **노드 디스크에 남고** 끄는 스위치가 없다. **시험이 그것을
+  잰다** — `Job.Transcript` 를 준 채로 돌려도 링에 도구 사건이 안 쌓이는지.
+  끄는 대가는 거의 0 이다 — 오늘 링에 가는 것이 끝의 봉투 하나뿐이다
 - **`logs/` 가 허용목록이다** (⑱). `system/init` 과 최종 `result` 와 stderr 는
   **전문**이고 그 밖의 모든 사건은 **껍데기**(사건 종류 · 도구 이름 · 성공 여부)만
   남는다. `assistant` 의 `text` 도 `thinking` 도 도구 결과도 같다. **경로에 예외가

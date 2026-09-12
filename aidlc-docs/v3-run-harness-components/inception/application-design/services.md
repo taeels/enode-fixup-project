@@ -26,6 +26,7 @@
                                                  ⑤  Fixed(tmp) 를 합친다
                                                     ── 여기까지가 닫는 자리 ──
                                                  ⑥  exec (cwd = 워크스페이스)
+                                                    링 tee 는 안 건다 (⑲)
                                                  ⑦  Decode · Version · 자백
                                                  ⑧  MCP · Pack 을 결과에 채운다
                                                  ⑨  logs/ 에 실을 것을 고른다 (⑱)

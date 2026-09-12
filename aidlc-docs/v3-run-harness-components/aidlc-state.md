@@ -63,7 +63,7 @@ Analysis Step 5.1 에서 재확인만 한다.
 | Q2 | 회차를 어디까지 · 몇 손 | B | Inception 을 돌고 Construction 까지 한 손(taeels)으로 간다. 유닛 직렬 |
 | Q3 | 짝 팩과의 순서 | A | 이 팩 먼저. 게이트의 `init` 줄은 사람이 직접 띄워 읽는다 |
 
-## 이 회차가 `decisions.md` 에 더한 행 — 열여덟
+## 이 회차가 `decisions.md` 에 더한 행 — 열아홉
 셋은 Requirements 승인 뒤에, 둘은 Application Design 이, **열셋은 2026-09-12 의
 검증 루프 열 바퀴**가 실었다.
 
@@ -85,11 +85,11 @@ Analysis Step 5.1 에서 재확인만 한다.
    ⑮  Argv 에 stream-json 한 줄         게이트가 복제본 대신 실물을 잰다
    ⑯  ParseClaude 가 type 을 본다        ⑮ 이 연 fail-open 을 막는다
    ⑰  봉인 기록의 자격증명 누출        준수로 만든다 (사용자 결정)
-   ⑱  도구 사건은 껍데기만 남긴다        ⑮ 이 넓힌 누출 표면을 닫는다.
-                                       경로에 예외가 없다.  runner.go 가 선별한다
+   ⑱  도구 사건은 껍데기만 남긴다        logs/ 를 허용목록으로 거른다
+   ⑲  stream-json 동안 링을 닫는다       tee 가 선별 앞이라 ⑱ 만으로는 안 닫힌다
 ```
 
-열여덟 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
+열아홉 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
 **6.1 이 뒤집힌 옛 문자열을 세는 열쇠 표**를 든다 — 진행자가 유닛 병합 전에
 돈다. 도는 스크립트가 없어 CA0 의 기계 검사가 아니다.
 기존 1 ~ 5절의 번호는 다른 문서가 참조하므로 안 건드리고, **2절의 낡은 행에는
