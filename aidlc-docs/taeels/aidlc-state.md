@@ -123,7 +123,7 @@ NAT 뒤의 관객 전체가 막혀 CP10 을 직접 깨므로 이쪽을 수락했
 | | 유닛 | 맡는 기능 | 닫는 게이트 | 선행 | 상태 |
 |---|---|---|---|---|---|
 | U1 | `isolation` | 3.1 · 3.2 의 최소 | CA1 | 없음 | **코드 완료 · CA1 대기** |
-| U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 | 대기 |
+| U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 | **Functional Design 완료 · Code Generation 대기** |
 | U3 | `advert` | 3.3 | CA2 · CA3 완결 | U1 · U2 | 대기 |
 | U4 | `sources` | 3.4 · 3.2 의 완성 | CA4 | U1 · U2 · U3 | 대기 |
 | U5 | `pack` | 3.6 · 3.7 | CA5 · CA6 | U1 · U2 · U4 | 대기 |
@@ -207,3 +207,70 @@ NAT 뒤의 관객 전체가 막혀 CP10 을 직접 깨므로 이쪽을 수락했
 **진행자에게 넘기는 것이 다섯이다** — `code-summary.md` 6절. 무거운 둘:
 `decisions.md` 6.1 의 문자열 검사 스크립트가 **어느 유닛에도 배정되지 않았고**
 (오늘은 사람이 손으로 돈다) · R3 과 R6 의 등급이 같은 논거 위에서 갈린다(8.1).
+
+---
+
+## 단계 진행 — U2 `contract-vocab`
+
+브랜치 `unit/contract-vocab`. **회차 브랜치가 아니라 `unit/isolation` 에서 땄다** —
+U1 이 아직 `main` 에 없고 `aidlc-state.md` 가 자동 병합이 안 되는 파일이라
+회차에서 따면 U1 의 절과 U2 의 절이 파일 꼬리에서 각자 자라 부딪친다. 근거와
+대가는 계획 6절. 코드는 안 부딪친다 — 행렬이 두 유닛의 파일 교집합을 0 으로 센다.
+
+```text
+   Functional Design      산출 2026-09-13.  계획과 답 일곱은 construction/plans/
+                          contract-vocab-functional-design-plan.md · 산출물 셋은
+                          construction/contract-vocab/functional-design/
+
+                          계획을 짓기 전에 만지는 자리를 코드로 읽어 갈린 문장
+                          셋을 찾았다 — ① features.md 3.5 의 「runctl schema
+                          steps 가 새 agent 키를 저절로 낸다」가 거짓이다
+                          (Step.Agent 가 map 이라 printFields 가 하위 키를 안
+                          찍고 cmd/runctl 은 agentKeys 를 import 하지 않는다)
+                          ② blob 이름 공간은 Run 하나에 평평해서 in.from 의 점은
+                          이름의 글자다 ③ 그래서 scene-gates.md CA5 의 명령이
+                          안 돈다 (첫 단계가 $OUT/pack 을 내는데 둘째가
+                          in.from: ["fetch.pack"] 을 적는다)
+
+                          행렬 밖 파일 하나가 이 유닛의 것이었다 —
+                          internal/contract/planshape.go.  PlanShape 의
+                          「agent 는 다섯 — nothing else」가 agentKeys 가 는 뒤
+                          계획에게 거짓을 가르친다
+
+                          답 일곱 A · A · A · A · A · A · B.  여섯이 권장이고
+                          하나(7=B)가 GLOSSARY.md 를 이 유닛 밖으로 뺐다.
+                          답 1=A 와 2=A 가 검증 자리를 Mediator 로 올렸다 —
+                          agent.mcp · agent.pack 의 타입과, agent.pack 이
+                          in.from 에 있는지를 contract.Validate 가 본다.
+                          계획이 지은 단계도 같은 검사를 받는다
+                          (checkplan.go:82 · expand.go:206)
+
+                          답 2=A 가 CA5 의 값을 바꿨다 — 이름 불일치가 조용한
+                          실패가 아니라 제출 400 이 된다.  고치지 않으면 그
+                          게이트를 시작조차 못 한다.  그래서 답 6=A 로
+                          scene-gates.md 까지 고친다 (승인 뒤 · 팩 문서다)
+
+                          예시를 오늘 코드에 실측으로 걸었다 — 유일한 거절이
+                          unknown field "mcp" 이고 그것을 뺀 같은 계약은
+                          통과한다.  예시는 agentKeys 가 는 커밋에서 초록이 된다
+
+   NFR Requirements       SKIP (회차 실행 계획)
+   NFR Design             SKIP
+   Infrastructure Design  SKIP
+   Code Generation        대기
+```
+
+## 다음 — U2
+
+**Code Generation 이다.** 만지는 자리 다섯(`contract.go` · `grammar.go` ·
+`planshape.go` · `examples/mcp.json` · `agent.go`)과 규칙 여섯(R1 ~ R6)이
+`business-rules.md` 와 `business-logic-model.md` 에 있다. 순서 제약 하나가
+걸린다 — `examples/mcp.json` 은 `agentKeys` 가 느는 같은 커밋에 들어가야 한다.
+
+**승인 뒤에 실을 팩 문서 둘** — `decisions.md` 6절의 실측 행 하나(셋을 한 행에)와
+`scene-gates.md` CA5 의 명령. U1 이 ⑳ 에서 같은 순서를 밟았다.
+
+**진행자에게 넘기는 것 다섯** — `business-rules.md` 7절. 무거운 둘:
+`agent` 의 나머지 다섯 키는 타입 검사가 여전히 노드뿐이라 **비대칭이 남고**
+(답 1=A 가 새 키 둘로 범위를 정했다) · `GLOSSARY.md` 의 푼 말이 아직 없다
+(규약이 짐작을 금지하므로 사람에게서 와야 한다).

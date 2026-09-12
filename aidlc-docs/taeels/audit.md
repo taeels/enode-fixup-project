@@ -318,3 +318,53 @@ FD 가 승인에 걸어 둔 하나를 실었다 — requirements/harness-compone
 
 CA1 은 이 유닛이 안 닫는다 — 집행자는 이 유닛을 구현하지 않은 사람이다(scene-gates.md 2절 머리)."
 **Context**: CONSTRUCTION · U1 isolation · Functional Design 승인 · Code Generation 완료 · CA0 초록 · CA1 대기
+
+---
+
+## CONSTRUCTION — U2 contract-vocab · Functional Design 착수 (Step 1 ~ 4)
+**Timestamp**: 2026-09-12T15:52:00Z
+**User Input**: "다음할일해라"
+**AI Response**: "U1 isolation 은 단계가 다 돌았고 남은 둘(CA1 측정 · PR 병합)이 전부 사람의 것이다 — CA1 의 집행자는 이 유닛을 구현하지 않은 사람이고(scene-gates.md 2절 머리) 병합은 그 게이트가 초록인 뒤다(CONVENTIONS 3.3). 그래서 이 회차의 다음 유닛으로 갔다. 착수 순서가 U1 -> U2 이고 U2 contract-vocab 의 선행은 없다(unit-of-work.md 0절).
+
+브랜치를 unit/isolation 에서 땄다 — CONVENTIONS 3.1 은 회차 브랜치를 적는데 그러지 않은 이유 둘을 계획 6절에 적었다. U1 이 아직 main 에 없고, aidlc-docs/taeels/aidlc-state.md 가 자동 병합이 안 되는 파일이라 회차 브랜치에서 따면 U1 의 절과 U2 의 절이 파일 꼬리에서 각자 자라 병합에서 부딪친다. 코드는 안 부딪친다 — 행렬이 U1 과 U2 의 파일 교집합을 0 으로 센다.
+
+계획을 짓기 전에 이 유닛이 만지는 자리를 실제로 읽었고 갈린 문장 셋을 찾았다.
+
+① features.md 3.5 의 「runctl schema steps 가 새 키를 낸다 — 구조체에서 뽑으므로 저절로 는다」가 거짓이다. printFields(shape.go:172)는 reflect 로 Step 의 최상위 필드만 찍고 Step.Agent 는 map[string]interface{} 라(contract.go:447) 출력이 언제나 agent map[string]any 한 줄이다. cmd/runctl 은 AgentParams 도 agentKeys 도 import 하지 않는다.
+
+② in.from 의 「<단계>.<blob 이름>」이 절반만 참이다. blob 이름 공간은 Run 하나에 평평하고(api.go:107-108) claim.go:520 이 그 이름을 그대로 $IN 의 파일 이름으로 쓴다. 점은 이름의 한 글자이고 단계 참조가 아니다.
+
+③ ②가 게이트 하나를 깬다. scene-gates.md 3절 CA5 는 첫 단계가 $OUT/pack 을 내는데 둘째 단계가 in.from: [\"fetch.pack\"] 을 적는다. 앞이 내는 blob 이름은 pack 이고, 없는 입력은 값으로 취급되므로(claim.go:505-535) 단계가 죽지 않고 팩 없이 돈다 — CA5 를 그대로 돌리면 빨간 이유가 팩 코드가 아니라 이름 불일치가 된다.
+
+그리고 행렬에 없는 파일 하나가 이 유닛의 것이었다 — internal/contract/planshape.go 다. PlanShape 의 두 줄이 「agent 는 max_turns, max_tokens, ask, model, harness — nothing else」와 「그 밖의 키는 계획 전체를 거절한다」를 못으로 박고 있어서, agentKeys 에 둘을 더하면 그 문장이 계획에게 거짓말을 한다. components.md 1.6 은 Grammar 만 적었고 행렬에는 행이 없다.
+
+타입 검증의 자리가 어긋나 있는 것도 찾았다. decisions.md 2절은 검증 자리를 contract.Validate 로 적었는데 그것이 참인 것은 키 이름이고 값의 타입은 아니다 — agent.mcp 를 문자열로 적은 계약은 400 을 안 받고 노드까지 가서 json.Unmarshal 로 죽는다. 스토리 US-7 은 「제출에서 걸린다」이고 unit-of-work.md 2절의 완료 조건은 「parseAgentParams 가 문구로 낸다」로, 둘이 같은 자리를 안 가리킨다.
+
+물음 일곱을 aidlc-docs/taeels/construction/plans/contract-vocab-functional-design-plan.md 에 냈다 — ① 타입 위반을 어디서 잡나 ② agent.pack 과 in.from 의 대조를 제출에서 하나 ③ runctl schema 에 열거 면을 만드나 ④ 계획에게 이름의 출처를 가르치나 ⑤ examples/mcp.json 이 무엇을 담나 ⑥ 갈린 문장 셋을 어디에 적나 ⑦ GLOSSARY.md 를 이 단계가 만드나. 일곱 다 Other 선택지를 든다.
+
+⑦ 을 물은 이유 — CLAUDE.md 의 새 규약이 CP 와 CA 를 이름으로 지목하고 자리를 루트 GLOSSARY.md 로 박았는데 그 파일이 main 에도 없다. 같은 규약이 「푼 말을 모르면 적지 말고 묻는다」로 짐작을 금지하므로 답으로 받는다."
+**Context**: CONSTRUCTION · U2 contract-vocab · Functional Design Step 1 ~ 4 완료 · 답 대기
+
+---
+
+## CONSTRUCTION — U2 contract-vocab · Functional Design 산출 (Step 5 ~ 7)
+**Timestamp**: 2026-09-12T16:20:00Z
+**User Input**: "다음으로"
+**AI Response**: "계획 파일의 [Answer] 일곱이 다 비어 있어서 먼저 답을 받았다. 물음은 파일에 있고 (질문은 채팅에 안 쓴다) 받은 답을 그 파일의 [Answer] 뒤에 적었다 — A · A · A · A · A · A · B. 모호한 답이 0 이고 서로 어긋나는 답도 0 이라 추가 질문 없이 Step 6 으로 갔다.
+
+답 여섯이 권장이고 하나가 갈렸다 — 7=B 는 GLOSSARY.md 를 이 유닛 밖의 커밋으로 뺐다 (규약 자체가 그랬다: 76e2201). 푼 말은 여전히 사람에게서 와야 한다.
+
+답 1=A 와 2=A 가 검증 자리를 Mediator 로 올렸다. contract.Validate 가 agent.mcp 의 타입(문자열 배열)과 agent.pack 의 타입(문자열)을 보고, agent.pack 이 적은 이름이 같은 단계의 in.from 에 있는지를 대조한다. 그러면 US-7 의 「제출에서 걸린다」가 참이 되고, 계획이 지은 단계도 같은 검사를 받는다 — 근거를 코드로 확인했다: checkplan.go:82 의 빠른 훅과 store/expand.go:206 의 applyExpands 가 둘 다 같은 Validate 를 부른다. 노드 쪽 parseAgentParams 의 문구도 같은 문장으로 고쳐 둘째 겹으로 남긴다.
+
+답 2=A 가 CA5 의 값을 바꿨다. 오늘은 in.from 의 이름 불일치가 조용한 실패다 — 없는 입력은 값이라 단계가 안 죽고 팩 없이 돈다 (claim.go:505-535). Validate 가 대조하면 그 계약은 제출에서 400 이므로, scene-gates.md CA5 의 명령을 고치지 않으면 그 게이트를 시작조차 못 한다. 답 6=A 가 그것을 함께 고치게 했다.
+
+산출물 셋을 construction/contract-vocab/functional-design/ 에 냈다. 규칙은 여섯이고 (R1 모르는 키 400 은 오늘 그대로 · R2~R6 이 새로 선다) 문구는 영어로 지었다. grammar_test.go 가 재는 형태에 맞춰 한 문장에 한 거절 사유로 썼고, 문법 대조가 필요한 셋(R2 · R4 · R5)의 mustSay 와 wantErr 를 표로 적었다.
+
+예시를 오늘 코드에 실측으로 걸었다 — 임시 시험으로 examples/mcp.json 의 내용을 Contract 로 풀고 Validate 에 태웠다. requires 의 mcp.probe 는 Attrs 로 들어가고(map[string]string{\"mcp.probe\":\"1\"}) 유일한 거절은 unknown field \"mcp\" 이며 그것을 뺀 같은 계약은 통과한다. 그래서 예시는 agentKeys 가 느는 같은 커밋에서 초록이 된다 — 먼저 넣으면 example_test 가 확정적으로 빨갛다. 임시 시험 파일은 지웠다.
+
+답 밖에서 더 정한 것 다섯을 business-rules 6절에 이름으로 적었다 — in.from 의 타입 검사(답 2=A 의 대조가 그 값을 읽어야 한다) · 빈 문자열 이름 거절 · PlanShape 와 agentKeys 가 갈리지 않는 것을 시험이 잰다(Grammar 에는 그 장치가 있고 PlanShape 에는 없었다) · 팩은 하나다 · requires 와 agent.mcp 를 묶어 검증하지 않는다(워크스페이스와 팩에서 온 이름은 광고에 없어 requires 에 적을 수 없고, 묶으면 정당한 계약이 거절된다).
+
+한계 둘을 남겼다 (7절). agent 의 나머지 다섯 키는 타입 검사가 여전히 노드뿐이라 비대칭이 남는다 — 답 1=A 가 새 키 둘로 범위를 정했고 features.md 3.5 의 범위도 새 어휘다. 그리고 max_tokens 의 개명이 이 팩 밖이라 알려진 키 일곱에 옛 이름이 그대로 있다.
+
+팩 문서 둘(decisions.md 6절의 실측 행 · scene-gates.md CA5)은 이 단계의 승인 뒤에 싣는다 — U1 이 ⑳ 에서 같은 순서를 밟았다."
+**Context**: CONSTRUCTION · U2 contract-vocab · Functional Design Step 5 ~ 7 완료 · 승인 대기
