@@ -161,8 +161,8 @@ enode 쪽 끝이라 U2 가 함께 진다 — **계약이 받는 키와 그것을
 
 `Job` 은 이미 `Transcript io.Writer` 를 들고 있다 — 짝 팩이 그 필드를 쓰고 이 팩이
 `NodeMCP` 를 더한다. **같은 구조체의 다른 필드**라 병합이 기계적이다. 실제로
-겹치는 것은 `runHarness` 의 몸통과 `Argv` 둘이고, 이 팩은 exec **앞**을, 짝 팩은 exec
-**뒤**(stdout 처리)를 만진다.
+겹치는 것은 `runHarness` 의 몸통과 `Argv` 둘이다. 이 팩은 exec **앞**과 `logs/`
+조립(⑱)을 만지고, 짝 팩은 exec **뒤**의 스트림 처리와 tee 를 만진다.
 
 ---
 

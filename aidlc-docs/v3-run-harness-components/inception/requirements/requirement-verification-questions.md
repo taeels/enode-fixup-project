@@ -54,7 +54,9 @@ X) Other (please describe after [Answer]: tag below)
 회차 브랜치(`aidlc-docs/v3-run-harness-components/`), Construction 은 담당
 handle(`aidlc-docs/<handle>/`)이다. 그 갈림이 **언제 일어나는가**가 이 질문이다.
 팩의 기능 일곱은 `internal/enode` 에 몰려 있고 접점 표가 같은 파일 셋을 가리키므로
-(`claude.go` · `runner.go` · `hook.go`), 손이 여럿이면 병합 순서가 곧 일정이 된다.
+(짝 팩과 겹치는 것은 `runner.go` 와 `claude.go` 의 `Argv` 둘이다 — `decisions.md`
+6절 ⑮ 뒤의 값이다. `hook.go` 는 이 팩만 만진다), 손이 여럿이면 병합 순서가
+곧 일정이 된다.
 
 A) **Inception 을 끝까지 돌고 멈춘다** — Requirements Analysis · Workflow
 Planning · (필요하면) Application Design · Units Generation 까지 내고, 유닛
