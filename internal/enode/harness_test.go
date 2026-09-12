@@ -1,6 +1,9 @@
 package enode
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // ADR-013 결정 3 의 부분 정정을 기계적으로 지킨다
 //
@@ -86,5 +89,53 @@ func TestParseClaude_NoSessionIsFine(t *testing.T) {
 	h := ParseClaude([]byte(`{"type":"result","subtype":"success","num_turns":1}`), 0)
 	if h.Session != "" || h.Reason != ReasonOK || h.Turns != 1 {
 		t.Fatalf("%+v", h)
+	}
+}
+
+// 크래시가 성공으로 안 봉인된다 (decisions.md 6절 ⑯)
+//
+// stream-json 아래서 하네스가 중간에 죽으면 lastJSONObject 가 집는 마지막
+// 완결 객체가 assistant 사건이다. 그것을 봉투로 읽으면 Subtype 도 IsError 도
+// 없어 default 로 떨어지고 ReasonOK 가 된다 — Completed() 가 참이라 반쯤 쓴
+// $OUT 이 수확되고, 기록에 남는 서명은 reason=ok · turns=0 · cost_usd=0 이다.
+//
+// 입력은 줄 경계에서 끊긴 stdout 이어야 한다. 객체 중간에서 끊으면
+// lastJSONObject 가 } 로 안 끝나 오늘 코드도 이미 harness_error 라
+// 이 검사를 안 재는 시험이 된다.
+func TestParseClaude_ACrashIsNotSealedAsSuccess(t *testing.T) {
+	stdout := `{"type":"system","subtype":"init","mcp_servers":[]}` + "\n" +
+		`{"type":"assistant","message":{"content":[{"type":"text","text":"sk-ant-secret"}]},` +
+		`"session_id":"s1"}` + "\n"
+	h := ParseClaude([]byte(stdout), 0)
+	if h.Reason != ReasonError {
+		t.Fatalf("a crashed harness was normalised as %s", h.Reason)
+	}
+	if h.Reason.Completed() {
+		t.Fatal("a half-written $OUT would be harvested from this run")
+	}
+	// Message 는 봉인에 들어간다 — 봉투의 type 만 싣고 원문 줄은 안 싣는다.
+	if h.Message != "assistant" {
+		t.Fatalf("the message is not the envelope type: %q", h.Message)
+	}
+	if strings.Contains(h.Message, "sk-ant-secret") {
+		t.Fatalf("the raw line was sealed into the record: %q", h.Message)
+	}
+	// 봉투가 아닌 것에서도 읽을 수 있던 값은 읽는다.
+	if h.Session != "s1" {
+		t.Fatalf("the session was dropped on the error path: %q", h.Session)
+	}
+}
+
+// type 이 아예 없는 봉투는 빈 Message 로 안 나간다.
+//
+// 빈 Message 는 runner.go 가 err.Error() 로 덮는 자리라 값이 갈린다.
+func TestParseClaude_AnEnvelopeWithNoTypeSaysSo(t *testing.T) {
+	h := ParseClaude([]byte(`{"subtype":"success","num_turns":14,"total_cost_usd":0.83}`), 0)
+	if h.Reason != ReasonError || h.Message != "no result envelope type" {
+		t.Fatalf("%+v", h)
+	}
+	// 예산 신호는 그래도 남는다 — 봉투에 있던 값이다.
+	if h.Turns != 14 || h.CostUSD != 0.83 {
+		t.Fatalf("the budget signal was dropped on the error path: %+v", h)
 	}
 }

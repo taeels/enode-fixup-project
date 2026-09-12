@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -284,55 +285,65 @@ func stopReason(a HookArgs, missing []string) string {
 	return b.String()
 }
 
+// hookSettingsName 은 가짜 홈 안에서 이 파일이 갖는 이름이다.
+//
+// 이름을 고를 자리가 아니다 — 하네스가 홈 아래에서 찾는 이름이 settings.json
+// 이고, 우리 파일이 그 자리에 앉아야 --settings 와 CLAUDE_CONFIG_DIR 이 같은
+// 것을 가리킨다.
+const hookSettingsName = "settings.json"
+
 // WriteHookSettings 는 훅을 심고 하네스에 줄 플래그를 돌려준다.
 //
-// 파일은 $OUT 밖에 둔다 — $OUT 에 두면 ④수확이 산출물로 걷어 올린다.
-func WriteHookSettings(dir string, self string, a HookArgs) ([]string, error) {
-	cmd := []string{self, "hook", "stop", "--out", a.Out}
-	if a.Workspace != "" {
-		cmd = append(cmd, "--workspace", a.Workspace)
-	}
-	if a.Stamp != "" {
-		cmd = append(cmd, "--stamp", a.Stamp)
-	}
-	if len(a.Expect) > 0 {
-		cmd = append(cmd, "--expect", strings.Join(a.Expect, ","))
-	}
-	// 계획 단계에만 붙는다 (ADR-046) — 다른 단계에는 검사할 계획이 없다.
-	if a.Plan != "" {
-		cmd = append(cmd, "--plan", a.Plan)
-		if len(a.Roles) > 0 {
-			cmd = append(cmd, "--roles", strings.Join(a.Roles, ","))
+// home 은 계장이 지은 가짜 홈이다 — 파일은 그 안에 앉는다.
+// 오늘 이 자리는 계장 임시 디렉터리 바로 아래의 enode-settings.json 이었다.
+// 가짜 홈이 생기면서 그 홈 안으로 들어왔다 — 훅 설정과 홈이 갈려 있으면
+// 하네스가 읽는 설정의 자리가 둘이 된다.
+//
+// 이 함수는 디렉터리를 안 만든다. 가짜 홈을 가장 먼저 짓는 것이 계장의
+// 불변식이고, 여기서 다시 만들면 그 불변식이 두 곳에 적히게 된다.
+//
+// $OUT 밖이다 — $OUT 에 두면 ④수확이 산출물로 걷어 올린다.
+//
+// 오류는 errAux 로 감싼다. 훅은 세 겹 중 셋째이고 모델 협조가 필요한 겹이라
+// 없어도 단계는 돈다 — 진짜 안전망은 워크스페이스 diff 다 (이 파일 머리).
+// 감싸는 자리는 이 함수의 둘뿐이다 — 그 둘이 한 자리다.
+func WriteHookSettings(home string, self string, a HookArgs) ([]string, error) {
+	settings := map[string]any{}
+	// self 가 비면 hooks 키 자체를 안 쓴다 (application-design.md 4.2)
+	//
+	// 빈 값을 쓰는 것이 아니다 — cmd 의 첫 원소가 self 이고 shellJoin 이
+	// 그것을 그대로 이어 붙이므로, 빈 채로 쓰면 설정에 앞이 빈 명령이 실리고
+	// 하네스가 매 Stop 마다 그것을 셸에 넘긴다.
+	//
+	// 그래도 이 함수를 부른다 — gatewayAuthFields() 는 그때도 얹혀야 한다.
+	// 사내 게이트웨이 노드는 인증이 그 두 필드로 오기 때문이다.
+	if self != "" {
+		cmd := []string{self, "hook", "stop", "--out", a.Out}
+		if a.Workspace != "" {
+			cmd = append(cmd, "--workspace", a.Workspace)
 		}
-	}
-
-	settings := map[string]any{
-		"hooks": map[string]any{
+		if a.Stamp != "" {
+			cmd = append(cmd, "--stamp", a.Stamp)
+		}
+		if len(a.Expect) > 0 {
+			cmd = append(cmd, "--expect", strings.Join(a.Expect, ","))
+		}
+		// 계획 단계에만 붙는다 (ADR-046) — 다른 단계에는 검사할 계획이 없다.
+		if a.Plan != "" {
+			cmd = append(cmd, "--plan", a.Plan)
+			if len(a.Roles) > 0 {
+				cmd = append(cmd, "--roles", strings.Join(a.Roles, ","))
+			}
+		}
+		settings["hooks"] = map[string]any{
 			"Stop": []any{map[string]any{
 				"matcher": "",
 				"hooks": []any{map[string]any{
 					"type": "command", "command": shellJoin(cmd),
 				}},
 			}},
-		},
+		}
 	}
-	for k, v := range gatewayAuthFields() {
-		settings[k] = v
-	}
-	b, err := json.Marshal(settings)
-	if err != nil {
-		return nil, err
-	}
-	path := filepath.Join(dir, "enode-settings.json")
-	if err := os.WriteFile(path, b, 0o600); err != nil {
-		return nil, err
-	}
-	// R6 — 개인 설정을 차단한다
-	//
-	// ~/.claude 의 사람 설정이 섞이면 노드마다 결과가 달라진다.
-	// Run 은 재현 가능해야 하고, 그것이 Record 를 남기는 이유다 (ADR-005).
-	// --setting-sources '' 로 아무것도 안 읽게 하고 우리가 준 --settings 만 쓴다.
-	//
 	// 인증은 안 끊긴다는 실측이 두 가지였다 — 순수 로그인(OAuth 세션이
 	// ~/.claude/.credentials.json 에 있고 설정과 무관)에서는 HOME 이
 	// 화이트리스트에 있는 것으로 충분했다. 그런데 사내 인증 게이트웨이를
@@ -340,7 +351,24 @@ func WriteHookSettings(dir string, self string, a HookArgs) ([]string, error) {
 	// 되어 있어서 그 실측이 안 맞았다 (보드 노드 실측, 2026-09-01/02).
 	// gatewayAuthFields() 가 그 두 필드만 골라 우리 settings 에 얹는다 —
 	// 나머지(권한·훅·모델 오버라이드 등)는 여전히 사람 설정에서 안 읽는다.
-	return []string{"--settings", path, "--setting-sources", ""}, nil
+	for k, v := range gatewayAuthFields() {
+		settings[k] = v
+	}
+	b, err := json.Marshal(settings)
+	if err != nil {
+		return nil, fmt.Errorf("%w: cannot encode hook settings: %w", errAux, err)
+	}
+	path := filepath.Join(home, hookSettingsName)
+	if err := os.WriteFile(path, b, 0o600); err != nil {
+		return nil, fmt.Errorf("%w: cannot write hook settings: %w", errAux, err)
+	}
+	// 플래그는 이 파일을 가리키는 것 하나다.
+	//
+	// --setting-sources "" 는 여기서 안 낸다 — 그것은 파일을 안 가리키고
+	// 「아무것도 읽지 마라」라서 우리 파일의 성패와 무관하다. 어댑터가
+	// 언제나 붙인다 (business-logic-model.md 2.1). 두 곳에서 내면 이 쓰기가
+	// 실패했을 때 개인 설정 차단까지 함께 떨어진다.
+	return []string{"--settings", path}, nil
 }
 
 // gatewayAuthFields 는 사람의 ~/.claude/settings.json 에서 인증에 쓰이는

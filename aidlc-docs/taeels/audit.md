@@ -258,3 +258,63 @@ queue(W1)가 만든다. 그리고 위 측정은 합성 함대라 실 데몬 함�
 **Context**: CONSTRUCTION · obs 유닛 · Code Generation 완료 · CP0 초록 · CP1 부분 측정
 
 ---
+
+## CONSTRUCTION — U1 isolation · Functional Design 착수
+**Timestamp**: 2026-09-12T11:55:49Z
+**User Input**: "이제 functional design"
+**AI Response**: "v3-run-harness-components 회차의 CONSTRUCTION 을 연다. 첫 유닛은 U1 isolation 이고 선행이 없다 (unit-of-work.md 1절 · 회차 aidlc-state.md 의 Next Stage). 브랜치 unit/isolation 을 회차 브랜치에서 땄다 (CONVENTIONS 3.1). functional-design.md 의 Step 1 ~ Step 4 를 돌려 계획과 물음 다섯을 aidlc-docs/taeels/construction/plans/isolation-functional-design-plan.md 에 냈다.
+
+계획을 짓기 전에 decisions.md 6절 ⑱ 이 U1 에 남긴 숙제를 먼저 쟀다 — stream-json 의 사건 종류다. claude 2.1.266 에 -p --output-format stream-json --verbose 로 두 줄기(도구 성공 · 도구 실패)를 돌렸다. 본 것은 다섯이다 — system(init · hook_started · hook_response · thinking_tokens) · assistant · user · rate_limit_event · result. 원문은 저장소에 안 싣는다 (개인 홈의 서버 이름과 절대경로가 들어 있다).
+
+실측이 문서의 전제 하나를 뒤집었다. ⑱ 과 unit-of-work.md 1절이 「init 이 나오는 경로에서 첫 줄은 언제나 system/init 이다 — 게이트가 head -1 로 읽는다」로 못 박았는데, 실측에서 첫 줄은 system/hook_started 였고 init 은 아홉째 줄이었다. SessionStart 훅 넷이 앞에 사건 여덟을 냈다. 가짜 홈 아래서는 --setting-sources '' 가 개인 설정을 끊고 우리 settings.json 에 Stop 훅 하나뿐이라 안 날 가능성이 높지만, 그것은 하네스의 보증이 아니라 우리 설정 파일의 내용에 기댄 전제다. 질문 3 이 그 전제를 어디에 둘지 묻는다.
+
+실측이 굳힌 것도 셋이다 — init 의 mcp_servers 는 맵이 아니라 [{name,status}] 배열이라 CA1 의 「비어 있다」는 [] 다. 도구 이름은 assistant 의 message.content[] 중 tool_use 의 name 이고 성공 여부는 user 의 tool_result 의 is_error 인데 성공하면 그 키가 아예 없다. 그리고 본문이 content 블록 밖에도 있다 — assistant 의 wire_tool_inputs 와 user 의 tool_use_result 가 도구 입력과 결과를 최상위에 한 번 더 싣는다. 블록만 지우는 구현은 안 닫힌다는 뜻이고 ⑱ 이 허용목록을 고른 것이 옳았다는 증거다.
+
+물음 다섯 — ① 껍데기 한 줄의 표현(새 JSON 객체 · 텍스트 · 원본에서 지우기) ② 껍데기가 담는 범위(셋만 · 블록 종류 추가 · 토큰 수 추가) ③ 「첫 줄은 init」 전제를 어디에 두나(게이트가 순서에 안 기댄다 · 불변식 유지 · runner 가 순서를 만든다) ④ 걷었음을 표시하는 줄의 자리 ⑤ U1 이 mcp.json 직렬화를 어디까지 짓나. 다섯 다 Other 선택지를 든다."
+**Context**: CONSTRUCTION · U1 isolation · Functional Design Step 1 ~ 4 완료 · 답 대기
+
+---
+
+## CONSTRUCTION — U1 isolation · Functional Design 산출
+**Timestamp**: 2026-09-12T12:15:13Z
+**User Input**: "답했음."
+**AI Response**: "계획 파일의 [Answer] 다섯을 읽었다 — 1=A · 2=C · 3=B · 4=A · 5=A. 모호한 답이 0 이라 추가 질문 없이 Step 6 으로 갔다. 산출물 셋을 construction/isolation/functional-design/ 에 냈다.
+
+답 2=C 를 짓기 전에 usage 의 실제 모양을 다시 쟀다. usage 안에 숫자가 아닌 것이 있다 — service_tier 와 inference_geo 는 문자열이고 cache_creation 은 객체다. 그래서 usage 를 통째로 못 옮긴다. 이름으로 넷만 집는다 (input_tokens · output_tokens · cache_creation_input_tokens · cache_read_input_tokens). system/thinking_tokens 의 estimated_tokens 하나를 더 실었고 그것이 답 2 의 글자 밖이라 domain-entities 5.3 에 이름으로 적었다.
+
+답 3=B 를 받아 「첫 줄은 init」을 불변식으로 유지했다. 그 불변식이 서는 근거 셋과 시험 둘을 business-rules 6절에 적었고, 잔여 위험을 6.3 에 이름으로 남겼다 — 근거 둘째(하네스가 init 앞에 우리 설정과 무관한 사건을 안 낸다)는 우리가 못 재고 하네스의 계약도 아니다. 깨지면 게이트의 head -1 이 mcp_servers 키가 없는 줄을 읽어 「비어 있다」로 오독될 수 있다. 답 3=A 가 그 위험을 없앴을 길이고 사용자가 B 를 골랐다.
+
+답 5=A 를 받아 직렬화를 U1 이 전부 짓는다. 그러면서 셋을 정했다 — Credential 은 mcp.json 에 안 나간다 (하네스가 모르는 키이고 갈 이유가 0 이며 ADR-035 §8 이 같은 값을 이미 골랐다. 사는 자리는 U3 의 mcpUp 이다) · 빈 파일은 {} 가 아니라 {\"mcpServers\":{}} 다 (키 없는 파일을 하네스가 어떻게 읽는지 실측이 없다) · Env 의 표현과 미지 키 통과는 U3 의 것이고 U1 은 운반만 지고 이음매를 이름으로 적었다.
+
+설계가 답 밖에서 더 정한 것 둘. 플래그를 산출물마다 붙인다 — 훅 설정을 못 쓰면 --settings 는 안 붙이고 --setting-sources '' 와 --strict-mcp-config 는 붙인다. 없는 파일을 가리키는 플래그는 보조 실패를 치명으로 만든다. 그리고 표시 줄은 stdout 이 통째로 빌 때 안 쓴다 — 쓰면 그것이 첫 줄이 되어 「init 이 안 나오면 stderr 가 첫 줄」이 깨진다.
+
+한계 하나를 찾아 적었다 (business-rules 8.1). R3(훅 설정 쓰기)이 보조인데 그 파일이 gatewayAuthFields 도 든다. 디스크 실패로 못 쓰면 게이트웨이 노드가 Not logged in 으로 늦게 죽는데, 같은 회차가 R6(자격증명 복사)을 치명으로 올린 근거가 바로 「늦게 아는 실패를 앞으로 당긴다」였다. 등급은 안 바꿨다 — ⑨ 와 ⑪ 이 닫은 값이고 FD 가 뒤집을 자리가 아니다. 조건부 등급(gatewayAuthFields 가 무엇을 돌려줬는지로 가른다)은 그 함수가 실제 홈을 읽어 시험이 조건을 못 세우므로 안 골랐다. 진행자에게 넘긴다.
+
+남은 것 하나 — decisions.md 6절의 실측 행. 팩 문서라 이 단계의 승인 뒤에 싣는다."
+**Context**: CONSTRUCTION · U1 isolation · Functional Design Step 5 ~ 7 완료 · 승인 대기
+
+---
+
+---
+
+## CONSTRUCTION — U1 isolation · Code Generation (Part 1 계획 · Part 2 실행)
+**Timestamp**: 2026-09-12T15:40:00Z
+**User Input**: "isolation 코드 써"
+**AI Response**: "이 지시가 둘을 겸한다 — 앞 단계(Functional Design)의 승인과 Code Generation 착수다. FD 는 산출물 셋을 낸 채 승인을 기다리고 있었고 다음 단계로 가라는 지시가 곧 그 승인이다. 같은 문서 루트의 obs 유닛이 NFR Requirements 에서 같은 판단을 했다.
+
+Part 1 계획을 construction/plans/isolation-code-generation-plan.md 에 냈다. obs 때와 달리 병렬로 안 갈랐다 — 다섯 파일이 한 패키지 안에서 한 시그니처 변경(Fixed(dir) · Instrument(..., c))을 함께 받아서, 갈라 짜면 세 갈래가 컴파일되는 시점이 하나뿐이라 병렬이 아니라 대기가 된다.
+
+계획이 FD 에 없던 자리 셋을 정했다. WriteHookSettings 가 계장 디렉터리가 아니라 가짜 홈을 받는다(배치는 claude 의 것이고 hook.go 는 CLAUDE_CONFIG_DIR 을 모르는 편이 낫다) · --setting-sources '' 를 hook.go 에서 어댑터로 옮긴다(그것은 파일을 안 가리키므로 훅 쓰기의 성패와 무관하고, 두 곳에 두면 불변식 ② 가 깨진다) · 선별이 사건을 구조체가 아니라 map[string]json.RawMessage 로 읽는다(모르는 필드의 모양 하나가 줄 전체를 떨어뜨리지 않게).
+
+Part 2 를 돌렸다. 제품 파일은 행렬 그대로 다섯이고 새 파일은 mcp.go 하나다. 행렬 밖은 새 시험 파일 셋(mcp_test.go · instrument_test.go · logs_test.go)뿐이라 파일 행렬 1절에 행으로 더했다 — 그 문서 6절 ② 의 절차다. 행렬이 빨개진다고 예고한 여섯 중 다섯은 실제로 빨갰고(claude_test.go 하나 · hook_test.go 넷) worker_unix_test.go 는 안 빨갰다 — stubHarness 가 이미 type:\"result\" 봉투를 찍는다.
+
+CA0 이 전부 초록이다. go test ./... · vet · glyphscan(104 파일 · 장식 문자 0) · gofmt · 워킹트리 청결 · 크로스 빌드와 심볼 상한(net/http 6, 상한 50). 커버리지 미달 0 이고 전체 87.0% · internal/enode 85.6% 다. 커버리지 실행이 cmd/enodectl/probe.lock 을 바꾼 것은 되돌렸다 — obs 때와 같은 자리다.
+
+초록이 곧 시험이 문다는 뜻은 아니라서 변이 넷을 돌렸다. type 검사를 끄면 ⑯ 의 시험 둘이 빨개지고, 링 tee 를 되살리면 ⑲ 의 시험이 빨개진다. 그런데 selectLogs 를 원문 반환으로 되돌렸을 때 아무것도 안 빨개졌다 — logs_test.go 가 함수를 직접 부르고 배선을 안 쟀기 때문이다. 함수가 있어도 runHarness 가 안 부르면 원문이 그대로 Record 로 올라가 봉인된다. 배선을 재는 시험(TestRunHarness_TheUploadedLogIsTheFilteredOne)을 더했고 같은 변이가 그 뒤 빨개진다.
+
+FD 가 승인에 걸어 둔 하나를 실었다 — requirements/harness-components/decisions.md 6절에 실측 행 ⑳ 이다. 사건 종류 다섯과, 실측이 뒤집은 전제(첫 줄이 init 이 아니었다)와, 굳힌 것 셋(mcp_servers 는 배열 · usage 에 숫자 아닌 것이 있다 · 본문이 블록 밖에도 있다)을 적었다. 플래그도 실물로 쟀다 — claude 2.1.266 의 --help 가 --mcp-config <configs...> 로 가변인자임을 보여 등호 형태를 고른 근거(ADR-034 §3 ②)가 섰다.
+
+넘기는 것이 다섯이고 그중 하나가 새로 드러났다 — decisions.md 6.1 의 문자열 검사 스크립트가 「자리는 scripts/ 다. 짓는 것은 Construction 의 몫」으로 자리만 적힌 채 어느 유닛에도 배정되지 않았다. U1 의 완료 조건에도 파일 행렬에도 없어서 이 유닛이 안 지었다. 오늘은 진행자가 손으로 돈다.
+
+CA1 은 이 유닛이 안 닫는다 — 집행자는 이 유닛을 구현하지 않은 사람이다(scene-gates.md 2절 머리)."
+**Context**: CONSTRUCTION · U1 isolation · Functional Design 승인 · Code Generation 완료 · CA0 초록 · CA1 대기

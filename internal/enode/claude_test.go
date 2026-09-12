@@ -11,7 +11,9 @@ import (
 func TestAdapter_ArgvIsPure(t *testing.T) {
 	got := claudeHarness{}.Argv(AgentParams{Model: "opus", MaxTurns: 12},
 		IOPaths{Dir: "/ws", Out: "/o", In: "/i"})
-	want := "-p --output-format json --model opus --max-turns 12 " +
+	// stream-json 이다 (decisions.md 6절 ⑮) — 게이트가 재는 system/init 줄이
+	// 그래야 나온다. --verbose 가 있어야 -p 아래서 사건이 흐른다.
+	want := "-p --output-format stream-json --verbose --model opus --max-turns 12 " +
 		"--permission-mode bypassPermissions --add-dir /o --add-dir /i"
 	if strings.Join(got, " ") != want {
 		t.Fatalf("\ngot:  %s\nwant: %s", strings.Join(got, " "), want)

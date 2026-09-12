@@ -7,7 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -66,9 +68,27 @@ func (claudeHarness) Env() []string { return claudeEnv }
 //
 // 이름이 아니라 값인 것이 핵심이다 — Env 에 넣으면 노드 환경에 그 변수가
 // 없을 때 안 걸리고, 그건 「기본이 통과」라서 막은 R1 의 실수를 되풀이하는 것이다.
-func (claudeHarness) Fixed() map[string]string {
-	return map[string]string{"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1"}
+//
+// 가짜 홈도 같은 자리에서 박는다 (features.md 3.1)
+//
+// CLAUDE_CONFIG_DIR 이 계장이 지은 홈을 가리킨다. 그래야 개인 설정과 계정
+// 커넥터가 실행에 안 섞이고, 팩이 펴질 자리가 생긴다. 자동 메모리를 끄는 값은
+// 그대로 둔다 — 가짜 홈에는 메모리가 없지만 값 하나가 두 겹을 만든다.
+//
+// dir 은 계장 임시 디렉터리다. 그것을 못 만들면 단계가 이미 실패했으므로
+// (runner.go 의 ①) 여기 빈 값이 오는 경로가 없다.
+func (claudeHarness) Fixed(dir string) map[string]string {
+	return map[string]string{
+		"CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+		"CLAUDE_CONFIG_DIR":               claudeHome(dir),
+	}
 }
+
+// claudeHome 은 계장 임시 디렉터리 아래 가짜 홈의 자리다.
+//
+// 자리를 한 함수가 진다 — Fixed 가 박는 값과 Instrument 가 만드는 디렉터리가
+// 갈리면 하네스가 없는 홈을 가리키고, 그때 무엇을 하는지는 실측이 없다.
+func claudeHome(dir string) string { return filepath.Join(dir, "home") }
 
 // Usable 은 설치 확인이자 executable resolve 이자 「쓸 수 있는가」다 (ADR-059).
 //
@@ -173,17 +193,103 @@ func claudeUsable(ctx context.Context, path string) error {
 	return nil
 }
 
-// Instrument 는 enode 전용 종료 훅을 심는다 (R5③ · R6).
+// Instrument 는 이 하네스의 사적인 세계를 파일로 짓고 플래그를 돌려준다 (R5③ · R6).
 //
-// claude 는 --settings 로 받는다 — 훅 하나뿐이라 플러그인 디렉터리까지
-// 만들 필요가 없고, 파일이 적을수록 정리도 확실하다.
-func (claudeHarness) Instrument(dir, self string, a HookArgs) ([]string, error) {
-	return WriteHookSettings(dir, self, a)
+//	<dir>/home/                   가짜 홈.  가장 먼저 만든다.  CLAUDE_CONFIG_DIR 이 가리킨다
+//	<dir>/home/settings.json      훅과 게이트웨이 인증 필드
+//	<dir>/home/.credentials.json  실제 홈에 있으면 0600 으로 복사
+//	<dir>/mcp.json                허용목록.  홈 밖이다
+//	<dir>/home/skills · agents    U5 가 짓는다.  없는 것이 오늘의 참이다
+//
+// 조기 반환하지 않는다 — 보조 실패를 만나도 남은 쓰기를 끝까지 하고 마지막에
+// 낸다. 훅 쓰기 하나가 실패했다고 나가면 허용목록이 아예 안 쓰이고 치명도
+// 안 나서, 등급 표가 치명으로 잡으려던 것이 보조 경로로 되돌아온다.
+//
+// 오류에도 이미 얻은 플래그를 함께 돌려준다. 격리는 겹이 여럿이고, 보조 실패
+// 하나가 --strict-mcp-config 를 떨어뜨리면 그중 확실한 겹 하나가 사라진다.
+func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]string, error) {
+	// ① 가짜 홈을 가장 먼저 만든다. 실패는 치명이다 —
+	// CLAUDE_CONFIG_DIR 이 없는 경로를 가리키면 하네스가 진짜 홈으로
+	// 되돌아갈 수 있고, 그러면 격리가 조용히 풀린다.
+	home := claudeHome(dir)
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		return nil, fmt.Errorf("cannot create the harness home: %w", err)
+	}
+	// --setting-sources "" 는 파일을 안 가리킨다 — 「아무것도 읽지 마라」라서
+	// 우리 파일의 성패와 무관하다. 그래서 언제나 붙는다: 개인 · 프로젝트 설정과
+	// 워크스페이스 .mcp.json 을 끊는 겹이 이것이고, 가짜 홈이 끊는 것과 다르다.
+	flags := []string{"--setting-sources", ""}
+
+	// ② 훅 설정. 유일한 보조 등급이다 — 실패해도 남은 쓰기를 마저 한다.
+	// 없는 파일을 가리키는 --settings 를 붙이면 하네스가 아예 안 뜨므로
+	// 이 플래그는 성공했을 때만 붙는다.
+	hookFlags, aux := WriteHookSettings(home, self, a)
+	flags = append(flags, hookFlags...)
+
+	// ③ 팩을 홈 아래 편다 — U5 다. c.Pack 이 nil 이면 아무것도 안 한다.
+
+	// ④ 허용목록. 실패는 치명이다 — 안 쓰이면 요청한 서버가 조용히 없고,
+	// 그 단계는 exit 0 으로 성공이 봉인된다.
+	mcpPath := filepath.Join(dir, mcpAllowlistName)
+	if err := writeMCPAllowlist(mcpPath, c.Servers); err != nil {
+		return flags, fmt.Errorf("cannot write mcp allowlist: %w", err)
+	}
+	// 등호 형태다 — --mcp-config 는 가변인자라 띄어 쓰면 뒤따르는 인자를 삼킨다.
+	flags = append(flags, "--strict-mcp-config", "--mcp-config="+mcpPath)
+
+	// ⑤ 자격증명. 홈을 옮기면 OAuth 로그인 노드가 Not logged in 이 되므로
+	// 그 파일을 가짜 홈으로 복사한다. 계장 디렉터리와 함께 단계 끝에 지워진다.
+	if err := copyCredentials(home); err != nil {
+		return flags, err
+	}
+	return flags, aux
+}
+
+// credentialsName 은 OAuth 세션이 사는 파일이다 (ADR-034 §3 ①).
+const credentialsName = ".credentials.json"
+
+// copyCredentials 는 노드의 OAuth 자격증명을 가짜 홈으로 복사한다.
+//
+// 세 갈래다 — 원본이 없으면 정상이고(환경변수 노드 · 게이트웨이 노드는 이
+// 파일에 인증을 안 둔다), 있는데 못 읽거나 못 쓰면 치명이다. 가르는 선은
+// 「원본 파일에 닿았는가」다.
+//
+// 치명인 이유는 실패를 앞으로 당기는 것이다 — 복사가 조용히 실패하면
+// 하네스가 떠서 Not logged in 으로 늦게 죽고, 그때는 임대와 예산을 이미 썼다.
+//
+// 홈을 못 읽는 노드(HOME 이 없는 환경)는 「없는 것」과 같이 본다. 그런 노드에
+// OAuth 자격증명이 있을 수 없고, gatewayAuthFields() 가 이미 같은 판단을 한다.
+func copyCredentials(home string) error {
+	real, err := os.UserHomeDir()
+	if err != nil {
+		return nil
+	}
+	b, err := os.ReadFile(filepath.Join(real, ".claude", credentialsName))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("cannot copy credentials: %w", err)
+	}
+	// 0600 이다 — 복사본이 원본보다 느슨하면 이 설계가 표면을 넓힌 것이 된다.
+	if err := os.WriteFile(filepath.Join(home, credentialsName), b, 0o600); err != nil {
+		return fmt.Errorf("cannot copy credentials: %w", err)
+	}
+	return nil
 }
 
 // Argv 는 순수 함수다 — 프로세스를 안 띄운다. 그래서 시험이 싸다.
 func (claudeHarness) Argv(p AgentParams, io IOPaths) []string {
-	args := []string{"-p", "--output-format", "json"}
+	// stream-json 으로 받는다 (decisions.md 6절 ⑮)
+	//
+	// 게이트 CA1 · CA4 · CA5 가 전부 system/init 줄의 mcp_servers 를 재는데,
+	// --output-format json 은 그 줄을 아예 안 낸다 — 끝의 봉투 하나만 낸다.
+	// --verbose 가 있어야 -p 아래서 사건이 흐른다.
+	//
+	// 최종 result 사건은 그대로 집힌다 — ParseClaude 가 lastJSONObject 로
+	// 마지막 JSON 객체를 집는다. 크래시 경로는 그 함수의 type 검사가 막는다 (⑯).
+	// logs/ 에 실을 것은 runner.go 가 따로 고른다 (⑱).
+	args := []string{"-p", "--output-format", "stream-json", "--verbose"}
 	if p.Model != "" {
 		args = append(args, "--model", p.Model)
 	}

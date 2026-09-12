@@ -3,6 +3,7 @@ package enode
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 )
@@ -109,6 +110,30 @@ func ParseClaude(stdout []byte, exitCode int) HarnessResult {
 		return HarnessResult{Reason: ReasonError, Message: "cannot parse result envelope: " + err.Error()}
 	}
 	h := HarnessResult{Turns: e.NumTurns, CostUSD: e.TotalCost, Session: e.SessionID}
+	// 봉투인지를 switch 앞에서 본다 (decisions.md 6절 ⑯)
+	//
+	// stream-json 아래서 하네스가 중간에 죽으면 마지막 완결 객체가
+	// {"type":"assistant",...} 이고, 아래 switch 는 Subtype 과 IsError 만 보므로
+	// default 로 떨어져 ReasonOK 가 된다 — 크래시가 성공으로 봉인된다.
+	// Completed() 가 참이라 반쯤 쓴 $OUT 이 수확된다.
+	//
+	// switch 뒤에 두면 안 된다 — 둘째 case 가 subtype 에 token 이 든 것이면
+	// 무엇이든 ReasonMaxTokens 로 떨어뜨린다.
+	//
+	// 예산 신호는 그 전에 채운다 — 이 분기로 떨어질 때도 턴 수와 비용은
+	// 봉투에 있던 값이고, 안 채우면 harness_test.go 의 예산 시험이 빨갛다.
+	if e.Type != "result" {
+		// Message 에 원문 줄을 안 싣는다 — 이 분기의 입력이 크래시 때의
+		// assistant 사건이고, 그것은 logs/ 선별이 본문을 지우기로 한 바로 그
+		// 객체다. Message 는 claim.go 의 res.Error 와 steps/NN-*.json 으로
+		// 봉인에 들어간다. 원문을 넣으면 그 선별이 닫은 길이 뒷문으로 열린다.
+		h.Reason, h.Message = ReasonError, e.Type
+		if e.Type == "" {
+			// 빈 Message 는 runner.go 가 err.Error() 로 덮는 자리라 값이 갈린다.
+			h.Message = "no result envelope type"
+		}
+		return h
+	}
 	switch {
 	case strings.Contains(e.Subtype, "max_turns"):
 		h.Reason = ReasonMaxTurns
@@ -182,7 +207,11 @@ type Harness interface {
 	// Fixed 는 노드 환경에 무엇이 있든 우리가 정하는 값이다.
 	// 통과 목록에 넣으면 노드에 그 변수가 없을 때 조용히 안 걸린다.
 	// 재현성을 위해 꺼야 하는 것들이 여기 온다.
-	Fixed() map[string]string
+	//
+	// dir 은 계장 임시 디렉터리다. 이 하네스의 사적인 세계가 그 아래 산다.
+	// 인자로 받는 이유 — 하네스마다 그 세계의 이름이 다르고(claude 는
+	// CLAUDE_CONFIG_DIR), 그 이름을 runner 가 알면 안 된다.
+	Fixed(dir string) map[string]string
 	// Usable 은 이 하네스로 지금 일을 시킬 수 있는지 본다 (ADR-059).
 	//
 	// 광고 경로가 부른다. 그래서 값싸야 하고, 광고가 안 쓰는 것을
@@ -201,11 +230,36 @@ type Harness interface {
 	//
 	// dir 은 하네스에 안 보이는 곳 이어야 한다 — $OUT 에 두면 ④수확이 걷는다.
 	// self 는 enode 자기 실행경로다 — 훅이 곧 enode 자신이기 때문이다.
-	Instrument(dir, self string, a HookArgs) ([]string, error)
+	//
+	// c 는 이미 해소된 구성요소다 — 이 메서드는 무엇을 열지 결정하지 않는다.
+	// 결정은 resolveComponents 가 exec 전에 끝냈다.
+	//
+	// 오류에 등급이 있고 기본이 치명이다. errAux 로 감싼 것만 부르는 쪽이
+	// 삼키고, 감싸지 않은 오류는 전부 단계를 죽인다. 빠뜨림이 닫히는 쪽으로
+	// 틀리게 하려는 것이다 — 기본이 보조이면 감쌀 자리를 하나 빠뜨리는 실수가
+	// 「허용목록이 안 쓰였는데 exit 0 으로 성공이 봉인된다」로 나타난다.
+	//
+	// 오류를 내도 이미 얻은 플래그는 함께 돌려준다 — 보조 실패 하나가
+	// --strict-mcp-config 를 떨어뜨리면 격리의 겹 하나가 사라진다.
+	//
+	// 그리고 보조 오류로 조기 반환하지 않는다. 훅 쓰기가 실패해도 남은
+	// 쓰기(팩 · 허용목록)를 끝까지 하고 마지막에 감싼다. 조기 반환하면
+	// 허용목록이 아예 안 쓰이고 치명도 안 난다.
+	Instrument(dir, self string, a HookArgs, c Components) ([]string, error)
 
 	Argv(p AgentParams, io IOPaths) []string                          // 순수 함수
 	Decode(r io.Reader, exitCode int, emit func(Event)) HarnessResult // 순수 함수
 }
+
+// errAux 는 보조 실패다. 이것으로 감싼 오류만 부르는 쪽이 삼킨다.
+//
+// 감싸는 자리는 하나다 — 훅 설정 쓰기(hook.go 의 Marshal 과 WriteFile).
+// 기준 시각은 여기 안 온다: writeStamp 는 Instrument 앞에서 불리고 그 오류가
+// 이미 버려지므로 등급을 매길 자리가 구조적으로 아니다.
+//
+// 훅은 세 겹 중 셋째이고 모델 협조가 필요한 겹이다 — 진짜 안전망은
+// 워크스페이스 diff 다 (hook.go 머리). 그래서 이것만 보조다.
+var errAux = errors.New("auxiliary instrumentation failure")
 
 // EventKind 는 스트림 사건의 종류다.
 //
