@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Units Generation 완료. **Inception 이 닫혔다**
+- **Current Stage**: INCEPTION — Units Generation 완료 · **검증 루프 진행 중** (3차까지)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -15,7 +15,7 @@
 - **Project Structure**: 멀티 바이너리 모노레포 — `cmd/{mediator,enode,enodectl,runctl,iapadapter}` 다섯 + `internal/*` 공용 패키지. 설계 정본은 서브모듈 `enode-design/`
 - **Workspace Root**: /home/sunny/enode-fixup-project
 - **Go 소스**: 190 파일 (`cmd/` · `internal/`)
-- **Mediator 라우트**: 17 (`grep -c 'mux.HandleFunc' internal/api/api.go`)
+- **Mediator 라우트**: 26 (`internal/api/*.go` 의 `mux.HandleFunc` + `mux.Handle(`). 옛 셈법인 `api.go` 한 파일의 `HandleFunc` 만 세면 17 이 나오고 아홉을 놓친다
 - **enode-design 핀**: `29c89cd` · `origin/main` 과의 거리 0
 
 ## Reverse Engineering
@@ -63,20 +63,30 @@ Analysis Step 5.1 에서 재확인만 한다.
 | Q2 | 회차를 어디까지 · 몇 손 | B | Inception 을 돌고 Construction 까지 한 손(taeels)으로 간다. 유닛 직렬 |
 | Q3 | 짝 팩과의 순서 | A | 이 팩 먼저. 게이트의 `init` 줄은 사람이 직접 띄워 읽는다 |
 
-## 이 회차가 `decisions.md` 에 더한 행 — 다섯
-셋은 Requirements 승인 뒤에, 둘은 Application Design 이 실었다.
+## 이 회차가 `decisions.md` 에 더한 행 — 열넷
+셋은 Requirements 승인 뒤에, 둘은 Application Design 이, **아홉은 2026-09-12 의
+설계 검증과 설계 질문**이 실었다.
 
 ```text
    ①  알려진 키 검증은 이미 있다        3.5 의 범위가 목록 추가로 준다
    ②  팩 tar 풀기의 경로 검증           절대경로 · .. · 심볼릭 링크 거부 · 크기 상한
    ③  팩의 기대 다이제스트는 이월       기록으로 족한 근거 셋
    ④  계장 디렉터리를 못 만들면 단계 실패  Application Design Q2.  오늘 동작이 바뀐다
-   ⑤  Detector 인터페이스를 안 세운다      Application Design Q3.  2절 권장값에서 벗어난다
+   ⑤  탐지기 순회로 바꾼다              Q3 = B (뒤집힘).  Fingerprinter · 종류 셋
+   ⑥  팩의 서버도 agent.mcp 필터를 탄다   문서 셋과 셋이 정반대였다
+   ⑦  팩이 노드 선언 이름을 덮으면 거절    소유권이 뒤집히는 경로를 막는다
+   ⑧  훅 설정을 가짜 홈 안으로          features.md 3.1 의 요구대로 되돌렸다
+   ⑨  실패 등급의 기본이 치명이다        빠뜨림이 닫히는 쪽으로 틀린다
+   ⑩  계장 보존 스위치를 안 둔다         한 번 넣었다 뺐다.  SECURITY-12 를 뚫는다
+   ⑪  보조 등급은 하나다                기준 시각은 Instrument 앞이라 안 닿는다
+   ⑫  agent.pack 이 미래 결합점이다      submit --pack 이 와도 계약 어휘는 안 는다
+   ⑬  열거 면은 runctl capabilities 다   계약 작성자가 보는 면.  nodes 는 운영자 면
+   ⑭  mcpUp 이 못 잡는 것 셋            뜨나는 존재이지 동작이 아니다
 ```
 
-다섯 다 `requirements/harness-components/decisions.md` **6절**에 실렸다
-(2026-09-11 · 2026-09-12). 기존 1 ~ 5절의 번호는 다른 문서가 참조하므로
-안 건드렸다.
+열넷 다 `requirements/harness-components/decisions.md` **6절**에 실렸다.
+기존 1 ~ 5절의 번호는 다른 문서가 참조하므로 안 건드리고, **2절의 낡은 행에는
+「6절이 뒤집었다」 꼬리표를 달았다** — 권장값 표가 구현자에게 먼저 읽히기 때문이다.
 
 ## Execution Plan Summary
 정본은 `inception/plans/execution-plan.md` (2026-09-11T13:59:38Z).
@@ -84,7 +94,7 @@ Analysis Step 5.1 에서 재확인만 한다.
 - **전체 단계**: 13 (Inception 7 · Construction 5 · Operations 1)
 - **실행**: Application Design · Units Generation · Functional Design ·
   Code Generation · Build and Test
-- **스킵 넷**: User Stories · NFR Requirements · NFR Design · Infrastructure Design
+- **스킵 셋**: NFR Requirements · NFR Design · Infrastructure Design. **User Stories 는 2026-09-12 에 최소 형태로 되살렸다**
 - **위험도**: High · 되돌리기 Moderate · 검사 복잡도 Complex
 
 스킵의 근거를 한 줄로.
@@ -113,13 +123,13 @@ Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 �
 
 ```text
    뒤집힌 결정     Q3 = A -> B.  근거 둘이 다 오독이었다
-   설계 결함 여섯   decisions.md 6절 ⑥ ~ ⑩ 과 application-design.md 4.3 ~ 4.6
+   설계 결함        decisions.md 6절 ⑥ ~ ⑭ 와 application-design.md 4.3 ~ 4.6
    규칙 위반 셋     User Stories 스킵 · NFR Requirements 스킵 ·
                   Workspace Detection 이 규칙 분기 대신 질문으로 돌린 것
    집행자 0 명     scene-gates.md 2절 머리를 회차가 안 옮겨 적었다.
                   unit-of-work-dependency.md 8절이 그 배정을 진다
-   측정 오류 셋     exec 이 한 자리가 아니다 · 라우트는 17 이 아니라 24 ·
-                  매처가 분류에서 빠졌다
+   측정 오류 셋     하네스 exec 만 한 자리다 (internal/enode 에 여덟) ·
+                  라우트는 17 이 아니라 26 · 매처가 분류에서 빠졌다
 ```
 
 검증 도구를 `.claude/agents/aidlc-verify.md` 로 굳혔다 — 다음 회차가 같은
@@ -145,7 +155,7 @@ Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 �
         출력 형식은 짝 팩의 것으로 둔다 (Q5 = A).  게이트는 사람 경로
 ```
 
-설계가 답 밖에서 더 정한 둘 — `Instrument` 의 오류를 등급으로 가르고(`errComponents`
+설계가 답 밖에서 더 정한 둘 — `Instrument` 의 오류를 등급으로 가르고(뒤에 ⑨ · ⑪ 이 방향을 뒤집었다. 그때는 `errComponents`
 만 치명), `Instrument` 를 언제나 부른다. 근거는 `application-design.md` 4절.
 
 ## 만지는 경로가 셋으로 줄었다

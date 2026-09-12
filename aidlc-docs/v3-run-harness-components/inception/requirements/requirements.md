@@ -139,19 +139,27 @@ Design 이 고른다 (8절 D1).
 `--strict-mcp-config --mcp-config=<경로>` 를 넘긴다. 등호 형태다 — `--mcp-config`
 가 가변인자라 뒤따르는 인자를 삼킨다.
 
-내용은 셋의 합집합이고 이름이 겹치면 **팩 · 노드 · 워크스페이스** 순으로 앞이
-이기고 로그에 남긴다.
+내용은 셋의 합집합이고 **셋 다 `agent.mcp` 필터를 탄다**. 이름이 겹치면
+**팩 · 노드 · 워크스페이스** 순으로 앞이 이기고 로그에 남긴다.
 
 ```text
-   팩의 서버                팩 tar 의 mcp.json 에 적힌 것 전부
+   팩의 서버 중 요청된 것    팩 tar 의 mcp.json 중 agent.mcp 가 이름을 적은 것
    노드 선언 중 요청된 것    enode.yaml mcp: 중 agent.mcp 가 이름을 적은 것
    워크스페이스 중 요청된 것  .mcp.json 중 agent.mcp 가 이름을 적은 것
 ```
 
+**팩만 「적힌 것 전부」였던 것을 고쳤다** (`decisions.md` 6절 ⑥ · 2026-09-12).
+그대로 두면 계약 작성자가 `agent.mcp` 에 이름을 안 적고도 임의의 stdio 서버를
+물릴 수 있고 `--strict-mcp-config` 도 가짜 홈도 그것을 안 막는다 — 허용목록
+자체가 싣기 때문이다. 아래 4.2 의 SECURITY-06 과 4.3 의 「요청 안 한 서버 0」과
+정면으로 어긋났다. **팩은 정의의 출처이지 허가의 출처가 아니다.**
+
 ```text
-   확정   요청이 없고 팩도 없으면 빈 목록이다.  0 은 의도다
+   확정   요청이 없으면 빈 목록이다.  팩이 서버를 실었어도 그렇다.  0 은 의도다
    확정   요청한 이름이 셋 어디에도 없으면 하네스를 안 띄우고 단계를 실패로 보고한다.
           사유는 mcp server <이름> is not available on this node
+   확정   노드가 선언한 이름을 팩이 덮으면 거절한다 (decisions.md 6절 ⑦).
+          사유는 pack redefines node-declared mcp server <이름>
    확정   파일에는 이름 · 종류 · 실행 경로나 주소 · 환경변수 이름만 적는다.  값은 없다
 ```
 
@@ -167,8 +175,9 @@ Design 이 고른다 (8절 D1).
           환경변수가 노드 환경에 있는가.  실제 연결은 안 한다
    확정   비싼 탐지 자리(Detector · 기본 5분)에 앉는다
    확정   안 뜨면 광고에서 빠지고 빠진 이유는 노드 로그에 남긴다
-   확정   detect.go 의 하네스 순회에서 break 를 걷고 harness.<이름>: "1" 로 싣는다.
-          옛 harness 키는 이 회차 동안 같이 싣는다
+   확정   detect.go 를 Fingerprinter 순회로 바꾼다 (decisions.md 6절 ⑤).
+          하네스 순회의 break 가 그 부수 효과로 걷히고 harness.<이름>: "1" 을 싣는다.
+          옛 harness 키는 한동안 같이 싣는다 — 걷는 시점은 이 회차가 안 정한다
    확정   노드 설정에 안 적힌 MCP 는 광고되지 않는다
    확정   광고에 자격증명의 이름조차 안 싣는다.  mcp.<이름> 만 실린다
 ```
@@ -328,6 +337,13 @@ SECURITY-13 이 요구하는 것은 **실행 전 검증**이다. 오늘 값이 �
                             -> 가짜 홈과 strict 가 두 겹으로 막는다.  언제나 0
    자격증명이 광고에 샌다     mcp: 의 credential 이름이 함대 전체에 보인다
                             -> 광고에 mcp.<이름> 만 싣는다.  이름도 값도 안 싣는다
+   소유자의 이름을 팩이 덮는다  계약이 requires 로 소유자 선언을 보고 노드를 고른 뒤
+                            자기 팩의 정의로 그 이름을 덮어 실행한다.
+                            매칭은 소유자의 값으로 하고 실행은 계약의 값으로 한다
+                            -> 덮으면 거절한다 (decisions.md 6절 ⑦).
+                            팩이 새 이름을 싣는 것은 그대로 허용한다
+   팩이 요청 없이 서버를 싣는다  팩 mcp.json 의 서버가 agent.mcp 를 안 거치고 실린다
+                            -> 팩도 필터를 탄다 (6절 ⑥).  요청 안 한 이름은 0 이다
 ```
 
 ## 4.4 성능
@@ -411,7 +427,8 @@ FR-1 ~ FR-7. `features.md` 4절의 필수 일곱과 같고, FR-5 의 크기가 2
    internal/enode       가짜 홈 · 허용목록 · 팩 펴기 · 탐지기 · 노드 선언.  실행 층이다
    internal/contract    agent 의 알려진 키 · 예시.  Mediator 와 enode 가 함께 본다
    cmd/iapadapter       설정 키 하나 · 템플릿의 팩 단계
-   cmd/runctl           example 하나.  schema 는 구조체에서 저절로 는다
+   cmd/runctl           소스 diff 0.  example 이 임베드 FS 를 돌고 예시 파일은
+                        internal/contract 에 산다.  schema 는 Step.Agent 가 map 이라 안 는다
 ```
 
 임포트 금지 넷은 그대로다. 이 팩이 새 패키지를 만들지 않으므로 표에 줄이 안 는다.
@@ -424,7 +441,8 @@ R1 화이트리스트를 N 번 지키게 되는 것이 구멍이다.
 # 7. `decisions.md` 에 더할 행
 
 팩의 게이트 규칙은 「권장을 벗어나면 근거를 적는다」다. 이 회차가 벗어나거나
-교정한 자리는 셋이고, 승인 뒤 진행자가 `requirements/harness-components/decisions.md`
+교정한 자리는 **열넷**이고(이 단계가 셋 · Application Design 이 둘 · 2026-09-12 의
+설계 검증과 설계 질문이 아홉), 승인 뒤 진행자가 `requirements/harness-components/decisions.md`
 에 2026-09-11 날짜 절로 싣는다.
 
 ```text

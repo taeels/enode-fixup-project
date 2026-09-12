@@ -356,7 +356,7 @@ flowchart TD
 1. 차단 게이트 다섯이 초록이다 — `crypto/tls` T 심볼 10 이하 · `net/http` T
    심볼 50 이하 · 패키지별 커버리지 80% 이상 · 허용목록 밖의 스킵 0 ·
    U+2605 을 담은 파일 0
-2. `grep -c 'mux.HandleFunc' internal/api/api.go` 가 17 그대로다.
+2. Mediator 라우트 수가 그대로다 (`scene-gates.md` CA0 의 세는 법 · 오늘 26) 그대로다.
    `internal/store` · `internal/panel` · `internal/api/ui` 의 diff 가 0 이다
 3. 임포트 금지 넷의 경계 검사 테스트가 그대로 돈다
 4. CA1 · CA4 · CA5 가 사람의 눈으로 한 번은 초록이다. 보류로 안 남는다

@@ -56,7 +56,7 @@
 
 | 경로 | 무엇이 | 종류 |
 |---|---|---|
-| `internal/enode/mcp.go` | 새 파일 — `MCPServer` · `Components` · `Pack` · `resolveComponents` · `readPack` · `mcpUp` · `mcpAttrs` | 새로 |
+| `internal/enode/mcp.go` | 새 파일 — `MCPServer` · `Components` · `Pack` · `resolveComponents` · `readPack` · `mcpUp` · `mcpFP` | 새로 |
 | `internal/enode/harness.go` | `Fixed` · `Instrument` 시그니처 · `HarnessResult` 필드 둘 · `errAux` | 확장 |
 | `internal/enode/claude.go` | `Fixed(dir)` · `Instrument` 가 가짜 홈 · 팩 · 허용목록을 쓴다 | 확장 |
 | `internal/enode/runner.go` | `Job.NodeMCP` · 순서와 실패 등급 | 확장 |
@@ -157,7 +157,19 @@ Q1 = A(`Fixed(dir)`)가 성립하려면 겉면 밖에 불변식 둘이 필요하
       오늘 runner.go:77-80 은 if err == nil 일 때만 flags 를 붙인다.
       그대로 두면 훅 쓰기 실패 하나가 --strict-mcp-config 와
       --setting-sources "" 를 함께 떨어뜨린다.  4.6 이 그 값을 잰다
+
+   ③  보조 오류로 조기 반환하지 않는다
+      훅 쓰기가 실패해도 남은 쓰기(팩 · 허용목록)를 끝까지 하고
+      마지막에 errAux 로 감싸 돌려준다.  조기 반환하면 허용목록이
+      아예 안 쓰이고 치명도 안 난다 — 3절 표가 치명으로 잡으려던
+      「안 쓰이면 요청한 서버가 조용히 없다」가 보조 경로로 되돌아온다
 ```
+
+**③ 이 ⑧ 과 함께 열린 자리다.** 훅 설정을 가짜 홈 안으로 옮기면서 보조 쓰기가
+순서상 앞으로 당겨졌다 (`services.md` 1.2 — `home/settings.json` 이 `mcp.json`
+보다 앞이다). 그래서 ② 의 「이미 얻은 플래그」라는 전제가 혼자서는 안 선다 —
+훅이 먼저 실패하면 얻은 플래그가 아직 없다. **쓰기를 끝까지 하는 것이 그 전제를
+세운다.**
 
 ### 4.4 팩의 서버도 `agent.mcp` 필터를 탄다
 
@@ -228,7 +240,7 @@ SECURITY-06 · 4.3 · 6.3 SECURITY-08 은 「**요청한 이름만** · 요청 �
 |---|---|---|
 | FR-1 가짜 홈 | `Fixed(dir)` + `Instrument` 의 `<dir>/home` · `.credentials.json` 복사 | CA1 |
 | FR-2 허용목록 | `resolveComponents` (결정 · 4.4 의 필터 포함) + `Instrument` 의 `<dir>/mcp.json` (쓰기) | CA1 · CA4 |
-| FR-3 선언과 광고 | `Local.MCP` · `mcpUp` · `mcpAttrs` · `costlyAttrs` | CA2 · CA3 |
+| FR-3 선언과 광고 | `Local.MCP` · `mcpUp` · `mcpFP` · `Fingerprinter` 순회 | CA2 · CA3 |
 | FR-4 워크스페이스 | `resolveComponents` 안의 `<cwd>/.mcp.json` 읽기 | CA4 · CA5 |
 | FR-5 계약 문법 | `agentKeys` · `Grammar` · `AgentParams` · `examples/mcp.json` | CA3 · CA4 |
 | FR-6 팩 | `readPack` (검증) + `Instrument` (펴기) + `executor.pack` (출처) | CA5 |
@@ -255,7 +267,7 @@ SECURITY-06 · 4.3 · 6.3 SECURITY-08 은 「**요청한 이름만** · 요청 �
    resolveComponents   파일도 프로세스도 안 쓴다.  Job 하나를 넣고 오류를 잰다
    readPack            io.Reader 하나.  악성 tar 를 메모리에서 지어 넣는다
    mcpUp               LookPath · LookupEnv.  PATH 와 환경변수를 시험이 세운다
-   mcpAttrs            Local 하나를 넣고 속성 맵을 잰다
+   mcpFP.Probe         Local 하나를 넣고 속성 맵을 잰다
    Fixed(dir)          순수 함수.  문자열 비교다
    Instrument          t.TempDir() 에 쓰고 난 파일을 읽는다
 ```

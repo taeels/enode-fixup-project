@@ -61,10 +61,12 @@
 - `components.md` 3절의 실패 등급 표 중 계장 디렉터리 · 가짜 홈 · 허용목록 쓰기 ·
   자격증명 복사 네 줄이 코드로 있다. **치명이 전부 exec 앞이다**
 - **기본이 치명이다** (`application-design.md` 4.1). `errAux` 로 감싼 자리가
-  훅과 기준 시각 둘뿐임을 시험이 잰다
-- **불변식 둘이 코드로 있다** (4.3) — `<dir>/home` 을 가장 먼저 만든다 ·
-  보조 실패에도 이미 얻은 플래그를 돌려준다. 뒤엣것을 시험이 직접 잰다:
-  훅 쓰기를 실패시켜도 `--strict-mcp-config` 가 argv 에 있다
+  **훅 설정 쓰기 하나뿐**임을 시험이 잰다 (`decisions.md` 6절 ⑪ — 기준 시각은
+  `Instrument` 앞에서 불려 구조적으로 이 등급에 안 닿는다)
+- **불변식 셋이 코드로 있다** (4.3) — `<dir>/home` 을 가장 먼저 만든다 ·
+  보조 실패에도 이미 얻은 플래그를 돌려준다 · **보조 오류로 조기 반환하지 않는다**.
+  시험이 직접 잰다: 훅 쓰기를 실패시켜도 `<dir>/mcp.json` 이 쓰이고
+  `--strict-mcp-config` 가 argv 에 있다
 - **계장 보존 스위치를 안 만든다.** 한 번 넣었다가 뺐다 — `features.md` 3.1 의
   「복사한 자격증명은 계장 디렉터리와 함께 단계 끝에 지워진다」(SECURITY-12)를
   뚫기 때문이다. 그 대가로 **눈 검증이 복제본을 잰다**는 한계가 남고, U1 의
@@ -139,7 +141,7 @@
    internal/enode/config.go   Local.MCP map[string]MCPServer · SampleLocal 주석 한 줄.
                               mcp: 절의 값 검증 — 모양이 틀리면 노드가 안 뜬다
    internal/enode/mcp.go      mcpUp (stdio 는 PATH · remote 는 환경변수 이름) ·
-                              mcpFP (Fingerprinter 의 한 종류)
+                              mcpFP (Fingerprinter 의 한 종류.  옛 이름 mcpAttrs)
    internal/enode/detect.go   Fingerprinter 인터페이스와 순회.  harnessFP · repoFP · mcpFP.
                               Probe 가 logger 를 받는다 — 서버별 누락 사유(FR-3)와
                               오늘의 log.Warn(ADR-059)이 갈 자리다.
@@ -268,7 +270,7 @@
 - `readPack` 이 `io.Reader` 하나로 덮인다 — 악성 tar 를 메모리에서 지어 넣는다
 - **CA6 이 초록이다** — 사내 함대에서 `scene-gates.md` 1절 ① ~ ⑦ 을 끝까지.
   `runctl record` 로 푼 `steps/NN-*.json` 에 `harness.mcp` 와 `harness.pack` 이 있다
-- 새 전송 0 · 새 라우트 0. `grep -c 'mux.HandleFunc' internal/api/api.go` 가 17 그대로다
+- 새 전송 0 · 새 라우트 0. Mediator 라우트 수가 그대로다 (세는 법은 6절 · 오늘 26)
 - CA0 가 초록이다
 
 **어디서 왔나** — `features.md` 3.6 · 3.7 · `ADR-034` §2.2 · `ADR-005` 성질 4 ·

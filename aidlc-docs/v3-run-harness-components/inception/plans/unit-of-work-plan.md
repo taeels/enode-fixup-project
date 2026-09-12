@@ -165,11 +165,11 @@ AI-DLC Units Generation 의 Part 1 이다. **유닛 분해는 여기서 낸다**
 행렬이 이것을 표로 낸다. 여기서는 **접점이 몇 자리인지**만 적는다.
 
 ```text
-   internal/enode/mcp.go      U1 (타입 · 빈 해소) · U3 (mcpUp · mcpAttrs) ·
+   internal/enode/mcp.go      U1 (타입 · 빈 해소) · U3 (mcpUp · mcpFP) ·
                               U4 (출처 셋 · 거절) · U5 (readPack · Pack)
    internal/enode/claude.go   U1 (가짜 홈 · 빈 허용목록 · 플래그) · U5 (팩 펴기)
    internal/enode/runner.go   U1 (순서 · 실패 등급) · U4 (해소 호출) · U5 (기록 채움)
-   internal/enode/harness.go  U1 (시그니처 · errComponents) · U5 (HarnessResult 필드 둘)
+   internal/enode/harness.go  U1 (시그니처 · errAux) · U5 (HarnessResult 필드 둘)
    internal/enode/agent.go    U2 (AgentParams 필드 둘)
    internal/enode/claim.go    U4 (Job.NodeMCP 를 싣는 줄)
 ```
@@ -410,8 +410,9 @@ B 는 U1 의 완료 조건에 CA1 과 무관한 줄을 더한다. C 는 CA3 을 
 ```
 
 ```text
-   Story Grouping           Q1 · Q3 이 물었다.  User Stories 를 건너뛰었으므로
-                            묶는 단위는 기능 3.1 ~ 3.7 이다
+   Story Grouping           Q1 · Q3 이 물었다.  User Stories 를 최소 형태로 되살렸다
+                            (2026-09-12).  묶는 단위는 기능 3.1 ~ 3.7 이고
+                            스토리 열이 그 위에 사상된다
    Dependencies             Q2 가 물었다 (빌드 시점 의존의 뿌리)
    Team Alignment           Q4 가 물었다 (한 손 · 브랜치와 병합 대상)
    Technical Considerations Q5 가 물었다 (차단 게이트를 언제 집행하나)

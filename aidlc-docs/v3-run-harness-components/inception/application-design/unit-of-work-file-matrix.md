@@ -51,7 +51,7 @@
 ```text
    U1   MCPServer · Components 형식.  resolveComponents 의 뼈대
         (요청도 팩도 없으면 빈 Components 를 낸다)
-   U3   mcpUp · mcpAttrs                    새 함수 둘.  U1 의 것을 안 고친다
+   U3   mcpUp · mcpFP · Fingerprinter 순회    U1 의 것을 안 고친다
    U4   resolveComponents 의 몸통           출처 둘과 거절을 더한다
    U5   Pack · PackFile · PackLimits · readPack
         resolveComponents 에 팩 출처를 더한다

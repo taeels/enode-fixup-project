@@ -36,7 +36,7 @@ flowchart LR
         subgraph EN["enode"]
             CFG["config.go<br/>Local.MCP"]
             MCP["mcp.go<br/>resolveComponents · readPack · mcpUp"]
-            DET["detect.go<br/>costlyAttrs + mcpAttrs"]
+            DET["detect.go<br/>Fingerprinter 순회"]
             RUN["runner.go<br/>runHarness"]
             CLA["claude.go<br/>Fixed · Instrument"]
             HOOK["hook.go<br/>WriteHookSettings"]
@@ -77,7 +77,7 @@ flowchart LR
 
    enode 안에서
      config.go   ->  mcp.go     Local.MCP 가 MCPServer 를 든다
-     detect.go   ->  mcp.go     mcpAttrs 를 부른다
+     detect.go   ->  mcp.go     mcpFP 가 Fingerprinter 의 한 종류로 돈다
      runner.go   ->  mcp.go     resolveComponents 를 exec 전에 부른다
      runner.go   ->  claude.go  Fixed(dir) · Instrument(dir, self, a, c)
      claude.go   ->  mcp.go     Components 를 파일로 쓴다
@@ -112,7 +112,7 @@ flowchart LR
 ## 4. 자료가 흐르는 길
 
 ```text
-   노드 소유자 ──▶ enode.yaml mcp:  ──▶ Local.MCP ──┬──▶ mcpAttrs ──▶ 광고 mcp.<이름>
+   노드 소유자 ──▶ enode.yaml mcp:  ──▶ Local.MCP ──┬──▶ mcpFP ────▶ 광고 mcp.<이름>
                                                     │                      │
                                                     │                      ▼
                                                     │              Mediator 매처 (변경 0)
@@ -173,5 +173,5 @@ Q5 의 답이 A 라 겹침이 팩이 적은 것보다 **줄었다.**
    blob                 오늘의 $OUT -> Mediator -> $IN 경로.  새 라우트 0
 ```
 
-새 포트 0 · 새 전송 0 · 새 프로토콜 0. `grep -c 'mux.HandleFunc' internal/api/api.go`
-가 17 그대로다.
+새 포트 0 · 새 전송 0 · 새 프로토콜 0. Mediator 라우트 수가 그대로다 — 세는 법은
+`scene-gates.md` CA0 이 진다 (오늘 26).
