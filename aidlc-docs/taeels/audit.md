@@ -368,3 +368,29 @@ CA1 은 이 유닛이 안 닫는다 — 집행자는 이 유닛을 구현하지 
 
 팩 문서 둘(decisions.md 6절의 실측 행 · scene-gates.md CA5)은 이 단계의 승인 뒤에 싣는다 — U1 이 ⑳ 에서 같은 순서를 밟았다."
 **Context**: CONSTRUCTION · U2 contract-vocab · Functional Design Step 5 ~ 7 완료 · 승인 대기
+
+---
+
+## CONSTRUCTION — U2 contract-vocab · Code Generation (Part 1 계획 · Part 2 실행)
+**Timestamp**: 2026-09-12T17:05:00Z
+**User Input**: "다음"
+**AI Response**: "이 지시가 둘을 겸한다 — Functional Design 의 승인과 Code Generation 착수다. U1 과 obs 가 같은 판단을 했다. 승인이 열어 준 팩 문서 둘도 이 단계가 실었다.
+
+Part 1 계획을 construction/plans/contract-vocab-code-generation-plan.md 에 냈다. 단계 여덟이고 체크박스 스물여섯이 전부 [x] 다. 갈래를 안 갈랐다 — 제품 파일 다섯 중 넷이 한 패키지이고, 예시가 agentKeys 와 같은 커밋이어야 해서 갈래가 서로를 기다린다.
+
+Part 2 를 돌렸다. contract.go 에 agentKeys 둘과 새 함수 agentValues(R2~R6) · grammar.go 에 절 하나 · planshape.go 의 목록과 설명 · examples/mcp.json · agent.go 의 AgentParams 둘과 checkComponentTypes 다. 새 시험 파일이 0 이고 기존 셋에 붙었다 — 행렬 3절이 예고한 그 셋이다. cmd/runctl 의 소스 diff 는 0 이다 (답 3=A).
+
+CA0 이 전부 초록이다. go test ./... exit 0 · 커버리지 미달 0(전체 6795/7804 = 87.1% · internal/contract 89.3% · internal/enode 85.6%) · vet · gofmt · U+2605 전수 grep 0 · glyphscan 104 파일 · 크로스 빌드 셋 · 심볼 상한(tls 1 · http 6) · 라우트 26 · 워킹트리 청결. 커버리지 실행이 cmd/enodectl/probe.lock 을 바꾼 것은 되돌렸다 — obs · U1 과 같은 자리다.
+
+FD 5절이 internal/contract 를 「하한에 가장 가까운 자리」로 적었는데 표준 명령으로 재면 89.3% 다. 단독 측정(79.5%)과 다른 이유는 -coverpkg=./... 가 다른 패키지의 시험이 덮은 문장을 함께 세기 때문이다.
+
+CA3 의 앞 절반을 runctl lint 로 쟀다 — 그 명령이 Validate 를 부른다. 모르는 키를 적으면 허용 목록이 일곱으로 함께 늘어 나오고(답 3=A 가 기댄 성질이 실물로 섰다), agent.mcp 를 문자열로 적은 계약과 agent.pack 만 적은 계약이 R2 · R5 의 문장으로 거절된다. runctl example mcp 는 exit 0 이고 lint 경고 0 이다. runctl schema steps 도 쟀다 — agent map[string]any optional 한 줄 그대로이고 하위 키가 안 나온다.
+
+변이 다섯을 돌려 다 빨개졌다 — agentKeys 되돌리기 · agentValues 호출 빼기 · PlanShape 목록에서 둘 빼기 · parseAgentParams 의 타입 검사 빼기 · Grammar 의 절 지우기. U1 과 달리 구멍이 0 인 이유는 규칙이 전부 순수 함수 하나를 지나기 때문이다 — 배선이 한 자리이고 변이 ② 가 그 자리를 직접 잰다.
+
+실측이 FD 의 주장 하나를 뒤집었고 고쳤다. FD 는 「CA5 의 이름 불일치는 조용한 실패다」로 적었는데, Validate 에 in.from 의 정적 검사가 이미 있다(contract.go:1109-1126 · ADR-023 §6.2.1). CA5 의 계약을 그대로 넣어 재니 step \"work\": in.from refers to \"fetch.pack\", which no step produces 로 오늘도 제출에서 거절된다. 게이트가 안 도는 것은 그대로 참이고 이유가 침묵이 아니라 그 거절이며, 그 문구가 팩을 안 가리켜서 게이트를 돌리는 사람이 팩 코드의 결함으로 읽는다. R5 가 닫는 것은 in.from 을 아예 안 적은 경우 하나로 좁아졌다 — 오타는 있던 검사가 막고 빠뜨림만 성공으로 온다. 고친 자리는 FD 계획 1.2 · business-rules 2절 · business-logic-model 8절 · domain-entities 4.1 과 contract.go 의 주석이다.
+
+팩 문서 둘을 실었다. decisions.md 6절에 실측 행 ㉑(열거 면 · blob 이름 공간 · CA5 를 한 행에)과 6절 제목의 날짜, scene-gates.md CA5 의 명령(out: [\"pack\"] · in.from: [\"pack\"] 과 왜인지). 파일 행렬에는 planshape.go 행을 더해 만지는 파일이 16 이 되고 4절 제목이 「둘」에서 「셋」이 되었다.
+
+넘기는 것 다섯이고 그중 하나가 새로 드러났다 — 회차 문서 루트의 aidlc-state.md 가 decisions.md 의 행을 「열아홉」으로 적는데 실제로는 스물하나다(U1 의 ⑳ · 이 유닛의 ㉑). 같은 파일의 「요약 표에 없던 파일 둘」도 셋이다. 그 루트는 회차 진행자의 것이라 안 고쳤다 (CONVENTIONS 3.4)."
+**Context**: CONSTRUCTION · U2 contract-vocab · Functional Design 승인 · Code Generation 완료 · CA0 초록 · CA3 앞 절반 초록

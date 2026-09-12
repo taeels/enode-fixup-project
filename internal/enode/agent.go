@@ -44,6 +44,28 @@ type AgentParams struct {
 	// 광고의 harness 속성과 같은 어휘를 쓴다 — 매처가 노드를 고르고,
 	// 이 값이 그 노드 위에서 어느 어댑터를 부를지 고른다.
 	Harness string `json:"harness,omitempty"`
+	// MCP 는 이 단계가 물릴 MCP 서버의 이름들이다 (ADR-035 · ADR-013 결정 4).
+	//
+	// 매칭 조건이 아니다 — 어느 노드로 갈지는 requires 의 mcp.<이름> 속성이
+	// 정하고, 이 값은 그 노드 위에서 무엇을 열지를 정한다. 하나만 적으면
+	// 둘 다 반쯤 돈다: requires 만 적으면 배정은 되는데 허용목록이 비고,
+	// 이것만 적으면 그 서버가 없는 노드로 갈 수 있다.
+	//
+	// 안 적으면 허용목록이 빈다 — 오늘 그대로다. 빈 배열도 같다:
+	// 이름을 0 개 적은 것과 안 적은 것은 집을 이름이 0 이라는 같은 결과다.
+	// omitempty 가 빈 슬라이스를 빼므로 왕복해도 둘이 같아진다.
+	MCP []string `json:"mcp,omitempty"`
+	// Pack 은 이 단계에 실어 보낼 팩 blob 하나의 이름이다 (ADR-034 §2.2).
+	//
+	// 그 이름은 $IN 에 깔리는 파일의 이름과 같다 — blob 이름 공간이 Run
+	// 하나에 평평하므로 점이 있어도 그것은 이름의 한 글자이고 단계 참조가
+	// 아니다. 파일이 실제로 깔리려면 같은 단계의 in.from 이 그 이름을 적어야
+	// 하고, 빠뜨린 계약은 contract.Validate 가 제출에서 거절한다.
+	//
+	// 배열이 아닌 이유 — 이름이 겹칠 때의 판정이 하나여야 한다. 팩이 노드
+	// 선언 이름을 덮으면 거절인데, 팩이 둘이면 그 판정 앞에 "어느 팩이
+	// 먼저인가" 가 끼어든다.
+	Pack string `json:"pack,omitempty"`
 }
 
 // 배출 규약을 프롬프트에 심는다 — ADR-013 이 [미정] 으로 남긴 자리다.
@@ -502,5 +524,44 @@ func parseAgentParams(raw json.RawMessage) (AgentParams, error) {
 	if len(raw) == 0 {
 		return p, fmt.Errorf("agent parameters are missing")
 	}
+	// 이 회차가 들여온 키 둘의 타입을 먼저 본다 — 문구를 고르기 위해서다.
+	//
+	// Mediator 가 이미 제출에서 같은 것을 거절하지만(contract.Validate) 겹을
+	// 하나만 두면 그 겹을 안 지나는 경로가 생길 때 조용히 열린다. 그리고 여기서
+	// 나는 문구는 로그가 아니라 기록이다 — Result.Error 로 steps/NN-*.json 에
+	// 봉인된다. 그래서 Go 의 기본 문구(json: cannot unmarshal …)가 아니라
+	// 제출에서 받는 문장과 같은 문장이어야 한다: 사람이 어휘를 두 번 배우지 않는다.
+	if err := checkComponentTypes(raw); err != nil {
+		return p, err
+	}
 	return p, json.Unmarshal(raw, &p)
+}
+
+// checkComponentTypes 는 agent.mcp 와 agent.pack 의 모양만 본다.
+//
+// 모르는 키는 안 본다 — Mediator 가 400 으로 거절하고, 여기서 다시 거절하면
+// 노드가 계약 어휘의 판정자가 된다 (ADR-004 가 막은 자리).
+func checkComponentTypes(raw json.RawMessage) error {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return err
+	}
+	if v, ok := m["mcp"]; ok {
+		var names []string
+		if err := json.Unmarshal(v, &names); err != nil {
+			return fmt.Errorf("agent.mcp must be an array of server names")
+		}
+		for i, n := range names {
+			if n == "" {
+				return fmt.Errorf("agent.mcp[%d] must be a non-empty server name", i)
+			}
+		}
+	}
+	if v, ok := m["pack"]; ok {
+		var name string
+		if err := json.Unmarshal(v, &name); err != nil || name == "" {
+			return fmt.Errorf("agent.pack must be a blob name (a non-empty string)")
+		}
+	}
+	return nil
 }

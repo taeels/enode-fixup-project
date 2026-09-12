@@ -42,7 +42,9 @@ A step carries the task in in.prompt. agent carries execution parameters only.
     in.prompt    the task, in words. Without it the agent gets an empty request
     in.from      names of earlier outputs to place as files in $IN
     feedback     names of earlier outputs to paste into the prompt itself
-    agent        max_turns, max_tokens, ask, model, harness — nothing else
+    agent        max_turns, max_tokens, ask, model, harness, mcp, pack — nothing else
+    agent.mcp    names of the MCP servers this step wants; nothing is opened unless named
+    agent.pack   name of the blob carrying the pack tar; list that name in in.from too
     see.ledger   "list" places a list of everything produced so far in $IN
 
 Any other key under agent or in is rejected: the whole plan is refused with the

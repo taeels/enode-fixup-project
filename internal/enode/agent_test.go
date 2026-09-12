@@ -162,3 +162,65 @@ func TestTheRejectionReasonRidesThePrompt(t *testing.T) {
 		t.Fatal("the section appeared although there was no rejection")
 	}
 }
+
+// agent.mcp · agent.pack 이 AgentParams 까지 오고, 타입이 틀리면
+// 제출에서 받는 것과 같은 문장이 나오는지 (features.md 3.5 · US-7)
+//
+// 이 문구는 로그가 아니라 기록이다 — 오류가 Result.Error 로
+// steps/NN-*.json 에 봉인된다. 그래서 Go 의 기본 문구면 봉인을 여는 사람이
+// 계약 어휘가 아니라 Go 의 구조체 이름을 읽는다.
+func TestParseAgentParams_CarriesComponentsAndNamesBadTypes(t *testing.T) {
+	p, err := parseAgentParams([]byte(`{"ask":"never","mcp":["probe","serial"],"pack":"kernel-review"}`))
+	if err != nil {
+		t.Fatalf("a valid agent map was rejected: %v", err)
+	}
+	if len(p.MCP) != 2 || p.MCP[0] != "probe" || p.MCP[1] != "serial" {
+		t.Fatalf("agent.mcp did not arrive: %#v", p.MCP)
+	}
+	if p.Pack != "kernel-review" {
+		t.Fatalf("agent.pack did not arrive: %q", p.Pack)
+	}
+
+	// 안 적으면 비어 있다 — 오늘 그대로다.
+	p, err = parseAgentParams([]byte(`{"ask":"never"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.MCP != nil || p.Pack != "" {
+		t.Fatalf("absent keys must stay empty: %#v", p)
+	}
+
+	for _, tc := range []struct{ raw, want string }{
+		{`{"mcp":"probe"}`, "agent.mcp must be an array of server names"},
+		{`{"mcp":["probe",""]}`, "agent.mcp[1] must be a non-empty server name"},
+		{`{"pack":3}`, "agent.pack must be a blob name"},
+		{`{"pack":""}`, "agent.pack must be a blob name"},
+	} {
+		_, err := parseAgentParams([]byte(tc.raw))
+		if err == nil {
+			t.Errorf("parseAgentParams(%s) = nil, want an error", tc.raw)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("parseAgentParams(%s) = %v, want it to say %q", tc.raw, err, tc.want)
+		}
+	}
+}
+
+// 빈 배열과 부재가 같아지는 자리 — omitempty 가 빈 슬라이스를 뺀다.
+//
+// 그래서 "이름을 0 개 적었다" 와 "안 적었다" 가 왕복 뒤에 구별되지 않고,
+// 허용목록이 빈다는 같은 뜻으로 남는다 (U4 의 resolveComponents 가 읽는 값).
+func TestAgentParams_EmptyMCPRoundTripsToAbsent(t *testing.T) {
+	p, err := parseAgentParams([]byte(`{"mcp":[]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "mcp") {
+		t.Fatalf("an empty agent.mcp must not survive the round trip: %s", b)
+	}
+}

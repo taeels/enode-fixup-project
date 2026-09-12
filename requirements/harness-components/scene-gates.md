@@ -119,8 +119,12 @@
                                           "mcp server nope is not available on this node"
 
    CA5   팩 tar 를 만든다 — skills/hello/SKILL.md · mcp.json 에 probe4
-         첫 단계 run: ["curl", "-o", "$OUT/pack", "<tar 주소>"]  (또는 git archive --remote)
-         둘째 단계 agent.pack: "pack" · agent.mcp: ["probe4"] · in.from: ["fetch.pack"]
+         첫 단계 run: ["curl", "-o", "$OUT/pack", "<tar 주소>"] · out: ["pack"]
+                  (또는 git archive --remote)
+         둘째 단계 agent.pack: "pack" · agent.mcp: ["probe4"] · in.from: ["pack"]
+                  in.from 은 blob 이름이다 — 점이 있어도 이름의 글자이고 단계
+                  참조가 아니다 (6절 ㉑).  옛 판의 "fetch.pack" 은 어느 단계도
+                  안 내는 이름이라 제출에서 거절된다
          init 의 slash_commands 에 hello · mcp_servers 에 probe4
          agent.mcp 를 빼고 같은 팩으로 한 번 더 -> mcp_servers 가 비어 있다
            (팩도 필터를 탄다.  스킬은 그대로 뜬다)

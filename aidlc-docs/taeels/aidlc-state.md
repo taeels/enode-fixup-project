@@ -123,7 +123,7 @@ NAT 뒤의 관객 전체가 막혀 CP10 을 직접 깨므로 이쪽을 수락했
 | | 유닛 | 맡는 기능 | 닫는 게이트 | 선행 | 상태 |
 |---|---|---|---|---|---|
 | U1 | `isolation` | 3.1 · 3.2 의 최소 | CA1 | 없음 | **코드 완료 · CA1 대기** |
-| U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 | **Functional Design 완료 · Code Generation 대기** |
+| U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 | **코드 완료 · CA3 앞 절반 초록 · 병합 대기** |
 | U3 | `advert` | 3.3 | CA2 · CA3 완결 | U1 · U2 | 대기 |
 | U4 | `sources` | 3.4 · 3.2 의 완성 | CA4 | U1 · U2 · U3 | 대기 |
 | U5 | `pack` | 3.6 · 3.7 | CA5 · CA6 | U1 · U2 · U4 | 대기 |
@@ -257,20 +257,59 @@ U1 이 아직 `main` 에 없고 `aidlc-state.md` 가 자동 병합이 안 되는
    NFR Requirements       SKIP (회차 실행 계획)
    NFR Design             SKIP
    Infrastructure Design  SKIP
-   Code Generation        대기
+   Code Generation        완료 2026-09-13.  계획 construction/plans/
+                          contract-vocab-code-generation-plan.md · 요약
+                          construction/contract-vocab/code/code-summary.md
+
+                          갈래를 안 갈랐다 — 제품 파일 다섯 중 넷이 한 패키지이고
+                          예시가 agentKeys 와 같은 커밋이어야 해서 갈래가 서로를
+                          기다린다 (계획 3절)
+
+                          CA0 이 전부 초록이다 — 시험 · 커버리지 · vet · 포맷 ·
+                          glyphscan · 크로스 빌드 · 심볼 상한 · 라우트 26 ·
+                          워킹트리 청결.  미달 0 이고 전체 87.1% ·
+                          internal/contract 89.3% · internal/enode 85.6%
+
+                          CA3 의 앞 절반을 runctl lint 로 쟀다 (그 명령이
+                          Validate 를 부른다) — 모르는 키의 허용 목록이 일곱으로
+                          함께 늘고, agent.mcp 를 문자열로 적은 계약과
+                          agent.pack 만 적은 계약이 문장으로 거절된다
+
+                          변이 다섯을 돌려 다 빨개졌다.  U1 과 달리 구멍이 0 인
+                          이유는 규칙이 전부 순수 함수 하나를 지나서다 — 배선이
+                          한 자리이고 변이 ② 가 그 자리를 직접 잰다
+
+                          **실측이 FD 의 주장 하나를 뒤집었다** — CA5 의 이름
+                          불일치는 조용한 실패가 아니다.  Validate 에 in.from 의
+                          정적 검사가 이미 있어 (contract.go:1109-1126) 오늘도
+                          제출에서 거절된다.  게이트가 안 도는 것은 그대로 참이고
+                          이유가 그 거절이다 — 문구가 팩을 안 가리켜서 게이트를
+                          돌리는 사람이 팩 코드의 결함으로 읽는다.  R5 가 닫는
+                          것은 in.from 을 아예 안 적은 경우 하나로 좁아졌다.
+                          고친 자리 넷과 코드 주석 하나는 code-summary 5절
+```
+
+## 이 유닛이 회차 밖으로 낸 것
+
+```text
+   decisions.md 6절    실측 행 ㉑ — 열거 면 · blob 이름 공간 · CA5 를 한 행에
+   scene-gates.md      CA5 의 명령을 고쳤다 (out: ["pack"] · in.from: ["pack"])
+   파일 행렬            planshape.go 행.  만지는 파일 15 -> 16
+   짝 팩과의 접점       0.  이 유닛은 runner.go 도 claude.go 도 안 만진다
 ```
 
 ## 다음 — U2
 
-**Code Generation 이다.** 만지는 자리 다섯(`contract.go` · `grammar.go` ·
-`planshape.go` · `examples/mcp.json` · `agent.go`)과 규칙 여섯(R1 ~ R6)이
-`business-rules.md` 와 `business-logic-model.md` 에 있다. 순서 제약 하나가
-걸린다 — `examples/mcp.json` 은 `agentKeys` 가 느는 같은 커밋에 들어가야 한다.
+**남은 것은 병합이다.** CA3 의 앞 절반이 초록이고 (그 조각 전체는 U3 에서
+초록이 된다 — `unit-of-work-story-map.md` 2.1) CA0 이 전부 초록이다. 사람이
+실제로 띄워야 하는 게이트가 이 유닛에는 없다.
 
-**승인 뒤에 실을 팩 문서 둘** — `decisions.md` 6절의 실측 행 하나(셋을 한 행에)와
-`scene-gates.md` CA5 의 명령. U1 이 ⑳ 에서 같은 순서를 밟았다.
+**병합 순서가 U1 과 엮인다** — 이 브랜치는 `unit/isolation` 위에 섰으므로
+U1 이 먼저 `main` 에 들어가야 이 PR 의 차이가 U2 것만 남는다. U1 의 CA1 이
+아직 사람 대기다.
 
-**진행자에게 넘기는 것 다섯** — `business-rules.md` 7절. 무거운 둘:
+**진행자에게 넘기는 것 다섯** — `code-summary.md` 7절. 무거운 셋:
 `agent` 의 나머지 다섯 키는 타입 검사가 여전히 노드뿐이라 **비대칭이 남고**
-(답 1=A 가 새 키 둘로 범위를 정했다) · `GLOSSARY.md` 의 푼 말이 아직 없다
-(규약이 짐작을 금지하므로 사람에게서 와야 한다).
+(답 1=A 가 범위를 정했다) · 회차 문서 루트의 두 값이 낡았다(`decisions.md` 의
+행이 스물하나이고 요약 표 밖 파일이 셋이다 — 그 루트는 회차 진행자의 것이라
+안 고쳤다) · `GLOSSARY.md` 의 푼 말이 아직 없다.

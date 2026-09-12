@@ -1,0 +1,33 @@
+{
+  "run_id": "example-mcp",
+  "work": {
+    "id": { "system": "manual", "change_id": "example-mcp" },
+    "system": "manual"
+  },
+  "requires": [
+    { "as": "brain", "capability": "agent.reason", "mcp.probe": "1" }
+  ],
+  "steps": [
+    {
+      "id": "ask_the_server",
+      "uses": "brain",
+      "agent": { "max_turns": 5, "ask": "never", "mcp": ["probe"] },
+      "in": {
+        "prompt": "The probe MCP server is available in this session. List the tools it offers and write $OUT/tools.json as {\"tools\": [\"...\"]}."
+      },
+      "out": ["tools.json"],
+      "schema": {
+        "tools.json": {
+          "type": "object",
+          "required": ["tools"],
+          "properties": {
+            "tools": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  ],
+  "success_when": [
+    { "step": "ask_the_server", "produced": ["tools.json"] }
+  ]
+}

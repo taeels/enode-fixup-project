@@ -159,6 +159,36 @@ func TestGrammar_WhatItForbidsIsActuallyRejected(t *testing.T) {
 			wantErr: "unknown step",
 		},
 		{
+			// 이름만 보는 검증은 타입을 못 본다 — 문자열로 적은 계약이
+			// 400 을 안 받고 노드까지 가서 Go 의 기본 문구로 죽었다.
+			name:    "agent.mcp must be an array of server names",
+			mustSay: "agent.mcp must be an array of server names",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"a","uses":"n","agent":{"mcp":"probe"},"in":{"prompt":"p"},"out":["x"]}],
+			  "success_when":[{"step":"a","produced":["x"]}]}`,
+			wantErr: "agent.mcp",
+		},
+		{
+			name:    "agent.pack must be a blob name",
+			mustSay: "agent.pack must be a blob name",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"a","uses":"n","agent":{"pack":3},"in":{"prompt":"p"},"out":["x"]}],
+			  "success_when":[{"step":"a","produced":["x"]}]}`,
+			wantErr: "agent.pack",
+		},
+		{
+			// 팩은 $IN 에 깔린 파일이고 in.from 이 적어야 깔린다.
+			// 빠뜨리면 조용히 실패한다 — 없는 입력은 값이라 그 단계가
+			// 팩 없이 돌아 0 으로 끝날 수 있다.
+			name:    "a step that names a pack must list it in in.from",
+			mustSay: "must also list that same name in in.from",
+			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
+			  "steps":[{"id":"a","uses":"n","agent":{"pack":"kernel-review"},
+			            "in":{"prompt":"p"},"out":["x"]}],
+			  "success_when":[{"step":"a","produced":["x"]}]}`,
+			wantErr: "in.from",
+		},
+		{
 			name:    "a replan must have exactly one out",
 			mustSay: "out (exactly one)",
 			contract: `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],
@@ -227,6 +257,19 @@ func TestGrammar_MentionsTheEmptyPlan(t *testing.T) {
 	for _, want := range []string{`"steps": []`, "a judgment, not an error"} {
 		if !strings.Contains(Grammar, want) {
 			t.Errorf("the grammar lacks %q", want)
+		}
+	}
+}
+
+// PlanShape 의 agent 키 목록이 agentKeys 와 갈리지 않는지 (ADR-057)
+//
+// Grammar 에는 위의 표라는 장치가 있는데 PlanShape 에는 없었다. 그 목록은
+// 손으로 적힌 산문이고, 갈리면 계획에게 거짓을 가르친다 — 허용되는 키를
+// "nothing else" 로 못 박은 문장이라 빠진 이름은 "적으면 거절된다" 로 읽힌다.
+func TestPlanShape_AgentKeyListDoesNotDriftFromReality(t *testing.T) {
+	for _, name := range agentKeys {
+		if !strings.Contains(PlanShape, name) {
+			t.Errorf("agent key %q is missing from PlanShape — a plan would avoid a key that is actually allowed", name)
 		}
 	}
 }
