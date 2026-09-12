@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Workflow Planning 완료 · 승인 대기. 다음은 Application Design
+- **Current Stage**: INCEPTION — Application Design 산출물 완료 · 승인 대기. 다음은 Units Generation
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -63,15 +63,20 @@ Analysis Step 5.1 에서 재확인만 한다.
 | Q2 | 회차를 어디까지 · 몇 손 | B | Inception 을 돌고 Construction 까지 한 손(taeels)으로 간다. 유닛 직렬 |
 | Q3 | 짝 팩과의 순서 | A | 이 팩 먼저. 게이트의 `init` 줄은 사람이 직접 띄워 읽는다 |
 
-## 이 회차가 `decisions.md` 에 더할 행
-승인 뒤 진행자가 `requirements/harness-components/decisions.md` 에 2026-09-11
-날짜 절로 싣는다. 근거는 `requirements.md` 7절.
+## 이 회차가 `decisions.md` 에 더한 행 — 다섯
+셋은 Requirements 승인 뒤에, 둘은 Application Design 이 실었다.
 
 ```text
    ①  알려진 키 검증은 이미 있다        3.5 의 범위가 목록 추가로 준다
    ②  팩 tar 풀기의 경로 검증           절대경로 · .. · 심볼릭 링크 거부 · 크기 상한
    ③  팩의 기대 다이제스트는 이월       기록으로 족한 근거 셋
+   ④  계장 디렉터리를 못 만들면 단계 실패  Application Design Q2.  오늘 동작이 바뀐다
+   ⑤  Detector 인터페이스를 안 세운다      Application Design Q3.  2절 권장값에서 벗어난다
 ```
+
+다섯 다 `requirements/harness-components/decisions.md` **6절**에 실렸다
+(2026-09-11 · 2026-09-12). 기존 1 ~ 5절의 번호는 다른 문서가 참조하므로
+안 건드렸다.
 
 ## Execution Plan Summary
 정본은 `inception/plans/execution-plan.md` (2026-09-11T13:59:38Z).
@@ -107,6 +112,29 @@ Analysis Step 5.1 에서 재확인만 한다.
 | D3 | 허용목록을 누가 쓰나. 팩 펴기와 같은 자리인가 | requirements.md 8절 |
 | D4 | 게이트가 transcript 링을 쓸 수 있나 | requirements.md 2.3 · 5.1 |
 
+**넷 다 닫혔다** (2026-09-12T00:38:40Z). 답은 전부 권장(A)이었다.
+
+```text
+   D1   Fixed(dir string) map[string]string 으로 인터페이스를 바꾼다 (Q1 = A)
+   D2   costlyAttrs 에 mcpAttrs 함수 하나.  Detector 인터페이스는 안 세운다 (Q3 = A)
+   D3   결정(resolveComponents)과 쓰기(Instrument)를 가른다 (Q4 = A)
+   D4   못 쓴다.  Argv 가 --output-format json 이라 system/init 줄이 안 나온다.
+        출력 형식은 짝 팩의 것으로 둔다 (Q5 = A).  게이트는 사람 경로
+```
+
+설계가 답 밖에서 더 정한 둘 — `Instrument` 의 오류를 등급으로 가르고(`errComponents`
+만 치명), `Instrument` 를 언제나 부른다. 근거는 `application-design.md` 4절.
+
+## 만지는 경로가 셋으로 줄었다
+`component-methods.md` 7절의 측정 — **`cmd/runctl` 의 diff 가 0 이다.**
+`runctl example` 이 `contract.ExampleNames()` 로 임베드 FS 를 읽으므로 예시는
+`internal/contract/examples/mcp.json` 하나로 족하고 `runctl schema steps` 는
+구조체에서 뽑는다. Units Generation 의 파일 행렬이 이 값을 쓴다.
+
+## 짝 팩과 실제로 겹치는 파일은 하나다
+Q5 = A 가 `claude.go` 의 `Argv` 를 이 팩의 밖으로 냈다. `constraints.md` 접점
+표의 여섯 줄 중 남는 것은 **`runner.go` 하나**다 (`component-dependency.md` 5절).
+
 ## Stage Progress
 
 ### INCEPTION PHASE
@@ -114,8 +142,8 @@ Analysis Step 5.1 에서 재확인만 한다.
 - [x] Reverse Engineering — 부분 재측정 (네 경로 · Q1=B). 전면 재실행은 안 함
 - [x] Requirements Analysis — 승인됨 (2026-09-11T13:59:38Z · 사용자가 Workflow Planning 을 지시)
 - [x] User Stories — SKIP (실행 계획 3절의 근거 둘)
-- [x] Workflow Planning — 산출물 완료 · 승인 대기
-- [ ] Application Design — EXECUTE (D1 ~ D4 를 닫는다)
+- [x] Workflow Planning — 승인됨 (2026-09-11T23:43:28Z · 커밋 88dc120)
+- [x] Application Design — 산출물 다섯 완료 · 승인 대기. 답은 전부 A (2026-09-12T00:38:40Z)
 - [ ] Units Generation — EXECUTE (파일 행렬 필수)
 
 ### CONSTRUCTION PHASE
@@ -133,6 +161,6 @@ Analysis Step 5.1 에서 재확인만 한다.
 
 ## Current Status
 - **Lifecycle Phase**: INCEPTION
-- **Current Stage**: Workflow Planning 완료
-- **Next Stage**: Application Design
+- **Current Stage**: Application Design 완료
+- **Next Stage**: Units Generation (파일 행렬 필수)
 - **Status**: 승인 대기

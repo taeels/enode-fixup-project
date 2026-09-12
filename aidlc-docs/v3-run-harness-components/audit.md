@@ -151,3 +151,87 @@ security-baseline 준수 요약을 7절에 실었다 — SECURITY-11 · SECURITY
 **Context**: INCEPTION · Workflow Planning Step 7 ~ 9. 승인 대기
 
 ---
+## Workflow Planning — 승인
+**Timestamp**: 2026-09-11T23:43:28Z
+**User Input**: "승인. 커밋하고 Application Design 가자"
+**AI Response**: 실행 계획을 커밋했다 (`88dc120`). Inception 은 회차 브랜치 위에서
+직렬로 돌므로 유닛 브랜치를 안 땄다. 이어서 Application Design 을 착수한다.
+**Context**: INCEPTION · Workflow Planning Step 10 승인 · 커밋
+
+---
+
+## Application Design — 계획 산출 · 답 대기
+**Timestamp**: 2026-09-11T23:43:28Z
+**User Input**: (없음 — 위 지시로 착수)
+**AI Response**: `inception/plans/application-design-plan.md` 를 냈다.
+질문을 짓기 전에 D1 ~ D4 가 걸리는 코드를 먼저 읽었고, 실측 넷을 1절에 적었다.
+
+실측이 바꾼 것 셋.
+
+D4 는 **답이 나왔다**. `claim.go:367` 이 트랜스크립트 링을 설정만 있으면 언제나
+열지만, `claude.go` 의 `Argv` 가 `--output-format json` 이라 `system/init` 줄이
+아예 안 나온다. 링은 나를 것이 없다. 게이트는 `scene-gates.md` 3절의 사람 경로
+그대로다. 질문으로 안 내고 뒤집기 선택지만 Q5 로 물었다.
+
+D2 는 **이름이 부딪친다**. `decisions.md` 2절의 권장값은 「`Detector` 인터페이스를
+세운다」인데 `internal/enode` 에 이미 `Detector` 가 있고 그것은 종류가 아니라
+시계다 (`ADR-068`). 그 권장이 지키려던 값(광고 루프가 탐지에서 안 멈춘다)은
+`Detector.Capabilities()` 가 외부 프로세스를 안 띄우는 것으로 이미 서 있다.
+
+D1 은 **인터페이스 모양보다 실패 규칙이 먼저다**. `runner.go:63` 의 계장
+디렉터리가 if 블록 안에서만 살아 `tmp` 를 끌어올리는 것은 기계적이지만,
+FR-1 의 「계장 실패와 독립」이 말하는 실패는 `Instrument` 실패이고
+`MkdirTemp` 실패는 팩도 요구도 안 적었다. Q2 로 물었다.
+
+넷째 실측 — `hook.go:346` 의 `gatewayAuthFields()` 가 `os.UserHomeDir()` 를
+읽으므로 `CLAUDE_CONFIG_DIR` 을 바꿔도 게이트웨이 인증은 안 끊긴다. 가짜 홈이
+끊는 유일한 인증 경로는 OAuth 의 `.credentials.json` 이고, 그래서 CA1 이 노드
+둘에서 각각 돌아야 한다.
+
+질문 다섯을 `[Answer]:` 태그로 냈다 — Q1 `Fixed` 인터페이스 · Q2 계장
+디렉터리 생성 실패 시의 처리 · Q3 MCP 탐지가 앉는 자리 · Q4 허용목록과 팩의
+소유자와 실패 전파 · Q5 출력 형식을 이 팩이 가져오나.
+**Context**: INCEPTION · Application Design Step 1 ~ 6. 답 대기
+
+---
+## Application Design — 질문 다섯의 답
+**Timestamp**: 2026-09-12T00:38:40Z
+**User Input**: "전부 권장대로 할게"
+**AI Response**: Q1 ~ Q5 를 모두 A 로 읽었다. 모호한 답이 없어 후속 질문을 안
+냈다 (규칙 8 · 9 의 게이트 통과). 계획 문서 4절의 `[Answer]:` 다섯을 A 로 채웠다.
+**Context**: INCEPTION · Application Design Step 7 ~ 9
+
+---
+
+## Application Design — 산출물 완료
+**Timestamp**: 2026-09-12T00:38:40Z
+**User Input**: (없음 — 승인 대기)
+**AI Response**: `inception/application-design/` 에 다섯을 냈다 —
+`components.md` · `component-methods.md` · `services.md` ·
+`component-dependency.md` · 통합본 `application-design.md`.
+
+설계의 뼈대는 **결정과 쓰기를 가른 것**이다 (Q4 = A). `resolveComponents` 가
+파일을 하나도 안 만지고 무엇을 열지 정하며, `Instrument` 는 받은 것만 쓴다.
+그 분리가 커버리지 80% 를 하네스 실행파일 없이 채울 수 있게 만든다.
+
+산출물이 답 밖에서 더 정한 것 둘 — ① `Instrument` 의 오류를 등급으로 가른다
+(`errComponents` 로 감싼 것만 치명. 훅 실패는 오늘처럼 보조). ②
+`Instrument` 를 언제나 부른다 (오늘은 `os.Executable()` 이 비면 통째로
+건너뛰는데, 그 경로로 가면 허용목록이 조용히 안 쓰인다). 둘 다 조용히 열리는
+길을 막는 것이고 근거를 `application-design.md` 4절에 적었다.
+
+측정이 하나를 줄였다 — **`cmd/runctl` 의 diff 가 0 이다.** `runctl example` 이
+`contract.ExampleNames()` 로 임베드 FS 를 읽으므로 예시는
+`internal/contract/examples/mcp.json` 하나로 족하고, `runctl schema steps` 는
+구조체에서 뽑는다. 만지는 경로가 넷에서 셋으로 준다.
+
+Q5 = A 가 짝 팩과의 접점도 줄였다 — `constraints.md` 접점 표의 여섯 줄 중
+실제로 겹치는 것은 `runner.go` 하나뿐이다 (`claude.go` 의 `Argv` 를 이 팩이
+안 건드리므로).
+
+`decisions.md` 6절에 행 둘을 더했다 — ④ 계장 디렉터리를 못 만들면 단계 실패
+(오늘 동작이 바뀐다) · ⑤ `Detector` 인터페이스를 안 세운다 (2절 권장값에서
+벗어난다). 같은 절의 맺음 문단에 D1 의 답을 실었다.
+**Context**: INCEPTION · Application Design Step 10 ~ 12. 승인 대기
+
+---
