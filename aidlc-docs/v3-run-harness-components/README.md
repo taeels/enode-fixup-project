@@ -1,6 +1,6 @@
 # v3-run-harness-components — 회차의 산출물 자리
 
-**지금은 비어 있다. 이것이 정상이다.** 이 회차가 읽는 요구 팩은
+**산출물이 들어찼다** — Inception 일곱 단계와 검증 루프 여덟 바퀴의 결과다. 이 회차가 읽는 요구 팩은
 `requirements/harness-components/` 다. AI-DLC 는 Workspace Detection 으로
 브라운필드임을 확인하고, 공용 Reverse Engineering
 (`aidlc-docs/inception/reverse-engineering/`)이 이미 있으므로 Requirements

@@ -93,7 +93,9 @@ X) Other (please describe after [Answer]: tag below)
 `v3-run-transcript` 브랜치는 지금 팩 커밋 하나뿐이고 AI-DLC 산출물이 0 이다.
 
 A) **이 팩을 먼저 끝내고 transcript 를 뒤에** — 게이트는 사람이 직접 띄우는
-경로(`scene-gates.md` 3절의 `claude -p --output-format stream-json`)로 잰다.
+경로로 잰다. (**2026-09-12 에 뒤집혔다** — `decisions.md` 6절 ⑮ 가 `Argv` 에
+플래그 한 줄을 가져와 `init` 줄이 `logs/` 에 남게 했고, `scene-gates.md` 3절이
+사람 경로를 명시로 배제한다. 아래는 답하던 시점의 기록이다.)
 `claude.go` · `runner.go` 의 접점은 transcript 가 나중에 받아 푼다. (권장 —
 사내 실측이 막고 있는 것이 이 팩이고, 직접 띄우기가 이미 게이트에 적혀 있다)
 

@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Units Generation 완료 · **검증 루프 진행 중** (6차까지)
+- **Current Stage**: INCEPTION — Units Generation 완료 · **검증 루프 진행 중** (8차까지)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -77,7 +77,7 @@ Analysis Step 5.1 에서 재확인만 한다.
    ⑦  팩이 노드 선언 이름을 덮으면 거절    소유권이 뒤집히는 경로를 막는다
    ⑧  훅 설정을 가짜 홈 안으로          features.md 3.1 의 요구대로 되돌렸다
    ⑨  실패 등급의 기본이 치명이다        빠뜨림이 닫히는 쪽으로 틀린다
-   ⑩  계장 보존 스위치를 안 둔다         한 번 넣었다 뺐다.  SECURITY-12 를 뚫는다
+   ⑩  계장 보존 스위치를 안 둔다         한 번 넣었다 뺐다.  3.1 의 보안 요구를 뚫는다
    ⑪  보조 등급은 하나다                기준 시각은 Instrument 앞이라 안 닿는다
    ⑫  agent.pack 이 미래 결합점이다      submit --pack 이 와도 계약 어휘는 안 는다
    ⑬  열거 면은 runctl capabilities 다   계약 작성자가 보는 면.  nodes 는 운영자 면
@@ -85,7 +85,8 @@ Analysis Step 5.1 에서 재확인만 한다.
    ⑮  Argv 에 stream-json 한 줄         게이트가 복제본 대신 실물을 잰다
    ⑯  ParseClaude 가 type 을 본다        ⑮ 이 연 fail-open 을 막는다
    ⑰  봉인 기록의 자격증명 누출        준수로 만든다 (사용자 결정)
-   ⑱  logs/ 에 init 줄과 최종 봉투만    ⑮ 이 넓힌 누출 표면을 닫는다
+   ⑱  도구 사건은 껍데기만 남긴다        ⑮ 이 넓힌 누출 표면을 닫는다.
+                                       경로에 예외가 없다.  runner.go 가 선별한다
 ```
 
 열여덟 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,

@@ -192,14 +192,20 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
    ⑥  exec
    ⑦  Decode · Version · 자백 읽기  오늘 그대로
    ⑧  HarnessResult 에 MCP · Pack 을 채운다
-   ⑨  logs/ 에 실을 것을 고른다 (⑱) — init 줄 · 최종 result 봉투 · stderr.
-      중간 사건은 안 싣는다.  오늘 runner.go:155-156 은 stdout 전체를 낸다
+   ⑨  logs/ 에 실을 것을 고른다 (⑱).  runner.go 가 직접 한다 —
+      Harness 에 메서드를 안 늘린다 (R6).  경로에 예외가 없다
+        남긴다  init 줄 전문 · 최종 result 봉투 전문 · stderr 전문 ·
+                도구 사건의 껍데기(type · 도구 이름 · 성공 여부)
+        걷는다  도구 사건의 내용.  걷었음을 한 줄로 표시한다
+        고른다  최종 봉투는 type == "result" 로.  lastJSONObject 로 뽑으면
+                크래시 때 assistant 사건이 잡혀 ⑱ 이 닫으려던 길이 열린다
+      오늘 runner.go:155-156 은 stdout 전체를 낸다
    ⑩  defer 가 계장 디렉터리를 지운다 — 오늘 그대로
 ```
 
 **⑩ 의 `defer` 는 안 건드린다.** 보존 스위치를 한 번 넣었다가 뺐다 — `features.md` 3.1 이
 「복사한 자격증명은 계장 디렉터리와 함께 **단계 끝에 지워진다**」를 보안 요구로
-못 박았고(3.1 의 보안 요구 · SECURITY-09 · 15), 남기는 스위치는 그것을 뚫는다.
+못 박았고(`features.md` 3.1 의 보안 요구), 남기는 스위치는 그것을 뚫는다.
 
 **대가는 눈 검증이 복제본을 잰다는 것이다.** 사람이 `init` 줄을 읽으려고 손으로
 띄울 때 실물 가짜 홈과 실물 허용목록이 없어서 다시 짓게 되고, 그 복제본은 환경
@@ -249,7 +255,8 @@ func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]s
 `-p --output-format stream-json --verbose` 가 된다. 게이트 CA1 · CA4 · CA5 가 재는
 `system/init` 줄이 그래야 `logs/` 에 남는다.
 
-`Decode` 는 **안 바뀐다.** `ParseClaude` 가 `lastJSONObject` 로 마지막 JSON 객체를
+`Decode` 는 **안 바뀐다.** 다만 ⑱ 의 봉투 고르기는 `lastJSONObject` 를 **안 쓴다** —
+`type == "result"` 로 고른다. `ParseClaude` 가 `lastJSONObject` 로 마지막 JSON 객체를
 집으므로 stream-json 의 최종 `result` 사건을 그대로 읽는다. **다만 크래시 경로는
 흔들린다** — 중간에 죽으면 마지막 완결 객체가 `assistant` 사건이라 봉투로
 오인된다. ⑯ 이 `type` 검사로 막고 U1 이 진다. 스트림을 훑는 것과 tee 와 사건

@@ -142,6 +142,8 @@ R1 화이트리스트를 N 번 지키게 되는 것이 구멍이다.
                               Decode     transcript 팩만
    internal/enode/runner.go   Job        이 팩은 팩 · MCP 를 Job 에 싣는다.
                                          transcript 팩은 tee 와 사건 배출을 만진다
+                              logs/ 조립  이 팩이 도구 사건의 내용을 걷는다 (6절 ⑱).
+                                         exec 뒤의 자리다 — 짝 팩의 스트림 처리와 겹친다
    internal/enode/hook.go     WriteHookSettings 를 가짜 홈 안으로 옮긴다.  이 팩만
 ```
 

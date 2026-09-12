@@ -56,7 +56,8 @@
                                .credentials.json 을 0600 으로 복사하고
                                <dir>/mcp.json 을 쓴다.
                                플래그 --strict-mcp-config --mcp-config=<경로>
-   internal/enode/runner.go    계장 디렉터리를 함수 몸통으로.  못 만들면 단계 실패.
+   internal/enode/runner.go    logs/ 선별 (⑱).  도구 사건의 내용을 걷고 껍데기를 남긴다.
+                               계장 디렉터리를 함수 몸통으로.  못 만들면 단계 실패.
                                resolveComponents 를 exec 전에 부른다.
                                Instrument 를 언제나 부르고 오류를 등급으로 가른다
                                (기본이 치명 · errAux 만 보조 · 삼켜도 플래그는 붙인다)
@@ -77,7 +78,7 @@
   시험이 직접 잰다: 훅 쓰기를 실패시켜도 `<dir>/mcp.json` 이 쓰이고
   `--strict-mcp-config` 가 argv 에 있다
 - **계장 보존 스위치를 안 만든다.** 한 번 넣었다가 뺐다 — `features.md` 3.1 의
-  「복사한 자격증명은 계장 디렉터리와 함께 단계 끝에 지워진다」(SECURITY-09 · 15)를
+  「복사한 자격증명은 계장 디렉터리와 함께 단계 끝에 지워진다」를
   뚫기 때문이다. 그 대가로 **눈 검증이 복제본을 잰다**는 한계가 남고, U1 의
   완료 조건이 그 한계를 이름으로 적는다 — 사람이 손으로 띄우는 경로는 환경 ·
   플래그 · 게이트웨이 인증에서 실물과 갈린다
@@ -89,9 +90,13 @@
   `TestHarnessRecordsBudget` 이 그대로 초록이어야 한다 — `type` 없는 픽스처로
   `Turns` · `CostUSD` 를 재므로 조기 반환으로 짜면 빨갛다.
   `harness.go:98-99` 의 「종료코드 0 을 믿지 않는다」가 ⑮ 뒤에도 참이어야 한다
-- **`logs/` 에 중간 사건이 안 실린다** (⑱). `init` 줄과 최종 `result` 봉투와
-  stderr 만 싣는다. **시험이 그것을 직접 잰다** — 도구 사건이 섞인 stdout 을 넣고
-  `logs/` 산출물에 그 사건이 없는지. 이것이 SECURITY-03 을 준수로 만드는 줄이다
+- **`logs/` 에 도구 사건의 내용이 안 실린다** (⑱). 껍데기(`type` · 도구 이름 ·
+  성공 여부)와 `init` 줄과 최종 `result` 봉투와 stderr 는 남는다. **경로에 예외가
+  없다** — 봉투가 안 나오는 크래시 · 임대 만료에서도 같다. `runner.go` 가 직접
+  선별하고 `Harness` 에 메서드를 안 늘린다 (R6). **시험이 둘을 잰다** — 도구 사건이
+  섞인 stdout 으로 내용이 안 남는지, 그리고 **봉투 없이 끊긴 stdout** 으로도 같은지.
+  뒤엣것이 없으면 ⑱ 의 예외 없음을 안 재는 시험이다. 이것이 SECURITY-03 을 준수로
+  만드는 줄이다
 - **`init` 줄이 `logs/` 에 남는다** (⑮). `runctl record <id> -o r.tar && tar -xf r.tar`
   로 푼 `run-<id>/logs/NN-<단계>.log` 의 첫 줄이
   `system/init` 이고 거기 `mcp_servers` 와 `slash_commands` 가 있다. **이것이
