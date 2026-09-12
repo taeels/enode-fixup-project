@@ -248,8 +248,10 @@ func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]s
 `system/init` 줄이 그래야 `logs/` 에 남는다.
 
 `Decode` 는 **안 바뀐다.** `ParseClaude` 가 `lastJSONObject` 로 마지막 JSON 객체를
-집으므로 stream-json 의 `result` 줄을 그대로 읽는다 — 봉투 파싱이 안 흔들린다.
-스트림을 훑는 것과 tee 와 사건 배출은 짝 팩의 것이다.
+집으므로 stream-json 의 최종 `result` 사건을 그대로 읽는다. **다만 크래시 경로는
+흔들린다** — 중간에 죽으면 마지막 완결 객체가 `assistant` 사건이라 봉투로
+오인된다. ⑯ 이 `type` 검사로 막고 U1 이 진다. 스트림을 훑는 것과 tee 와 사건
+배출은 짝 팩의 것이다.
 
 ---
 

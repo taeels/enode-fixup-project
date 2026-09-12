@@ -63,7 +63,7 @@ Analysis Step 5.1 에서 재확인만 한다.
 | Q2 | 회차를 어디까지 · 몇 손 | B | Inception 을 돌고 Construction 까지 한 손(taeels)으로 간다. 유닛 직렬 |
 | Q3 | 짝 팩과의 순서 | A | 이 팩 먼저. 게이트의 `init` 줄은 사람이 직접 띄워 읽는다 |
 
-## 이 회차가 `decisions.md` 에 더한 행 — 열여섯
+## 이 회차가 `decisions.md` 에 더한 행 — 열일곱
 셋은 Requirements 승인 뒤에, 둘은 Application Design 이, **열하나는 2026-09-12 의
 설계 검증과 설계 질문**이 실었다.
 
@@ -84,9 +84,10 @@ Analysis Step 5.1 에서 재확인만 한다.
    ⑭  mcpUp 이 못 잡는 것 셋            뜨나는 존재이지 동작이 아니다
    ⑮  Argv 에 stream-json 한 줄         게이트가 복제본 대신 실물을 잰다
    ⑯  ParseClaude 가 type 을 본다        ⑮ 이 연 fail-open 을 막는다
+   ⑰  봉인 기록의 자격증명 누출        SECURITY-03 비준수로 적고 받아들인다
 ```
 
-열여섯 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
+열일곱 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
 **6.1 이 뒤집힌 옛 문자열을 세는 열쇠 표**를 든다 — CA0 가 그것을 돈다.
 기존 1 ~ 5절의 번호는 다른 문서가 참조하므로 안 건드리고, **2절의 낡은 행에는
 「6절이 뒤집었다」 꼬리표를 달았다** — 권장값 표가 구현자에게 먼저 읽히기 때문이다.
@@ -169,7 +170,7 @@ Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 �
 `internal/contract/examples/mcp.json` 하나로 족하고 `runctl schema steps` 는
 구조체에서 뽑는다. Units Generation 의 파일 행렬이 이 값을 쓴다.
 
-## 짝 팩과 실제로 겹치는 파일은 하나다
+## 짝 팩과 겹치는 파일은 둘이다
 `constraints.md` 접점 표의 여섯 줄 중 남는 것은 **둘**이다 — `runner.go` 와
 `claude.go` 의 `Argv` (`component-dependency.md` 5절). `Argv` 는 Q5 = A 로 한 번
 빠졌다가 ⑮ 로 되돌아왔다. 이 팩이 플래그 한 줄을 더하고 짝 팩이 그 위에서

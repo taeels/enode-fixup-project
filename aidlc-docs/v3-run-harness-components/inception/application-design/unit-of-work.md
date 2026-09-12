@@ -41,12 +41,15 @@
    internal/enode/mcp.go       새 파일.  MCPServer · Components ·
                                resolveComponents (요청도 팩도 없는 경우만)
    internal/enode/harness.go   Fixed(dir) · Instrument(..., c Components) 시그니처 · errAux
-   internal/enode/harness.go   ParseClaude 에 type 검사 (⑯).  "result" 가 아니면
-                               ReasonError.  ⑮ 이 연 fail-open 을 막는다
+   internal/enode/harness.go   ParseClaude 가 switch 앞에서 type 을 본다 (⑯).
+                               "result" 가 아니면 ReasonError.  그때도 Turns ·
+                               CostUSD · Session 은 채운다.  switch 뒤에 두면
+                               subtype 에 token 이 든 사건이 max_tokens 로 떨어져
+                               Completed() 가 참이 된다
    internal/enode/claude.go    Argv 에 --output-format stream-json --verbose 한 줄 (⑮).
                                게이트가 재는 system/init 줄이 그래야 logs/ 에 남는다.
-                               Decode 는 안 건드린다 — ParseClaude 가 마지막 JSON
-                               객체를 집으므로 봉투가 안 흔들린다.
+                               Decode 는 안 건드린다 — 최종 result 사건은 그대로
+                               집힌다.  크래시 경로는 ⑯ 이 막는다.
                                Fixed 가 CLAUDE_CONFIG_DIR 을 박는다.
                                Instrument 가 <dir>/home 을 가장 먼저 짓고
                                훅 설정을 그 안의 settings.json 으로 쓰고
@@ -78,9 +81,13 @@
   뚫기 때문이다. 그 대가로 **눈 검증이 복제본을 잰다**는 한계가 남고, U1 의
   완료 조건이 그 한계를 이름으로 적는다 — 사람이 손으로 띄우는 경로는 환경 ·
   플래그 · 게이트웨이 인증에서 실물과 갈린다
-- **크래시가 성공으로 안 봉인된다** (⑯). `ParseClaude` 가 `type` 을 보고
-  `"result"` 가 아니면 `ReasonError` 로 떨어진다. **시험이 그것을 직접 잰다** —
-  `stream-json` 사건 몇 줄 뒤에 잘린 stdout 을 넣고 `harness_error` 가 나오는지.
+- **크래시가 성공으로 안 봉인된다** (⑯). `ParseClaude` 가 switch **앞에서**
+  `type` 을 보고 `"result"` 가 아니면 `ReasonError` 다. **시험 입력은 줄 경계에서
+  끊긴 stdout** 이어야 한다 — 마지막 완결 객체가 `{"type":"assistant",...}` 인
+  것. 객체 중간에서 끊으면 `lastJSONObject` 가 `}` 로 안 끝나 오늘 코드도 이미
+  `harness_error` 라 **⑯ 을 안 재는 시험**이 된다.
+  `TestHarnessRecordsBudget` 이 그대로 초록이어야 한다 — `type` 없는 픽스처로
+  `Turns` · `CostUSD` 를 재므로 조기 반환으로 짜면 빨갛다.
   `harness.go:98-99` 의 「종료코드 0 을 믿지 않는다」가 ⑮ 뒤에도 참이어야 한다
 - **`init` 줄이 `logs/` 에 남는다** (⑮). `runctl record <id> -o r.tar && tar -xf r.tar`
   로 푼 `run-<id>/logs/NN-<단계>.log` 의 첫 줄이

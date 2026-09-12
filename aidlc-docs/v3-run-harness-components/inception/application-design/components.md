@@ -194,7 +194,7 @@ Functional Design 이 닫는다.
 `requirements.md` 4.2 의 SECURITY-15(「실패는 닫히는 쪽으로」)를 코드의 자리마다
 값으로 옮긴 표다.
 
-**기본이 치명이다** (`application-design.md` 4.1). 표에서 「보조」로 적힌 둘만
+**기본이 치명이다** (`application-design.md` 4.1). 표에서 「보조」로 적힌 하나만
 `errAux` 로 감싸고 나머지는 감싸는 일 없이 치명으로 올라간다 — 빠뜨림이 닫히는
 쪽으로 틀리게 하려는 것이다.
 

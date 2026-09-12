@@ -307,9 +307,11 @@
 **기능 요구사항**:
 - `HarnessResult` 에 허용목록의 서버 이름과 팩의 다이제스트를 남긴다
   (`ADR-034` §5 의 「팩 다이제스트」 자리)
-- 하네스 자신의 증언도 남는다 — stream-json 이 켜지면 `system/init` 줄이
-  `mcp_servers` 와 `slash_commands` 를 싣고 그 줄이 `logs/` 에 남는다. 그것은
-  `requirements/transcript/` 의 몫이고 이 팩은 앞줄만 진다
+- 하네스 자신의 증언도 남는다 — `system/init` 줄이 `mcp_servers` 와
+  `slash_commands` 를 싣고 그 줄이 `logs/` 에 남는다. **이 팩이 그 줄을 나오게
+  한다** (`decisions.md` 6절 ⑮ — `Argv` 에 `stream-json --verbose` 한 줄). 게이트
+  셋이 그것을 읽는다. 스트림 처리와 tee 와 사건 배출은 `requirements/transcript/`
+  의 몫이다
 
 **수용 기준**: CA6. `runctl record` 로 푼 묶음에서 서버 이름과 팩 다이제스트가
 읽힌다.

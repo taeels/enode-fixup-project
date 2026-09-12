@@ -83,7 +83,8 @@ Generation 이 정한다.
    internal/enode       가짜 홈 · 허용목록 · 팩 펴기 · 탐지기 · 노드 선언.  실행 층이다
    internal/contract    agent 의 알려진 키 · 예시.  Mediator 와 enode 가 함께 본다
    cmd/iapadapter       설정 키 하나 · 템플릿의 팩 단계
-   cmd/runctl           example 하나.  schema 는 구조체에서 저절로 는다
+   cmd/runctl           소스 diff 0.  예시는 internal/contract 의 임베드 FS 에 산다.
+                        schema 는 Step.Agent 가 map 이라 안 는다
 ```
 
 **Mediator 라우트는 0 개 는다.** `internal/api/api.go` 는 등록 줄조차 안 는다.
@@ -103,7 +104,11 @@ Generation 이 정한다.
 
 ### 실행은 여전히 한 자리에서
 
-**프로세스를 띄우는 코드는 `runner.go` 하나다.** 허용목록 파일과 가짜 홈은
+**하네스를 띄우는 코드는 `runHarness` 하나다.** 「프로세스를 띄우는 코드가
+`runner.go` 하나」로 읽으면 거짓이다 — `internal/enode` 만 봐도 여덟 자리가
+프로세스를 띄운다(`claim.go` 의 명령 단계 · `claude.go` 의 `--version` 과
+`auth status` · `repoid` · `identity` · `diff` · `workspace`). 유닛마다 도는
+검사로 굳힐 때 좁은 형태를 쓴다. 허용목록 파일과 가짜 홈은
 `Instrument` 가 짓고 `Fixed` 가 값을 박는다. 어댑터에 exec 을 두지 않는다 —
 R1 화이트리스트를 N 번 지키게 되는 것이 구멍이다.
 
@@ -127,8 +132,11 @@ R1 화이트리스트를 N 번 지키게 되는 것이 구멍이다.
 **팩 둘이 같은 파일을 만진다.** 진행자가 직렬로 병합한다 (`CONVENTIONS.md` 3.1).
 
 ```text
-   internal/enode/claude.go   Argv       이 팩은 MCP 플래그를 더한다.
-                                         transcript 팩은 출력 형식을 바꾼다
+   internal/enode/claude.go   Argv       이 팩은 MCP 플래그와 출력 형식 플래그를
+                                         더한다 (decisions.md 6절 ⑮ — 게이트가 재는
+                                         system/init 줄이 그래야 나온다).
+                                         transcript 팩이 그 위에서 스트림 처리를
+                                         자라게 한다.  겹친다
                               Fixed      이 팩만
                               Instrument 이 팩만
                               Decode     transcript 팩만
