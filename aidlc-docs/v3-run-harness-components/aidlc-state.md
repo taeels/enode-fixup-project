@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-11T13:13:54Z
-- **Current Stage**: INCEPTION — Units Generation 완료 · **검증 루프 진행 중** (11차까지)
+- **Current Stage**: INCEPTION — **닫혔다.** 검증 루프 열두 바퀴 뒤 `aidlc-verify` 가 「CONSTRUCTION 으로 넘어가도 된다」로 승인했다 (2026-09-12 · 12차)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-harness-components` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-harness-components/` (CLAUDE.md 의 회차별 layering)
@@ -86,7 +86,7 @@ Analysis Step 5.1 에서 재확인만 한다.
    ⑯  ParseClaude 가 type 을 본다        ⑮ 이 연 fail-open 을 막는다
    ⑰  봉인 기록의 자격증명 누출        준수로 만든다 (사용자 결정)
    ⑱  도구 사건은 껍데기만 남긴다        logs/ 를 허용목록으로 거른다
-   ⑲  stream-json 동안 링을 닫는다       tee 가 선별 앞이라 ⑱ 만으로는 안 닫힌다
+   ⑲  하네스 단계의 링 tee 를 끈다        그 tee 가 선별 앞이라 ⑱ 만으로는 안 닫힌다
 ```
 
 열아홉 다 `requirements/harness-components/decisions.md` **6절**에 실렸고,
@@ -161,7 +161,8 @@ Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 �
    D4   2026-09-12 에 뒤집혔다 (decisions.md 6절 ⑮).  Argv 에
         --output-format stream-json --verbose 한 줄을 U1 이 가져온다 —
         그러지 않으면 CA1 · CA4 · CA5 가 재려는 줄이 이 회차에 없다.
-        게이트는 logs/ 경로다.  Decode 와 tee 는 짝 팩의 것으로 둔다
+        게이트는 logs/ 경로다.  Decode 는 짝 팩의 것이고
+        하네스 단계의 tee 는 이 팩이 끈다 (⑲)
 ```
 
 설계가 답 밖에서 더 정한 둘 — `Instrument` 의 오류를 등급으로 가르고(뒤에 ⑨ · ⑪ 이 방향을 뒤집었다. 그때는 `errComponents`
@@ -244,8 +245,8 @@ Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 �
 ## Current Status
 - **Lifecycle Phase**: INCEPTION 완료 · 다음은 CONSTRUCTION
 - **Current Stage**: Units Generation 완료
-- **Next Stage**: CONSTRUCTION — U1 `isolation` 의 Functional Design
-- **Status**: 승인 대기
+- **Next Stage**: CONSTRUCTION — U1 `isolation` 의 Functional Design. **12차 보고의 병합 전 정리 여덟 중 1 ~ 3 은 닫았고 나머지는 진행자가 병합 전에 돈다**
+- **Status**: 승인됨 (12차 · 2026-09-12)
 
 ## 다음 세션이 CONSTRUCTION 에서 쓸 입력
 ```text

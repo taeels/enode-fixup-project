@@ -106,6 +106,7 @@
 | `cmd/runctl/shape_test.go` `TestExamples_LintClean` | U2 | `contract.ExampleNames()` 를 돌므로 새 예시가 lint 경고를 내면 빨개진다 |
 | `internal/contract/example_test.go` | U2 | 같은 이유. 파싱 · `Validate` · `success_when` 유무를 잰다 |
 | `internal/contract/grammar_test.go` | U2 | `Grammar` 의 문장마다 「어긴 계약이 거절되는가」를 잰다 |
+| `internal/enode/hook_test.go` | U1 | ⑧ 이 훅 설정의 경로와 이름을 `<tmp>/enode-settings.json` 에서 `<tmp>/home/settings.json` 으로 옮기므로 **넷이 확정적으로 빨개진다** — `:215` · `:247` · `:277` · `:300`. U1 이 함께 고친다 |
 | `internal/enode/claude_test.go` · `env_test.go` | U1 | `Job{...}` 리터럴 셋이 여기 있다. 그리고 `claude_test.go:14-15` 의 `TestAdapter_ArgvIsPure` 가 `--output-format json` 을 완전 일치로 재므로 ⑮ 가 그것을 **확정적으로 빨갛게** 만든다 |
 | `internal/enode/worker_unix_test.go` | U1 | `stubHarness` 로 도는 시험들이 새 순서를 탄다 |
 

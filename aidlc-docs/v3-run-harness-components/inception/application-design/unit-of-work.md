@@ -124,6 +124,8 @@
   기록으로 남는다**
 - **`TestAdapter_ArgvIsPure`(`claude_test.go:14-15`)가 `--output-format json` 을 완전
   일치로 잰다.** ⑮ 가 그것을 확정적으로 빨갛게 만든다 — U1 이 함께 고친다.
+  **`hook_test.go` 의 넷(`:215` · `:247` · `:277` · `:300`)도 같다** — ⑧ 이 훅 설정의
+  이름을 바꾸므로 이름으로 파일을 읽는 그 넷이 확정 빨강이다.
   이것이 SECURITY-03 을 준수로 만드는 줄이다
 - **`init` 줄이 `logs/` 에 남는다** (⑮). `runctl record <id> -o r.tar && tar -xf r.tar`
   로 푼 `run-<id>/logs/NN-<단계>.log` 의 첫 줄이
