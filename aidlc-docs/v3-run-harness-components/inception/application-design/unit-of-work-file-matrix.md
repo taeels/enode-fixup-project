@@ -31,7 +31,7 @@
 | `cmd/iapadapter/contract.go` | | | | | x | |
 
 ```text
-   만지는 파일     14  (새 파일 둘 · 고치는 파일 열둘)
+   만지는 파일     15  (새 파일 둘 · 고치는 파일 열셋)
    만지는 패키지    3  internal/enode · internal/contract · cmd/iapadapter
    cmd/runctl       0  소스 diff 가 없다.  3절이 닿는 시험을 따로 적는다
    internal/api     0  등록 줄조차 안 는다
@@ -153,7 +153,7 @@ enode 쪽 끝이라 U2 가 함께 진다 — **계약이 받는 키와 그것을
 | `claude.go` `Decode` | 안 건드린다 | 스트림을 훑게 바꾼다 | 아니오 |
 | `hook.go` | U1 | 안 건드린다 | 아니오 |
 | `harness.go` `HarnessResult` | U5 | 안 건드린다 | 아니오 |
-| `runner.go` `Job` | U4 (`NodeMCP`) | tee 와 사건 배출 | **예** |
+| `runner.go` `Job` | U4 (`NodeMCP`) · U1 (하네스 단계 tee 끄기 · ⑲) | 사건 배출 · 링 되살리기 | **예** |
 | `runner.go` `runHarness` | U1 · U5 | stdout 처리 | **예** |
 
 **처리** — 팩 단위로 이 팩이 먼저다 (확인 질문 Q3 = A). U1 ~ U5 가 전부 `main` 에

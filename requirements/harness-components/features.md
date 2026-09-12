@@ -310,8 +310,9 @@
 - 하네스 자신의 증언도 남는다 — `system/init` 줄이 `mcp_servers` 와
   `slash_commands` 를 싣고 그 줄이 `logs/` 에 남는다. **이 팩이 그 줄을 나오게
   한다** (`decisions.md` 6절 ⑮ — `Argv` 에 `stream-json --verbose` 한 줄). 게이트
-  셋이 그것을 읽는다. 스트림 처리와 tee 와 사건 배출은 `requirements/transcript/`
-  의 몫이다
+  셋이 그것을 읽는다. **하네스 단계의 링 tee 는 이 팩이 끈다** (`decisions.md` 6절 ⑲) —
+  그 tee 가 `logs/` 선별 앞이라 안 끄면 누출이 링으로 간다. 링을 선별과 함께
+  되살리는 것과 사건 배출은 `requirements/transcript/` 의 몫이다
 
 **수용 기준**: CA6. `runctl record` 로 푼 묶음에서 서버 이름과 팩 다이제스트가
 읽힌다.

@@ -189,7 +189,8 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
    ④  Instrument(tmp, self, a, c)  errAux 로 감싼 오류만 삼킨다.  그 밖은 단계 실패.
                                    삼킬 때도 돌려받은 플래그는 붙인다
    ⑤  Fixed(tmp) 를 합친다
-   ⑥  exec
+   ⑥  exec — 하네스 단계의 링 tee 는 안 건다 (⑲ · runner.go:103-105).
+      명령 단계의 tee 는 claim.go 에 있고 이 팩이 안 건드린다
    ⑦  Decode · Version · 자백 읽기  오늘 그대로
    ⑧  HarnessResult 에 MCP · Pack 을 채운다
    ⑨  logs/ 에 실을 것을 고른다 (⑱).  runner.go 가 직접 한다 —

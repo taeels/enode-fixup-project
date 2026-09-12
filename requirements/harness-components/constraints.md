@@ -141,8 +141,9 @@ R1 화이트리스트를 N 번 지키게 되는 것이 구멍이다.
                               Instrument 이 팩만
                               Decode     transcript 팩만
    internal/enode/runner.go   Job        이 팩은 팩 · MCP 를 Job 에 싣는다.
-                                         transcript 팩은 tee 와 사건 배출을 만진다
-                              logs/ 조립  이 팩이 도구 사건의 내용을 걷는다 (6절 ⑱).
+                                         transcript 팩은 사건 배출을 만진다
+                              logs/ 조립  이 팩이 logs/ 를 허용목록으로 거른다 (6절 ⑱).
+                                         init 과 최종 result 와 stderr 만 전문이다.
                                          exec 뒤의 자리다 — 짝 팩의 스트림 처리와 겹친다
                               링 tee     이 팩이 stream-json 동안 끈다 (6절 ⑲).
                                          짝 팩이 선별과 함께 되살린다.  겹친다

@@ -56,7 +56,8 @@
                                .credentials.json 을 0600 으로 복사하고
                                <dir>/mcp.json 을 쓴다.
                                플래그 --strict-mcp-config --mcp-config=<경로>
-   internal/enode/runner.go    stream-json 동안 링 tee 를 끈다 (⑲ · :104-105).
+   internal/enode/runner.go    stream-json 동안 하네스 단계 링 tee 를 끈다 (⑲ · :103-105).
+                               명령 단계 tee(claim.go:632-635)는 안 건드린다.
                                logs/ 선별 (⑱).  허용목록 — init 과 최종 result 와
                                stderr 만 전문이고 나머지는 껍데기다.
                                계장 디렉터리를 함수 몸통으로.  못 만들면 단계 실패.
@@ -85,18 +86,23 @@
   완료 조건이 그 한계를 이름으로 적는다 — 사람이 손으로 띄우는 경로는 환경 ·
   플래그 · 게이트웨이 인증에서 실물과 갈린다
 - **크래시가 성공으로 안 봉인된다** (⑯). `ParseClaude` 가 switch **앞에서**
-  `type` 을 보고 `"result"` 가 아니면 `ReasonError` 다. **시험 입력은 줄 경계에서
+  `type` 을 보고 `"result"` 가 아니면 `ReasonError` 다. **`Message` 에는 봉투의
+  `type` 만 싣는다** — 원문 줄을 안 싣는다. `Message` 가 `claim.go:784` 의 `res.Error`
+  와 `steps/NN-*.json` 으로 봉인에 들어가므로 원문을 넣으면 ⑱ 이 닫은 길이 뒷문으로
+  열린다. **시험 입력은 줄 경계에서
   끊긴 stdout** 이어야 한다 — 마지막 완결 객체가 `{"type":"assistant",...}` 인
   것. 객체 중간에서 끊으면 `lastJSONObject` 가 `}` 로 안 끝나 오늘 코드도 이미
   `harness_error` 라 **⑯ 을 안 재는 시험**이 된다.
   `TestHarnessRecordsBudget` 이 그대로 초록이어야 한다 — `type` 없는 픽스처로
   `Turns` · `CostUSD` 를 재므로 조기 반환으로 짜면 빨갛다.
   `harness.go:98-99` 의 「종료코드 0 을 믿지 않는다」가 ⑮ 뒤에도 참이어야 한다
-- **`stream-json` 동안 트랜스크립트 링이 닫힌다** (⑲). `runner.go:104-105` 의
-  tee 가 ⑱ 의 선별 **앞**이라 그것만으로는 누출이 링으로 그대로 간다. 링은
-  512 KiB 파일로 **노드 디스크에 남고** 끄는 스위치가 없다. **시험이 그것을
-  잰다** — `Job.Transcript` 를 준 채로 돌려도 링에 도구 사건이 안 쌓이는지.
-  끄는 대가는 거의 0 이다 — 오늘 링에 가는 것이 끝의 봉투 하나뿐이다
+- **`stream-json` 동안 하네스 단계의 링 tee 가 꺼진다** (⑲). `runner.go:103-105`
+  **하나**다 — 명령 단계의 tee(`claim.go:632-635`)는 그대로 흐른다. 그 tee 가 ⑱ 의
+  선별 **앞**이라 그것만으로는 누출이 링으로 그대로 간다. **시험이 그것을 잰다** —
+  `Job.Transcript` 를 준 채로 돌려도 **한 바이트도 안 받는다.** 「도구 사건이 안
+  쌓인다」로 재면 안 된다 — 링에도 선별을 거는 구현(⑲ 가 기각한 B)이 통과한다.
+  **대가는 0 이 아니다** — ⑮ 이후라면 링에 사건이 흘러 기능 3.1.3 과 CP6 ① 이
+  공짜로 초록이 될 수 있었고, ⑲ 가 그것을 짝 팩까지 미룬다
 - **`logs/` 가 허용목록이다** (⑱). `system/init` 과 최종 `result` 와 stderr 는
   **전문**이고 그 밖의 모든 사건은 **껍데기**(사건 종류 · 도구 이름 · 성공 여부)만
   남는다. `assistant` 의 `text` 도 `thinking` 도 도구 결과도 같다. **경로에 예외가

@@ -42,8 +42,11 @@
                    플래그가 는다 — --strict-mcp-config --mcp-config=<경로>
                    보조 실패에도 이미 얻은 플래그를 돌려준다 (4.3 ②)
    Argv            --output-format stream-json --verbose 로 바꾼다 (decisions.md 6절 ⑮).
+                   그때 하네스 단계의 링 tee 를 끈다 (⑲ · runner.go:103-105) —
+                   그 tee 가 logs/ 선별 앞이라 안 끄면 누출이 링으로 간다
                    게이트가 재는 system/init 줄이 그래야 나온다.
-                   Decode 와 tee 는 안 건드린다 — 짝 팩의 것이다
+                   Decode 는 안 건드린다 — 짝 팩의 것이다.
+                   하네스 단계의 tee 는 이 팩이 끈다 (⑲)
    Decode          안 바뀐다
 ```
 

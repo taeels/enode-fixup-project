@@ -154,7 +154,7 @@ Q5 의 답이 A 라 겹침이 팩이 적은 것보다 **줄었다.**
 | `claude.go` `Fixed` | 시그니처를 바꾼다 | 안 건드린다 | 아니오 |
 | `claude.go` `Instrument` | 크게 자란다 | 안 건드린다 | 아니오 |
 | `claude.go` `Decode` | 안 건드린다 | 스트림을 훑게 바꾼다 | 아니오 |
-| `runner.go` `Job` | `NodeMCP` 한 필드 | tee 와 사건 배출 | **예** — 같은 구조체 |
+| `runner.go` `Job` | `NodeMCP` 한 필드 · 하네스 단계 tee 끄기 (⑲) | 사건 배출 · 링 되살리기 | **예** — 같은 구조체 |
 | `runner.go` `runHarness` | 순서와 실패 규칙 | stdout 처리 | **예** — 같은 함수 |
 | `hook.go` | 훅 파일을 가짜 홈 **안**으로 (⑧) | 안 건드린다 | 아니오 |
 | `harness.go` `HarnessResult` | 필드 둘 | 안 건드린다 | 아니오 |
