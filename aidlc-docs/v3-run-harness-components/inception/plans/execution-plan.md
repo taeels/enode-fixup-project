@@ -323,7 +323,8 @@ flowchart TD
 ```text
    실행 단계    Inception 2 (Application Design · Units Generation)
                 Construction 3 (Functional Design · Code Generation · Build and Test)
-   스킵 단계    4 (User Stories · NFR Requirements · NFR Design · Infrastructure Design)
+   스킵 단계    3 (NFR Requirements · NFR Design · Infrastructure Design).
+                User Stories 는 2026-09-12 에 최소 형태로 되살렸다
    유닛 수      미정.  Units Generation 이 낸다.  기능 일곱과 게이트 일곱이 입력이다
    만지는 경로  3 (internal/enode · internal/contract · cmd/iapadapter)
    게이트       7 (CA0 ~ CA6).  기계 1 · 사람 6 · 그중 사내 함대 1
