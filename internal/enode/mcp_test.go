@@ -17,7 +17,7 @@ import (
 // mcpServers 다. 키가 없는 파일을 하네스가 어떻게 읽는지는 실측이 없다.
 // 봉투를 언제나 쓰면 그 물음이 사라지고, 0 이 의도임이 파일에 보인다.
 func TestMCP_TheEmptyAllowlistKeepsTheEnvelope(t *testing.T) {
-	for _, servers := range []map[string]MCPServer{nil, {}} {
+	for _, servers := range []map[string]map[string]any{nil, {}} {
 		b, err := mcpAllowlistJSON(servers)
 		if err != nil {
 			t.Fatal(err)
@@ -28,14 +28,15 @@ func TestMCP_TheEmptyAllowlistKeepsTheEnvelope(t *testing.T) {
 	}
 }
 
-// 서버 하나가 그대로 허용목록의 객체가 된다 (U1 이 직렬화를 전부 진다).
+// 노드 선언 하나가 그대로 허용목록의 객체가 된다 (U1 이 직렬화를 전부 진다).
 //
-// U1 의 제품 경로는 언제나 빈 목록이므로 여기서 직접 넣어 잰다 — 서버가
-// 실린 파일은 U4 가 처음 만들지만 쓰는 코드는 이 유닛의 것이다.
+// 항목을 짓는 것은 allowlistEntry 이고 직렬화는 mcpAllowlistJSON 이다 — U4 가
+// 둘 사이를 갈랐다. 파일에 무엇이 실리는가는 여전히 이 시험이 잰다.
 func TestMCP_AServerIsCopiedIntoTheAllowlist(t *testing.T) {
-	b, err := mcpAllowlistJSON(map[string]MCPServer{
-		"gerrit": {URL: "https://gerrit.invalid/mcp", Credential: "GERRIT_TOKEN"},
-		"fs":     {Command: "/usr/bin/mcp-fs", Args: []string{"--root", "/srv"}, Env: map[string]string{"MCP_FS_MODE": "FS_MODE"}},
+	b, err := mcpAllowlistJSON(map[string]map[string]any{
+		"gerrit": MCPServer{URL: "https://gerrit.invalid/mcp", Credential: "GERRIT_TOKEN"}.allowlistEntry(),
+		"fs": MCPServer{Command: "/usr/bin/mcp-fs", Args: []string{"--root", "/srv"},
+			Env: map[string]string{"MCP_FS_MODE": "FS_MODE"}}.allowlistEntry(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -104,9 +105,11 @@ func TestMCP_TheAllowlistFileIsLockedDown(t *testing.T) {
 	}
 }
 
-// U1 은 아무것도 안 연다 — 요청도 팩도 없는 경우만 다룬다.
+// 요청이 없으면 아무것도 안 연다 (R2).
 //
-// 빈 맵을 세워 돌려주는 것이 nil 과 빈 것을 쓰는 쪽이 안 가르게 한다.
+// U1 이 세운 줄이고 U4 뒤에도 참이다 — 출처가 무엇을 선언했든 계약이 이름을
+// 안 적으면 0 이다. 빈 맵을 세워 돌려주는 것이 nil 과 빈 것을 쓰는 쪽이
+// 안 가르게 한다.
 func TestMCP_ResolveComponentsOpensNothing(t *testing.T) {
 	c, err := resolveComponents(Job{})
 	if err != nil {

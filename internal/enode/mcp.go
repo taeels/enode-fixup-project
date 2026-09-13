@@ -3,7 +3,9 @@ package enode
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -22,8 +24,9 @@ import (
 //	resolveComponents   정한다.  파일을 하나도 안 만진다
 //	Instrument          쓴다.    무엇을 열지 안 정한다
 //
-// U1 은 「요청도 팩도 없는 경우」만 다룬다. 출처 셋을 합치는 것은 U4 이고
-// 팩은 U5 다. 그래서 이 파일의 제품 경로는 언제나 빈 목록을 낸다.
+// U4 가 출처 둘(노드 선언 · 워크스페이스)을 합쳤다. 남은 것은 팩이고 U5 다.
+//
+//	readWorkspaceMCP    읽는다.  가장자리다 — 정하지 않는다
 
 // MCPServer 는 노드가 선언한 MCP 서버 하나다 (ADR-035 §4.4).
 //
@@ -175,10 +178,21 @@ func (mcpFP) Probe(_ context.Context, l Local, log *slog.Logger) (map[string]str
 }
 
 // Components 는 이 단계가 하네스에 실어 줄 것 전부다.
+//
+// Servers 는 MCPServer 가 아니라 허용목록 항목이다 (U4).
+//
+// 출처마다 어휘가 다르기 때문이다 — 노드 선언은 우리가 정의한 MCPServer 이고,
+// 워크스페이스 .mcp.json 과 팩의 mcp.json 은 하네스가 정의한 형식이다. 그 둘을
+// MCPServer 로 받으면 우리가 모르는 키(type · headers)가 사라지고 env 의 뜻이
+// 뒤집힌다 — 노드 선언의 env 는 이름에서 이름으로 가는데 그 파일들의 env 는 값이다.
+//
+// 최종 항목으로 올리면 합치는 자리에서 어휘가 하나가 된다. 노드 것은
+// allowlistEntry() 를 지나 들어오고 그 밖의 출처는 원문 그대로 들어온다 —
+// 번역하는 코드가 없으므로 번역이 못 틀린다.
 type Components struct {
-	Servers map[string]MCPServer // 허용목록에 실릴 것
-	Pack    *Pack                // nil 이면 팩 없음
-	Notes   []string             // 로그로 낼 사실 — 이름만 담는다
+	Servers map[string]map[string]any // 이름 -> 허용목록 항목
+	Pack    *Pack                     // nil 이면 팩 없음
+	Notes   []string                  // 로그로 낼 사실 — 이름만 담는다
 }
 
 // Pack 은 검증을 통과한 팩이다 (component-methods.md 2.1).
@@ -190,16 +204,220 @@ type Pack struct{}
 
 // resolveComponents 는 이 단계가 무엇을 열지 정한다 (FR-2 · FR-4 · FR-6).
 //
-// 파일을 하나도 안 만진다. 그래서 시험이 하네스도 디스크도 안 쓰고,
+// 파일을 하나도 안 만진다. 출처는 Job 이 들고 온다 — 여는 것은 가장자리
+// (claim.go)이고 고르는 것은 여기다. 그래서 시험이 하네스도 디스크도 안 쓰고,
 // 오류가 곧 단계 실패다 — 부르는 쪽이 exec 전에 부른다.
 //
-// U1 은 요청도 팩도 없는 경우만 다루므로 언제나 빈 것을 낸다. 출처 셋
-// (팩 · 노드 · 워크스페이스)과 이름이 없을 때의 거절은 U4 가, 팩은 U5 가
-// 이 자리에 자란다. 빈 맵을 세워 돌려주는 것은 쓰는 쪽이 nil 과 빈 것을
-// 안 가르게 하려는 것이다.
+// 걸음 여섯이고 순서가 뜻을 가진다:
+//
+//	1  요청 집합을 만든다.  비면 빈 것을 낸다 — 출처를 아예 안 본다
+//	2  워크스페이스 파일을 못 읽었으면 거절한다.  3 보다 앞이라 깨진 파일이
+//	   「없는 이름」으로 둔갑하지 않는다
+//	3  이름 순으로 출처를 뒤진다.  노드가 워크스페이스를 이긴다
+//	4  집은 항목마다 종류를 채운다.  3 보다 뒤라 우리가 채운 것과 출처가 안 섞인다
+//	5  요청 안 한 워크스페이스 이름을 Notes 에 남긴다
+//	6  못 찾은 이름이 있으면 거절한다.  맨 뒤라 Notes 가 다 채워진 뒤다
+//
+// 거절로 끝날 때도 그때까지의 Components 를 함께 돌려준다 — 왜 실패했는지를
+// 아는 데 필요한 사실이 실패와 함께 사라지면 안 된다. 부르는 쪽이 Notes 를
+// 먼저 찍고 실패를 낸다 (runner.go 의 ②).
+//
+// 팩은 U5 가 걸음 3 앞에 더한다 — 팩이 노드 선언 이름을 덮으면 거절이기 때문이다.
+//
+// 빈 맵을 세워 돌려주는 것은 쓰는 쪽이 nil 과 빈 것을 안 가르게 하려는 것이다.
 func resolveComponents(j Job) (Components, error) {
-	_ = j // 출처는 U4 가 여기서 읽는다 — 오늘은 읽을 것이 없다
-	return Components{Servers: map[string]MCPServer{}}, nil
+	c := Components{Servers: map[string]map[string]any{}}
+
+	// 1 — 요청이 없으면 허용목록이 빈다. 출처가 무엇을 선언했든 그렇다
+	// (features.md 3.2 — 요청이 없을 때 0 은 의도다).
+	want := wantedMCP(j.Params.MCP)
+	if len(want) == 0 {
+		return c, nil
+	}
+
+	// 2 — 원인이 파일이면 문구도 파일을 가리킨다. 파일 경로는 안 싣는다:
+	// 이 문구가 res.Error 로 봉인에 들어가고, 노드의 디렉터리 구조는 계약
+	// 작성자가 알 것이 아니다. 파일은 하나뿐이라 이름으로 충분하다.
+	if j.WorkspaceMCPErr != nil {
+		return c, fmt.Errorf("cannot read workspace .mcp.json: %w", j.WorkspaceMCPErr)
+	}
+
+	// 3
+	var missing []string
+	for _, name := range want {
+		if s, ok := j.NodeMCP[name]; ok {
+			if _, dup := j.WorkspaceMCP[name]; dup {
+				// 노드가 이긴다. 저장소에 쓰는 사람이 소유자가 선언한
+				// 이름을 가로채지 못한다 — 매칭은 소유자의 값으로 하고
+				// 실행은 저장소의 값으로 하는 길이 닫힌다.
+				c.Notes = append(c.Notes, "mcp server "+name+" is declared by both "+
+					"the node and the workspace; the node declaration wins")
+			}
+			c.Servers[name] = s.allowlistEntry()
+			continue
+		}
+		if e, ok := j.WorkspaceMCP[name]; ok {
+			// 원본을 안 고친다 — 4 가 키를 하나 더하는데 그 맵은 Job 의 것이다.
+			e = copyEntry(e)
+			if !hasText(e, "command") && !hasText(e, "url") {
+				// 종류를 못 정하는 항목은 하네스가 말없이 버린다. 계약이
+				// 이름으로 요청한 것이 조용히 사라지는 것은 아래 6 이 막으려는
+				// 바로 그 실패다.
+				return c, fmt.Errorf(
+					"workspace mcp server %s declares neither command nor url", name)
+			}
+			c.Servers[name] = e
+			continue
+		}
+		missing = append(missing, name)
+	}
+
+	// 4 — 종류를 채우는 자리가 하나다. 두 출처가 같은 규칙을 받는다.
+	for _, e := range c.Servers {
+		ensureType(e)
+	}
+
+	// 5 — 계약 작성자가 「적어 뒀는데 왜 없나」를 여기서 푼다.
+	requested := make(map[string]bool, len(want))
+	for _, name := range want {
+		requested[name] = true
+	}
+	for _, name := range entryNames(j.WorkspaceMCP) {
+		if !requested[name] {
+			c.Notes = append(c.Notes, "workspace .mcp.json declares "+name+
+				", which this step did not request")
+		}
+	}
+
+	// 6 — 조용히 빼고 돌면 하네스가 exit 0 으로 끝나고 성공이 봉인된다.
+	// 단계는 초록인데 모델은 그 도구를 못 봤다 (ADR-035 §3).
+	if len(missing) > 0 {
+		for _, name := range missing[1:] {
+			c.Notes = append(c.Notes, notAvailable(name))
+		}
+		return c, errors.New(notAvailable(missing[0]))
+	}
+	return c, nil
+}
+
+// notAvailable 은 팩이 박은 문구다 (features.md 3.2 · scene-gates.md CA4).
+//
+// 게이트가 부분 문자열로 찾으므로 이름 하나짜리 단수형을 유지한다. 없는
+// 이름이 여럿이면 첫 이름이 문구로 나가고 나머지는 Notes 로 간다.
+func notAvailable(name string) string {
+	return "mcp server " + name + " is not available on this node"
+}
+
+// wantedMCP 는 계약이 요청한 이름을 정렬된 유일한 목록으로 만든다.
+//
+// 같은 이름을 두 번 적은 계약을 거절하지 않는다 — 이름의 집합이 같으므로
+// 결과가 같다. 정렬하는 이유는 거절 문구와 Notes 의 순서가 같은 계약이면
+// 같아야 하기 때문이다 (ADR-014 결정 3 의 결).
+func wantedMCP(names []string) []string {
+	seen := make(map[string]bool, len(names))
+	out := make([]string, 0, len(names))
+	for _, n := range names {
+		if seen[n] {
+			continue
+		}
+		seen[n] = true
+		out = append(out, n)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// entryNames 는 항목 맵의 이름을 정렬해 낸다. 같은 파일이면 같은 순서다.
+func entryNames(m map[string]map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for name := range m {
+		out = append(out, name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// copyEntry 는 항목을 얕게 복사한다.
+//
+// ensureType 이 맵을 고치는데 그 맵은 Job 의 것이다 — 워크스페이스 파일에서
+// 읽은 그대로다. 원본을 고치면 같은 Job 을 두 번 쓰는 호출자와 시험이 조용히
+// 갈린다. 값은 안 복사한다 — 우리는 키 하나만 더하고 값은 안 만진다.
+func copyEntry(e map[string]any) map[string]any {
+	out := make(map[string]any, len(e)+1)
+	for k, v := range e {
+		out[k] = v
+	}
+	return out
+}
+
+// hasText 는 그 키에 빈 문자열이 아닌 문자열이 있는가다.
+//
+// 문자열이 아닌 값은 「없다」로 본다 — {"command": 5} 는 종류를 못 정하므로
+// 우리가 채울 수도 없고, 사람이 고칠 자리는 같은 줄이다.
+func hasText(e map[string]any, key string) bool {
+	s, ok := e[key].(string)
+	return ok && s != ""
+}
+
+// ensureType 은 항목에 종류를 채운다 (features.md 3.2 · decisions.md 6절 ㉓).
+//
+// 실측이 근거다 — claude 2.1.266 은 type 도 command 도 없는 항목을 init 줄의
+// mcp_servers 에서 말없이 뺀다. failed 로도 안 나타난다. ADR-035 §4.4 의
+// 예시(url + credential)가 그대로 그 모양이라, 그 선언은 광고는 서고 서버는
+// 안 열리는 조합을 조용히 만든다 — ADR-035 §3 의 「없음이 실패보다 나쁘다」다.
+//
+// 이미 있으면 안 덮는다. 소유자가 type: sse 를 적었거나 저장소가 http 를
+// 적었으면 그것이 이긴다 — 우리는 비어 있는 자리만 채운다.
+//
+// 종류를 잘못 채우는 경우는 남는다 (sse 서버를 url 만으로 적으면 http 가 된다).
+// 그때 그 서버는 failed 로 목록에 나타난다 — 침묵이 아니라 실패다.
+func ensureType(e map[string]any) {
+	if _, ok := e["type"]; ok {
+		return
+	}
+	switch {
+	case hasText(e, "command"):
+		e["type"] = "stdio"
+	case hasText(e, "url"):
+		e["type"] = "http"
+	}
+}
+
+// workspaceMCPName 은 워크스페이스가 하네스에게 쓰는 파일이다 (features.md 3.4).
+const workspaceMCPName = ".mcp.json"
+
+// readWorkspaceMCP 는 워크스페이스의 선언을 원문 그대로 읽는다.
+//
+// 가장자리다 — 정하는 자리가 아니다. 등급도 문구도 resolveComponents 가
+// 정하므로 오류를 그대로 올린다.
+//
+// 원문 그대로인 이유는 이 파일이 우리 형식이 아니기 때문이다. 저장소가
+// 하네스에게 쓴 것이고 type · headers 처럼 우리 어휘에 없는 키가 있다.
+// 우리는 전달자이고 번역자가 아니다.
+//
+//	없는 파일               nil.  저장소 대부분에 그 파일이 없다
+//	mcpServers 가 없는 파일   nil.  다른 목적의 파일일 수 있다
+//	그 밖의 실패             오류.  요청이 있을 때만 만난다 — claim.go 가
+//	                       그때만 부른다
+//
+// 크기 상한을 안 둔다 — 같은 워크스페이스를 collectDeclared 와 워크스페이스
+// diff 가 이미 통째로 읽는다. 여기만 상한을 두면 규율이 갈린다. 푼 뒤의
+// 크기를 지는 것은 팩이다 (U5).
+func readWorkspaceMCP(dir string) (map[string]map[string]any, error) {
+	b, err := os.ReadFile(filepath.Join(dir, workspaceMCPName))
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var f struct {
+		MCPServers map[string]map[string]any `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(b, &f); err != nil {
+		return nil, err
+	}
+	return f.MCPServers, nil
 }
 
 // mcpAllowlistName 은 허용목록 파일의 이름이다 (decisions.md 2절).
@@ -211,7 +429,7 @@ const mcpAllowlistName = "mcp.json"
 // writeMCPAllowlist 는 허용목록 파일을 쓴다 (features.md 3.2).
 //
 // 권한은 0600 이다 — 이름만 든 파일이지만 계장 안의 다른 파일과 같은 값으로 둔다.
-func writeMCPAllowlist(path string, servers map[string]MCPServer) error {
+func writeMCPAllowlist(path string, servers map[string]map[string]any) error {
 	b, err := mcpAllowlistJSON(servers)
 	if err != nil {
 		return err
@@ -226,14 +444,14 @@ func writeMCPAllowlist(path string, servers map[string]MCPServer) error {
 // mcpServers 다. 키가 없는 파일을 하네스가 어떻게 읽는지는 실측이 없고,
 // 봉투를 언제나 쓰면 그 물음이 사라진다. 그리고 0 이 의도임이 파일에 보인다
 // (features.md 3.2 — 요청이 없을 때 0 은 의도다).
-func mcpAllowlistJSON(servers map[string]MCPServer) ([]byte, error) {
-	m := make(map[string]map[string]any, len(servers))
-	for name, s := range servers {
-		m[name] = s.allowlistEntry()
+func mcpAllowlistJSON(servers map[string]map[string]any) ([]byte, error) {
+	// nil 도 빈 봉투다 — 아래 Marshal 이 nil 맵을 null 로 적는다.
+	if servers == nil {
+		servers = map[string]map[string]any{}
 	}
 	b, err := json.Marshal(struct {
 		MCPServers map[string]map[string]any `json:"mcpServers"`
-	}{m})
+	}{servers})
 	if err != nil {
 		return nil, err
 	}

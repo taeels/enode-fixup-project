@@ -418,3 +418,121 @@ U1 이 먼저 `main` 에 들어가야 이 PR 의 차이가 U2 것만 남는다. 
                           ghp_secret 이 환경변수 이름의 꼴을 만족해 통과한다.
                           FD 가 이미 적은 한계이고, 그것을 재는 시험을 따로 더했다
 ```
+
+---
+
+## 단계 진행 — U4 `sources`
+
+브랜치 `unit/sources`. **회차 브랜치가 아니라 `unit/advert` 에서 땄다** —
+선행이 U1 · U2 · U3 셋이라 회차에서 따면 그 셋이 없는 나무 위에서 CA4 를 재게
+되고, `aidlc-state.md` 가 자동 병합이 안 되는 파일이라 네 유닛의 절이 파일
+꼬리에서 각자 자란다. 근거는 계획 6절.
+
+```text
+   Functional Design      승인 2026-09-13 (사용자가 「승인, 코드 써」로 닫았다).
+                          계획과 답 일곱은 construction/plans/
+                          sources-functional-design-plan.md · 산출물 셋은
+                          construction/sources/functional-design/
+                          (domain-entities · business-rules · business-logic-model)
+
+                          답 일곱 전부 A 다.  계획을 짓기 전에 만지는 자리를
+                          코드로 읽고 claude 2.1.266 으로 돌려 갈린 자리 넷을
+                          찾았다 —
+                          ① 워크스페이스 .mcp.json 은 하네스가 스스로 쓰는
+                          파일이라 우리 어휘에 없는 키 셋을 담는다 (type ·
+                          headers · 값으로서의 env).  claude mcp add 가 실제로
+                          쓴 파일을 읽어 쟀다
+                          ② 그것을 MCPServer 로 받으면 셋을 잃거나 망친다 —
+                          Extra 가 yaml 전용이라 type 과 headers 가 사라지고,
+                          envRefs 가 값을 두 번 감싸 ${${X}} 가 되며, 종류 오류
+                          하나가 파일 전체를 죽인다
+                          ③ url 만 적힌 항목을 하네스가 말없이 버린다.
+                          mcp_servers 목록에 이름조차 안 나오고 failed 로도
+                          안 나타난다.  type 이나 command 가 있으면 선다.
+                          그것이 ADR-035 §4.4 예시 그대로 적은 원격 노드 선언의
+                          오늘 모양이라, 광고는 서고 서버는 안 열린다
+                          ④ ${} 는 한 겹만 펴진다 — ②의 이중 감싸기가 오류가
+                          아니라 조용한 손상인 이유다
+
+                          답 2=A 가 Components.Servers 의 타입을 최종 허용목록
+                          항목으로 올렸다.  출처마다 어휘가 다르므로 한 형식으로
+                          둘을 못 담는다 — 노드 것은 allowlistEntry 로 짓고
+                          워크스페이스 것은 원문 그대로 옮긴다.  번역하는 코드가
+                          없으므로 ②의 손상 셋이 구조적으로 못 생긴다
+
+                          답 1=A 와 4=A 가 만나 규칙이 하나로 줄었다.  4=A 의
+                          「요청이 있을 때만 치명」이 1=A 아래서 조건문이 아니라
+                          호출 자리로 보장된다 — 요청이 0 이면 파일을 아예 안 연다
+
+                          답 3=A 가 type 을 채우는 한 줄을 들였다.  그것이
+                          ③ 의 침묵을 막는 유일한 자리이고, 종류를 잘못 채운
+                          경우는 failed 로 보인다 — 침묵이 아니라 실패다
+
+                          한계 넷을 business-rules 10절이 이름으로 졌다.
+                          무거운 것은 원격 인증이다 — credential 은 파일에 안
+                          나가므로 선언만으로 원격 MCP 가 도는 경로가 이 회차에
+                          없다.  소유자가 headers 를 Extra 로 적어야 돈다
+
+   NFR Requirements       SKIP (회차 실행 계획)
+   NFR Design             SKIP
+   Infrastructure Design  SKIP
+   Code Generation        완료 2026-09-13.  계획 construction/plans/
+                          sources-code-generation-plan.md · 요약
+                          construction/sources/code/code-summary.md
+
+                          갈래를 안 갈랐다 — 제품 파일 셋이 한 타입 변경을
+                          함께 받아 컴파일되는 시점이 하나뿐이다
+
+                          CA0 이 전부 초록이다 — 시험 18 패키지 · 커버리지
+                          미달 0(전체 87.3% · internal/enode 86.0% -> 86.4%) ·
+                          스킵 0 · vet · 포맷 · glyphscan · 크로스 빌드 셋 ·
+                          심볼 상한 · 라우트 26 · ui 시험 75 · 워킹트리 청결
+
+                          실측을 제품 코드가 낸 파일로 했다 — resolveComponents
+                          와 writeMCPAllowlist 가 쓴 mcp.json 을 claude 2.1.266 에
+                          물리니 넷이 전부 mcp_servers 에 섰다.  R9(종류 채우기)를
+                          안 넣었으면 gerrit 이 빠진 채로 초록이었다.  워크스페이스
+                          항목의 headers 도 한 글자도 안 바뀌고 살아 나갔다
+
+                          CA4 의 셋째 줄(없는 이름)은 코드로 닫혔다 — 스텁 하네스가
+                          마커 파일을 안 남기는 것으로 「안 떴다」를 잰다.  앞 두 줄은
+                          같은 시험이 그 단계가 실제로 쓴 허용목록을 $OUT 으로 받아
+                          읽지만, 실 함대의 init 줄은 집행자의 몫이다
+
+                          변이 여섯을 돌려 다 빨개졌다.  구멍 0 이다 — 셋은 순수
+                          시험과 배선 시험이 함께 빨개졌다
+
+                          실측이 계획의 문장 둘을 고쳤다 — 「종류 오류 하나가 파일
+                          전체를 죽인다」가 원문으로 받는 판에서는 안 일어나고
+                          (답 2=A 가 덤으로 닫았다), features.md 3.2 에는 종류가
+                          이미 있었다.  FD 의 한 줄도 고쳤다 — 종류를 채우는 자리는
+                          allowlistEntry 가 아니라 합친 뒤의 공용 자리다
+```
+
+## 이 유닛이 회차 밖으로 낸 것
+
+```text
+   decisions.md 6절   실측 행 ㉓ 넷을 한 행에
+   decisions.md 2절   허용목록 행에 종류 한 줄
+   features.md 3.2    종류가 type 키라는 줄 · 원문 그대로 옮긴다는 줄
+   파일 행렬           1절 · 2.1 · 2.2 · 3절 · 4.1 의 다섯 자리
+   scene-gates.md     안 고쳤다 — CA4 의 명령이 안 바뀐다
+   짝 팩과의 접점       runner.go 하나.  Job 의 필드만 더했다
+```
+
+## 다음 — U4
+
+**CA4 의 세 줄을 합성 함대로 돌려 다 초록이었다** (2026-09-13 · `code-summary.md`
+4절). Mediator 를 시험 DB 위에 띄우고 노드 하나를 `probe` · `probe2` 선언과
+워크스페이스 `.mcp.json`(`probe3`)으로 세웠으며 하네스는 실물 `claude 2.1.266` 이다.
+판정은 `runctl record` 로 푼 `logs/` 의 첫 줄이고, ①은 `probe` 하나 ·
+②는 `probe3` · ③은 단계 FAILED 와 0 바이트 로그다.
+
+**그 실측은 게이트의 서명이 아니다** — `scene-gates.md` 2절 머리가 집행자를
+이 유닛을 구현하지 않은 사람으로 못 박는다. 남은 것은 다른 손이 같은 세 줄을
+보는 일과 병합이다. 병합 순서는 U1 · U2 · U3 뒤다 — 이 브랜치가 그 위에 섰다.
+
+**진행자에게 넘기는 것 다섯** — `code-summary.md` 8절. 무거운 셋:
+원격 노드 선언만으로는 인증이 안 실린다(정본 개정 후보다) · 깨진 워크스페이스
+파일이 MCP 를 쓰는 단계를 전부 죽인다(답 4=A 의 대가) · Notes 가 노드 로그에만
+남아 봉인을 읽는 사람은 겹침과 빠짐을 못 본다.

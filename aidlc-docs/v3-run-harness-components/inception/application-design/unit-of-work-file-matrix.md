@@ -32,6 +32,7 @@
 | `internal/contract/planshape.go` | | x | | | | 요약 표에 없던 셋째. 4.3 절 |
 | `internal/contract/examples/mcp.json` (새 파일) | | x | | | | |
 | `internal/enode/config_mcp_test.go` (새 파일) | | | x | | | 시험. 거절 여섯과 성한 선언 |
+| `internal/enode/resolve_test.go` (새 파일) | | | | x | | 시험. 합치는 규칙 R1 ~ R11 과 `readWorkspaceMCP` 의 넷 |
 | `internal/enode/detect_mcp_test.go` (새 파일) | | | x | | | 시험. 뜨나 판정 · 순회 · 문턱 |
 | `internal/api/ui/static/shared/fleet/format.mjs` | | | x | | | 4.4 절. U3 의 답 7=B |
 | `internal/api/ui/tests/format.test.mjs` | | | x | | | 시험. 그 짝 |
@@ -40,15 +41,16 @@
 
 **시험 파일은 제품 파일과 따로 센다.** 아래 열여섯은 제품 파일이고, U1 이 낸
 시험 파일 셋(`mcp_test.go` · `instrument_test.go` · `logs_test.go`)과 U3 이 낸
-셋(`config_mcp_test.go` · `detect_mcp_test.go` · `tests/format.test.mjs`)은 새
-코드의 짝이라 표에만 적고 이 수에 안 넣는다 — 그래야 「만지는 패키지」와
+셋(`config_mcp_test.go` · `detect_mcp_test.go` · `tests/format.test.mjs`)과
+U4 가 낸 하나(`resolve_test.go`)는 새 코드의 짝이라 표에만 적고 이 수에 안 넣는다 — 그래야 「만지는 패키지」와
 「`cmd/runctl` 0」이라는 값이 흐려지지 않는다. 이미 있던 시험이 빨개지는 자리는
 3절이 따로 센다.
 
 ```text
    만지는 파일     17  (새 파일 둘 · 고치는 파일 열다섯).  U2 가 planshape.go 를
                        더하고 U3 이 format.mjs 를 더했다 — 4.3 · 4.4 절.
-                       첫 판은 15 였다
+                       첫 판은 15 였다.  U4 는 제품 파일을 안 더했다 —
+                       셋 다 이미 행렬에 있다
    만지는 패키지    4  internal/enode · internal/contract · cmd/iapadapter ·
                        internal/api/ui.  넷째는 U3 의 답 7=B 가 더했다
    cmd/runctl       0  소스 diff 가 없다.  3절이 닿는 시험을 따로 적는다
@@ -74,7 +76,13 @@
    U3   mcpUp · mcpFP · MCPServer 의 태그와 Extra 와 UnmarshalYAML ·
         allowlistEntry 가 Extra 를 얹는 줄
         **U1 의 것을 고친다** — 첫 판은 「안 고친다」였고 그것이 틀렸다 (4.4 절)
-   U4   resolveComponents 의 몸통           출처 둘과 거절을 더한다
+   U4   resolveComponents 의 몸통           출처 둘과 거절 셋을 더한다.
+        Components.Servers 의 타입을 MCPServer 에서 최종 허용목록 항목으로 올린다
+        (답 2=A) — mcpAllowlistJSON · writeMCPAllowlist 의 인자가 함께 바뀐다.
+        새 이름 다섯 — readWorkspaceMCP · ensureType · copyEntry · hasText ·
+        wantedMCP · notAvailable · entryNames.
+        **allowlistEntry 는 안 고친다** — 종류를 채우는 것은 두 출처가 함께
+        지나는 공용 자리다
    U5   Pack · PackFile · PackLimits · readPack
         resolveComponents 에 팩 출처를 더한다
 ```
@@ -87,7 +95,8 @@
 ```text
    U1   MkdirTemp 를 함수 몸통으로 · 실패 등급 · Instrument 를 언제나 호출 ·
         resolveComponents 호출 자리 · h.Fixed(tmp)
-   U4   Job.NodeMCP 필드
+   U4   Job 의 필드 넷 (NodeMCP · WorkspaceMCP · WorkspaceMCPErr · Log) ·
+        ② 뒤에서 Notes 를 찍는 줄.  오류 검사보다 앞이다
    U1   링 tee 를 끄는 자리 (⑲ · :104-105) · logs/ 에 실을 것을 고르는 자리 (⑱ · :155-156).
         둘 다 exec 뒤다 — 짝 팩의 스트림 처리와 겹친다
    U5   ⑧ 에서 HarnessResult.MCP · .Pack 을 채운다
@@ -132,6 +141,8 @@
 | `internal/enode/worker_unix_test.go` | U1 | `stubHarness` 로 도는 시험들이 새 순서를 탄다 |
 | `internal/enode/enode_test.go` `TestDetectEmpty` | U3 | 광고에 실릴 수 있는 키를 `harness` · `os` · `host_arch` 로 못 박는다. `harness.<이름>` 이 늘면서 **확정 빨강**이라 U3 이 그 접두를 함께 허용한다 |
 | `internal/enode/mcp_test.go` `TestMCP_AServerIsCopiedIntoTheAllowlist` | U3 | `env` 가 값 그대로 실리는 것을 재는데, 답 3=A 가 그것을 `${이름}` 참조로 바꾼다. U3 이 함께 고친다 |
+| `internal/enode/mcp_test.go` 셋 | U4 | `mcpAllowlistJSON` · `writeMCPAllowlist` 의 인자가 `MCPServer` 에서 항목으로 바뀌어 **확정 빨강**이다. U4 가 함께 고친다 — 항목을 짓는 것은 `allowlistEntry`, 직렬화는 `mcpAllowlistJSON` 으로 갈렸다 |
+| `internal/enode/worker_unix_test.go` | U4 | 시험 둘을 더한다 — 없는 이름이 하네스를 안 띄우는 것과, 허용목록에 요청된 것만 실리는 것. 스텁이 `--mcp-config` 의 파일을 `$OUT` 으로 옮겨 **그 단계가 실제로 쓴 파일**을 잰다 |
 
 **`cmd/runctl` 의 소스 diff 는 0 이다.** `runctl example` 이 임베드 FS 를 읽고
 `runctl schema steps` 는 구조체에서 뽑으므로 예시 하나로 목록과 출력이 함께 는다.
@@ -155,6 +166,11 @@ U2 가 자기 FD 에서 찾았다** (4.3) — 표 대조가 아니라 「그 목
 `Job{...}` 리터럴은 **제품 코드에 이 한 자리뿐이다** (나머지 셋은 시험).
 `NodeMCP: w.Local.MCP` 를 여기서 안 실으면 언제나 nil 이고 **노드 선언이 허용목록에
 조용히 안 실린다.** 그 침묵이 이 회차가 고치려는 실패와 같은 종류다.
+
+**U4 가 이 파일에 한 자리를 더했다** — 워크스페이스 `.mcp.json` 을 읽는 호출이다
+(답 1=A). 여는 것은 가장자리이고 고르는 것은 `resolveComponents` 다. 조건이 둘이고
+(요청이 0 이면 안 열고, 워크스페이스가 없으면 출처도 없다) 읽기 실패는 `Job` 에
+실려 나간다 — 등급을 정하는 것이 정책이기 때문이다.
 
 ### 4.2 `internal/enode/agent.go` — U2
 

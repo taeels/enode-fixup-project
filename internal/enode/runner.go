@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,6 +56,32 @@ type Job struct {
 	// nil 이면 안 흘린다 — 설정이 없는 시험은 링 파일을 안 만든다. 트랜스크립트
 	// 링(internal/enode/transcript.go)이 여기 앉아 제어판이 도는 동안 읽는다.
 	Transcript io.Writer
+
+	// NodeMCP 는 노드 소유자가 enode.yaml 에 선언한 MCP 서버다 (U4).
+	//
+	// Job 이 들고 오는 이유 — resolveComponents 가 정하는 함수이고 무엇을
+	// 들고 올지는 부르는 쪽이 안다. 여기서 안 실으면 노드 선언이 조용히 안 실린다.
+	NodeMCP map[string]MCPServer
+
+	// WorkspaceMCP 는 워크스페이스 .mcp.json 의 mcpServers 를 원문 그대로 담는다.
+	//
+	// 우리 형식이 아니다 — 저장소가 하네스에게 쓴 것이고 우리 어휘에 없는
+	// 키(type · headers)가 있다. 그래서 map 인 채로 나르고 허용목록에 그대로 간다.
+	WorkspaceMCP map[string]map[string]any
+
+	// WorkspaceMCPErr 는 그 파일을 읽거나 푸는 데 실패한 이유다.
+	//
+	// 왜 오류가 필드인가 — 등급을 정하는 것이 정책이고 정책은
+	// resolveComponents 에 있다. 읽는 쪽이 등급까지 정하면 그 거절이
+	// HarnessResult 를 안 타고 나가서 단계 오류의 꼴이 경로마다 달라진다.
+	WorkspaceMCPErr error
+
+	// Log 는 Components.Notes 가 나갈 자리다 (U4).
+	//
+	// logs/ 에는 안 싣는다 — 그 파일은 허용목록이고 첫 줄이 system/init 이어야
+	// 한다 (게이트 CA1 · CA4 · CA5 가 head -1 로 읽는다). nil 이면 안 찍고
+	// 그때도 판정은 같다.
+	Log *slog.Logger
 }
 
 // runHarness 는 ②기동이다. 유일한 exec 지점.
@@ -62,7 +89,8 @@ type Job struct {
 // 치명이 전부 exec 앞에 모인다 (components.md 3절)
 //
 //	①  계장 디렉터리          못 만들면 단계 실패
-//	②  resolveComponents     무엇을 열지 여기서 정해진다.  파일을 안 만진다
+//	②  resolveComponents     무엇을 열지 여기서 정해진다.  파일을 안 만진다.
+//	                        Notes 를 찍는 것이 그 바로 뒤다 — 거절로 끝날 때도 찍는다
 //	③  Argv
 //	④  Instrument            errAux 만 삼킨다.  삼킬 때도 얻은 플래그는 붙인다
 //	⑤  Fixed(tmp)
@@ -92,6 +120,13 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	// ② 무엇을 열지는 여기서 정해진다. 실패하면 하네스를 안 띄운다 —
 	// 요청한 것을 조용히 빼고 도는 것이 「없음이 실패보다 나쁘다」의 그 자리다.
 	c, err := resolveComponents(j)
+	// 오류 검사보다 앞이다 — 왜 실패했는지를 아는 데 필요한 사실이 실패와
+	// 함께 사라지면 안 된다. 겹침과 빠짐이 여기로 나간다.
+	if j.Log != nil {
+		for _, n := range c.Notes {
+			j.Log.Info("mcp allowlist note", "note", n)
+		}
+	}
 	if err != nil {
 		return nil, HarnessResult{Reason: ReasonError, Message: err.Error()}
 	}
