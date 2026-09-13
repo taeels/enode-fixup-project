@@ -476,5 +476,57 @@ U1 이 먼저 `main` 에 들어가야 이 PR 의 차이가 U2 것만 남는다. 
    NFR Requirements       SKIP (회차 실행 계획)
    NFR Design             SKIP
    Infrastructure Design  SKIP
-   Code Generation        계획 대기
+   Code Generation        완료 2026-09-13.  계획 construction/plans/
+                          sources-code-generation-plan.md · 요약
+                          construction/sources/code/code-summary.md
+
+                          갈래를 안 갈랐다 — 제품 파일 셋이 한 타입 변경을
+                          함께 받아 컴파일되는 시점이 하나뿐이다
+
+                          CA0 이 전부 초록이다 — 시험 18 패키지 · 커버리지
+                          미달 0(전체 87.3% · internal/enode 86.0% -> 86.4%) ·
+                          스킵 0 · vet · 포맷 · glyphscan · 크로스 빌드 셋 ·
+                          심볼 상한 · 라우트 26 · ui 시험 75 · 워킹트리 청결
+
+                          실측을 제품 코드가 낸 파일로 했다 — resolveComponents
+                          와 writeMCPAllowlist 가 쓴 mcp.json 을 claude 2.1.266 에
+                          물리니 넷이 전부 mcp_servers 에 섰다.  R9(종류 채우기)를
+                          안 넣었으면 gerrit 이 빠진 채로 초록이었다.  워크스페이스
+                          항목의 headers 도 한 글자도 안 바뀌고 살아 나갔다
+
+                          CA4 의 셋째 줄(없는 이름)은 코드로 닫혔다 — 스텁 하네스가
+                          마커 파일을 안 남기는 것으로 「안 떴다」를 잰다.  앞 두 줄은
+                          같은 시험이 그 단계가 실제로 쓴 허용목록을 $OUT 으로 받아
+                          읽지만, 실 함대의 init 줄은 집행자의 몫이다
+
+                          변이 여섯을 돌려 다 빨개졌다.  구멍 0 이다 — 셋은 순수
+                          시험과 배선 시험이 함께 빨개졌다
+
+                          실측이 계획의 문장 둘을 고쳤다 — 「종류 오류 하나가 파일
+                          전체를 죽인다」가 원문으로 받는 판에서는 안 일어나고
+                          (답 2=A 가 덤으로 닫았다), features.md 3.2 에는 종류가
+                          이미 있었다.  FD 의 한 줄도 고쳤다 — 종류를 채우는 자리는
+                          allowlistEntry 가 아니라 합친 뒤의 공용 자리다
 ```
+
+## 이 유닛이 회차 밖으로 낸 것
+
+```text
+   decisions.md 6절   실측 행 ㉓ 넷을 한 행에
+   decisions.md 2절   허용목록 행에 종류 한 줄
+   features.md 3.2    종류가 type 키라는 줄 · 원문 그대로 옮긴다는 줄
+   파일 행렬           1절 · 2.1 · 2.2 · 3절 · 4.1 의 다섯 자리
+   scene-gates.md     안 고쳤다 — CA4 의 명령이 안 바뀐다
+   짝 팩과의 접점       runner.go 하나.  Job 의 필드만 더했다
+```
+
+## 다음 — U4
+
+**남은 것은 CA4 와 병합이다.** 실 함대에서 `runctl record` 로 푼 `logs/` 의
+첫 줄을 읽는 것이 사람의 몫이고 집행자는 이 유닛을 구현하지 않은 사람이다.
+병합 순서는 U1 · U2 · U3 뒤다 — 이 브랜치가 그 위에 섰다.
+
+**진행자에게 넘기는 것 다섯** — `code-summary.md` 8절. 무거운 셋:
+원격 노드 선언만으로는 인증이 안 실린다(정본 개정 후보다) · 깨진 워크스페이스
+파일이 MCP 를 쓰는 단계를 전부 죽인다(답 4=A 의 대가) · Notes 가 노드 로그에만
+남아 봉인을 읽는 사람은 겹침과 빠짐을 못 본다.

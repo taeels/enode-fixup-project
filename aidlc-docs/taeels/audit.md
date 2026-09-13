@@ -518,3 +518,39 @@ business-logic-model 은 resolveComponents 의 걸음 여섯과 그 순서의 �
 **User Input**: "승인, 코드 써"
 **AI Response**: "Functional Design 을 닫고 담당 상태 파일에 U4 절을 더했다. 커밋 하나로 계획 · 산출물 셋 · 상태 · 감사를 함께 실었다 (CONVENTIONS 3.3 의 단계 승인마다 커밋). 다음은 Code Generation Part 1 — 계획을 내고 승인을 받는다."
 **Context**: CONSTRUCTION · U4 sources · Functional Design 승인 · Code Generation Part 1 착수
+
+## CONSTRUCTION — U4 sources · Code Generation Part 1 (계획)
+**Timestamp**: 2026-09-13T03:48:34Z
+**User Input**: "승인, 코드 써"
+**AI Response**: "Code Generation 계획을 냈다 — construction/plans/sources-code-generation-plan.md. 단계 열이고 체크박스 예순여섯이다.
+
+제품 파일은 행렬 그대로 셋이다 (mcp.go · runner.go · claim.go). claude.go 는 소스 diff 0 이다 — Instrument 가 c.Servers 를 그대로 넘기므로 타입이 바뀌어도 그 줄이 안 바뀐다.
+
+Step 6 을 실측으로 뒀다 — 우리 코드가 쓴 허용목록 파일을 claude 에 물려 init 줄의 mcp_servers 를 읽는다. 함대 없이 실물 하네스로 재는 자리이고, 이름이 목록에 안 나오면 R9 의 값이 틀린 것이므로 거기서 멈추고 묻는다.
+
+Step 7 이 배선을 명시로 잰다 — 스텁 하네스를 쓰는 워커 시험으로 「없는 이름을 요청한 단계가 하네스를 안 띄운다」를 파일 없음으로 잰다. U1 의 구멍(함수만 부르고 배선을 안 쟀다)이 여기서 안 생기게.
+
+FD 에 없던 자리 다섯을 이 계획이 정했다 — 워크스페이스 파일에 크기 상한을 안 둔다 · 항목을 얕은 복사 뒤에 고친다 · 종류를 채우는 자리는 공용 헬퍼다 · Notes 는 Info 이고 메시지가 고정이다 · R8 이 문자열 아닌 command 를 「없다」로 본다."
+**Context**: CONSTRUCTION · U4 sources · Code Generation Part 1 완료 · 계획 승인 대기
+
+## CONSTRUCTION — U4 sources · Code Generation Part 2 (실행)
+**Timestamp**: 2026-09-13T07:54:50Z
+**User Input**: "승인"
+**AI Response**: "계획 열 단계를 돌렸고 체크박스 예순여섯이 전부 [x] 다.
+
+제품 파일 셋이다 — mcp.go(Components.Servers 타입 · resolveComponents 의 걸음 여섯 · readWorkspaceMCP · ensureType · copyEntry · hasText · wantedMCP · entryNames · notAvailable) · runner.go(Job 의 필드 넷과 Notes 로그) · claim.go(읽는 조건 둘과 리터럴 네 줄). claude.go 는 계획의 예상대로 소스 diff 0 이다. 새 시험 파일 하나(resolve_test.go)와 worker_unix_test.go 의 배선 시험 둘, 그리고 타입 변경으로 확정 빨강이던 옛 시험 셋을 고쳤다.
+
+CA0 이 전부 초록이다 — go test ./... 18 패키지 · 커버리지 미달 0(전체 6961/7974 = 87.3% · internal/enode 1865/2158 = 86.4%, U3 뒤 86.0% 에서 올랐다) · 스킵 0 · vet · gofmt · U+2605 전수 grep 0 · glyphscan 104 파일 · 크로스 빌드 셋 · 심볼 상한(tls 1 · http 6) · 라우트 26 · node --test 75 · 워킹트리 청결. 커버리지 실행이 바꾼 cmd/enodectl/probe.lock 은 되돌렸다.
+
+Step 6 의 실측을 제품 코드가 낸 파일로 했다. resolveComponents 와 writeMCPAllowlist 가 쓴 mcp.json 을 claude 2.1.266 에 물리니 넷(probe · gerrit · probe3 · wsremote)이 전부 init 줄의 mcp_servers 에 섰다. R9(종류 채우기)를 안 넣었으면 gerrit — ADR-035 §4.4 의 예시 그대로 적은 원격 선언 — 이 빠진 채로 초록이었다. 워크스페이스 항목의 headers 도 한 글자도 안 바뀌고 살아 나갔다.
+
+CA4 의 셋째 줄은 코드로 닫혔다 — 스텁 하네스가 마커 파일을 안 남기는 것으로 「안 떴다」를 잰다. 앞 두 줄은 같은 배선 시험이 그 단계가 실제로 쓴 허용목록을 $OUT 으로 받아 읽지만, 실 함대의 init 줄은 집행자의 몫이다.
+
+변이 여섯을 돌려 다 빨개졌다. 구멍 0 이고 셋은 순수 시험과 배선 시험이 함께 빨개졌다.
+
+실측이 계획의 문장 둘을 고쳤다 — 「종류 오류 하나가 파일 전체를 죽인다」는 원문(map)으로 받는 지금 판에서 안 일어나고(답 2=A 가 덤으로 닫았다. R8 이 요청 시점에 문장으로 거절한다), features.md 3.2 에는 종류가 이미 있었다. FD 의 한 줄도 고쳤다 — 종류를 채우는 자리는 allowlistEntry 가 아니라 합친 뒤의 공용 자리다.
+
+회차 밖으로 낸 것은 decisions.md 6절의 실측 행 ㉓ 와 2절의 종류 줄, features.md 3.2 의 두 줄, 파일 행렬의 다섯 자리다. scene-gates.md 는 안 고쳤다.
+
+넘기는 것 다섯이다. 무거운 셋: 원격 노드 선언만으로는 인증이 안 실린다(credential 은 파일에 안 나가고 원격은 헤더로 인증한다 — 정본 개정 후보다) · 깨진 워크스페이스 파일이 MCP 를 쓰는 단계를 전부 죽인다(답 4=A 의 대가) · Notes 가 노드 로그에만 남아 봉인을 읽는 사람은 겹침과 빠짐을 못 본다."
+**Context**: CONSTRUCTION · U4 sources · Code Generation 완료 · CA0 초록 · CA4 사람 대기

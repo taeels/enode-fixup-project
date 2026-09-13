@@ -46,7 +46,10 @@
 
 ### 2.1 우리가 짓는 키 (노드 출처)
 
-`allowlistEntry()` 가 오늘 내는 것에 `type` 한 줄이 는다 (답 3=A).
+`allowlistEntry()` 가 오늘 내는 것에 종류가 더해진다 (답 3=A). **그 한 줄은
+`allowlistEntry` 가 아니라 합친 뒤의 공용 자리에서 붙는다** — 두 출처가 같은
+규칙을 받아야 하므로 `resolveComponents` 의 걸음 4 가 한 번에 지난다
+(Code Generation 계획 4절 ③).
 
 ```text
    type        새로 짓는다.  없을 때만 — command 가 있으면 stdio, url 이면 http

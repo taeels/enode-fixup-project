@@ -421,3 +421,87 @@ func listed(list []string, want string) bool {
 	}
 	return false
 }
+
+// 요청한 MCP 가 이 노드에 없으면 하네스가 안 뜬다 (U4 · R4).
+//
+// 배선을 잰다 — 규칙 자체는 resolve_test.go 가 잰다. 여기서 보는 것은
+// 그 거절이 exec 앞이고, 문구가 res.Error 로 봉인까지 간다는 것이다.
+// 게이트 CA4 의 셋째 줄이 이 줄이다.
+func TestRunAgentStep_AMissingMCPServerDoesNotLaunchTheHarness(t *testing.T) {
+	m := newMediator(t)
+	w := newWorker(m)
+	marker := filepath.Join(t.TempDir(), "launched")
+	w.Local.HarnessBin = stubHarness(t, `printf 'x' > `+marker+`
+printf '{"type":"result","subtype":"success"}\n'
+`)
+	w.Local.MCP = map[string]MCPServer{"probe": {Command: "/usr/bin/true"}}
+	holdLease(w)
+
+	step := agentStep(`{"mcp":["nope"]}`)
+	w.execute(context.Background(), step)
+
+	res := m.only(t)
+	if !strings.Contains(res.Error, "mcp server nope is not available on this node") {
+		t.Fatalf("the pack's sentence did not reach the record: %q", res.Error)
+	}
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("the harness ran without the server the contract asked for")
+	}
+}
+
+// 허용목록에는 요청된 것만 실리고 워크스페이스의 것도 거기 있다 (U4 · CA4).
+//
+// 스텁이 --mcp-config 가 가리키는 파일을 $OUT 으로 옮겨, 우리가 실제로 쓴
+// 것을 Mediator 쪽에서 읽는다. 복제본이 아니라 그 단계가 쓴 파일이다.
+func TestRunAgentStep_TheAllowlistCarriesOnlyWhatTheStepRequested(t *testing.T) {
+	m := newMediator(t)
+	w := newWorker(m)
+	w.Local.HarnessBin = stubHarness(t, `for a in "$@"; do
+  case "$a" in --mcp-config=*) cp "${a#*=}" "$OUT/allow.json" ;; esac
+done
+printf '{"type":"result","subtype":"success"}\n'
+`)
+	w.Local.Workspace = t.TempDir()
+	if err := os.WriteFile(filepath.Join(w.Local.Workspace, workspaceMCPName),
+		[]byte(`{"mcpServers":{"probe3":{"command":"/usr/bin/true"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	w.Local.MCP = map[string]MCPServer{
+		"probe":  {Command: "/usr/bin/true"},
+		"probe2": {Command: "/usr/bin/true"},
+	}
+	holdLease(w)
+
+	step := agentStep(`{"mcp":["probe","probe3"]}`)
+	step.Out = []string{"allow.json"}
+	w.execute(context.Background(), step)
+
+	res := m.only(t)
+	if res.Error != "" {
+		t.Fatalf("the step failed: %q", res.Error)
+	}
+	body, ok := m.blob("allow.json")
+	if !ok {
+		t.Fatalf("the allowlist did not reach the mediator: %v", res.Produced)
+	}
+	var got struct {
+		MCPServers map[string]map[string]any `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("the allowlist is not valid json: %v\n%s", err, body)
+	}
+	if _, ok := got.MCPServers["probe"]; !ok {
+		t.Fatalf("the node declaration was not carried: %s", body)
+	}
+	// 워크스페이스의 것은 허용목록에는 실리고 광고에는 안 실린다 (features.md 3.4).
+	if got.MCPServers["probe3"]["command"] != "/usr/bin/true" {
+		t.Fatalf("the workspace declaration was not carried: %s", body)
+	}
+	// 종류를 우리가 채운다 — 안 채우면 하네스가 말없이 버린다 (R9).
+	if got.MCPServers["probe3"]["type"] != "stdio" {
+		t.Fatalf("the kind was not filled in: %s", body)
+	}
+	if _, ok := got.MCPServers["probe2"]; ok {
+		t.Fatalf("a server the step did not request was opened: %s", body)
+	}
+}
