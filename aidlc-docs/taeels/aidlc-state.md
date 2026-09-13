@@ -418,3 +418,63 @@ U1 이 먼저 `main` 에 들어가야 이 PR 의 차이가 U2 것만 남는다. 
                           ghp_secret 이 환경변수 이름의 꼴을 만족해 통과한다.
                           FD 가 이미 적은 한계이고, 그것을 재는 시험을 따로 더했다
 ```
+
+---
+
+## 단계 진행 — U4 `sources`
+
+브랜치 `unit/sources`. **회차 브랜치가 아니라 `unit/advert` 에서 땄다** —
+선행이 U1 · U2 · U3 셋이라 회차에서 따면 그 셋이 없는 나무 위에서 CA4 를 재게
+되고, `aidlc-state.md` 가 자동 병합이 안 되는 파일이라 네 유닛의 절이 파일
+꼬리에서 각자 자란다. 근거는 계획 6절.
+
+```text
+   Functional Design      승인 2026-09-13 (사용자가 「승인, 코드 써」로 닫았다).
+                          계획과 답 일곱은 construction/plans/
+                          sources-functional-design-plan.md · 산출물 셋은
+                          construction/sources/functional-design/
+                          (domain-entities · business-rules · business-logic-model)
+
+                          답 일곱 전부 A 다.  계획을 짓기 전에 만지는 자리를
+                          코드로 읽고 claude 2.1.266 으로 돌려 갈린 자리 넷을
+                          찾았다 —
+                          ① 워크스페이스 .mcp.json 은 하네스가 스스로 쓰는
+                          파일이라 우리 어휘에 없는 키 셋을 담는다 (type ·
+                          headers · 값으로서의 env).  claude mcp add 가 실제로
+                          쓴 파일을 읽어 쟀다
+                          ② 그것을 MCPServer 로 받으면 셋을 잃거나 망친다 —
+                          Extra 가 yaml 전용이라 type 과 headers 가 사라지고,
+                          envRefs 가 값을 두 번 감싸 ${${X}} 가 되며, 종류 오류
+                          하나가 파일 전체를 죽인다
+                          ③ url 만 적힌 항목을 하네스가 말없이 버린다.
+                          mcp_servers 목록에 이름조차 안 나오고 failed 로도
+                          안 나타난다.  type 이나 command 가 있으면 선다.
+                          그것이 ADR-035 §4.4 예시 그대로 적은 원격 노드 선언의
+                          오늘 모양이라, 광고는 서고 서버는 안 열린다
+                          ④ ${} 는 한 겹만 펴진다 — ②의 이중 감싸기가 오류가
+                          아니라 조용한 손상인 이유다
+
+                          답 2=A 가 Components.Servers 의 타입을 최종 허용목록
+                          항목으로 올렸다.  출처마다 어휘가 다르므로 한 형식으로
+                          둘을 못 담는다 — 노드 것은 allowlistEntry 로 짓고
+                          워크스페이스 것은 원문 그대로 옮긴다.  번역하는 코드가
+                          없으므로 ②의 손상 셋이 구조적으로 못 생긴다
+
+                          답 1=A 와 4=A 가 만나 규칙이 하나로 줄었다.  4=A 의
+                          「요청이 있을 때만 치명」이 1=A 아래서 조건문이 아니라
+                          호출 자리로 보장된다 — 요청이 0 이면 파일을 아예 안 연다
+
+                          답 3=A 가 type 을 채우는 한 줄을 들였다.  그것이
+                          ③ 의 침묵을 막는 유일한 자리이고, 종류를 잘못 채운
+                          경우는 failed 로 보인다 — 침묵이 아니라 실패다
+
+                          한계 넷을 business-rules 10절이 이름으로 졌다.
+                          무거운 것은 원격 인증이다 — credential 은 파일에 안
+                          나가므로 선언만으로 원격 MCP 가 도는 경로가 이 회차에
+                          없다.  소유자가 headers 를 Extra 로 적어야 돈다
+
+   NFR Requirements       SKIP (회차 실행 계획)
+   NFR Design             SKIP
+   Infrastructure Design  SKIP
+   Code Generation        계획 대기
+```

@@ -486,3 +486,35 @@ CA3 의 뒤 절반을 합성 함대로 쟀다. Mediator 를 시험 DB 위 127.0.
 
 CA2 는 사람이 잰다 — 집행자는 이 유닛을 구현하지 않은 사람이고 눈 검증 S1 도 그 사람이 본다."
 **Context**: CONSTRUCTION · U3 advert · Code Generation 완료 · CA0 초록 · CA3 뒤 절반 초록 · CA2 사람 대기
+
+## CONSTRUCTION — U4 sources · Functional Design (계획)
+**Timestamp**: 2026-09-13T03:16:24Z
+**User Input**: "u4 시작"
+**AI Response**: "U3 가 코드까지 닫혔으므로 회차의 넷째 유닛 U4 sources 를 착수했다. 브랜치 unit/sources 를 unit/advert 에서 땄다 — 선행이 U1 · U2 · U3 셋이고 aidlc-state.md 가 자동 병합이 안 되는 파일이라 회차에서 따면 네 유닛의 절이 파일 꼬리에서 부딪친다 (계획 6절).
+
+계획을 짓기 전에 만지는 자리를 코드로 읽고 claude 2.1.266 으로 돌렸다. 갈린 자리 넷을 찾았다 — ① 워크스페이스 .mcp.json 은 하네스가 스스로 쓰는 파일이라 우리 어휘에 없는 키 셋(type · headers · 값으로서의 env)을 담는다 ② 그것을 MCPServer 로 받으면 셋을 잃거나 망친다 (Extra 가 yaml 전용이라 type 과 headers 가 사라지고, envRefs 가 값을 두 번 감싸 ${${X}} 가 되며, 종류 오류 하나가 파일 전체를 죽인다) ③ url 만 적힌 항목을 하네스가 말없이 버린다 — 실측에서 목록에 이름조차 안 나왔고, 그것이 ADR-035 §4.4 예시 그대로 적은 원격 노드 선언의 오늘 모양이다 ④ ${} 는 한 겹만 펴진다.
+
+물음 일곱을 냈다 — 워크스페이스 파일을 누가 읽나(순수성) · 원문을 어떤 꼴로 나르나 · 조용히 사라지는 원격 항목을 막나 · 못 읽는 파일의 등급 · Notes 가 나가는 면 · 없는 이름이 여럿일 때의 거절 · 원격 인증. 계획은 aidlc-docs/taeels/construction/plans/sources-functional-design-plan.md 다."
+**Context**: CONSTRUCTION · U4 sources · Functional Design Part 1 완료 · 답 일곱 대기
+
+## CONSTRUCTION — U4 sources · Functional Design (산출물)
+**Timestamp**: 2026-09-13T03:38:12Z
+**User Input**: "모두 권장대로"
+**AI Response**: "답 일곱을 전부 A 로 적고 계획 3절의 체크박스 스물을 [x] 로 닫았다. 산출물 셋을 construction/sources/functional-design/ 에 냈다.
+
+domain-entities 는 출처를 「누가 쓰는 파일인가」로 갈랐다 — 노드 선언은 우리 어휘(MCPServer)이고 워크스페이스와 팩은 하네스 어휘다. 그래서 Components.Servers 의 타입을 map[string]MCPServer 에서 허용목록 항목(map[string]map[string]any)으로 올렸다. 노드 것은 allowlistEntry 를 거쳐 들어오고 워크스페이스 것은 원문 그대로 들어온다 — 번역하는 코드가 없으므로 계획 1.2 의 손상 셋이 구조적으로 못 생긴다. Job 에 넷을 더한다 (NodeMCP · WorkspaceMCP · WorkspaceMCPErr · Log).
+
+business-rules 는 열넷이다. R1 요청 필터 · R2 요청 0 이면 파일도 안 연다 · R3 노드가 워크스페이스를 이긴다(Note) · R4 없는 이름은 하네스를 안 띄운다 · R5 나머지는 Note · R6 워크스페이스가 없으면 출처도 없다(os.TempDir 의 파일을 안 믿는다) · R7 못 읽는 파일은 거절 · R8 command 도 url 도 없는 요청된 항목은 거절 · R9 type 은 없을 때만 채운다 · R10 Notes 는 이름만 · R11 거절로 끝나도 Notes 를 채워 돌려준다 · R12 광고 불변 · R13 credential 은 파일에 안 나간다 · R14 거절이 전부 exec 앞이다.
+
+답 둘이 만나 규칙이 하나로 줄었다 — 4=A 의 「요청이 있을 때만 치명」이 1=A 아래서 조건문이 아니라 호출 자리로 보장된다. 요청이 0 이면 파일을 아예 안 열어 「요청 0 인데 깨진 파일」이 구조적으로 안 생긴다.
+
+business-logic-model 은 resolveComponents 의 걸음 여섯과 그 순서의 뜻을 적었다 (파일 오류가 이름 해결보다 앞 · type 채우기가 집기보다 뒤 · 거절이 맨 뒤). runHarness 의 ① ~ ⑨ 중 자라는 자리는 ② 하나이고 ②와 ③ 사이에 Notes 로그 한 줄이 는다. CA4 의 세 줄을 규칙으로 각각 매핑했고, U5 가 딛는 이음매 다섯(필터 · 집는 자리 · 나르는 꼴 · 여는 자리 · Notes)을 이름으로 적었다.
+
+한계 넷을 이름으로 졌다 — 워크스페이스 서버가 실제로 뜨는지는 안 본다 · 원격 선언만으로는 인증이 안 실려서 소유자가 headers 를 Extra 로 적어야 한다 · 저장소가 env 에 평문 값을 적으면 그대로 옮겨진다 · 저장소가 새 이름을 심는 것은 계약의 요청이 있어야만 열린다."
+**Context**: CONSTRUCTION · U4 sources · Functional Design Part 2 완료 · 단계 승인 대기
+
+## CONSTRUCTION — U4 sources · Functional Design 승인
+**Timestamp**: 2026-09-13T03:44:36Z
+**User Input**: "승인, 코드 써"
+**AI Response**: "Functional Design 을 닫고 담당 상태 파일에 U4 절을 더했다. 커밋 하나로 계획 · 산출물 셋 · 상태 · 감사를 함께 실었다 (CONVENTIONS 3.3 의 단계 승인마다 커밋). 다음은 Code Generation Part 1 — 계획을 내고 승인을 받는다."
+**Context**: CONSTRUCTION · U4 sources · Functional Design 승인 · Code Generation Part 1 착수
