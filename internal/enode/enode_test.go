@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -179,10 +180,12 @@ func TestDetectEmpty(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if caps := Detect(context.Background(), Local{}, log); len(caps) != 0 {
 		// claude 가 설치된 기계에서는 harness 가 잡힐 수 있다 — 그건 정상이다.
+		// U3 부터 같은 사실이 harness.<이름> 으로도 실린다 (ADR-035 §4.3).
 		for _, c := range caps {
 			for k := range c.Attrs {
-				switch k {
-				case "harness", "os", "host_arch":
+				switch {
+				case k == "harness", k == "os", k == "host_arch":
+				case strings.HasPrefix(k, "harness."):
 				default:
 					t.Fatalf("empty config yet %s was advertised: %+v", k, caps)
 				}

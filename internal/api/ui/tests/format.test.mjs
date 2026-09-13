@@ -51,6 +51,24 @@ test('only known attribute meanings are translated and sandbox evidence stays ve
   assert.equal(capabilityName('custom.capability'), 'custom.capability');
 });
 
+test('attributes that carry a name in the key read as a family and a member', () => {
+  // 노드가 mcp.<이름> · harness.<이름> 으로 광고한다 (ADR-035 §4.3 · §4.4).
+  // 원문 키로 두면 바로 옆의 실행 도구 = claude 와 다른 말처럼 보인다.
+  assert.equal(attributeName('mcp.probe'), 'MCP 서버 · probe');
+  assert.equal(attributeName('harness.claude'), '실행 도구 · claude');
+  // 값은 언제나 "1" 이다 — 존재만 말하고 여유는 안 말한다.
+  assert.equal(attributeValue('mcp.probe', '1'), '있음');
+  assert.equal(attributeValue('harness.claude', '1'), '있음');
+  // 값을 해석하지 않는다. 노드가 다른 값을 보내면 그대로 보인다.
+  assert.equal(attributeValue('mcp.probe', 'degraded'), 'degraded');
+  // 옛 키는 그대로다 — 걷는 날까지 둘이 함께 실린다.
+  assert.equal(attributeName('harness'), '실행 도구');
+  assert.equal(attributeValue('harness', 'claude'), 'claude');
+  // 꼬리가 없는 키는 가족이 아니다.
+  assert.equal(attributeName('mcp.'), 'mcp.');
+  assert.equal(attributeName('harness.'), 'harness.');
+});
+
 test('long host labels wrap within two lines while wide characters consume more room', () => {
   assert.deepEqual(wrapLabel('worker@MacBook-Pro.local'), ['worker@MacBook-Pro.local']);
   const host = 'operator@long-development-workstation.local';

@@ -438,3 +438,51 @@ business-logic-model.md — enode.yaml 에서 현황판까지의 한 줄기. 시
 
 Code Generation Part 1 로 간다."
 **Context**: CONSTRUCTION · U3 advert · Functional Design 승인 · Code Generation 착수
+
+---
+
+## CONSTRUCTION — U3 advert · Code Generation Part 1 (계획)
+**Timestamp**: 2026-09-13T00:50:00Z
+**User Input**: (없음 — 앞의 「승인」이 이 단계의 착수다)
+**AI Response**: "Code Generation 계획을 construction/plans/advert-code-generation-plan.md 에 냈다. 단계 열이고 체크박스 마흔둘이다.
+
+제품 파일 넷이다 — config.go(Local.MCP · 거절 여섯 · SampleLocal) · mcp.go(태그 · Extra · UnmarshalYAML · allowlistEntry · mcpUp · mcpFP) · detect.go(Fingerprinter · harnessFP · repoFP · 순회 · hasCapability) · format.mjs(접두 둘). 새 시험 파일 하나(detect_mcp_test.go)와 기존 셋에 붙인다.
+
+갈래를 안 나눈다 — Go 셋이 서로를 기다려 컴파일되는 시점이 하나뿐이다. format.mjs 는 진짜 독립이지만 여섯 줄이라 갈래 비용이 이득보다 크다.
+
+Step 6 이 실측 하나다 — 이 기계의 claude 2.1.266 으로 env 의 ${이름} 참조를 하네스가 펴는지 잰다. 안 펴면 env 를 허용목록에서 빼고 노드 환경 상속에 맡긴다. 어느 쪽이든 값이 파일에 안 실린다는 규칙은 산다.
+
+Step 8 이 변이 다섯이다 — hasCapability 의 접두 · allowlistEntry 의 순서 · mcpUp 의 remote 갈래 · 옛 harness 키 · repoFP 의 WorkspaceID fallback.
+
+FD 에 없던 자리 셋을 이 계획이 정했다 — validateMCP 를 config.go 에 두는 것, R12 를 capabilities 가 nil 을 돌려주기 직전에 내는 것(그 대가로 광고 주기마다 나온다), 로그 키 이름 셋.
+
+승인이 열어 준 문서 셋(decisions.md 6절과 2절 · 파일 행렬 둘)은 Step 10 이 싣는다."
+**Context**: CONSTRUCTION · U3 advert · Code Generation Part 1 완료 · 계획 승인 대기
+
+---
+
+## CONSTRUCTION — U3 advert · Code Generation Part 2 (실행)
+**Timestamp**: 2026-09-13T01:30:00Z
+**User Input**: "생성해"
+**AI Response**: "계획 열 단계를 돌렸고 체크박스 마흔여덟이 전부 [x] 다.
+
+제품 파일 넷이다 — config.go(Local.MCP · validateMCP · validateEnvNames · isEnvName · SampleLocal 한 줄) · mcp.go(태그 다섯 · Extra · UnmarshalYAML · kind · mcpUp · mcpFP · envRefs · allowlistEntry) · detect.go(Fingerprinter · fingerprinters · harnessFP · repoFP · 순회 · hasCapability · warnMCPWithoutCapability) · format.mjs(접두 둘). 새 시험 파일 셋과 고친 옛 시험 둘이다.
+
+CA0 이 전부 초록이다 — go test ./... 18 패키지 · 커버리지 미달 0(전체 6887/7902 = 87.2% · internal/enode 1795/2086 = 86.0% · internal/api/ui 98.4%) · vet · gofmt · U+2605 전수 grep 0 · glyphscan 104 파일 · 크로스 빌드 셋 · 심볼 상한(tls 1 · http 6) · 라우트 26 · node --test 75 통과 · 워킹트리 청결. 커버리지 실행이 바꾼 cmd/enodectl/probe.lock 은 되돌렸다 — obs · U1 · U2 와 같은 자리다.
+
+Step 6 의 실측이 FD 의 미정 하나를 닫았다. claude 2.1.266 에 env: {PROBE_X: ${SRC}} 를 주고 --strict-mcp-config 로 돌리니 서버 프로세스의 PROBE_X 가 SRC 의 값(expanded-value-42)이었다. 하네스가 참조를 편다 — 그래서 envRefs 의 ${이름} 꼴이 확정이고 「안 펴면 env 를 안 쓴다」는 대안이 닫혔다. 덤으로 U1 의 ⑳ 이 이 기계에서도 섰다 — 첫 줄이 system/init 이 아니라 system/hook_started 였다.
+
+CA3 의 뒤 절반을 합성 함대로 쟀다. Mediator 를 시험 DB 위 127.0.0.1:18080 에 띄우고 노드 둘을 심었다. runctl capabilities 에 mcp.probe 와 harness.claude 가 나오고, requires: mcp.probe 를 적은 계약이 node-with-probe 에만 가고, mcp.nope 는 422 다. 셋 다 코드 0 으로 닫혔다 — store.Capabilities 가 키 이름을 안 가리고 Capability.Satisfies 가 완전 일치를 본다. 덤으로 희소성 정렬도 실물로 섰다: mcp 를 안 요구하는 계약은 node-plain 으로 갔다. 게이트를 돌릴 사람이 밟을 자리 하나를 적었다 — 같은 run_id 로 두 번 제출하면 둘째는 422 가 아니라 200 이고 본문이 FAILED 와 저장된 reject 다(멱등).
+
+변이 다섯을 돌려 다 빨개졌다. 구멍 0 이다. 다만 계획이 예고 안 한 옛 시험 둘이 확정 빨강이었다 — enode_test.go 의 TestDetectEmpty(광고에 실릴 수 있는 키를 셋으로 못 박는다. harness. 접두를 함께 허용했다)와 mcp_test.go 의 allowlistEntry 시험(env 가 값 그대로 실리는 것을 잰다. 답 3=A 가 참조로 바꿨다). 둘 다 행렬 밖이라 행렬 3절에 행으로 더했다.
+
+시험 픽스처 하나가 검사의 한계를 드러냈다 — env 값으로 ghp_secret 을 적고 거절을 기대했는데 통과한다. [A-Za-z_][A-Za-z0-9_]* 를 그대로 만족한다. FD business-rules 2절이 이미 적은 한계이고, 픽스처를 실제로 걸리는 값으로 고치고 그 한계를 재는 시험을 따로 더했다.
+
+계획에 없던 자리 둘을 이 단계가 정했다 — 거절의 검사 순서(좁은 것을 먼저: R1 · R3 · R4 · R5 · R2)와 mcpUp 의 문구 둘(절대경로는 PATH 를 안 보므로 not found in PATH 가 거짓이 된다).
+
+회차 밖으로 낸 것은 decisions.md 6절의 실측 행 ㉒ 와 2절의 env 줄, 그리고 파일 행렬(2.1 의 U3 칸 · format.mjs 와 시험 넷 · 만지는 파일 16 -> 17 · 패키지 3 -> 4 · 3절의 옛 시험 둘 · 4.4 · 4.5 절)이다. scene-gates.md 와 component-methods.md 는 안 고쳤다.
+
+넘기는 것 여섯이다. 무거운 셋: 완료 조건의 「capabilities 에 diff 0」이 글자로는 서고 뜻으로는 안 선다(답 6=B) · R12 가 탐지 주기가 아니라 광고 주기마다 나온다 · 라벨로 선언 없이 mcp.<이름> 을 광고할 수 있다(오늘 그대로의 성질이고 이 유닛이 안 좁혔다).
+
+CA2 는 사람이 잰다 — 집행자는 이 유닛을 구현하지 않은 사람이고 눈 검증 S1 도 그 사람이 본다."
+**Context**: CONSTRUCTION · U3 advert · Code Generation 완료 · CA0 초록 · CA3 뒤 절반 초록 · CA2 사람 대기

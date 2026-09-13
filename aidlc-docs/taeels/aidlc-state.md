@@ -386,5 +386,35 @@ U1 이 먼저 `main` 에 들어가야 이 PR 의 차이가 U2 것만 남는다. 
    NFR Requirements       SKIP (회차 실행 계획)
    NFR Design             SKIP
    Infrastructure Design  SKIP
-   Code Generation        대기
+   Code Generation        완료 2026-09-13.  계획 construction/plans/
+                          advert-code-generation-plan.md · 요약
+                          construction/advert/code/code-summary.md
+
+                          갈래를 안 갈랐다 — Go 셋이 서로를 기다려 컴파일되는
+                          시점이 하나뿐이다.  format.mjs 는 진짜 독립이지만
+                          여섯 줄이라 갈래 비용이 이득보다 크다
+
+                          CA0 이 전부 초록이다 — 시험 18 패키지 · 커버리지
+                          미달 0(전체 87.2% · internal/enode 85.6% -> 86.0%) ·
+                          vet · 포맷 · glyphscan · 크로스 빌드 셋 · 심볼 상한 ·
+                          라우트 26 · ui 시험 75 · 워킹트리 청결
+
+                          실측이 FD 의 미정 하나를 닫았다 — claude 2.1.266 이
+                          mcp.json 의 env 에서 ${이름} 을 편다.  그래서 참조 꼴이
+                          확정이고 「안 펴면 env 를 안 쓴다」는 대안이 닫혔다
+
+                          CA3 의 뒤 절반을 합성 함대로 쟀다 — runctl capabilities
+                          에 mcp.probe 와 harness.claude 가 나오고, requires 에
+                          그 키를 적은 계약이 그 노드에만 가고, 없는 키가 422 다.
+                          셋 다 코드 0 으로 닫혔다.  덤으로 희소성 정렬도 섰다 —
+                          mcp 를 안 요구하는 계약은 흔한 노드로 간다
+
+                          변이 다섯을 돌려 다 빨개졌다.  구멍 0 이다.  다만 옛
+                          시험 둘이 확정 빨강이라 함께 고쳤다 (TestDetectEmpty 의
+                          허용 키 목록 · allowlistEntry 의 env 단언).  둘 다
+                          행렬 밖이라 행렬 3절에 행으로 더했다
+
+                          시험 픽스처 하나가 검사의 한계를 드러냈다 — env 값
+                          ghp_secret 이 환경변수 이름의 꼴을 만족해 통과한다.
+                          FD 가 이미 적은 한계이고, 그것을 재는 시험을 따로 더했다
 ```
