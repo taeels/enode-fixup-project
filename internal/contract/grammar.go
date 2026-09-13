@@ -60,6 +60,24 @@ plan version per question asked.
 
 The node running an agent step sees the machine. The plan does not.
 
+### A step may ask for MCP servers and for a pack
+
+    { "id":"review", "uses":"b",
+      "agent": { "mcp": ["probe"], "pack": "kernel-review" },
+      "in": { "prompt": "...", "from": ["kernel-review"] } }
+
+    agent.mcp     the names of the MCP servers this step wants. Nothing is
+                  opened unless it is named here
+    agent.pack    the name of one blob that carries the pack tar
+
+agent.mcp must be an array of server names, and agent.pack must be a blob name.
+A step that names a pack must also list that same name in in.from: the pack is
+read from $IN, and a step that omits it runs with no pack at all.
+
+The names you may put in agent.mcp are the mcp.<name> attributes printed next to
+each role above, when a role has any. A name that no node offers fails the step
+when it runs.
+
 ### Two ways to branch
 
     dispatch   pick a named destination from a value in an output

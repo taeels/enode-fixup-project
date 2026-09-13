@@ -29,6 +29,7 @@
 | `internal/enode/agent.go` | | x | | | | |
 | `internal/contract/contract.go` | | x | | | | |
 | `internal/contract/grammar.go` | | x | | | | |
+| `internal/contract/planshape.go` | | x | | | | 요약 표에 없던 셋째. 4.3 절 |
 | `internal/contract/examples/mcp.json` (새 파일) | | x | | | | |
 | `cmd/iapadapter/config.go` | | | | | x | |
 | `cmd/iapadapter/contract.go` | | | | | x | |
@@ -40,7 +41,8 @@
 3절이 따로 센다.
 
 ```text
-   만지는 파일     15  (새 파일 둘 · 고치는 파일 열셋)
+   만지는 파일     16  (새 파일 둘 · 고치는 파일 열넷).  U2 가 planshape.go 를
+                       더했다 — 4.3 절.  첫 판은 15 였다
    만지는 패키지    3  internal/enode · internal/contract · cmd/iapadapter
    cmd/runctl       0  소스 diff 가 없다.  3절이 닿는 시험을 따로 적는다
    internal/api     0  등록 줄조차 안 는다
@@ -125,9 +127,11 @@
 
 ---
 
-## 4. 설계 요약 표에 없던 파일 둘
+## 4. 설계 요약 표에 없던 파일 셋
 
-`application-design.md` 3절의 표를 실제 호출자와 대조해 찾았다.
+`application-design.md` 3절의 표를 실제 호출자와 대조해 둘을 찾았고, **셋째는
+U2 가 자기 FD 에서 찾았다** (4.3) — 표 대조가 아니라 「그 목록이 늘면 어느 문장이
+거짓이 되나」로 찾은 것이라 이 절의 방법이 둘로 는다.
 
 ### 4.1 `internal/enode/claim.go` — U4
 
@@ -149,6 +153,24 @@
 `components.md` 1.6 은 `agent.go` 를 적었고 요약 표만 안 적었다. 계약 어휘의
 enode 쪽 끝이라 U2 가 함께 진다 — **계약이 받는 키와 그것을 푸는 코드가 갈리면
 `400` 이 아닌데 값이 안 실리는 구멍이 난다.**
+
+### 4.3 `internal/contract/planshape.go` — U2
+
+```text
+   planshape.go:45   agent   max_turns, max_tokens, ask, model, harness — nothing else
+   planshape.go:52   Any other key under agent or in is rejected
+```
+
+`PlanShape` 는 계획에게 **필드의 모양**을 실제 값으로 보여주는 상수다
+(`ADR-057`). 첫 줄이 허용 키를 「nothing else」로 못 박으므로 `agentKeys` 에
+`mcp` · `pack` 이 느는 순간 **그 문장이 계획에게 거짓을 가르친다** — 「적으면 계획
+전체가 거절된다」로 읽히고, 그것은 `features.md` 3.5 의 「계획이 짓는 단계도 같은
+문법을 쓴다」와 정반대다.
+
+`components.md` 1.6 은 `Grammar` 만 적었고 이 파일은 행렬의 첫 판에도 없었다.
+**U2 가 찾아서 더했다** (2026-09-13 · 그 유닛의 FD 1.3). `Grammar` 에는
+`grammar_test.go` 라는 낡음 방지 장치가 있는데 `PlanShape` 에는 없었으므로
+같은 유닛이 그 시험도 세웠다.
 
 ---
 
