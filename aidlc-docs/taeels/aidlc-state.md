@@ -124,7 +124,7 @@ NAT 뒤의 관객 전체가 막혀 CP10 을 직접 깨므로 이쪽을 수락했
 |---|---|---|---|---|---|
 | U1 | `isolation` | 3.1 · 3.2 의 최소 | CA1 | 없음 | **코드 완료 · CA1 대기** |
 | U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 | **코드 완료 · CA3 앞 절반 초록 · 병합 대기** |
-| U3 | `advert` | 3.3 | CA2 · CA3 완결 | U1 · U2 | 대기 |
+| U3 | `advert` | 3.3 | CA2 · CA3 완결 | U1 · U2 | **FD 계획 · 답 일곱 대기** |
 | U4 | `sources` | 3.4 · 3.2 의 완성 | CA4 | U1 · U2 · U3 | 대기 |
 | U5 | `pack` | 3.6 · 3.7 | CA5 · CA6 | U1 · U2 · U4 | 대기 |
 
@@ -218,7 +218,8 @@ U1 이 아직 `main` 에 없고 `aidlc-state.md` 가 자동 병합이 안 되는
 대가는 계획 6절. 코드는 안 부딪친다 — 행렬이 두 유닛의 파일 교집합을 0 으로 센다.
 
 ```text
-   Functional Design      산출 2026-09-13.  계획과 답 일곱은 construction/plans/
+   Functional Design      승인 2026-09-13 (사용자가 「승인」으로 닫았다).
+                          계획과 답 일곱은 construction/plans/
                           contract-vocab-functional-design-plan.md · 산출물 셋은
                           construction/contract-vocab/functional-design/
 
@@ -313,3 +314,77 @@ U1 이 먼저 `main` 에 들어가야 이 PR 의 차이가 U2 것만 남는다. 
 (답 1=A 가 범위를 정했다) · 회차 문서 루트의 두 값이 낡았다(`decisions.md` 의
 행이 스물하나이고 요약 표 밖 파일이 셋이다 — 그 루트는 회차 진행자의 것이라
 안 고쳤다) · `GLOSSARY.md` 의 푼 말이 아직 없다.
+
+---
+
+## 단계 진행 — U3 `advert`
+
+브랜치 `unit/advert`. **회차 브랜치가 아니라 `unit/contract-vocab` 에서 땄다** —
+선행이 U1 · U2 둘이라 회차에서 따면 그 둘이 없는 나무 위에서 게이트를 재게 되고,
+`aidlc-state.md` 가 자동 병합이 안 되는 파일이라 세 유닛의 절이 파일 꼬리에서
+각자 자란다. 근거는 계획 6절.
+
+```text
+   Functional Design      승인 2026-09-13 (사용자가 「승인」으로 닫았다).
+                          계획과 답 일곱은 construction/plans/
+                          advert-functional-design-plan.md · 산출물 셋은
+                          construction/advert/functional-design/
+                          (domain-entities · business-rules · business-logic-model)
+
+                          답 일곱 A · A · A · A · A · B · B.  다섯이 권장이고
+                          둘이 갈렸다 — 6=B 가 mcp.<이름> 만으로는 광고하지
+                          않게 하고(하네스가 없으면 물 것이 없다),
+                          7=B 가 현황판에 새 키의 이름을 준다
+
+                          6=B 가 완료 조건 하나와 어긋난다 — unit-of-work.md
+                          3절이 「cheapAttrs · capabilities · Detector 에 diff 0」
+                          인데 hasCapability 를 고치므로 capabilities 의 글자는
+                          그대로이고 동작이 바뀐다.  business-logic-model 7절이
+                          그 어긋남을 표로 적었다.  대가는 답 6 의 B 가 미리 적었고
+                          사용자가 그것을 보고 골랐다
+
+                          6=B 의 침묵을 R12 가 막는다 — mcp: 를 적었는데 능력이
+                          하나도 안 서면 노드 로그에 사유를 낸다.  안 그러면
+                          소유자가 함대에서 자기 노드가 빈 것만 보고 멈춘다
+
+                          3=A 가 env 를 이름에서 이름으로 못 박고 허용목록에
+                          ${이름} 참조로 낸다.  그 꼴을 하네스가 펴는지는 실측이
+                          0 이라 Code Generation 이 잰다 — 안 펴면 env 를 안 쓰는
+                          쪽으로 가고 「값은 파일에 안 실린다」는 어느 쪽이든 산다
+
+                          2=A 가 파일 행렬 2.1 의 한 줄을 거짓으로 만든다 —
+                          이 유닛이 U1 의 allowlistEntry 를 만진다.  7=B 가
+                          internal/api/ui 의 0 을 깬다.  둘 다 승인 뒤에 행렬에 싣는다
+
+                          계획을 짓기 전에 만지는 자리를 코드로 읽고 돌렸다.
+                          갈린 자리 셋을 찾았다 —
+                          ① decisions.md 2절의 「그 밖의 키는 그대로 허용목록에
+                          옮긴다」가 오늘 코드로 성립하지 않는다.  yaml 이 모르는
+                          키를 말없이 버리므로 옮길 맵이 애초에 안 생긴다.
+                          그리고 U1 의 allowlistEntry 이음매 주석과 파일 행렬
+                          2.1 의 「U3 은 U1 의 것을 안 고친다」가 같은 자리를
+                          두고 서로 다르게 말한다
+                          ② env 가 이름인지 값인지가 요구와 형식에서 갈린다 —
+                          features.md 3.2 는 「값은 적지 않는다」인데 형식은
+                          map[string]string 이고 allowlistEntry 가 통째로 옮긴다.
+                          ADR-035 §4.4 의 예시에는 env 가 아예 없다
+                          ③ 현황판이 새 키를 원문으로 낸다 (attributeName 의 표
+                          밖이라) — 같은 사실이 실행 도구 = claude 와
+                          harness.claude = 1 두 줄로 보인다
+
+                          yaml 실측 열일곱을 돌려 검증 범위를 쟀다.  yaml 이
+                          잡는 것은 종류뿐이고 일곱이 그대로 통과한다 —
+                          command: 5 가 "5" 가 되고, 빈 서버 · 빈 이름 ·
+                          command 와 url 이 둘 다인 선언이 다 선다
+
+                          동작 중립의 근거 셋도 쟀다 — harnesses 가 하나라
+                          break 를 걷어도 결과가 안 바뀌고, Detector 의 시계가
+                          CA2 의 「탐지 주기 뒤」를 배선 0 으로 세우며,
+                          hasCapability 가 mcp.<이름> 하나로 참이 되어
+                          하네스 없는 노드가 광고를 낸다 (물음 6)
+
+   NFR Requirements       SKIP (회차 실행 계획)
+   NFR Design             SKIP
+   Infrastructure Design  SKIP
+   Code Generation        대기
+```

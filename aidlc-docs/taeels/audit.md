@@ -394,3 +394,47 @@ CA3 의 앞 절반을 runctl lint 로 쟀다 — 그 명령이 Validate 를 부�
 
 넘기는 것 다섯이고 그중 하나가 새로 드러났다 — 회차 문서 루트의 aidlc-state.md 가 decisions.md 의 행을 「열아홉」으로 적는데 실제로는 스물하나다(U1 의 ⑳ · 이 유닛의 ㉑). 같은 파일의 「요약 표에 없던 파일 둘」도 셋이다. 그 루트는 회차 진행자의 것이라 안 고쳤다 (CONVENTIONS 3.4)."
 **Context**: CONSTRUCTION · U2 contract-vocab · Functional Design 승인 · Code Generation 완료 · CA0 초록 · CA3 앞 절반 초록
+
+---
+
+## CONSTRUCTION — U3 advert · Functional Design (Part 1 계획 · 물음 일곱)
+**Timestamp**: 2026-09-13T00:00:00Z
+**User Input**: "u3 advert 시작"
+**AI Response**: "U3 advert 를 착수했다. 브랜치 unit/advert 를 unit/contract-vocab 에서 땄다 — 선행이 U1 · U2 둘이고 aidlc-state.md 가 자동 병합이 안 되는 파일이라 회차에서 따면 세 유닛의 절이 부딪친다 (계획 6절).
+
+계획을 짓기 전에 만지는 자리를 코드로 읽고 yaml 실측 열일곱을 돌렸다. 갈린 자리 셋을 찾았다. ① decisions.md 2절의 「그 밖의 키는 그대로 허용목록에 옮긴다」가 오늘 코드로 성립하지 않는다 — yaml 이 모르는 키를 말없이 버리므로 옮길 맵이 안 생기고, U1 의 allowlistEntry 이음매 주석과 파일 행렬 2.1 의 「U3 은 U1 의 것을 안 고친다」가 같은 자리를 두고 서로 다르게 말한다. ② env 가 이름인지 값인지가 갈린다 — features.md 3.2 는 「값은 적지 않는다」인데 형식은 map[string]string 이고 allowlistEntry 가 통째로 옮기며 ADR-035 §4.4 의 예시에는 env 가 아예 없다. ③ 현황판이 새 키를 원문으로 낸다 — 같은 사실이 실행 도구 = claude 와 harness.claude = 1 두 줄로 보인다.
+
+yaml 실측이 검증 범위를 쟀다 — 잡는 것은 종류뿐이고 일곱이 그대로 통과한다 (command: 5 가 \"5\" 가 되고, 빈 서버 · 빈 이름 · command 와 url 이 둘 다인 선언이 다 선다). 동작 중립의 근거 셋도 쟀다 — harnesses 가 하나라 break 를 걷어도 결과가 안 바뀌고, Detector 의 시계가 CA2 의 「탐지 주기 뒤」를 배선 0 으로 세우며, hasCapability 가 mcp.<이름> 하나로 참이 되어 하네스 없는 노드가 광고를 낸다.
+
+계획을 construction/plans/advert-functional-design-plan.md 에 냈고 물음이 일곱이다 — 설정 검증의 범위 · 「그 밖의 키」의 자리 · env 의 뜻 · Fingerprinter.Probe 의 오류 · 누락 사유 로그의 빈도 · 하네스 없는 노드의 광고 · 현황판 표시. 답 대기다."
+**Context**: CONSTRUCTION · U3 advert · Functional Design Step 1 ~ 4 완료 · 답 대기
+
+---
+
+## CONSTRUCTION — U3 advert · Functional Design (답 수집 · 산출물 셋)
+**Timestamp**: 2026-09-13T00:30:00Z
+**User Input**: "6=B, 7=B,  나머지 A"
+**AI Response**: "답 일곱을 계획 2절에 적었다 — 1=A · 2=A · 3=A · 4=A · 5=A · 6=B · 7=B. 모순도 모호도 없어 확인 질문 파일을 안 만들었다.
+
+산출물 셋을 construction/advert/functional-design/ 에 냈다.
+
+domain-entities.md — Local.MCP 와 MCPServer 의 형식. 답 2=A 로 Extra 필드가 서고 UnmarshalYAML 이 같은 노드를 두 번 푼다(그림자 구조체로 종류 검사를 지키고 맵으로 모르는 키를 집는다). 답 3=A 로 env 가 이름에서 이름으로 가고 허용목록에 ${이름} 참조로 나간다. 광고 키 셋과 값이 언제나 \"1\" 인 이유(매처가 완전 일치만 본다). Fingerprinter 의 계약과 종류 셋.
+
+business-rules.md — 거절 다섯(R1~R5)이 「어느 종류인가」를 한 값으로 만든다. env 의 꼴 검사 R6. 뜨나 판정 둘과 못 잡는 것 셋. 순회의 오류 규칙 R7~R8(답 4=A). 누락 사유를 탐지마다 내는 R9(답 5=A). 광고의 문턱 R10~R11(답 6=B)과 그 침묵을 막는 R12. 화면의 R13~R14(답 7=B). 동작 중립을 판정하는 기존 시험. 한계 다섯.
+
+business-logic-model.md — enode.yaml 에서 현황판까지의 한 줄기. 시계 둘이 가르는 자리와 CA2 의 「탐지 주기 뒤」가 배선 0 으로 서는 이유. costlyAttrs 의 순회 코드. CA2 · CA3 이 어디서 초록이 되나. 완료 조건 여덟과의 대조.
+
+어긋남 하나를 기록했다 — 답 6=B 가 hasCapability 를 고치므로 unit-of-work.md 3절의 「cheapAttrs · capabilities · Detector 에 diff 0」이 글자로는 서고 뜻으로는 안 선다. capabilities 의 글자는 그대로이고 동작이 바뀐다. 그 대가는 물음 6 의 B 가 미리 적었다.
+
+파장 둘이 승인 뒤로 간다 — 파일 행렬 2.1 의 「U3 은 U1 의 것을 안 고친다」가 답 2=A 로 거짓이 되고, internal/api/ui 의 0 이 답 7=B 로 깨진다. 만지는 파일이 16 에서 17 이 된다. decisions.md 6절의 실측 행과 2절의 env 줄도 같은 시점이다 — U1 · U2 가 밟은 순서 그대로 승인 뒤에 싣는다."
+**Context**: CONSTRUCTION · U3 advert · Functional Design Step 5 ~ 7 완료 · 승인 대기
+
+---
+
+## CONSTRUCTION — U3 advert · Functional Design 승인
+**Timestamp**: 2026-09-13T00:45:00Z
+**User Input**: "승인."
+**AI Response**: "Functional Design 을 닫고 커밋했다 — 계획(답 일곱 포함) · 산출물 셋 · 상태 · 감사 여섯 파일이다. 팩 문서와 회차 문서의 파장은 Code Generation 이 싣는다 (U1 의 ⑳ · U2 의 ㉑ 과 같은 순서).
+
+Code Generation Part 1 로 간다."
+**Context**: CONSTRUCTION · U3 advert · Functional Design 승인 · Code Generation 착수
