@@ -20,9 +20,9 @@
 
 # AI-DLC 문서 루트 — 회차별 layering
 
-다중 사용자가 회차마다 브랜치를 따로 돌리므로, **AI-DLC 산출물 문서 루트는
-`aidlc-docs/<브랜치 이름>/`** 다 (예: `aidlc-docs/v1-run-dhseo/`). 상태 파일과
-감사 로그도 회차마다 그 아래 따로 둔다 — `aidlc-docs/<브랜치>/aidlc-state.md` ·
+회차마다 브랜치를 따로 돌리므로, **AI-DLC 산출물 문서 루트는
+`aidlc-docs/<브랜치 이름>/`** 다 (예: `aidlc-docs/v3-run-harness-components/`).
+상태 파일과 감사 로그도 회차마다 그 아래 따로 둔다 — `aidlc-docs/<브랜치>/aidlc-state.md` ·
 `aidlc-docs/<브랜치>/audit.md`. **루트 `aidlc-docs/` 에 상태·감사·단계 문서를
 다시 쓰지 않는다** — 그러면 회차끼리 같은 파일을 두고 부딪친다.
 
@@ -30,15 +30,21 @@
 `aidlc-docs/inception/reverse-engineering/` 에 공용으로 둔다.
 
 `aidlc-state.md` 와 `design/*.pen` 은 통째로 다시 쓰거나 자동 병합할 수 없는
-파일이라 **진행자 한 사람이** 고친다 — 회차 브랜치를 병합한 뒤 진행자가 상태를
-정리하고, 시안은 회차마다 새 `.pen` 파일로 만든다. 이어 붙이는 `audit.md` 는
-`.gitattributes` 의 `merge=union` 으로 git 이 합친다. 이 layering 이
-`CONVENTIONS.md` 3.2 의 flat 충돌 모델(상태·감사 한 장씩)을 대신한다.
+파일이다. **`aidlc-state.md` 는 그 문서 루트의 소유자가 고친다** — 회차 것은 그
+회차의 진행자가, Construction 것은 그 담당이. 소유자가 하나라 병합에서 안
+부딪친다. `design/*.pen` 은 루트가 갈리지 않으므로 **진행자 한 사람이** 고치고,
+시안은 회차마다 새 `.pen` 파일로 만든다. 이어 붙이는 `audit.md` 는
+`.gitattributes` 의 `merge=union` 으로 git 이 합친다. `CONVENTIONS.md` 3.2 가 이
+layering 위에서 부딪히는 자리를 적는다 — 남는 것은 `design/` 하나다.
 
-**Construction 은 담당별로 나눈다.** 여러 사람이 동시에 유닛을 맡으므로,
-Construction 산출물의 문서 루트는 담당 handle 로 **`aidlc-docs/<handle>/`** 다
-(예: `aidlc-docs/taeels/`). 각자 자기 유닛의 functional-design · nfr · code 요약과
-자기 `aidlc-state.md` · `audit.md` 를 거기 쓴다. 각자 **자기 브랜치 위에서 작업하고
-PR 로 `main` 에 병합**한다 — 그 유닛의 장면 게이트가 초록인 뒤에만. 배정과 handle 은
-`aidlc-docs/construction-roster.md`. 문서 루트는 언제나 그 산출물의 소유자 하나로
-갈린다 — Inception 회차는 회차(브랜치) 이름, Construction 은 담당 handle.
+**Construction 은 담당별로 나눈다.** Construction 산출물의 문서 루트는 담당
+handle 로 **`aidlc-docs/<handle>/`** 다 (예: `aidlc-docs/taeels/`). 각자 자기 유닛의
+functional-design · nfr · code 요약과 자기 `aidlc-state.md` · `audit.md` 를 거기 쓴다.
+유닛은 `unit/<유닛>` 브랜치에서 돌고 **PR 로 `main` 에 병합**한다 — 그 유닛의 장면
+게이트가 초록인 뒤에만 (`CONVENTIONS.md` 3.1 · 3.3 이 브랜치 이름과 시점의 정본이다).
+배정과 handle 은 `aidlc-docs/construction-roster.md`.
+
+**가르는 기준은 사람 수가 아니라 소유자다.** 대회 때는 넷이 동시에 돌아서 handle
+루트가 생겼지만, 한 손이 도는 회차도 handle 루트를 쓴다 — 그래야 회차가 바뀌어도
+그 사람의 Construction 산출물 주소가 안 바뀐다. 문서 루트는 언제나 그 산출물의
+소유자 하나로 갈린다 — Inception 회차는 회차(브랜치) 이름, Construction 은 담당 handle.

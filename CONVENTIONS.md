@@ -81,12 +81,18 @@
 ## 3.1 어디에
 
 ```text
-   실행 브랜치    v1-run-<이름>       Inception 이 여기서 직렬로 돈다
-   유닛 브랜치    unit/<유닛>          Construction.  v1-run 에서 딴다
+   실행 브랜치    v<N>-run-<이름>      Inception 이 여기서 직렬로 돈다.  main 에서 딴다
+   유닛 브랜치    unit/<유닛>          Construction.  회차 브랜치에서 딴다
 ```
 
-**실행은 이 둘 위에서 끝난다.** 유닛이 v1-run 으로 모이고, 그 브랜치가 그대로
-가져갈 물건이다.
+**둘 다 PR 로 `main` 에 모인다.** 회차 브랜치는 Inception 이 닫히면 올린다 —
+유닛 정의가 거기 있고 다음 회차가 그것을 딛는다. 유닛 브랜치는 그 유닛의 장면
+게이트가 초록인 뒤에 올린다.
+
+대회 때 여기 「유닛이 회차 브랜치로 모인다」고 적었다. **실제로는 안 그랬다** —
+유닛 PR 스물여섯이 전부 `main` 으로 갔고, 회차의 Inception 커밋은 첫 유닛 PR 에
+실려 `main` 에 닿았다. 그 경로는 회차에 Construction 이 없으면 끊긴다. 그래서
+회차 브랜치를 따로 올리는 것으로 고쳤다.
 
 **병합 순서는 의존 그래프가 정한다.** 팩은 유닛 분해를 주지 않으므로
 (`constraints.md` 구조 불변식) 순서도 미리 못 박지 않는다 — Units Generation 이
@@ -99,17 +105,20 @@
 
 **에이전트가 커밋한다.** 3.1 의 두 브랜치 위에서 돈다.
 
-병렬로 돌면 부딪히는 자리가 셋이다. **유닛 브랜치는 여기를 안 건드린다.**
+**레이어링이 부딪히는 자리를 셋에서 하나로 줄였다.** 상태와 감사가 소유자마다
+갈리기 때문이다 — 회차는 회차(브랜치) 이름으로, Construction 은 담당 handle 로
+(`CLAUDE.md` 의 문서 루트 규약).
 
 ```text
-   aidlc-docs/audit.md         한 장이고 모든 유닛이 이어 붙인다
-   aidlc-docs/aidlc-state.md   한 장이고 유닛마다 통째로 다시 쓰인다
-   design/                     그림은 진행자만 고친다.  pen 을 안 건드린다
+   aidlc-docs/<회차>/aidlc-state.md      그 회차의 진행자가 고친다
+   aidlc-docs/<handle>/aidlc-state.md    그 담당이 고친다
+   aidlc-docs/**/audit.md                이어 붙인다.  .gitattributes 의 merge=union
+   design/                               남는 하나.  진행자만 고친다.  pen 을 안 건드린다
 ```
 
-유닛의 기록은 그 유닛 폴더(`aidlc-docs/construction/<유닛>/**`)에 적는다.
-**진행자가 병합한 뒤 상태 파일 둘로 옮긴다** — 유닛 브랜치가 각자 적으면
-병합에서 부딪치고, 없는 판을 지어내면 그것은 기록이 아니다.
+유닛의 기록은 그 담당의 유닛 폴더(`aidlc-docs/<handle>/construction/<유닛>/**`)에
+적는다. **소유자가 하나라 병합에서 안 부딪친다.** 대회 때는 상태와 감사가 한 장씩이라
+진행자가 병합 뒤 옮겨야 했고, 그 옮기는 경로를 레이어링이 없앴다.
 
 ## 3.3 언제
 
@@ -119,7 +128,7 @@
    커밋한다    단계 승인마다.  Inception 의 각 단계 · 유닛의 각 단계
                산출물이 나왔으면 그 자리에서 역사에 넣는다
 
-   병합한다    그 유닛의 장면 게이트가 초록이 된 뒤.  unit/<유닛> -> v1-run
+   병합한다    그 유닛의 장면 게이트가 초록이 된 뒤.  unit/<유닛> -> main (PR)
                빨간 채로 병합하면 다음 사람이 서지 않는 나무를 받는다
 ```
 
@@ -133,18 +142,22 @@
 
 ```text
    싣는 것    그 단계 · 그 유닛이 만든 파일과 고친 파일
-              aidlc-docs/construction/plans/<유닛>-*
-              aidlc-docs/construction/<유닛>/**
+              aidlc-docs/<handle>/construction/plans/<유닛>-*
+              aidlc-docs/<handle>/construction/<유닛>/**
+              자기 문서 루트의 aidlc-state.md 와 audit.md
 
-   안 싣는 것  aidlc-docs/aidlc-state.md      3.2 의 셋.  진행자가 병합 뒤에
-              aidlc-docs/audit.md            design/
+   안 싣는 것  design/           진행자가 고친다.  3.2 의 남는 하나
+              남의 문서 루트     다른 회차 · 다른 handle 의 상태와 감사
 ```
+
+**자기 상태 파일을 자기가 싣는다.** 대회 때는 안 실었다 — 한 장을 모두가 만졌기
+때문이다. 레이어링 뒤에는 그 파일의 소유자가 하나라 미룰 이유가 없다.
 
 ## 3.5 끝나면
 
 ```bash
-git push -u origin unit/<유닛>      # 유닛마다
-git push -u origin v1-run-<이름>    # 병합이 모인 자리
+git push -u origin unit/<유닛>        # 유닛마다
+git push -u origin v<N>-run-<이름>    # 회차마다.  둘 다 PR 로 main 에 간다
 ```
 
 가져갈 것 — 유닛 산출물 · 질문 파일(몇 개를 물었나) · 조각마다의 시각 ·
