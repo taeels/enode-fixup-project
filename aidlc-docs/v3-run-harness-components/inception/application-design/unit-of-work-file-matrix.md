@@ -15,11 +15,14 @@
 | 파일 | U1 | U2 | U3 | U4 | U5 | 접점 |
 |---|:---:|:---:|:---:|:---:|:---:|---|
 | `internal/enode/mcp.go` (새 파일) | x | | x | x | x | **넷** |
+| `internal/enode/mcp_test.go` (새 파일) | x | | | | | 시험. 직렬화와 빈 파일의 모양 |
 | `internal/enode/harness.go` | x | | | | x | **둘** |
 | `internal/enode/harness_test.go` | x | | | | | 시험. `TestHarnessRecordsBudget` 이 ⑯ 의 경계다 |
 | `internal/enode/claude.go` | x | | | | x | **둘 · 짝 팩과도 겹친다** |
 | `internal/enode/runner.go` | x | | | x | x | **셋 · 짝 팩과도 겹친다** |
 | `internal/enode/hook.go` | x | | | | | |
+| `internal/enode/instrument_test.go` (새 파일) | x | | | | | 시험. 계장의 다섯 쓰기 · 실패 등급 · 불변식 셋 |
+| `internal/enode/logs_test.go` (새 파일) | x | | | | | 시험. `logs/` 허용목록 (⑱) |
 | `internal/enode/config.go` | | | x | | | |
 | `internal/enode/detect.go` | | | x | | | |
 | `internal/enode/claim.go` | | | | x | | |
@@ -29,6 +32,12 @@
 | `internal/contract/examples/mcp.json` (새 파일) | | x | | | | |
 | `cmd/iapadapter/config.go` | | | | | x | |
 | `cmd/iapadapter/contract.go` | | | | | x | |
+
+**시험 파일은 제품 파일과 따로 센다.** 아래 열다섯은 제품 파일이고, U1 이 낸
+시험 파일 셋(`mcp_test.go` · `instrument_test.go` · `logs_test.go`)은 새 코드의
+짝이라 표에만 적고 이 수에 안 넣는다 — 그래야 「만지는 패키지 셋」과
+「`cmd/runctl` 0」이라는 값이 흐려지지 않는다. 이미 있던 시험이 빨개지는 자리는
+3절이 따로 센다.
 
 ```text
    만지는 파일     15  (새 파일 둘 · 고치는 파일 열셋)
