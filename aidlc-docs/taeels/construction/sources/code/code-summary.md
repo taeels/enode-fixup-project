@@ -78,20 +78,44 @@
 
 ---
 
-## 4. CA4 — 코드로 닫은 것과 사람 몫
+## 4. CA4 — 합성 함대로 세 줄을 돌렸다
+
+시험이 먼저 닫은 것이 둘이다 — 없는 이름이 하네스를 안 띄우는 것(스텁의 마커
+파일 없음으로 잰다)과, 그 단계가 실제로 쓴 허용목록에 요청된 것만 실리는 것.
+
+그 위에 **함대를 세워 `scene-gates.md` 3절의 명령 그대로 돌렸다.** Mediator 를
+시험 DB 위 `127.0.0.1:18080` 에 띄우고, 노드 하나를 `probe` · `probe2` 선언과
+워크스페이스 `.mcp.json`(`probe3`)으로 세우고, 하네스는 **실물 `claude 2.1.266`**
+이다. 판정은 `runctl record <id> -o r.tar` 로 푼 `logs/NN-work.log` 의 첫 줄이다.
 
 ```text
-   닫았다    없는 이름 -> 하네스가 안 뜨고 res.Error 에 팩의 문구가 든다.
-            worker_unix_test.go 의 배선 시험이 스텁의 마커 파일 없음으로 잰다
-   닫았다    요청된 것만 허용목록에 실린다 (노드 probe · 워크스페이스 probe3 ·
-            요청 안 한 probe2 는 0).  같은 시험이 그 단계가 실제로 쓴 파일을
-            $OUT 으로 받아 읽는다
-   남았다    실 함대에서 runctl record 로 푼 logs/ 의 첫 줄.  scene-gates.md
-            3절의 명령이고 집행자는 이 유닛을 구현하지 않은 사람이다
+   광고        runctl capabilities -> mcp.probe · mcp.probe2 · harness.claude
+               mcp.probe3 은 없다.  워크스페이스는 광고에 안 실린다 (R12)
+
+   ① agent.mcp: ["probe"]
+               init 의 mcp_servers == [{"name":"probe","status":"failed"}]
+               probe2 도 probe3 도 없다.  요청한 하나뿐이다
+
+   ② agent.mcp: ["probe3"]
+               init 의 mcp_servers == [{"name":"probe3","status":"failed"}]
+               워크스페이스에서 옮겨 적혔다.  광고에는 여전히 안 실린다
+
+   ③ agent.mcp: ["nope"]
+               단계 FAILED · result.error =
+                 "harness: harness_error mcp server nope is not available on this node"
+               logs/01-work.log 이 0 바이트다 — 하네스가 안 떴다
 ```
 
-3절의 실측이 그 사람 몫의 **위험을 미리 덜었다** — 우리 파일이 하네스에게
-읽히는 것까지는 이미 참이다. 남은 것은 노드와 Mediator 를 지나는 배선이다.
+`status: failed` 는 가짜 서버(`/usr/bin/true`)라서다. **이름이 목록에 있는가**가
+판정 재료라고 `scene-gates.md` 2절 머리가 적었고, 세 줄이 그 재료로 갈린다.
+
+**노드 로그가 Notes 를 냈다** — ①과 ③ 에서
+`mcp allowlist note ... note="workspace .mcp.json declares probe3, which this step
+did not request"` 한 줄씩. ②에서는 안 난다(요청했으므로). R10 이 실물에서 선다.
+
+**이 실측은 게이트의 서명이 아니다.** `scene-gates.md` 2절 머리가 집행자를
+**이 유닛을 구현하지 않은 사람**으로 못 박는다. 여기서 한 것은 그 사람이 밟을
+자리를 미리 밟아 위험을 던 것이고, 남은 것은 다른 손이 같은 세 줄을 보는 일이다.
 
 ---
 

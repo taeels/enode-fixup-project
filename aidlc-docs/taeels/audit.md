@@ -554,3 +554,17 @@ CA4 의 셋째 줄은 코드로 닫혔다 — 스텁 하네스가 마커 파일�
 
 넘기는 것 다섯이다. 무거운 셋: 원격 노드 선언만으로는 인증이 안 실린다(credential 은 파일에 안 나가고 원격은 헤더로 인증한다 — 정본 개정 후보다) · 깨진 워크스페이스 파일이 MCP 를 쓰는 단계를 전부 죽인다(답 4=A 의 대가) · Notes 가 노드 로그에만 남아 봉인을 읽는 사람은 겹침과 빠짐을 못 본다."
 **Context**: CONSTRUCTION · U4 sources · Code Generation 완료 · CA0 초록 · CA4 사람 대기
+
+## CONSTRUCTION — U4 sources · CA4 실측 (합성 함대)
+**Timestamp**: 2026-09-13T08:23:30Z
+**User Input**: "ca4진행"
+**AI Response**: "scene-gates.md 3절의 CA4 명령을 합성 함대로 그대로 돌렸다. Mediator 를 시험 DB(enode_ca4) 위 127.0.0.1:18080 에 띄우고, 노드 하나를 mcp: probe · probe2 선언과 워크스페이스 .mcp.json(probe3)으로 세웠다. 하네스는 실물 claude 2.1.266 이다.
+
+광고부터 맞았다 — runctl capabilities 에 mcp.probe · mcp.probe2 · harness.claude 가 나오고 mcp.probe3 은 없다 (워크스페이스는 광고에 안 실린다).
+
+세 줄이 다 초록이다. ① agent.mcp: [probe] -> init 의 mcp_servers 가 probe 하나다 (probe2 도 probe3 도 없다). ② agent.mcp: [probe3] -> probe3 이 나타난다. 워크스페이스에서 옮겨 적혔고 광고에는 여전히 없다. ③ agent.mcp: [nope] -> 단계 FAILED 이고 result.error 가 'harness: harness_error mcp server nope is not available on this node' 이며 logs/01-work.log 이 0 바이트다 — 하네스가 안 떴다.
+
+노드 로그가 Notes 를 실물로 냈다 — ①과 ③ 에서 'workspace .mcp.json declares probe3, which this step did not request' 한 줄씩이고 ②에서는 안 난다.
+
+이 실측은 게이트의 서명이 아니다. scene-gates.md 2절 머리가 집행자를 이 유닛을 구현하지 않은 사람으로 못 박는다 — 한 것은 그 사람이 밟을 자리를 미리 밟아 위험을 던 것이다. 함대는 내렸고 임시 디렉터리만 남는다."
+**Context**: CONSTRUCTION · U4 sources · CA4 세 줄 실측 초록 · 집행자 서명과 병합 대기
