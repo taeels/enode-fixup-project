@@ -45,8 +45,22 @@ const attributeNames = {
   ws: '작업 폴더', greet: '인사 스크립트', sandbox: '실행 격리 (광고값)',
   board: '보드', device: '장치', device_type: '장치 유형', kind: '종류', model: '모델',
 };
-export const attributeName = key => attributeNames[key] || key;
+// 이름을 접두에 붙여 쓰는 속성. mcp.probe · harness.claude 처럼 꼬리가 그 이름이다.
+const attributeFamilies = { 'mcp.': 'MCP 서버', 'harness.': '실행 도구' };
+function attributeFamily(key) {
+  for (const [prefix, name] of Object.entries(attributeFamilies)) {
+    if (key.startsWith(prefix) && key.length > prefix.length) return { name, member: key.slice(prefix.length) };
+  }
+  return null;
+}
+export function attributeName(key) {
+  if (attributeNames[key]) return attributeNames[key];
+  const family = attributeFamily(key);
+  return family ? `${family.name} · ${family.member}` : key;
+}
 export function attributeValue(key, value) {
+  // 이 가족의 값은 언제나 "1" 이다 — 노드가 존재만 말하고 여유는 안 말한다.
+  if (attributeFamily(key) && value === '1') return '있음';
   if (key.startsWith('fmt_') && ['yes', 'no'].includes(value)) return value === 'yes' ? '지원' : '미지원';
   if (key === 'os') return ({ darwin: 'macOS', windows: 'Windows', linux: 'Linux' })[value] || value;
   if (key === 'lang') return ({ ko: '한국어', en: '영어', ja: '일본어' })[value] || value;

@@ -1,8 +1,17 @@
 package enode
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // 하네스 구성요소 — 이 단계가 무엇을 열지는 exec 앞에서 정해진다
@@ -21,11 +30,148 @@ import (
 // stdio 와 remote 를 한 구조체가 받는다 — 하네스가 읽는 형식과 같아서
 // 허용목록으로 옮겨 적는 것이 복사가 된다.
 type MCPServer struct {
-	Command    string            // stdio
-	Args       []string          // stdio
-	URL        string            // remote
-	Credential string            // remote. 환경변수 이름이다. 값이 아니다
-	Env        map[string]string // 이름만 적는다. 값은 노드 환경이 R1 로 넘긴다
+	Command    string   `yaml:"command,omitempty"`    // stdio
+	Args       []string `yaml:"args,omitempty"`       // stdio
+	URL        string   `yaml:"url,omitempty"`        // remote
+	Credential string   `yaml:"credential,omitempty"` // remote. 환경변수 이름이다. 값이 아니다
+
+	// Env 는 이름에서 이름으로 간다. 값이 아니다.
+	//
+	// 키는 하네스가 서버에게 줄 변수의 이름이고, 값은 노드 환경에서 그 값을
+	// 길어 올 변수의 이름이다. 허용목록에는 ${이름} 참조로 나가고 실제 값은
+	// R1 화이트리스트가 노드 환경으로 넘긴 것이다 — 그래서 값이 파일에 안 남는다.
+	//
+	// 검증은 config.go 의 validateEnvNames 가 한다. 여기서 안 하는 이유는
+	// 이 형식이 노드 선언과 팩(U5) 둘 다에 쓰이는데, 팩의 것은 다른 시점에
+	// 다른 문구로 거절되기 때문이다.
+	Env map[string]string `yaml:"env,omitempty"`
+
+	// Extra 는 우리가 모르는 키다 — 그대로 허용목록에 옮긴다 (decisions.md 2절).
+	//
+	// 왜 필드가 필요한가 — yaml 은 모르는 키를 말없이 버린다. 담을 자리가
+	// 없으면 그 결정이 코드로 안 선다. 하네스가 키를 늘릴 때(transport ·
+	// headers 같은) 우리 판을 갈아끼우지 않고 지나가는 길이 이 필드다.
+	//
+	// yaml:"-" 인 것은 읽기를 UnmarshalYAML 이 직접 하기 때문이다. 쓰기는
+	// 안 짓는다 — setup 이 설정을 새로 지어 쓰기만 하고 읽어서 다시 쓰는
+	// 경로가 저장소에 0 이라 오늘 잃을 것이 없다. 그 0 이 깨지는 날
+	// MarshalYAML 이 함께 서야 한다.
+	Extra map[string]any `yaml:"-"`
+}
+
+// knownMCPKeys 는 UnmarshalYAML 이 Extra 에서 덜어낼 이름이다.
+//
+// 구조체의 태그와 이 목록이 갈리면 아는 키가 Extra 로도 들어가 허용목록에
+// 두 번 적힌다. 시험이 둘을 대조한다.
+var knownMCPKeys = []string{"command", "args", "url", "credential", "env"}
+
+// UnmarshalYAML 은 같은 노드를 두 번 푼다 (U3 · decisions.md 2절).
+//
+// 한 번만 풀면 둘 중 하나를 잃는다. 구조체로만 풀면 모르는 키가 사라지고,
+// map 으로만 풀면 yaml 의 종류 검사가 사라져 args: "--x" 가 오류 대신
+// 문자열로 들어온다. 그 검사는 우리가 다시 짤 것이 아니라 지킬 것이다.
+func (s *MCPServer) UnmarshalYAML(value *yaml.Node) error {
+	// shadow 는 이 메서드를 안 갖는 같은 모양이다 — 안 그러면 Decode 가
+	// 자기 자신을 다시 불러 무한히 돈다.
+	type shadow MCPServer
+	var known shadow
+	if err := value.Decode(&known); err != nil {
+		return err
+	}
+	var all map[string]any
+	if err := value.Decode(&all); err != nil {
+		return err
+	}
+	for _, k := range knownMCPKeys {
+		delete(all, k)
+	}
+	*s = MCPServer(known)
+	if len(all) > 0 {
+		s.Extra = all
+	}
+	return nil
+}
+
+// kind 는 이 선언이 어느 종류인가다. 로그가 읽는다.
+//
+// command 로 가른다 — validateMCP 가 둘 다 적힌 선언을 이미 거절하므로
+// 이 갈래는 모호를 안 만난다.
+func (s MCPServer) kind() string {
+	if s.Command != "" {
+		return "stdio"
+	}
+	return "remote"
+}
+
+// mcpUp 은 이 서버가 지금 뜨겠는가다 (FR-3 · ADR-035 §4.4).
+//
+// 실제 연결은 안 한다 — 광고마다 남의 서버를 두드리면 그 서버가 죽을 때
+// 함대가 함께 죽는다 (requirements.md 4.4 의 순연).
+//
+// 「뜨나」는 존재이지 동작이 아니다. 셋을 못 잡는다 (decisions.md 6절 ⑭):
+//
+//	못 잡는다   자격증명이 틀렸다          환경변수 이름만 본다. 값을 안 본다
+//	못 잡는다   엔드포인트가 죽었다        접근을 안 한다
+//	못 잡는다   실행은 되나 MCP 가 아니다   CA2 의 가짜 서버 true 가 그 경우다
+//
+// 돌려주는 오류가 곧 노드 로그의 사유다 — 빠진 이유를 사람이 읽는다.
+func mcpUp(s MCPServer) error {
+	if s.Command != "" {
+		if _, err := exec.LookPath(s.Command); err != nil {
+			if strings.ContainsRune(s.Command, filepath.Separator) {
+				return fmt.Errorf("command %q is not an executable file", s.Command)
+			}
+			return fmt.Errorf("command %q not found in PATH", s.Command)
+		}
+		return nil
+	}
+	// 인증 없는 endpoint 가 있다. 이름을 안 적었으면 볼 것이 없고, 볼 것이
+	// 없는 것은 "안 뜬다" 가 아니다.
+	if s.Credential == "" {
+		return nil
+	}
+	if _, ok := os.LookupEnv(s.Credential); !ok {
+		return fmt.Errorf("credential %s is not set in the node environment", s.Credential)
+	}
+	return nil
+}
+
+// mcpFP 는 뜨는 서버만 광고 속성으로 낸다 (FR-3).
+//
+// Fingerprinter 의 한 종류다. 프로세스를 안 띄우지만 호출 수가 노드 설정에
+// 비례하므로 값싼 쪽에 안 둔다 (requirements.md 4.4 · components.md 2.2).
+type mcpFP struct{}
+
+func (mcpFP) Kind() string { return "mcp" }
+
+func (mcpFP) Probe(_ context.Context, l Local, log *slog.Logger) (map[string]string, error) {
+	if len(l.MCP) == 0 {
+		// 선언이 없는 것은 정상이다. 로그도 안 낸다.
+		return nil, nil
+	}
+	// 이름 순으로 돈다 — 같은 설정이면 같은 로그 순서다.
+	names := make([]string, 0, len(l.MCP))
+	for name := range l.MCP {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	attrs := map[string]string{}
+	for _, name := range names {
+		s := l.MCP[name]
+		if err := mcpUp(s); err != nil {
+			// 안 뜨는 서버는 이 종류의 실패가 아니라 정상적인 결과다 —
+			// 빼고 보내는 것이 "지금은 못 한다" 다 (ADR-017 결정 3).
+			// 그래도 조용히 빼지 않는다: 사람이 고칠 수 있는 문제다.
+			log.Warn("mcp server is not up; dropping it from the advertisement",
+				"server", name, "kind", s.kind(), "err", err)
+			continue
+		}
+		// 값은 언제나 "1" 이다 — 매처가 완전 일치만 보므로 버전이나 경로를
+		// 실으면 계약이 그 글자를 맞춰 적어야 한다.
+		attrs["mcp."+name] = "1"
+	}
+	return attrs, nil
 }
 
 // Components 는 이 단계가 하네스에 실어 줄 것 전부다.
@@ -102,13 +248,15 @@ func mcpAllowlistJSON(servers map[string]MCPServer) ([]byte, error) {
 //
 // Credential 은 안 나간다 — 하네스가 모르는 키이고(우리 어휘다), remote 인증은
 // 노드 환경변수로 가므로 이름을 파일에 적어도 하네스가 그것으로 하는 일이 없다.
-// 그 이름이 사는 자리는 mcpUp 의 remote 판정 하나다 (U3).
+// 그 이름이 사는 자리는 mcpUp 의 remote 판정 하나다.
 //
-// 이음매 — U3 이 「그 밖의 키」를 그대로 옮긴다 (decisions.md 2절). 그 맵을
-// 여기 먼저 얹고 아는 키를 그 위에 덮는다. 아는 키가 이겨야 소유자가 적은
-// 선언과 우리가 읽은 선언이 안 갈린다.
+// Extra 를 먼저 얹고 아는 키를 그 위에 덮는다. 아는 키가 이겨야 소유자가 적은
+// 선언과 우리가 읽은 선언이 안 갈린다 (decisions.md 2절).
 func (s MCPServer) allowlistEntry() map[string]any {
 	e := map[string]any{}
+	for k, v := range s.Extra {
+		e[k] = v
+	}
 	if s.Command != "" {
 		e["command"] = s.Command
 	}
@@ -119,7 +267,20 @@ func (s MCPServer) allowlistEntry() map[string]any {
 		e["url"] = s.URL
 	}
 	if len(s.Env) > 0 {
-		e["env"] = s.Env
+		e["env"] = envRefs(s.Env)
 	}
 	return e
+}
+
+// envRefs 는 이름을 참조로 바꾼다 (features.md 3.2).
+//
+// 값을 적지 않는다 — 값은 R1 화이트리스트가 노드 환경으로 넘기고 하네스가
+// 그 참조를 편다. validateEnvNames 가 값 자리를 환경변수 이름으로 보장하므로
+// 여기서 다시 안 본다.
+func envRefs(env map[string]string) map[string]string {
+	out := make(map[string]string, len(env))
+	for k, v := range env {
+		out[k] = "${" + v + "}"
+	}
+	return out
 }

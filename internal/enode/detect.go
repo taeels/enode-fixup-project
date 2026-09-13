@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/taeels/enode/internal/contract"
 )
@@ -85,16 +86,43 @@ func cheapAttrs(l Local, log *slog.Logger) map[string]string {
 	return attrs
 }
 
-// costlyAttrs 는 외부 프로세스를 띄워야 알아내는 것이다 (ADR-068 §4 비용 축).
+// Fingerprinter 는 비싼 사실 한 종류다 (ADR-035 §4.2).
 //
-// 광고 루프가 이것을 직접 부르면 안 된다 — 여기서 멈추면 하트비트가 함께
-// 멈추고 노드가 조용히 함대에서 사라진다. Detector 가 자기 시계로 갱신한다.
-func costlyAttrs(ctx context.Context, l Local, log *slog.Logger) map[string]string {
-	attrs := map[string]string{}
+// 왜 종류로 가르나 — 탐색기를 하네스 밖에 세우고 하네스도 그 한 종류로
+// 만든다. ADR-035:246-248 이 「ADR-034 를 구현하면서 detect.go 를 탐지기
+// 순회로 바꾸는 것까지는 오늘 동작을 안 바꾸고 된다」로 이 시점을 지목했다.
+//
+// 이름이 Detector 가 아닌 이유 — 그 이름은 ADR-068 의 주기 장치가 쓴다.
+// Nomad 의 fingerprint 가 §4.2 가 든 유비이고 그 단어를 따른다.
+type Fingerprinter interface {
+	Kind() string // "harness" | "repo" | "mcp"
 
-	// 추론 하네스가 있나 — Usable() 이 곧 executable resolve 다 (R3).
-	// 없으면 광고에 안 실리고 → 후보에서 빠지고 → 계약이 요구하면 422 다.
-	// "설치 안 된 하네스는 실행 안 한다" 가 별도 코드 없이 성립한다.
+	// Probe 는 logger 를 받는다. costlyAttrs 안에서 돌던 log.Warn(ADR-059)과
+	// FR-3 이 요구하는 서버별 누락 사유가 갈 자리다.
+	//
+	// 오류는 「못 한다」가 아니라 「못 물어봤다」다. 부르는 쪽이 그 종류가
+	// 낸 것만 버리고 순회를 계속한다 — 못 물어본 것을 빼고 보내면 노드가
+	// 스스로를 지운다 (ADR-012 의 「빼는 것이 못 한다는 뜻」이 거짓이 된다).
+	Probe(ctx context.Context, l Local, log *slog.Logger) (map[string]string, error)
+}
+
+// fingerprinters 는 오늘 costlyAttrs 가 실제로 도는 비싼 사실 셋이다.
+//
+// ADR-035 §4.2 는 셋째로 toolchain 을 들었는데 여기는 repo 다 — 크로스
+// 툴체인 탐지(detectArch)는 프로세스를 안 띄우고 호출 수도 상수라 값싼 쪽에
+// 이미 앉아 있다 (decisions.md 6절 ⑤).
+var fingerprinters = []Fingerprinter{harnessFP{}, repoFP{}, mcpFP{}}
+
+// harnessFP 는 추론 하네스를 잰다 — Usable() 이 곧 executable resolve 다 (R3).
+//
+// 없으면 광고에 안 실리고 → 후보에서 빠지고 → 계약이 요구하면 422 다.
+// "설치 안 된 하네스는 실행 안 한다" 가 별도 코드 없이 성립한다.
+type harnessFP struct{}
+
+func (harnessFP) Kind() string { return "harness" }
+
+func (harnessFP) Probe(ctx context.Context, l Local, log *slog.Logger) (map[string]string, error) {
+	attrs := map[string]string{}
 	for _, h := range harnesses {
 		bin := l.HarnessBin
 		if h.Name() != "claude" {
@@ -121,20 +149,65 @@ func costlyAttrs(ctx context.Context, l Local, log *slog.Logger) map[string]stri
 		// 그래서 여기서 Version 을 안 부른다. 예전에는 Probe 하나가 둘을
 		// 겸했고 돌려받은 버전을 그 자리에서 버렸는데, 버리는 값을 위해
 		// 프로세스는 광고마다 그대로 떴다.
-		attrs["harness"] = h.Name()
-		break
-	}
+		attrs["harness."+h.Name()] = "1"
 
-	// 워크스페이스가 있으면 저장소를 유도한다. 사람이 주소를 안 적는다
-	//
-	// 유도가 이긴다 — .repo · .git 이 있으면 workspace_id 는 무시한다.
-	// 사람이 적은 것이 기계가 본 것을 이기면 둘이 어긋났을 때 조용히 틀린다.
-	if l.Workspace != "" {
-		if repo := DetectRepo(ctx, l.Workspace); repo != "" {
-			attrs["repo"] = repo
-		} else if l.WorkspaceID != "" {
-			// 유도할 수 없는 워크스페이스 — 사람이 적은 이름을 쓴다 (ADR-036).
-			attrs["repo"] = l.WorkspaceID
+		// 옛 키는 첫 것으로 남긴다 (ADR-035 §4.3 · §6).
+		//
+		// break 가 여기서 걷혔다 — 종류로 가르면서 「하나만 보고 멈춘다」는
+		// 제약이 사라졌다. 그래도 옛 키는 하나뿐이라 첫 것이 이긴다.
+		// 걷는 날은 이 회차가 안 정한다 — 그날 매처의 attrCount 가 노드마다
+		// 1 씩 줄어 정렬이 움직인다.
+		if _, taken := attrs["harness"]; !taken {
+			attrs["harness"] = h.Name()
+		}
+	}
+	return attrs, nil
+}
+
+// repoFP 는 워크스페이스에서 저장소를 유도한다. 사람이 주소를 안 적는다.
+//
+// 유도가 이긴다 — .repo · .git 이 있으면 workspace_id 는 무시한다.
+// 사람이 적은 것이 기계가 본 것을 이기면 둘이 어긋났을 때 조용히 틀린다.
+type repoFP struct{}
+
+func (repoFP) Kind() string { return "repo" }
+
+func (repoFP) Probe(ctx context.Context, l Local, _ *slog.Logger) (map[string]string, error) {
+	if l.Workspace == "" {
+		return nil, nil
+	}
+	if repo := DetectRepo(ctx, l.Workspace); repo != "" {
+		return map[string]string{"repo": repo}, nil
+	}
+	if l.WorkspaceID != "" {
+		// 유도할 수 없는 워크스페이스 — 사람이 적은 이름을 쓴다 (ADR-036).
+		// 이 갈래를 안 옮기면 git 없는 노드에서 repo 가 사라져 중립이 깨진다.
+		return map[string]string{"repo": l.WorkspaceID}, nil
+	}
+	return nil, nil
+}
+
+// costlyAttrs 는 외부 프로세스를 띄워야 알아내는 것이다 (ADR-068 §4 비용 축).
+//
+// 광고 루프가 이것을 직접 부르면 안 된다 — 여기서 멈추면 하트비트가 함께
+// 멈추고 노드가 조용히 함대에서 사라진다. Detector 가 자기 시계로 갱신한다.
+//
+// 종류를 순회하는 것으로 바뀌었고 동작은 중립이다 (ADR-035 §4.2).
+// 한 종류가 실패해도 나머지는 실린다 — 부분 광고가 빈 광고보다 참에 가깝다.
+func costlyAttrs(ctx context.Context, l Local, log *slog.Logger) map[string]string {
+	attrs := map[string]string{}
+	for _, fp := range fingerprinters {
+		part, err := fp.Probe(ctx, l, log)
+		if err != nil {
+			log.Warn("fingerprint failed; its attributes are missing from this advertisement",
+				"kind", fp.Kind(), "err", err)
+			continue
+		}
+		// 키가 겹치면 나중 것이 이긴다. 셋의 키 공간이 안 겹치므로 오늘
+		// 이 규칙이 걸리는 자리는 0 이고, 적어 두는 것은 종류가 느는 날
+		// 조용히 갈리지 않게 하려는 것이다.
+		for k, v := range part {
+			attrs[k] = v
 		}
 	}
 	return attrs
@@ -170,6 +243,7 @@ func capabilities(l Local, log *slog.Logger, parts ...map[string]string) []contr
 	// os · host_arch 만으로는 능력이 아니다 — 어느 기계에나 있다.
 	// 하나도 할 줄 아는 것이 없으면 광고하지 않는다(오늘 그대로).
 	if !hasCapability(attrs) {
+		warnMCPWithoutCapability(l, log)
 		return nil
 	}
 
@@ -187,6 +261,7 @@ func capabilities(l Local, log *slog.Logger, parts ...map[string]string) []contr
 	if l.Orchestration {
 		delete(attrs, "arch")
 		if !hasCapability(attrs) {
+			warnMCPWithoutCapability(l, log)
 			return nil // 하네스도 없으면 오케스트레이션도 못 한다
 		}
 		return []contract.Capability{{
@@ -200,15 +275,40 @@ func capabilities(l Local, log *slog.Logger, parts ...map[string]string) []contr
 // os · host_arch · ws 는 어느 기계에나 있는 사실이지 능력이 아니다.
 // 이것들만 남으면 "아무것도 못 한다" 이고, 그때는 광고하지 않는다 —
 // 광고가 곧 능력이라는 ADR-012 의 뜻을 지킨다.
+//
+// mcp.<이름> 도 그것만으로는 능력이 아니다 (U3)
+//
+// MCP 서버는 하네스가 물어야 쓸 수 있는 것이다. 하네스가 없는 기계가
+// 선언만으로 광고를 내면 계약이 requires: mcp.<이름> 으로 그 노드를 잡고,
+// 실행 시점에 하네스가 없어 죽는다. 광고가 곧 능력인 곳에서 그것은
+// 할 줄 모르는 것을 광고한 것이다.
+//
+// harness.<이름> 은 능력이다 — 그것이 물 수 있는 쪽이다.
 func hasCapability(attrs map[string]string) bool {
 	for k := range attrs {
-		switch k {
-		case "os", "host_arch", "ws":
+		switch {
+		case k == "os", k == "host_arch", k == "ws":
+		case strings.HasPrefix(k, "mcp."):
 		default:
 			return true
 		}
 	}
 	return false
+}
+
+// warnMCPWithoutCapability 는 선언은 있는데 능력이 0 일 때 그 사유를 낸다 (FR-3).
+//
+// 침묵이 이 결정의 가장 큰 대가다. 소유자는 mcp: 를 적었는데 함대에서 자기
+// 노드가 아무것도 못 하는 것으로 보이고, 이유를 말해 주는 줄이 없으면 그
+// 자리에서 멈춘다. 「없음이 실패보다 나쁘다」(ADR-035 §3)가 여기에도 걸린다.
+//
+// 광고 주기마다 나온다 — capabilities 가 광고마다 불린다. 탐지 주기(5분)보다
+// 잦지만, 이것은 사람이 설정을 고쳐야 끝나는 상태다.
+func warnMCPWithoutCapability(l Local, log *slog.Logger) {
+	if len(l.MCP) > 0 {
+		log.Warn("node declares mcp servers but advertises no capability; is a harness installed?",
+			"mcp", len(l.MCP))
+	}
 }
 
 func detectArch(l Local) string {
