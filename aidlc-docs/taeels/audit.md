@@ -650,3 +650,25 @@ CA5 와 CA6 은 안 닫혔다. 이 단계가 잰 것은 우리 코드가 지은 
 **Context**: CONSTRUCTION · U5 pack · Code Generation 완료 · CA5 · CA6 대기
 
 ---
+
+## GATE — CA1 실측 (합성 함대 · OAuth 절반)
+**Timestamp**: 2026-09-14T02:52:15Z
+**User Input**: "Ca1부터 진행해"
+**AI Response**: "scene-gates.md 3절의 CA1 명령을 합성 함대로 돌렸다. 시험 Postgres 위에 전용 DB enode_ca1 을 파고 Mediator 를 127.0.0.1:18080 에, 노드 하나를 그 위에 세웠다. 하네스는 실물 claude 2.1.270 이고 이 기계의 진짜 HOME 으로 돈다 — 그것이 CA1 이 요구하는 조건이다.
+
+전제를 먼저 봤다. claude mcp list 가 개인 서버 일곱을 낸다 — claude.ai 계정 커넥터 넷(Expedia · Google Drive · Gmail · Google Calendar)과 개인 stdio 셋(office · playwright · pencil)이고 전부 Connected 다. auth status 는 loggedIn: true · authMethod: claude.ai 다.
+
+runctl example agent 를 그대로 냈다 (agent.mcp 가 없는 예시다). run_id 를 ca1-oauth-1 로 바꿔 제출했고 SUCCEEDED 다. runctl record ca1-oauth-1 -o r.tar 로 푼 logs/01-summarize.log 의 첫 줄이 판정 재료다.
+
+init 줄의 mcp_servers 가 [] 다. 개인 서버 일곱이 전부 끊겼다. slash_commands 는 내장뿐이고 agents 도 내장 다섯뿐이다 — 사람의 ~/.claude/agents 둘(aidlc-verify · aidlc-xhigh)이 안 샜다.
+
+같은 단계가 Not logged in 없이 돌았다. reason ok · turns 4 · $0.1002545 · version 2.1.270 이고 로그에 Not logged in 도 /login 도 0 건이며 summary.json 이 실제 워크스페이스를 읽고 나왔다. 두 겹이 동시에 선 것이다 — 가짜 홈이 개인 설정을 끊었는데도 .credentials.json 복사가 로그인을 살렸다. 둘 중 하나만 되면 이 줄이 안 나온다.
+
+덤으로 U5 의 omitempty 가 실물에서 확인됐다 — steps/01-summarize.json 의 result.harness 에 mcp 키도 pack 키도 없다. 팩도 서버도 없는 단계의 봉인이 오늘과 한 글자도 안 달라진다는 값이 실제 Run Record 에서 선다.
+
+게이트웨이 절반은 안 돌렸다. 이 기계의 ~/.claude/settings.json 에 apiKeyHelper 도 env 도 없고 ANTHROPIC_BASE_URL 도 AUTH_TOKEN 도 API_KEY 도 안 잡혀 있다 — gatewayAuthFields() 가 옮길 필드가 0 이라 그 경로가 애초에 발동하지 않는다. 가짜 게이트웨이로 돌리면 API 호출에서 죽어서 「Not logged in 없이 돈다」를 못 잰다. 그건 초록이 아니라 다른 실패이므로 안 돌렸고, 사용자가 사내에서 확인하기로 했다.
+
+이 실측은 게이트의 서명이 아니다. scene-gates.md 2절 머리가 집행자를 이 유닛을 구현하지 않은 사람으로 못 박고 회차는 진행자로 닫았다 — 한 것은 그 사람이 밟을 자리를 미리 밟아 위험을 던 것이다. 함대는 내렸고 DB 와 임시 디렉터리만 남는다."
+**Context**: GATE · CA1 OAuth 절반 초록 · 게이트웨이 절반은 사내 확인 대기
+
+---
