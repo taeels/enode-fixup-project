@@ -568,3 +568,37 @@ CA4 의 셋째 줄은 코드로 닫혔다 — 스텁 하네스가 마커 파일�
 
 이 실측은 게이트의 서명이 아니다. scene-gates.md 2절 머리가 집행자를 이 유닛을 구현하지 않은 사람으로 못 박는다 — 한 것은 그 사람이 밟을 자리를 미리 밟아 위험을 던 것이다. 함대는 내렸고 임시 디렉터리만 남는다."
 **Context**: CONSTRUCTION · U4 sources · CA4 세 줄 실측 초록 · 집행자 서명과 병합 대기
+
+## CONSTRUCTION — U5 pack · Functional Design (Part 1 · 계획과 물음)
+**Timestamp**: 2026-09-13T13:40:00Z
+**User Input**: "u5 시작"
+**AI Response**: "회차의 마지막 유닛 U5 pack 을 착수했다. 브랜치 unit/pack 을 main 에서 땄다 — U1 ~ U4 가 PR #33 ~ #36 으로 전부 main 에 있어 U4 처럼 앞 유닛 브랜치에서 딸 이유가 없다.
+
+계획을 짓기 전에 만지는 자리를 코드로 읽고 실물 claude 2.1.270 으로 다섯을 쟀다. 무거운 것이 첫째다 — 오늘의 플래그(--setting-sources \"\")로는 가짜 홈의 skills/ 와 agents/ 를 하네스가 아예 안 읽는다. 파일은 생기는데 init 줄의 skills 에도 agents 에도 slash_commands 에도 안 나타난다. unit-of-work.md 5절의 'Instrument 가 <dir>/home/skills/ 를 편다' 가 펴기만 하고 안 읽히는 자리였고, 그 상태로는 CA5 가 확정 빨강이며 빨간 이유가 팩 코드가 아니라 플래그다.
+
+길 둘을 실측으로 세웠다. ① --setting-sources user 로 바꾸면 hello 와 helper 가 뜨고, 사람의 ~/.claude/skills 수십과 ~/.claude/agents 둘은 하나도 안 샌다 — CLAUDE_CONFIG_DIR 이 user 범위를 통째로 옮기기 때문이다. ② --plugin-dir <계장>/pack 은 --setting-sources \"\" 를 그대로 둔 채 실린다. .claude-plugin/plugin.json 없이도 실렸고 이름이 pack:hello 로 namespace 된다.
+
+셋을 더 쟀다. 워크스페이스 .claude/skills/ 는 어느 경우에도 안 읽힌다 — features.md 5절과 decisions.md 2절의 열린 미정이 '안 읽는다. 팩으로 나른다' 로 닫힌다. --plugin-dir 에 없는 경로를 주면 종료코드 0 에 stderr 도 없이 조용히 무시된다 — 빠짐을 우리가 잡아야 한다. 그리고 가짜 홈의 settings.json 이 user 설정과 --settings 로 두 번 실려도 Stop 훅은 한 번만 뛴다.
+
+계획 파일을 construction/plans/pack-functional-design-plan.md 에 냈다. 물음 여덟이고 권장은 전부 A 다 — 전달 경로(--plugin-dir 대 --setting-sources user) · 팩 mcp.json 의 어휘 · $IN 을 누가 여나 · PackLimits 의 값 · gzip 수용 · 노드 선언 충돌의 범위 · 기록을 채우는 시점 · 오케스트레이터가 agent.pack 을 붙이는 단계."
+**Context**: CONSTRUCTION · U5 pack · Functional Design Part 1 · 사용자 답 대기
+
+---
+
+## CONSTRUCTION — U5 pack · Functional Design (Part 2 · 산출물)
+**Timestamp**: 2026-09-14T00:20:00Z
+**User Input**: "4는 64mb 로 하고 1은 세팅소스 관련 언급이 이번 회차에서 수십개던데 이거 뭔데" / "B가 아닌 a가 권장인 이유는" / "64메가 이외 모두 a로 한다."
+**AI Response**: "물음 4 를 A 로 닫되 MaxBytes 를 64 MiB 로 올렸고, --setting-sources 가 이 회차에 왜 그렇게 자주 나오는지를 셌다 — 저장소에서 예순여덟 자리이고 이 회차 것이 쉰둘이다. 이 팩의 출발점이 그 플래그의 실측표(features.md 1.2 「오늘 코드가 거꾸로 막는다」)이고, U1 이 그것을 hook.go 의 반환에서 Instrument 의 무조건 플래그로 옮겼으며, U4 는 그 플래그가 워크스페이스 .mcp.json 을 끊기 때문에 존재한다. 물음 1 에서 A 를 권한 이유 넷을 적었다 — 닫는 방식이 값이냐 조건이냐 · CLAUDE_CONFIG_DIR 하나가 두 겹을 겸하게 되는 것 · 팩 없는 단계의 argv 가 안 바뀌어 CA1 의 서명이 사는 것 · 이 팩이 MCP 에서 이미 고른 규율(범위가 아니라 지목)과 같은 모양인 것.
+
+사용자가 「64메가 이외 모두 a로 한다」로 답 여덟을 닫았다. 계획 파일의 [Answer] 여덟을 채우고 산출물 셋을 냈다 — construction/pack/functional-design/ 의 domain-entities · business-rules · business-logic-model.
+
+형식에서 설계 원안 둘을 고쳤다. PackFile.Mode 를 뺐다 (규약 안이 전부 글자라 실행 비트가 할 일이 0 이고, tar 의 모드를 받으면 팩이 0777 파일을 계장에 남긴다 — 파일 0600 · 디렉터리 0700 으로 우리가 정한다). Pack.MCP 를 map[string]MCPServer 에서 원문 map 으로 올렸다 (답 2=A · U4 와 같은 판단).
+
+규칙 서른다섯을 번호로 적었고 오류 문구를 계약으로 못 박았다. 무거운 것 셋 — R2 는 agent.pack 이 이름을 적었는데 $IN 에 그 파일이 없으면 거절이다(ADR-058 의 「없는 입력은 값이다」의 예외를 이름으로 적었다). R16 은 실을 것이 0 인 팩을 거절한다(하네스가 없는 플러그인 디렉터리를 종료코드 0 으로 조용히 무시하므로 빠짐을 우리가 잡는다). R8 은 64 MiB 를 받은 바이트와 푼 바이트 둘 다에 건다.
+
+걸음의 순서에서 뜻을 가지는 자리 넷을 적었다 — 팩 오류 검사가 요청 조기 반환 앞이라 깨진 팩이 agent.mcp 가 비어도 단계를 죽이고, 팩 담기가 그 앞이라 요청 0 에도 스킬은 펴지며(CA5 의 둘째 줄), 출처 순회에서 팩을 가장 먼저 보는 것은 우선순위가 아니라 노드 선언 충돌을 놓치지 않기 위해서이고, readPack 은 종류를 이름보다 먼저 본다.
+
+상태 표의 낡은 값을 고쳤다 — U1 ~ U4 가 전부 병합됨(PR #33 ~ #36)이고, 병합됨이 게이트 서명이 아니라는 줄을 함께 달았다."
+**Context**: CONSTRUCTION · U5 pack · Functional Design 승인 · 다음은 Code Generation
+
+---
