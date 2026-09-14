@@ -143,6 +143,96 @@ func TestBuildContract_IsAFixedTemplate(t *testing.T) {
 	}
 }
 
+// 팩 단계는 맨 앞이고 설정이 비면 안 붙는다 (U5 · business-rules R31 ~ R35).
+//
+// plan 에 needs 를 안 적는 것이 순서를 만든다 — NeedsOf 의 기본값이 직전
+// 단계다. in.from 은 이름을 가리킬 뿐 순서를 안 만든다.
+func TestBuildContract_ThePackStepGoesFirst(t *testing.T) {
+	rr := &RunnerRun{ID: 3, IssueIdentifier: "EP-5"}
+
+	t.Run("no pack means today's contract", func(t *testing.T) {
+		raw, err := BuildContract(testConfig(), "itsaplan-EP-5-1", "EP-5", nil, rr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var c map[string]any
+		_ = json.Unmarshal(raw, &c)
+		steps := c["steps"].([]any)
+		if len(steps) != 2 {
+			t.Fatalf("a config with no pack changed the step count: %d", len(steps))
+		}
+		if steps[0].(map[string]any)["id"] != "plan" {
+			t.Fatalf("steps[0] = %v", steps[0])
+		}
+	})
+
+	t.Run("a pack adds one command step at the front", func(t *testing.T) {
+		cfg := testConfig()
+		cfg.Executor.Pack = &PackConfig{
+			Fetch: []string{"curl", "-o", "$OUT/skills", "https://packs.test/s.tar"},
+			Name:  "skills",
+		}
+		raw, err := BuildContract(cfg, "itsaplan-EP-5-1", "EP-5", nil, rr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var c map[string]any
+		_ = json.Unmarshal(raw, &c)
+		steps := c["steps"].([]any)
+		if len(steps) != 3 {
+			t.Fatalf("steps = %d, want 3", len(steps))
+		}
+		pack := steps[0].(map[string]any)
+		if pack["id"] != "pack" || pack["uses"] != "worker" {
+			t.Fatalf("the pack step is not the executor's: %v", pack)
+		}
+		if out := pack["out"].([]any); len(out) != 1 || out[0] != "skills" {
+			t.Fatalf("out = %v", pack["out"])
+		}
+		if run := pack["run"].([]any); len(run) != 4 || run[0] != "curl" {
+			t.Fatalf("run = %v", pack["run"])
+		}
+		// 팩 단계는 새 역할을 안 만든다 — executor.as 를 그대로 쓴다.
+		if len(c["requires"].([]any)) != 2 {
+			t.Fatalf("requires grew: %v", c["requires"])
+		}
+		// plan 이 needs 를 안 적어야 기본값이 팩 단계를 딛는다.
+		plan := steps[1].(map[string]any)
+		if plan["id"] != "plan" {
+			t.Fatalf("steps[1] = %v", plan)
+		}
+		if _, has := plan["needs"]; has {
+			t.Fatalf("plan declared needs; the default would no longer wait for the pack: %v", plan)
+		}
+		// 판정은 안 바뀐다 — report 가 summary 를 냈는가다.
+		if len(c["success_when"].([]any)) != 2 {
+			t.Fatalf("success_when changed: %v", c["success_when"])
+		}
+	})
+}
+
+// 계획이 팩을 쓰려면 두 키를 적어야 한다는 것을 프롬프트가 이름으로 알려준다 (R34).
+//
+// 안 적으면 그 단계는 팩 없이 돈다 — 잊은 것을 우리가 못 잡는다. 그래서
+// 이름과 두 키가 프롬프트에 글자로 있어야 한다.
+func TestPlanPrompt_NamesTheBlobAndTheTwoKeys(t *testing.T) {
+	rr := &RunnerRun{ID: 4, IssueIdentifier: "EP-6"}
+
+	bare := planPrompt(testConfig(), "EP-6", nil, rr)
+	if strings.Contains(bare, "agent.pack") || strings.Contains(bare, `"pack"`) {
+		t.Fatalf("a fleet with no pack was told about packs:\n%s", bare)
+	}
+
+	cfg := testConfig()
+	cfg.Executor.Pack = &PackConfig{Fetch: []string{"curl"}, Name: "skills"}
+	got := planPrompt(cfg, "EP-6", nil, rr)
+	for _, want := range []string{`"skills"`, `"pack": "skills"`, `"from": ["skills"]`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("the prompt does not carry %s:\n%s", want, got)
+		}
+	}
+}
+
 func TestBuildContract_JudgesFactsNotGraphPositions(t *testing.T) {
 	rr := &RunnerRun{ID: 1, IssueIdentifier: "EP-9"}
 	raw, err := BuildContract(testConfig(), "itsaplan-EP-9-1", "EP-9", nil, rr)

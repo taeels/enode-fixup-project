@@ -1,14 +1,21 @@
 package enode
 
 import (
+	"archive/tar"
+	"bufio"
+	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -24,9 +31,11 @@ import (
 //	resolveComponents   정한다.  파일을 하나도 안 만진다
 //	Instrument          쓴다.    무엇을 열지 안 정한다
 //
-// U4 가 출처 둘(노드 선언 · 워크스페이스)을 합쳤다. 남은 것은 팩이고 U5 다.
+// U4 가 출처 둘(노드 선언 · 워크스페이스)을 합쳤고 U5 가 팩을 더했다.
 //
 //	readWorkspaceMCP    읽는다.  가장자리다 — 정하지 않는다
+//	readPack            읽는다.  순수하다 — 파일을 하나도 안 만진다.
+//	                    여는 것은 runner.go 의 openPack 이다
 
 // MCPServer 는 노드가 선언한 MCP 서버 하나다 (ADR-035 §4.4).
 //
@@ -195,56 +204,169 @@ type Components struct {
 	Notes   []string                  // 로그로 낼 사실 — 이름만 담는다
 }
 
-// Pack 은 검증을 통과한 팩이다 (component-methods.md 2.1).
+// Pack 은 검증을 통과한 팩이다. tar 를 다시 안 연다.
 //
-// U1 은 이름만 세운다 — 필드도 읽는 코드도 U5 가 짓는다. Components 가 이
-// 형식을 가리키므로 이름이 먼저 서야 한다. 여기 필드를 미리 만들지 않는 이유는
-// 상한 값과 tar 규약이 U5 의 Functional Design 이 닫을 자리이기 때문이다.
-type Pack struct{}
+// 파일이 아니라 메모리다 — 거부가 파일을 남기기 전에 일어나야 하기 때문이다
+// (SEC-A). 쓰는 쪽(Instrument)은 검증을 다시 안 한다.
+type Pack struct {
+	// SHA256 은 $IN 에서 받은 바이트의 것이다. 압축된 원본 그대로다.
+	//
+	// 푼 뒤가 아닌 이유는 대조다 — 기록을 읽는 사람이 같은 Run 의 blob 을
+	// 받아 sha256sum 으로 이 값과 맞출 수 있어야 한다. 푼 바이트로 재면
+	// 그 대조가 안 선다.
+	SHA256 string
+
+	// Files 는 규약 안의 항목이다. 이름 순으로 담는다.
+	Files []PackFile
+
+	// MCP 는 팩 mcp.json 의 mcpServers 를 원문 그대로 담는다.
+	//
+	// MCPServer 가 아닌 이유는 워크스페이스 .mcp.json 과 같다 — 이 파일은
+	// 하네스가 정의한 형식이고 우리 어휘가 아니다. 번역하는 코드가 없으므로
+	// 번역이 못 틀린다.
+	MCP map[string]map[string]any
+}
+
+// PackFile 은 펴질 파일 하나다.
+//
+// Mode 를 안 싣는다 — 규약 안의 항목이 전부 글자라(SKILL.md · <이름>.md)
+// 실행 비트가 할 일이 0 이고, tar 의 모드를 그대로 쓰면 팩이 0777 파일을
+// 계장 안에 남긴다. 받을 이유가 없는 값을 받는 것이다. 권한은 쓰는 쪽이
+// 정한다 — 파일 0600 · 디렉터리 0700 으로 계장 안의 다른 파일과 같다.
+type PackFile struct {
+	Name string // 팩 안의 상대경로. skills/ 또는 agents/ 로 시작한다
+	Data []byte
+}
+
+// PackLimits 는 푸는 쪽이 디스크와 메모리를 채우는 길을 막는다 (SEC-A).
+type PackLimits struct {
+	// MaxBytes 는 받은 바이트에도 푼 바이트에도 같이 건다.
+	//
+	// 둘 중 먼저 닿는 쪽에서 끊는다 — 받은 바이트만 재면 gzip 폭탄이
+	// 통과하고, 푼 바이트만 재면 tar 꼬리에 붙은 거대한 쓰레기를 끝까지 읽는다.
+	// 값이 하나라 「무엇을 넘었나」를 사람이 안 헷갈린다.
+	MaxBytes int64
+	// MaxFiles 는 항목 수다. 규약 밖 항목과 디렉터리까지 함께 센다.
+	MaxFiles int
+}
+
+// defaultPackLimits 는 64 MiB 와 512 다.
+//
+// 전송은 이미 막혀 있다 — Mediator 의 MaxBlobBytes 기본 10 MiB 가 tar 자체를
+// 막는다. 그 여섯 배를 푼 바이트에 준다. gzip 을 받으므로 압축률 6.4 까지가
+// 그 안이고, 글자 팩의 실제 압축률이 거기 못 미친다 — 폭탄만 걸리고 성한
+// 팩은 안 걸린다.
+//
+// 512 는 사고를 잡는 값이지 사람을 막는 값이 아니다 — 스킬 팩의 실제 파일
+// 수는 열 단위다. 파일 하나의 상한은 안 둔다. 합계가 이미 그것을 진다.
+var defaultPackLimits = PackLimits{MaxBytes: 64 << 20, MaxFiles: 512}
+
+// packInput 은 가장자리가 연 결과다.
+//
+// runHarness 가 채우고 resolveComponents 가 등급과 문구를 정한다. 필드로
+// Job 에 안 넣는다 — Job 은 claim.go 가 채우는 것이고 팩은 runner.go 가 연다.
+// 섞으면 「claim.go 가 안 채웠다」는 사실이 안 보인다.
+type packInput struct {
+	Pack  *Pack
+	Notes []string // 규약 밖 항목의 이름 등. readPack 이 낸다
+	Err   error    // 못 열었거나 검증에 걸렸다
+}
 
 // resolveComponents 는 이 단계가 무엇을 열지 정한다 (FR-2 · FR-4 · FR-6).
 //
-// 파일을 하나도 안 만진다. 출처는 Job 이 들고 온다 — 여는 것은 가장자리
-// (claim.go)이고 고르는 것은 여기다. 그래서 시험이 하네스도 디스크도 안 쓰고,
-// 오류가 곧 단계 실패다 — 부르는 쪽이 exec 전에 부른다.
+// 파일을 하나도 안 만진다. 출처는 Job 과 packInput 이 들고 온다 — 여는 것은
+// 가장자리(claim.go 와 runner.go 의 openPack)이고 고르는 것은 여기다. 그래서
+// 시험이 하네스도 디스크도 안 쓰고, 오류가 곧 단계 실패다 — 부르는 쪽이
+// exec 전에 부른다.
 //
-// 걸음 여섯이고 순서가 뜻을 가진다:
+// 팩이 Job 의 필드가 아니라 둘째 인자인 이유는 출처의 주인이 다르기 때문이다 —
+// Job 은 claim.go 가 채우고 팩은 runner.go 가 연다. 섞으면 「claim.go 가 안
+// 채웠다」는 사실이 안 보인다.
 //
-//	1  요청 집합을 만든다.  비면 빈 것을 낸다 — 출처를 아예 안 본다
-//	2  워크스페이스 파일을 못 읽었으면 거절한다.  3 보다 앞이라 깨진 파일이
+// 걸음 여덟이고 순서가 뜻을 가진다:
+//
+//	0  팩 오류면 거절한다.  요청 여부와 무관하다 — 팩을 적은 것은 계약이고
+//	   그 팩이 안 열리는데 조용히 도는 것이 「없음이 실패보다 나쁘다」다
+//	1  팩을 c.Pack 에 담는다.  2 보다 앞이라 요청이 0 이어도 스킬은 펴진다 —
+//	   계약이 서버를 안 적고 스킬만 쓰는 것이 정상이다
+//	2  요청 집합을 만든다.  비면 여기서 반환한다 — 서버 출처를 아예 안 본다
+//	3  워크스페이스 파일을 못 읽었으면 거절한다.  4 보다 앞이라 깨진 파일이
 //	   「없는 이름」으로 둔갑하지 않는다
-//	3  이름 순으로 출처를 뒤진다.  노드가 워크스페이스를 이긴다
-//	4  집은 항목마다 종류를 채운다.  3 보다 뒤라 우리가 채운 것과 출처가 안 섞인다
-//	5  요청 안 한 워크스페이스 이름을 Notes 에 남긴다
-//	6  못 찾은 이름이 있으면 거절한다.  맨 뒤라 Notes 가 다 채워진 뒤다
+//	4  이름 순으로 출처 셋을 뒤진다.  팩을 가장 먼저 본다 — 우선순위가 아니라
+//	   노드 선언 충돌을 놓치지 않기 위해서다.  노드를 먼저 보고 집으면 팩이
+//	   같은 이름을 실은 사실을 못 본 채로 지나간다
+//	5  집은 항목마다 종류를 채운다.  4 보다 뒤라 우리가 채운 것과 출처가 안 섞인다
+//	6  요청 안 한 이름을 Notes 에 남긴다.  워크스페이스와 팩 둘 다
+//	7  못 찾은 이름이 있으면 거절한다.  맨 뒤라 Notes 가 다 채워진 뒤다
 //
 // 거절로 끝날 때도 그때까지의 Components 를 함께 돌려준다 — 왜 실패했는지를
 // 아는 데 필요한 사실이 실패와 함께 사라지면 안 된다. 부르는 쪽이 Notes 를
 // 먼저 찍고 실패를 낸다 (runner.go 의 ②).
 //
-// 팩은 U5 가 걸음 3 앞에 더한다 — 팩이 노드 선언 이름을 덮으면 거절이기 때문이다.
-//
 // 빈 맵을 세워 돌려주는 것은 쓰는 쪽이 nil 과 빈 것을 안 가르게 하려는 것이다.
-func resolveComponents(j Job) (Components, error) {
+func resolveComponents(j Job, p packInput) (Components, error) {
 	c := Components{Servers: map[string]map[string]any{}}
 
-	// 1 — 요청이 없으면 허용목록이 빈다. 출처가 무엇을 선언했든 그렇다
+	// 0 — Notes 가 오류보다 앞이다. 규약 밖 항목의 이름은 팩이 왜 거절됐는지를
+	// 아는 재료이고, 그것이 실패와 함께 사라지면 안 된다.
+	c.Notes = append(c.Notes, p.Notes...)
+	if p.Err != nil {
+		return c, p.Err
+	}
+
+	// 1 — 담는 것이 요청을 보기 앞이다. 요청이 0 이어도 스킬은 펴진다.
+	c.Pack = p.Pack
+
+	// 2 — 요청이 없으면 허용목록이 빈다. 출처가 무엇을 선언했든 그렇다
 	// (features.md 3.2 — 요청이 없을 때 0 은 의도다).
 	want := wantedMCP(j.Params.MCP)
 	if len(want) == 0 {
 		return c, nil
 	}
 
-	// 2 — 원인이 파일이면 문구도 파일을 가리킨다. 파일 경로는 안 싣는다:
+	// 3 — 원인이 파일이면 문구도 파일을 가리킨다. 파일 경로는 안 싣는다:
 	// 이 문구가 res.Error 로 봉인에 들어가고, 노드의 디렉터리 구조는 계약
 	// 작성자가 알 것이 아니다. 파일은 하나뿐이라 이름으로 충분하다.
 	if j.WorkspaceMCPErr != nil {
 		return c, fmt.Errorf("cannot read workspace .mcp.json: %w", j.WorkspaceMCPErr)
 	}
 
-	// 3
+	// 4
+	var packMCP map[string]map[string]any
+	if p.Pack != nil {
+		packMCP = p.Pack.MCP
+	}
 	var missing []string
 	for _, name := range want {
+		if e, ok := packMCP[name]; ok {
+			// 팩이 노드 선언 이름을 덮으면 거절이다 — 계약이 requires 로
+			// 소유자의 선언을 보고 노드를 고른 뒤 자기 팩의 정의로 그 이름을
+			// 덮으면, 매칭은 소유자의 값으로 하고 실행은 계약의 값으로 하는
+			// 것이 된다. 소유권이 뒤집히는 자리다.
+			//
+			// 요청된 이름만 본다 — 그 뒤집힘은 이름이 실제로 허용목록에
+			// 실릴 때만 열린다. 전부 보면 실행 위험이 0 인 경우까지 단계를
+			// 죽여, 노드가 흔한 이름을 선언해 두면 그 이름을 담은 팩이 그
+			// 노드에서 전부 막힌다.
+			if _, dup := j.NodeMCP[name]; dup {
+				return c, fmt.Errorf("pack redefines node-declared mcp server %s", name)
+			}
+			// 원본을 안 고친다 — 5 가 키를 하나 더하는데 그 맵은 Pack 의 것이다.
+			e = copyEntry(e)
+			if !hasText(e, "command") && !hasText(e, "url") {
+				// 종류를 못 정하는 항목은 하네스가 말없이 버린다. 워크스페이스
+				// 출처와 같은 실패이므로 같은 자리에서 같은 꼴로 거절한다.
+				return c, fmt.Errorf(
+					"pack mcp server %s declares neither command nor url", name)
+			}
+			if _, dup := j.WorkspaceMCP[name]; dup {
+				// 계약이 실어 보낸 것이 가장 재현 가능하다 (decisions.md 2절).
+				c.Notes = append(c.Notes, "mcp server "+name+" is declared by both "+
+					"the pack and the workspace; the pack wins")
+			}
+			c.Servers[name] = e
+			continue
+		}
 		if s, ok := j.NodeMCP[name]; ok {
 			if _, dup := j.WorkspaceMCP[name]; dup {
 				// 노드가 이긴다. 저장소에 쓰는 사람이 소유자가 선언한
@@ -272,12 +394,12 @@ func resolveComponents(j Job) (Components, error) {
 		missing = append(missing, name)
 	}
 
-	// 4 — 종류를 채우는 자리가 하나다. 두 출처가 같은 규칙을 받는다.
+	// 5 — 종류를 채우는 자리가 하나다. 출처 셋이 같은 규칙을 받는다.
 	for _, e := range c.Servers {
 		ensureType(e)
 	}
 
-	// 5 — 계약 작성자가 「적어 뒀는데 왜 없나」를 여기서 푼다.
+	// 6 — 계약 작성자가 「적어 뒀는데 왜 없나」를 여기서 푼다.
 	requested := make(map[string]bool, len(want))
 	for _, name := range want {
 		requested[name] = true
@@ -288,8 +410,17 @@ func resolveComponents(j Job) (Components, error) {
 				", which this step did not request")
 		}
 	}
+	// 팩이 실었으나 요청 안 한 이름. 팩은 정의의 출처이지 허가의 출처가 아니다 —
+	// 이 줄이 없으면 계약 작성자가 이름을 안 적고도 임의의 stdio 서버를 물릴 수
+	// 있고, --strict-mcp-config 도 가짜 홈도 그것을 안 막는다.
+	for _, name := range entryNames(packMCP) {
+		if !requested[name] {
+			c.Notes = append(c.Notes, "pack declares mcp server "+name+
+				", which this step did not request")
+		}
+	}
 
-	// 6 — 조용히 빼고 돌면 하네스가 exit 0 으로 끝나고 성공이 봉인된다.
+	// 7 — 조용히 빼고 돌면 하네스가 exit 0 으로 끝나고 성공이 봉인된다.
 	// 단계는 초록인데 모델은 그 도구를 못 봤다 (ADR-035 §3).
 	if len(missing) > 0 {
 		for _, name := range missing[1:] {
@@ -411,6 +542,287 @@ func readWorkspaceMCP(dir string) (map[string]map[string]any, error) {
 		}
 		return nil, err
 	}
+	var f struct {
+		MCPServers map[string]map[string]any `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(b, &f); err != nil {
+		return nil, err
+	}
+	return f.MCPServers, nil
+}
+
+// 팩 tar 를 읽는다 — 규약 안과 밖을 접두로 가른다
+//
+// 규약 안은 셋이다 (decisions.md 2절):
+//
+//	skills/<이름>/SKILL.md   스킬.  같은 디렉터리의 곁 파일도 함께 옮긴다
+//	agents/<이름>.md         서브에이전트
+//	mcp.json                 팩의 MCP 정의.  루트의 그 이름 하나
+//
+// 접두로 가르는 것이 이름 하나를 건너뛰는 것보다 낫다 — 실을 것을 나열하는
+// 규칙이라 하네스나 규약이 이름을 늘려도 안 샌다. 이 저장소가 R1 환경
+// 화이트리스트와 logs/ 에서 이미 고른 규율이다.
+
+// packMCPName 은 팩 루트의 서버 정의 파일이다.
+const packMCPName = "mcp.json"
+
+// packSettingsName 은 팩이 실어서는 안 되는 파일이다 (ADR-034 §7).
+//
+// 접두 규칙이 이미 막으므로 이 이름이 따로 필요하진 않다. 그래도 두는 이유는
+// 문구다 — 훅 설정이 정책이고 팩이 그것을 덮으려 했다는 사실이 로그에 이름으로
+// 남아야 한다. 조용한 무시와 보이는 무시를 가른다.
+const packSettingsName = "settings.json"
+
+const (
+	packSkillsPrefix = "skills/"
+	packAgentsPrefix = "agents/"
+)
+
+// errPackTooBig 는 받은 바이트가 상한을 넘었다는 사실이다 (R8).
+//
+// 문구가 아니라 사실인 이유는 되싸기 때문이다 — tar 도 gzip 도 상한에 걸린
+// 읽기를 자기 형식의 오류로 되싼다. 사실로 들고 다녀야 overLimit 이 그것을
+// 「tar 가 아니다」와 가를 수 있다.
+var errPackTooBig = errors.New("pack exceeds the byte limit")
+
+// countingReader 는 흘러간 바이트를 세고 상한을 넘으면 끊는다.
+//
+// 상한과 같은 크기까지는 통과시킨다 — 넘은 뒤에만 끊으므로 정확히 MaxBytes
+// 인 팩이 안 걸린다. 넘침은 버퍼 한 번치(bufio 의 4 KiB)까지 초과할 수 있고,
+// 그 여유는 상한의 뜻을 안 바꾼다.
+type countingReader struct {
+	r   io.Reader
+	max int64
+	n   int64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += int64(n)
+	if c.n > c.max {
+		return n, errPackTooBig
+	}
+	return n, err
+}
+
+// overLimit 은 상한을 먼저 본다.
+//
+// tar 와 gzip 이 상한 오류를 자기 형식의 오류로 되싸므로, 그대로 적으면
+// 「tar 가 아니다」가 나가고 사람이 엉뚱한 것을 고친다.
+func overLimit(err error, lim PackLimits, alt error) error {
+	if errors.Is(err, errPackTooBig) {
+		return fmt.Errorf("pack exceeds the size limit of %d bytes", lim.MaxBytes)
+	}
+	return alt
+}
+
+// readPack 은 tar 하나를 검증해 Pack 으로 만든다 (SEC-A · R3 ~ R16).
+//
+// 순수하다 — io.Reader 하나를 받고 파일을 하나도 안 쓴다. 거부가 파일을
+// 남기기 전에 일어나야 하기 때문이고, 그래서 시험이 악성 tar 를 메모리에서
+// 지어 넣는다. 여는 것은 runner.go 의 openPack 이다.
+//
+// 이름을 인자로 받는 이유는 문구다 — R3 과 R16 이 팩 이름을 담는데, 바깥에서
+// 감싸면 게이트가 찾는 글자가 그대로 안 나온다.
+//
+// 걸음 다섯이고 순서가 뜻을 가진다:
+//
+//	1  받은 바이트를 세면서 sha256 에 흘린다
+//	2  첫 두 바이트가 1f 8b 면 gzip 을 한 겹 벗긴다
+//	3  항목마다 종류 · 개수 · 이름 · 크기를 보고 가른다.
+//	   종류가 이름보다 앞이다 — 심볼릭 링크의 이름이 성해 보일 수 있고,
+//	   그때 이름 검사만 통과시키면 링크가 살아 나간다
+//	4  남은 바이트를 끝까지 읽어 해시를 마친다.  tar 는 꼬리에 0 블록을 달고
+//	   거기서 멈추면 해시가 파일 전체의 값이 아니다
+//	5  실을 것이 0 이면 거절한다.  하네스는 없는 플러그인 디렉터리를
+//	   종료코드 0 에 stderr 한 줄 없이 무시하므로 빠짐을 우리가 잡는다
+//
+// Notes 는 오류와 함께도 돌려준다 — 왜 실패했는지를 아는 데 필요한 사실이
+// 실패와 함께 사라지면 안 된다.
+func readPack(name string, r io.Reader, lim PackLimits) (*Pack, []string, error) {
+	sum := sha256.New()
+	counted := &countingReader{r: r, max: lim.MaxBytes}
+	br := bufio.NewReader(io.TeeReader(counted, sum))
+
+	// 형식이 아닌 모든 실패가 이 문구로 모인다 — 팩을 짓는 사람이 고칠
+	// 자리가 하나이기 때문이다 (tar 가 아니거나 잘렸거나 덜 왔다).
+	notTar := fmt.Errorf("pack %s is not a tar archive", name)
+
+	var src io.Reader = br
+	if magic, err := br.Peek(2); err == nil && magic[0] == 0x1f && magic[1] == 0x8b {
+		// 한 겹만 벗긴다 — 안이 또 gzip 이면 tar 로 안 읽혀 아래가 거절한다.
+		zr, err := gzip.NewReader(br)
+		if err != nil {
+			return nil, nil, overLimit(err, lim, notTar)
+		}
+		defer zr.Close() //nolint:errcheck
+		src = zr
+	}
+
+	p := &Pack{}
+	var notes []string
+	at := map[string]int{}    // 이름 -> Files 의 자리. 뒤가 이긴다 (R15)
+	seen := map[string]bool{} // 규약 안에서 같은 이름을 두 번 봤나
+	var entries int
+	var expanded int64
+
+	tr := tar.NewReader(src)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, notes, overLimit(err, lim, notTar)
+		}
+		// 종류가 먼저다 (R4). 우리가 필요한 디렉터리는 쓰는 쪽이 직접 만들므로
+		// tar 의 디렉터리 항목은 개수만 세고 버린다.
+		if hdr.Typeflag != tar.TypeReg && hdr.Typeflag != tar.TypeDir {
+			return nil, notes, fmt.Errorf(
+				"pack entry %s is a %s; only regular files are read",
+				hdr.Name, packEntryKind(hdr.Typeflag))
+		}
+		entries++
+		if entries > lim.MaxFiles {
+			return nil, notes, fmt.Errorf(
+				"pack exceeds the file limit of %d entries", lim.MaxFiles)
+		}
+		clean, err := packEntryName(hdr.Name)
+		if err != nil {
+			return nil, notes, err
+		}
+		if hdr.Typeflag == tar.TypeDir {
+			continue
+		}
+		// 읽기 전에 센다 — 헤더가 거짓말해도 받은 바이트 쪽 상한이 잡는다.
+		expanded += hdr.Size
+		if expanded > lim.MaxBytes {
+			return nil, notes, fmt.Errorf(
+				"pack exceeds the size limit of %d bytes", lim.MaxBytes)
+		}
+
+		inside := clean == packMCPName ||
+			strings.HasPrefix(clean, packSkillsPrefix) ||
+			strings.HasPrefix(clean, packAgentsPrefix)
+		if !inside {
+			if clean == packSettingsName {
+				notes = append(notes, "pack carries settings.json; this run does not read it")
+				continue
+			}
+			notes = append(notes, "pack carries "+clean+
+				", which is outside the pack convention; ignoring it")
+			continue
+		}
+		if seen[clean] {
+			notes = append(notes, "pack carries "+clean+" more than once; the last one wins")
+		}
+		seen[clean] = true
+
+		b, err := io.ReadAll(tr)
+		if err != nil {
+			return nil, notes, overLimit(err, lim, notTar)
+		}
+		if clean == packMCPName {
+			m, err := packMCPServers(b)
+			if err != nil {
+				return nil, notes, fmt.Errorf("pack mcp.json is not valid json: %v", err)
+			}
+			p.MCP = m
+			continue
+		}
+		if i, dup := at[clean]; dup {
+			p.Files[i].Data = b
+			continue
+		}
+		at[clean] = len(p.Files)
+		p.Files = append(p.Files, PackFile{Name: clean, Data: b})
+	}
+
+	// 4 — 꼬리까지 읽어야 해시가 파일 전체의 값이다. 빠뜨리면 봉인에 남은
+	// 값으로 blob 을 대조할 수 없다.
+	if _, err := io.Copy(io.Discard, br); err != nil {
+		return nil, notes, overLimit(err, lim, notTar)
+	}
+	if len(p.Files) == 0 && len(p.MCP) == 0 {
+		return nil, notes, fmt.Errorf(
+			"pack %s carries no skills, agents, or mcp servers", name)
+	}
+	sort.Slice(p.Files, func(i, j int) bool { return p.Files[i].Name < p.Files[j].Name })
+	p.SHA256 = hex.EncodeToString(sum.Sum(nil))
+	return p, notes, nil
+}
+
+// packEntryKind 는 규약 밖 종류의 이름이다 (R4).
+//
+// 문구가 「pack entry %s is a %s」라 이 글자가 곧 사람이 읽는 사유다.
+// 모르는 종류에는 tar 의 글자를 그대로 보인다 — 이름을 지어내면 그 이름으로
+// 찾을 문서가 없다.
+func packEntryKind(flag byte) string {
+	switch flag {
+	case tar.TypeSymlink:
+		return "symlink"
+	case tar.TypeLink:
+		return "hard link"
+	case tar.TypeChar, tar.TypeBlock:
+		return "device"
+	case tar.TypeFifo:
+		return "fifo"
+	}
+	return fmt.Sprintf("tar type %q", rune(flag))
+}
+
+// packEntryName 은 항목 이름을 검증하고 정규화한다 (R5 ~ R7).
+//
+// 검증이 정규화보다 앞인 것이 규칙이다 — path.Clean 은 .. 를 먹어 치우므로
+// 먼저 돌리면 escapes the pack root 가 영영 안 걸린다.
+//
+// 백슬래시를 거절하는 이유는 크로스 빌드다. tar 의 이름은 / 로 나뉘는데
+// 윈도우에서는 \ 도 구분자다. 같은 팩이 리눅스와 윈도우에서 다른 경로로
+// 펴지면 격리의 경계가 플랫폼마다 달라진다.
+func packEntryName(raw string) (string, error) {
+	if strings.HasPrefix(raw, "/") {
+		return "", fmt.Errorf("pack entry %s has an absolute path", raw)
+	}
+	for _, part := range strings.Split(raw, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("pack entry %s escapes the pack root", raw)
+		}
+	}
+	if !packSafeName(raw) {
+		return "", fmt.Errorf("pack entry %s has an unsafe name", raw)
+	}
+	clean := path.Clean(raw)
+	if clean == "." || strings.HasPrefix(clean, "/") {
+		return "", fmt.Errorf("pack entry %s has an unsafe name", raw)
+	}
+	return clean, nil
+}
+
+// packSafeName 은 이름에 실어서는 안 되는 글자가 있는가다.
+func packSafeName(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	if strings.ContainsRune(raw, '\\') {
+		return false
+	}
+	// 드라이브 문자. C:/x 도 C:x 도 윈도우에서는 우리가 지은 뿌리 밖이다.
+	if len(raw) >= 2 && raw[1] == ':' {
+		return false
+	}
+	for _, r := range raw {
+		if r < 0x20 || r == 0x7f {
+			return false
+		}
+	}
+	return true
+}
+
+// packMCPServers 는 팩 mcp.json 의 mcpServers 를 원문 그대로 집는다.
+//
+// mcpServers 키가 없는 파일은 서버 0 이다 — readWorkspaceMCP 와 같은 판단이고,
+// 다른 목적의 파일일 수 있다.
+func packMCPServers(b []byte) (map[string]map[string]any, error) {
 	var f struct {
 		MCPServers map[string]map[string]any `json:"mcpServers"`
 	}

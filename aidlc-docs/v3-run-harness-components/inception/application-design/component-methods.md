@@ -90,29 +90,36 @@ type MCPServer struct {
 // 파일이 아니다 — 메모리다. 그래서 resolveComponents 가 실패해도
 // 아무것도 안 남고, 쓰는 쪽은 정책을 다시 판단하지 않는다.
 type Components struct {
-	Servers map[string]MCPServer // 허용목록에 실릴 것
-	Pack    *Pack                // nil 이면 팩 없음
-	Notes   []string             // 로그로 낼 사실 — 이름만 담는다
+	// Servers 는 MCPServer 가 아니라 최종 허용목록 항목이다 (U4 가 올렸다).
+	// 출처마다 어휘가 다르다 — 노드 선언은 우리 형식이고 워크스페이스
+	// .mcp.json 과 팩의 mcp.json 은 하네스가 정의한 형식이다.
+	Servers map[string]map[string]any
+	Pack    *Pack    // nil 이면 팩 없음
+	Notes   []string // 로그로 낼 사실 — 이름만 담는다
 }
 
 // Pack 은 검증을 통과한 팩이다. tar 를 다시 안 연다.
 type Pack struct {
-	SHA256 string
-	Files  []PackFile           // skills/ · agents/ 아래의 것만
-	MCP    map[string]MCPServer // 팩의 mcp.json
+	SHA256 string // 받은 바이트의 것이다. gzip 이면 압축된 원본의 값
+	Files  []PackFile
+	// MCP 는 팩 mcp.json 의 mcpServers 를 원문 그대로 담는다 (U5 답 2=A).
+	// Servers 와 같은 이유다 — 번역하는 코드가 없으므로 번역이 못 틀린다.
+	MCP map[string]map[string]any
 }
 
 type PackFile struct {
 	Name string // 팩 안의 상대경로. 검증을 통과한 것만 여기 온다
-	Mode fs.FileMode
 	Data []byte
+	// Mode 를 안 싣는다 (U5 가 뺐다). 규약 안이 전부 글자라 실행 비트가
+	// 할 일이 0 이고, tar 의 모드를 받으면 팩이 0777 파일을 계장에 남긴다.
+	// 권한은 쓰는 쪽이 정한다 — 파일 0600 · 디렉터리 0700.
 }
 
 // PackLimits 는 푸는 쪽이 디스크를 채우는 길을 막는다 (SEC-A).
-// 값은 팩 유닛의 Functional Design 이 닫는다.
+// 값은 U5 의 Functional Design 이 닫았다 — 64 MiB 와 512 다.
 type PackLimits struct {
-	MaxBytes int64
-	MaxFiles int
+	MaxBytes int64 // 받은 바이트에도 푼 바이트에도 같이 건다
+	MaxFiles int   // 규약 밖 항목과 디렉터리까지 함께 센다
 }
 ```
 

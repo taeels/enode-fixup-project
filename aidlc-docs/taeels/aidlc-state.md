@@ -126,7 +126,7 @@ NAT 뒤의 관객 전체가 막혀 CP10 을 직접 깨므로 이쪽을 수락했
 | U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 | **병합됨 (PR #34)** |
 | U3 | `advert` | 3.3 | CA2 · CA3 완결 | U1 · U2 | **병합됨 (PR #35)** |
 | U4 | `sources` | 3.4 · 3.2 의 완성 | CA4 | U1 · U2 · U3 | **병합됨 (PR #36)** |
-| U5 | `pack` | 3.6 · 3.7 | CA5 · CA6 | U1 · U2 · U4 | **FD 승인 · 코드 대기** |
+| U5 | `pack` | 3.6 · 3.7 | CA5 · CA6 | U1 · U2 · U4 | **코드 승인 · CA5 · CA6 대기** |
 
 **병합됨은 게이트 서명이 아니다.** 사람이 실물로 띄워야 하는 조각의 상태는
 유닛마다의 절이 진다 (`scene-gates.md` 2절 머리 · 4절).
@@ -606,28 +606,57 @@ U1 이 먼저 `main` 에 들어가야 이 PR 의 차이가 U2 것만 남는다. 
    NFR Requirements       SKIP (회차 실행 계획)
    NFR Design             SKIP
    Infrastructure Design  SKIP
-   Code Generation        대기
+   Code Generation        승인 2026-09-14 (사용자가 「승인」으로 계획을 닫았고
+                          단계 열셋을 그대로 돌렸다).  계획은 construction/plans/
+                          pack-code-generation-plan.md · 요약은
+                          construction/pack/code/code-summary.md
+
+                          제품 파일 여섯 · 새 제품 파일 0 · 새 시험 파일 하나
+                          (pack_test.go).  claim.go 는 소스 diff 0 이다 —
+                          답 3=A 가 가장자리를 runner.go 로 정했기 때문이다
+
+                          CA0 전부 초록.  internal/enode 커버리지가 표준 명령으로
+                          87.0% 다 (U4 뒤 86.4% 에서 올랐다).  라우트 26 그대로
+
+                          변이 일곱을 넣어 전부 빨개지는 것을 봤다.  다섯과
+                          여섯과 일곱은 순수 시험과 배선 시험이 함께 빨개졌다
+
+                          실측 하나를 더 했다 — 우리 코드가 지은 <계장>/pack 을
+                          claude 2.1.270 이 --plugin-dir= 로 읽는다.  skills 에
+                          pack:hello · agents 에 pack:helper · slash_commands 에
+                          pack:hello · plugins 에 pack@inline · mcp_servers 에
+                          probe4.  이 단계가 새로 잰 것은 등호 형태다 — 이 자리
+                          바로 뒤에 --strict-mcp-config 가 따라붙는데 가변인자면
+                          그것을 삼킨다.  안 삼켰다
+
+                          계획에 없던 것을 둘 더했다 — ① command 도 url 도 없는
+                          팩 항목의 거절 (U4 가 워크스페이스에서 이미 거절한 같은
+                          실패이고, 하네스의 침묵이 출처를 안 가린다)
+                          ② Notes 복사를 걸음 0 의 오류보다 앞으로 (거절과 함께
+                          규약 밖 항목의 이름이 사라지면 안 된다)
 ```
 
-## 이 유닛이 회차 밖으로 낼 것
+## 이 유닛이 회차 밖으로 낸 것
 
-Code Generation 이 싣는다 (U4 와 같은 자리다).
+Code Generation 이 실었다 (U4 와 같은 자리다).
 
 ```text
-   decisions.md 6절    실측 행 하나 — 위 다섯을 한 행에
-   decisions.md 2절    워크스페이스 .claude/skills 행이 미정에서 값이 된다
-   features.md 5절     미정 둘 중 하나가 빠진다
-   features.md 3.6     「가짜 홈에 편다」가 「계장 아래 팩 디렉터리에 펴고
-                       --plugin-dir 로 가리킨다」로 바뀐다
-   unit-of-work.md 5절  같은 자리의 claude.go 줄
-   scene-gates.md 3절   CA5 의 명령 — 스킬 이름 pack:hello · 충돌 줄의 agent.mcp ·
-                       마지막 줄이 판정에서 확인으로 · init 줄의 필드 둘
-   component-methods.md 2.1 의 Pack.MCP 타입과 PackFile.Mode
-   파일 행렬            U5 열에 시험 파일 하나 (pack_test.go)
+   decisions.md 6절    실측 행 ㉔ — 위 다섯에 등호 형태까지 한 행에
+   decisions.md 2절    워크스페이스 .claude/skills 행이 값이 됐다 ·
+                       팩의 형식 행에 gzip 과 상한
+   features.md 5절     미정이 둘에서 하나로
+   features.md 3.6     펴는 자리가 <계장>/pack 과 --plugin-dir= 로
+   unit-of-work.md 5절  claude.go 줄 · 완료 조건의 「판정」이 「확인」으로
+   scene-gates.md      CA5 의 표 한 줄과 3절 명령 넷
+   component-methods.md 2.1 의 Components.Servers(U4 가 남긴 낡은 줄) ·
+                       Pack.MCP · PackFile.Mode · PackLimits 의 값
+   파일 행렬            새 시험 파일 행 · resolve_test.go 의 U5 칸 ·
+                       2.1 · 2.2 · 2.3 의 U5 칸
 ```
 
 ## 다음 — U5
 
-Code Generation 이다. 계획을 먼저 내고 그 뒤에 코드를 쓴다. 완료 조건은
-`unit-of-work.md` 5절이고, 그 안에서 사람이 지는 것은 CA5 와 CA6 이다 —
-CA6 은 사내 함대에서만 돈다.
+**CA5 와 CA6 이다.** 코드와 CA0 는 닫혔고 남은 것은 사람이 실물로 띄우는 두
+게이트다 — 집행자는 이 유닛을 구현하지 않은 사람이고(`scene-gates.md` 2절 머리)
+눈 검증을 보류로 안 넘긴다(같은 문서 4절). CA6 은 사내 함대에서만 돈다.
+**그 둘이 초록인 뒤에 `unit/pack` 을 `main` 으로 올린다** (`CONVENTIONS.md` 3.3).

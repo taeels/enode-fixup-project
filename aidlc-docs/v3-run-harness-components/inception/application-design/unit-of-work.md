@@ -300,7 +300,10 @@
                                 resolveComponents 에 팩 출처를 더한다.  팩도
                                 agent.mcp 필터를 탄다 (application-design.md 4.4).
                                 노드 선언 이름을 덮으면 거절한다 (4.5)
-   internal/enode/claude.go     Instrument 가 <dir>/home/skills/ · agents/ 를 편다
+   internal/enode/claude.go     Instrument 가 <dir>/pack/ 에 펴고 --plugin-dir= 로
+                                가리킨다.  가짜 홈 밖이다 — 홈의 skills/ 는
+                                --setting-sources "" 아래서 안 읽힌다는 것이
+                                U5 의 실측이다 (decisions.md 6절 ㉔)
    internal/enode/harness.go    HarnessResult.MCP · .Pack
    internal/enode/runner.go     ⑧ 에서 두 필드를 채운다
    cmd/iapadapter/config.go     ExecutorConfig.Pack · PackConfig{Fetch, Name}
@@ -315,8 +318,9 @@
 
 - **CA5 가 초록이다** — 팩 단계가 `$OUT/pack` 에 tar 를 내고, 다음 단계의 `init`
   줄에 팩의 스킬이 `slash_commands` 로 · 팩의 서버가 `mcp_servers` 로 있다
-- **워크스페이스 `.claude/skills/` 가 스스로 읽히는지**를 같은 줄로 판정해
-  `decisions.md` 에 적는다 (열린 미정 하나가 여기서 닫힌다)
+- **워크스페이스 `.claude/skills/` 가 스스로 읽히는지**를 같은 줄로 확인한다.
+  **판정은 U5 의 실측이 먼저 냈다** — 안 읽는다 (`decisions.md` 6절 ㉔ ③).
+  게이트는 그것을 실물로 확인하는 자리다
 - **SEC-A 가 코드로 있다** — 절대경로 · `..` · 심볼릭 링크 · 크기 상한 · 개수 상한을
   거부하고 **파일을 쓰기 전에** 한다. `settings.json` 은 이름으로 건너뛴다.
   거부는 조용하지 않다 — 그 단계를 실패로 보고한다

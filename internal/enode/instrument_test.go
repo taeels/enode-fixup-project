@@ -76,11 +76,19 @@ func TestAdapter_InstrumentBuildsThePrivateWorld(t *testing.T) {
 	if string(b) != `{"mcpServers":{}}`+"\n" {
 		t.Fatalf("a step that requested nothing did not get an empty allowlist: %q", b)
 	}
-	// 팩이 없으면 skills/ 도 agents/ 도 안 만든다 — 없는 것이 오늘의 참이다.
+	// 팩이 없으면 팩 디렉터리를 안 만들고 홈 안에도 아무것도 안 생긴다.
+	if _, err := os.Stat(filepath.Join(dir, packDirName)); err == nil {
+		t.Fatal("a step with no pack got a pack directory")
+	}
 	for _, name := range []string{"skills", "agents"} {
 		if _, err := os.Stat(filepath.Join(home, name)); err == nil {
-			t.Fatalf("%s was created by a unit that does not own it", name)
+			t.Fatalf("%s appeared inside the fake home; the pack lives outside it", name)
 		}
+	}
+	// 팩 없는 단계의 argv 는 오늘과 한 글자도 안 다르다 — CA1 이 받은 서명이
+	// 이 유닛으로 안 흔들린다.
+	if strings.Contains(strings.Join(flags, " "), "--plugin-dir") {
+		t.Fatalf("a step with no pack carries the pack flag: %v", flags)
 	}
 	joined := strings.Join(flags, " ")
 	for _, want := range []string{
@@ -311,6 +319,106 @@ func TestAdapter_NoCredentialsIsNormal(t *testing.T) {
 	}
 }
 
+// 팩은 홈 밖의 <dir>/pack 에 펴진다 (U5 · business-rules R23 ~ R27).
+//
+// 홈 밖인 것이 설계다 — 팩이 settings.json 이나 .credentials.json 과 같은
+// 나무에 없다. 규약의 접두가 이미 막지만 여기서는 규칙이 아니라 구조가 막는다.
+func TestAdapter_ThePackIsSpreadOutsideTheFakeHome(t *testing.T) {
+	noHome(t)
+	dir := t.TempDir()
+	pk := &Pack{SHA256: "cafe", Files: []PackFile{
+		{Name: "skills/hello/SKILL.md", Data: []byte("hello")},
+		{Name: "agents/helper.md", Data: []byte("helper")},
+	}}
+	flags, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode",
+		HookArgs{Out: t.TempDir()}, Components{Pack: pk})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	packDir := filepath.Join(dir, packDirName)
+	st, err := os.Stat(packDir)
+	if err != nil || !st.IsDir() {
+		t.Fatalf("the pack directory is not there: %v", err)
+	}
+	if st.Mode().Perm() != 0o700 {
+		t.Fatalf("the pack directory is open to others: %v", st.Mode().Perm())
+	}
+	// 홈 안이 아니다.
+	if _, err := os.Stat(filepath.Join(dir, "home", "skills")); err == nil {
+		t.Fatal("the pack was spread inside the fake home")
+	}
+	for _, f := range pk.Files {
+		path := filepath.Join(packDir, filepath.FromSlash(f.Name))
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("%s was not written: %v", f.Name, err)
+		}
+		if string(b) != string(f.Data) {
+			t.Fatalf("%s = %q, want %q", f.Name, b, f.Data)
+		}
+		st, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// tar 의 모드를 안 쓴다 — 계장 안의 다른 파일과 같은 값이다.
+		if st.Mode().Perm() != 0o600 {
+			t.Fatalf("%s is %v, want 0600", f.Name, st.Mode().Perm())
+		}
+	}
+	// 등호 형태다 — 이 플래그 바로 뒤에 --strict-mcp-config 가 따라붙는다.
+	joined := strings.Join(flags, " ")
+	if !strings.Contains(joined, "--plugin-dir="+packDir) {
+		t.Fatalf("the flags do not point at the pack: %v", flags)
+	}
+	if !strings.Contains(joined, "--strict-mcp-config") {
+		t.Fatalf("the allowlist flag fell when the pack was added: %v", flags)
+	}
+	// --setting-sources "" 를 안 건드린다 — 격리의 그 겹이 그대로 남는다.
+	if !strings.Contains(joined, "--setting-sources ") {
+		t.Fatalf("the pack path opened a setting source: %v", flags)
+	}
+}
+
+// 펴다 실패하면 치명이다 (R25). errAux 의 자리는 훅 설정 하나뿐이다.
+func TestAdapter_APackThatCannotBeSpreadKillsTheStep(t *testing.T) {
+	noHome(t)
+	dir := t.TempDir()
+	// 파일이 놓일 자리를 디렉터리로 채운다 — WriteFile 이 진다.
+	if err := os.MkdirAll(filepath.Join(dir, packDirName, "skills", "hello", "SKILL.md"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	pk := &Pack{Files: []PackFile{{Name: "skills/hello/SKILL.md", Data: []byte("hello")}}}
+	_, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode",
+		HookArgs{Out: t.TempDir()}, Components{Pack: pk})
+	assertFatal(t, err, "cannot extract the pack")
+}
+
+// 훅 쓰기가 실패해도 팩은 마저 펴진다 — 조기 반환하지 않는다는 불변식이다.
+//
+// 훅 하나가 실패했다고 나가면 팩도 허용목록도 안 쓰이고 치명도 안 나서,
+// 등급 표가 치명으로 잡으려던 것이 보조 경로로 되돌아온다.
+func TestAdapter_ThePackSurvivesAnAuxiliaryFailure(t *testing.T) {
+	noHome(t)
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	if err := os.MkdirAll(filepath.Join(home, hookSettingsName), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	pk := &Pack{Files: []PackFile{{Name: "skills/hello/SKILL.md", Data: []byte("hello")}}}
+	flags, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode",
+		HookArgs{Out: t.TempDir()}, Components{Pack: pk})
+	if !errors.Is(err, errAux) {
+		t.Fatalf("the hook settings failure was not graded as auxiliary: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, packDirName, "skills", "hello", "SKILL.md")); err != nil {
+		t.Fatalf("the pack was skipped because the hook write failed: %v", err)
+	}
+	if !strings.Contains(strings.Join(flags, " "), "--plugin-dir=") {
+		t.Fatalf("the pack flag fell with the hook settings: %v", flags)
+	}
+}
+
 // gradeHarness 는 계장의 오류만 정하는 가짜 하네스다.
 //
 // 등급이 단계의 운명으로 어떻게 번역되는지는 runHarness 의 것이고, 그것을
@@ -437,6 +545,109 @@ func TestRunHarness_TheUploadedLogIsTheFilteredOne(t *testing.T) {
 	}
 	if !strings.HasPrefix(string(logBytes), `{"type":"system","subtype":"init"`) {
 		t.Fatalf("head -1 does not read the init line:\n%s", logBytes)
+	}
+}
+
+// 무엇을 물렸나가 봉인에 남는다 (U5 · business-rules R28 ~ R30).
+//
+// 요청한 것이 아니라 실린 것이다 — 팩이 실었으나 요청 안 한 이름은 노드
+// 로그에만 있고 이 필드에는 없다.
+func TestRunHarness_TheRecordSaysWhatWasActuallyLoaded(t *testing.T) {
+	noHome(t)
+	dir, in := t.TempDir(), t.TempDir()
+	raw := packTar(t,
+		packEntry{name: "skills/hello/SKILL.md", body: "hello"},
+		packEntry{name: "mcp.json", body: `{"mcpServers":{"probe4":{"command":"true"},` +
+			`"unused":{"command":"true"}}}`},
+	)
+	if err := os.WriteFile(filepath.Join(in, "pack"), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bin := writeScript(t, dir, "exit 0\n")
+
+	_, h := runHarness(context.Background(), gradeHarness{}, bin, Job{
+		Params:  AgentParams{Pack: "pack", MCP: []string{"probe4", "alpha"}},
+		NodeMCP: map[string]MCPServer{"alpha": {Command: "/usr/bin/true"}},
+		IO:      IOPaths{Dir: dir, Out: dir, In: in},
+	})
+
+	if h.Reason != ReasonOK {
+		t.Fatalf("the step did not run: %+v", h)
+	}
+	// 이름 순이다 — 같은 계약이면 같은 기록이다.
+	if strings.Join(h.MCP, ",") != "alpha,probe4" {
+		t.Fatalf("mcp = %v, want [alpha probe4]", h.MCP)
+	}
+	// 받은 바이트의 값이다 — 같은 Run 의 blob 을 받아 sha256sum 으로 맞춘다.
+	if h.Pack != sha256Hex(raw) {
+		t.Fatalf("pack = %q, want %q", h.Pack, sha256Hex(raw))
+	}
+}
+
+// 팩도 서버도 없는 단계의 봉인이 오늘과 한 글자도 안 달라진다.
+//
+// omitempty 가 그 값을 진다 — steps/NN-*.json 을 읽는 사람과 도구가 새 키를
+// 안 만난다.
+func TestRunHarness_ASealWithNoPackOrServersIsUnchanged(t *testing.T) {
+	noHome(t)
+	dir := t.TempDir()
+	bin := writeScript(t, dir, "exit 0\n")
+
+	_, h := runHarness(context.Background(), gradeHarness{}, bin,
+		Job{IO: IOPaths{Dir: dir, Out: dir, In: dir}})
+
+	b, err := json.Marshal(h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), `"mcp"`) || strings.Contains(string(b), `"pack"`) {
+		t.Fatalf("a step with neither grew a key in its seal: %s", b)
+	}
+}
+
+// agent.pack 이 적은 blob 이 $IN 에 없으면 하네스를 안 띄운다 (R2).
+//
+// ADR-058 의 「없는 입력은 값이다」의 예외다 — agent.pack 은 이 단계가 그것으로
+// 돌겠다고 적은 이름이고, 없는 채로 돌면 스킬 없이 도는 단계가 exit 0 으로
+// 성공이 봉인된다.
+func TestRunHarness_AMissingPackBlobNeverStartsTheHarness(t *testing.T) {
+	noHome(t)
+	dir := t.TempDir()
+	ran := filepath.Join(dir, "it-ran")
+	bin := writeScript(t, dir, "printf 'x' > "+ran+"\n")
+
+	_, h := runHarness(context.Background(), gradeHarness{}, bin, Job{
+		Params: AgentParams{Pack: "pack"},
+		IO:     IOPaths{Dir: dir, Out: dir, In: t.TempDir()},
+	})
+
+	if _, err := os.Stat(ran); err == nil {
+		t.Fatal("the harness started without the pack the contract asked for")
+	}
+	if h.Reason != ReasonError || h.Message != "pack blob pack was not produced by this run" {
+		t.Fatalf("the step did not report what was missing: %+v", h)
+	}
+}
+
+// agent.pack 이 비면 $IN 을 아예 안 만진다 (R1).
+//
+// 같은 이름의 쓰레기 파일이 거기 있어도 단계가 안 죽는다 — 팩 경로를 안 탄다.
+func TestRunHarness_WithNoPackNameTheInputIsNotOpened(t *testing.T) {
+	noHome(t)
+	dir, in := t.TempDir(), t.TempDir()
+	if err := os.WriteFile(filepath.Join(in, "pack"), []byte("not a tar at all"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	bin := writeScript(t, dir, "exit 0\n")
+
+	_, h := runHarness(context.Background(), gradeHarness{}, bin,
+		Job{IO: IOPaths{Dir: dir, Out: dir, In: in}})
+
+	if h.Reason != ReasonOK {
+		t.Fatalf("a step that asked for no pack died on a file it never asked for: %+v", h)
+	}
+	if h.Pack != "" {
+		t.Fatalf("pack = %q, want empty", h.Pack)
 	}
 }
 

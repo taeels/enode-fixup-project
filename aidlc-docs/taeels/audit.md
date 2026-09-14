@@ -602,3 +602,51 @@ CA4 의 셋째 줄은 코드로 닫혔다 — 스텁 하네스가 마커 파일�
 **Context**: CONSTRUCTION · U5 pack · Functional Design 승인 · 다음은 Code Generation
 
 ---
+
+## CONSTRUCTION — U5 pack · Code Generation (Part 1 · 계획)
+**Timestamp**: 2026-09-14T05:10:00Z
+**User Input**: "이제 코드 생성하자"
+**AI Response**: "Functional Design 셋과 만지는 자리 여섯을 코드로 읽고 Code Generation 계획을 냈다 — construction/plans/pack-code-generation-plan.md. 단계 열셋이고, 제품 파일 여섯에 새 제품 파일은 0 이며 새 시험 파일이 하나다(pack_test.go).
+
+이 계획이 FD 에 없던 자리 다섯을 정했다. ① readPack 이 팩 이름을 인자로 받는다 — R3 과 R16 의 문구가 팩 이름을 담는데 바깥에서 감싸면 게이트가 찾는 글자가 그대로 안 나온다. ② R4 의 종류 이름 다섯을 글자로 못 박는다(symlink · hard link · device · fifo · unknown entry type). ③ --plugin-dir 을 등호 형태로 붙인다 — Instrument 의 ③ 뒤에 --strict-mcp-config 가 따라붙는데 띄어 쓴 형태가 가변인자면 그것을 삼킨다. 실측 1.2 는 공백 형태로 쟀으므로 Step 9 가 등호 형태를 다시 잰다. ④ planPrompt 가 더하는 두 줄의 영어 글자를 못 박고 이름을 설정에서 끌어온다. ⑤ PackConfig.Name 의 글자를 LoadConfig 가 안 검증한다 — blob 이름의 정본은 contract.Validate 다.
+
+커버리지 기준선을 쟀다 — internal/enode 가 오늘 84.5% 다. 하한이 80% 이고 이 유닛이 새 코드가 가장 많아 pack_test.go 의 표가 그 하한을 지는 자리다.
+
+갈래를 안 나눈다 — resolveComponents 의 인자가 하나 늘어 runner.go 의 호출과 resolve_test.go 의 호출 전부가 같은 시점에 컴파일된다."
+**Context**: CONSTRUCTION · U5 pack · Code Generation Part 1 · 계획 승인 대기
+
+---
+
+## CONSTRUCTION — U5 pack · Code Generation (Part 1 승인)
+**Timestamp**: 2026-09-14T05:25:00Z
+**User Input**: "승인"
+**AI Response**: "계획을 승인받고 Part 2 로 간다. Step 1 부터 순서대로 짓고 각 단계를 마치는 즉시 계획의 체크박스를 [x] 로 바꾼다."
+**Context**: CONSTRUCTION · U5 pack · Code Generation Part 1 승인 · Part 2 착수
+
+---
+
+## CONSTRUCTION — U5 pack · Code Generation (Part 2 · 산출물)
+**Timestamp**: 2026-09-14T06:40:00Z
+**User Input**: "승인"
+**AI Response**: "계획의 단계 열셋을 그대로 돌렸다. 제품 파일 여섯 · 새 제품 파일 0 · 새 시험 파일 하나(pack_test.go)다. claim.go 는 소스 diff 가 0 이다 — 답 3=A 가 가장자리를 runner.go 로 정했기 때문이고, 계획 5절의 예상 그대로다.
+
+readPack 을 순수 함수로 지었다. 받은 바이트를 세면서 sha256 에 흘리고, 1f 8b 면 gzip 을 한 겹 벗기고, 항목마다 종류를 이름보다 먼저 보고, tar 가 끝난 뒤 남은 바이트를 끝까지 읽어 해시를 마친다. 마지막 걸음을 빠뜨리면 봉인에 남은 값으로 blob 을 대조할 수 없다 — 변이 ① 이 그것을 잰다.
+
+실측 하나를 더 했다. 우리 코드가 지은 <계장>/pack 을 claude 2.1.270 이 --plugin-dir= 로 읽는다 — skills 에 pack:hello · agents 에 pack:helper · slash_commands 에 pack:hello · plugins 에 {name: pack, source: pack@inline} · mcp_servers 에 probe4(failed). 이 단계가 새로 잰 것은 등호 형태다. FD 의 실측은 공백 형태였고, Instrument 의 ③ 자리 바로 뒤에 --strict-mcp-config 가 따라붙으므로 가변인자면 그것을 삼킨다 (ADR-034 §3 ② 의 함정). 안 삼켰다. 그리고 샌 것이 0 이다 — 이 기계의 ~/.claude/skills 수십과 agents 둘이 하나도 안 나타났다.
+
+변이 일곱을 넣어 전부 빨개지는 것을 봤다. 다섯 · 여섯 · 일곱은 순수 시험과 배선 시험이 함께 빨개졌다 — U1 에서 「함수만 부르고 배선을 안 쟀다」로 났던 구멍이 여기서도 안 생긴다.
+
+CA0 전부 초록이다. 표준 커버리지 명령으로 미달 0 이고 internal/enode 가 87.0% 다 (U4 뒤 86.4% 에서 올랐다). 라우트 26 그대로 · 스킵 0 · 크로스 빌드 셋 · 심볼 상한 crypto/tls=1 net/http=6 · node --test 75 통과 · 워킹트리 청결(probe.lock 되돌림).
+
+계획에 없던 것을 둘 더했고 그것을 계획과 요약에 이름으로 적었다. ① command 도 url 도 없는 팩 항목을 요청하면 거절한다 — U4 가 워크스페이스 출처에서 같은 실패를 이미 거절했고(6절 ㉓ ②), 종류를 못 정하는 항목을 하네스가 말없이 뺀다는 실측이 출처를 안 가린다. 안 더하면 이 유닛이 그 침묵을 팩 경로로 되살린다. ② Notes 복사를 걸음 0 의 오류보다 앞으로 옮겼다 — 거기서 곧바로 반환하면 규약 밖 항목의 이름이 거절과 함께 사라지고, 그것은 U4 의 R11 이 막은 자리다.
+
+글자 하나를 계획에서 바꿨다 — 모르는 tar 종류의 이름을 계획은 unknown entry type 으로 적었고 코드는 tar type '<글자>' 로 갔다. 문구가 pack entry %s is a %s 라 is a 뒤에 놓으면 영어가 안 된다. 계획 4절 ② 를 그 값으로 고쳤다.
+
+실측이 계획의 문장 하나를 고쳤다 — 0 바이트 blob 은 「tar 가 아니다」가 아니라 「실을 것이 0」이다. Go 의 tar 가 빈 스트림을 빈 아카이브로 읽기 때문이고, 둘 다 치명이며 이 문구가 curl 이 빈 파일을 남긴 경우를 더 곧게 가리킨다.
+
+회차 밖으로 여덟을 실었다 — decisions.md 6절 ㉔ 와 2절 두 행 · features.md 5절과 3.6 · unit-of-work.md 5절 · scene-gates.md CA5 의 표와 명령 · component-methods.md 2.1 · 파일 행렬 넷. component-methods.md 의 Components.Servers 는 U4 가 남긴 낡은 줄이었고 같은 코드 블록이라 함께 고쳤다.
+
+CA5 와 CA6 은 안 닫혔다. 이 단계가 잰 것은 우리 코드가 지은 디렉터리를 하네스가 읽나이고, CA5 는 노드와 Mediator 를 지나 그 팩이 실제로 실리나다. 집행자는 이 유닛을 구현하지 않은 사람이고 눈 검증을 보류로 안 넘긴다."
+**Context**: CONSTRUCTION · U5 pack · Code Generation 완료 · CA5 · CA6 대기
+
+---

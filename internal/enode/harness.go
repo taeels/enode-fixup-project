@@ -82,6 +82,22 @@ type HarnessResult struct {
 	// 버전이 기록에 있어야 봉인된 묶음만 보고 드리프트를 알 수 있다
 	// (ADR-005 성질 4 — 자기충족). 비용은 --version 한 번과 이 한 줄이다.
 	Version string `json:"version,omitempty"`
+
+	// MCP 는 허용목록에 실제로 실린 서버 이름이다 (ADR-005 성질 4).
+	//
+	// 요청한 것이 아니라 실린 것이다 — 둘이 갈리면 봉인이 그것을 안다.
+	// 팩이 실었으나 요청 안 한 이름은 노드 로그의 Notes 에만 있고 여기는 없다.
+	// 이름 순이다.
+	//
+	// 어댑터가 채우는 값이 아니다. 팩과 허용목록은 하네스가 정하는 것이 아니라
+	// 우리가 정해서 준 것이므로, 하네스의 대답이 아니라 우리 사실이다 —
+	// runner.go 의 ⑧ 이 Decode 가 낸 결과에 얹는다.
+	MCP []string `json:"mcp,omitempty"`
+
+	// Pack 은 실린 팩 tar 의 sha256 이다. 팩이 없으면 빈 값이다.
+	//
+	// 받은 바이트의 값이라 같은 Run 의 blob 을 받아 sha256sum 으로 맞출 수 있다.
+	Pack string `json:"pack,omitempty"`
 }
 
 // claudeEnvelope 는 `claude -p --output-format json` 이 내는 것이다.

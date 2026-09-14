@@ -282,9 +282,13 @@
 **기능 요구사항**:
 - 팩은 **tar 하나**다. 디렉터리 규약은 `decisions.md` 2절
   (`skills/<이름>/SKILL.md` · `agents/<이름>.md` · `mcp.json`)
-- 계장이 `$IN` 의 팩을 가짜 홈에 편다 — `skills/` · `agents/` 는 그대로,
-  `mcp.json` 은 허용목록에 합친다. 팩의 `settings.json` 은 이 회차에 읽지
-  않는다 (훅 설정과 충돌한다 · `ADR-034` §7)
+- 계장이 `$IN` 의 팩을 **가짜 홈 밖의 `<계장>/pack/` 에 펴고 `--plugin-dir=`
+  로 가리킨다** — `skills/` · `agents/` 는 그대로이고 `mcp.json` 은 허용목록에
+  합친다. 팩의 `settings.json` 은 이 회차에 읽지 않는다 (훅 설정과 충돌한다 ·
+  `ADR-034` §7). **가짜 홈에 펴는 것이 첫 판이었고 실측이 그것을 뒤집었다** —
+  `--setting-sources ""` 아래서는 홈의 `skills/` 를 하네스가 아예 안 읽는다
+  (`decisions.md` 6절 ㉔). 대가 하나 — 디렉터리 이름이 접두가 되어 스킬이
+  `pack:<이름>` 으로 보인다
 - **팩의 출처는 팩 단계다.** 계약의 첫 단계가 명령 단계로 `$OUT/pack` 에 tar
   하나를 낸다. 셸이 없으므로 argv 하나로 끝나는 방법을 계약 저자가 적는다 —
   `git archive --remote=<url> -o $OUT/pack <rev>` 나 `curl -o $OUT/pack <tar 주소>`.
@@ -357,12 +361,15 @@
 
 ## 5. 미정
 
-**둘이다.** 둘 다 계약이나 파일 형식에 걸리므로 진행자가 `decisions.md` 에
-행을 더한다. 값은 이미 권장으로 적혀 있고 실측이 확정한다.
+**하나다.** 계약이나 파일 형식에 걸리므로 진행자가 `decisions.md` 에 행을
+더한다. 값은 이미 권장으로 적혀 있고 실측이 확정한다.
 
 ```text
    OAuth 자격증명 파일의 복사      decisions 2절의 권장값.  CA1 이 OAuth 노드와
                                   게이트웨이 노드 둘 다에서 실측한다
-   워크스페이스 .claude/skills     하네스가 --setting-sources "" 아래서 스스로 읽는가.
-                                  CA5 가 잰다.  안 읽으면 팩으로 나른다
 ```
+
+**둘째가 닫혔다.** 워크스페이스 `.claude/skills` 를 하네스가 스스로 읽는가는
+U5 의 실측이 **안 읽는다**로 답했다 (`decisions.md` 6절 ㉔ ③) — `project`
+범위가 안 켜지므로 `--setting-sources ""` 에서도 `user` 에서도 안 나타난다.
+그래서 스킬은 팩으로 나른다.
