@@ -178,7 +178,7 @@ type Event struct {
 	Name string // 도구 이름. tool_use 와 tool_result 만 채운다
 	ID   string // tool_use_id. 붙이기의 열쇠 (business-logic-model 5절). 껍데기에는 없다
 	OK   *bool  // tool_result 의 성공 여부. nil 은 「없음」이고 false 와 다르다
-	Cut  int    // 상한에 잘려 Text 에 안 실린 바이트 수. 0 이면 안 잘렸다 (Q5 = A)
+	Cut  int    // 상한과 룬 경계에 잘려 Text 에 안 실린 바이트 수. 0 이면 안 잘렸다
 
 	Shell bool // 껍데기 줄에서 왔다 — 본문이 걷혔다 (Q4 = A)
 
@@ -195,13 +195,16 @@ type Event struct {
 | `text` (`Sub == ""`) | `text` 블록의 본문 그대로 | 없다 (`decisions.md` 2절 — 「`text` 는 그대로」) |
 | `text` (`Sub == "thinking"`) | `thinking` 블록의 본문 그대로 | 없다 |
 | `text` (`Sub == "plain"`) | 그 줄의 바이트 그대로 | 없다 |
-| `tool_use` | 도구 입력을 JSON 으로 다시 적은 요약 | **200 바이트** |
-| `tool_result` | 도구 결과 본문 | **500 바이트** |
+| `tool_use` | 도구 입력을 JSON 으로 다시 적은 요약 | **200 바이트** (룬 경계) |
+| `tool_result` | 도구 결과 본문 | **500 바이트** (룬 경계) |
 | `result` | 빈 문자열 | — (값은 `Info` 가 든다) |
 | `raw` | 그 줄의 바이트 그대로 | 없다 |
 | `capped` | 빈 문자열 | — (값은 `Info.Bytes` = 닿은 상한 · 4.4) |
 
-**상한 둘은 팩의 값이다** (`decisions.md` 2절). 이 유닛이 안 고른다.
+**숫자 둘은 팩의 값이고 단위는 이 유닛이 정했다** — 팩은 「200자 · 500자」이고
+여기는 바이트다. 그 갈림과 근거는 `business-rules.md` 8.1 이 진다.
+**「룬 경계」는 상한을 넘지 않는 가장 긴 접두 중 마지막 룬이 온전한 데까지라는
+뜻이다** (`business-rules.md` 8.2 · R8.1).
 
 **`Cut` 은 잘려 나간 바이트 수이지 원래 길이가 아니다.** 원래 길이는
 `len(Text) + Cut` 이다. 그렇게 두는 이유는 「안 잘렸다」가 `Cut == 0` 한
