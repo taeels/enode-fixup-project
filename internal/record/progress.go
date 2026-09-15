@@ -234,6 +234,11 @@ func (s *Store) AppendProgress(runID string, seq int, name string,
 	// ② 게으르게 만든다 (R3). Store.Open (record.go:45) 을 안 건드린다 —
 	// Seal 이 s.Open 을 부르므로 (record.go:96) 거기에 넣으면 지우기 직전에
 	// 다시 만든다.
+	//
+	// 권한이 logs/ 보다 좁다 (R4). 그쪽은 0755 와 0644 이고 (record.go:47 ·
+	// record.go:59) 이쪽은 0700 과 0600 이다. 가르는 것은 무엇이 담기느냐다 —
+	// logs/ 에 가는 것은 선별본이고 여기 쌓이는 것은 하네스가 낸 원문이다.
+	// 같은 기계의 다른 사용자에게 열어 줄 이유가 없다.
 	dir := filepath.Join(s.progressRoot(), dirName)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return Progress{}, err
@@ -610,7 +615,12 @@ func (s *Store) HasProgress() bool {
 // 「유예 0」과 어긋난다.
 //
 // 지운 항목 수를 낸다 — 고아 트리 하나가 1, 늙은 파일 하나가 1 이다.
-// Record 를 안 건드린다 (R39).
+//
+// Record 를 안 건드린다 (R39). 고아 트리가 났다는 것은 봉인이 그 Run 에 안
+// 걸렸다는 뜻이고, 그러면 「종료했는데 안 봉인된 기록」도 함께 남는다.
+// 그것을 여기서 같이 봉인하고 싶어지는데 안 한다 — 이 함수는 진행 트리만
+// 아는 자리다. 그 기록을 줍는 것은 회수기의 sealExpired 이고, 둘을 한 함수에
+// 넣으면 진행 파일 쓸기가 봉인 실패에 걸려 같이 멈춘다.
 func (s *Store) SweepProgress(live []string, maxAge time.Duration, now time.Time) (int, error) {
 	ents, err := os.ReadDir(s.progressRoot())
 	if err != nil {
