@@ -124,3 +124,19 @@
 **Context**: INCEPTION — Workflow Planning. 승인 대기
 
 ---
+
+## Workflow Planning — 승인
+**Timestamp**: 2026-09-15T06:05:00Z
+**User Input**: "승인"
+**AI Response**: Workflow Planning 을 닫았다. 커밋 `2b0d6f2`. 실행 일곱 · 스킵 하나. 다음은 Application Design 이다 — D1 ~ D7 을 닫는다.
+**Context**: INCEPTION — Workflow Planning 승인. 단계 종료
+
+---
+
+## Application Design Part 1 — 계획과 질문
+**Timestamp**: 2026-09-15T06:05:00Z
+**User Input**: (없음 — Workflow Planning 승인으로 자동 진행)
+**AI Response**: `application-design.md` 의 Step 1 ~ 6 을 돌려 `plans/application-design-plan.md` 277줄을 냈다. **물을 것을 고르기 전에 코드를 먼저 읽었다** — `requirements.md` 8절이 「사람에게 물을 것이 아니다」라고 적었으므로 실측이 답을 내는지부터 봤다. 다섯이 나왔고 **넷이 질문을 지웠다**(D3 은 `Sealed(runID)` 하나로 갈린다 · D4 의 호출자는 `api.go:887` 하나다 · 청크 tee 자리와 오프셋의 진실은 FR-5 가 이미 정했다). **하나가 질문을 만들었다** — `seal(dir)` 이 `Walk` 로 모든 파일을 0444 로 만들고 보관 정책이 없어(`record.go:196`), 진행 파일을 `run-<id>/` 안에 두고 지우기를 놓치면 그 원문이 영구가 된다. 질문 넷(Q1 재시도 경계 · Q2 진행 파일 자리 · Q3 시계가 필요한 표시 · Q4 껍데기 코드 이동)이고 **넷 다 마지막 선택지가 `Other` 다** (`question-format-guide.md` 의 MANDATORY). Step 7 에서 멈춘다.
+**Context**: INCEPTION — Application Design Part 1. 답 대기
+
+---
