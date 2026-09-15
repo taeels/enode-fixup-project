@@ -14,7 +14,9 @@
 ```text
    닫는다    Event · Kind · Result · Elided 의 필드와 뜻
              줄 하나와 사건 하나의 관계 (하나인가 여럿인가)
-             실측한 와이어 사건 다섯이 Kind 여섯에 어떻게 떨어지나
+             실측한 와이어 사건 다섯이 Kind 에 어떻게 떨어지나
+             enode 가 찍는 표시 줄 둘(enode.elided · enode.capped)을 읽는 규칙.
+               **찍는 조건은 안 적는다** — elided 는 selectLogs 가 · capped 는 U3 이 진다
              껍데기 줄과 원문 줄을 가르는 규칙
              표시 상한(200 · 500)을 파서가 지나 화면이 지나
              잘린 입력의 규칙 — 머리(링이 감겼다)와 꼬리(미완 줄)
@@ -141,7 +143,7 @@ if initAt < 0 && typ == "system" && eventString(obj, "subtype") == "init" {
 |---|---|---|
 | 하네스 단계의 링 | `claim.go:794` 가 넘기는 `Job.Transcript` (U2 가 되살린다) | NDJSON 원문. 머리가 잘릴 수 있다 |
 | 하네스 단계의 `logs/` · 진행 파일 | `runner.go:261` 의 `selectLogs` 결과 | **선별본** — 전문 둘 · 껍데기 · 표시 줄 · 그 뒤에 **stderr 평문** |
-| **명령 단계의 링** | `claim.go:632` 의 `io.MultiWriter(&buf, w.ring)` | **평문이다.** stdout 과 stderr 가 한 줄기로 섞인다 |
+| **명령 단계의 링** | `claim.go:633` 의 `io.MultiWriter(&buf, w.ring)` | **평문이다.** stdout 과 stderr 가 한 줄기로 섞인다 |
 | **명령 단계의 로그** | `claim.go:647` 이 `buf` 를 원문 그대로 올린다 | 같은 평문 |
 
 **명령 단계가 오늘 이미 링에 흐르고 있다** — 이 회차가 만드는 것이 아니다.
@@ -240,7 +242,7 @@ stream-json 이 아니다. `internal/enode/logs_test.go` 는 실측한 **모양*
 **줄 하나가 사건 하나인가 여럿인가.** 실측한 `assistant` 줄은
 `message.content[]` 에 블록을 여럿 담는다 — `thinking` 과 `text` 와 `tool_use`
 둘이 한 줄에 같이 올 수 있다. 껍데기도 `tools` 를 **배열**로 들고 있다
-(`runner.go:411` 의 주석이 그 이유를 적었다).
+(`runner.go:447-450` 의 주석이 그 이유를 적었다).
 
 A) **블록마다 사건 하나다.** `assistant` 한 줄이 `text` 하나와 `tool_use` 둘로
 펴진다. 화면이 도구 이름을 하나씩 그리고 `tool_result` 를 그 호출에 붙일 자리가
@@ -257,7 +259,7 @@ C) **본문 블록은 펴고 도구는 묶는다** — `text` 와 `thinking` 은
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 2
 
@@ -283,7 +285,7 @@ C) **와이어 `type` 을 그대로 Kind 로 쓴다 — 닫힌 어휘를 안 만
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 3
 
@@ -308,7 +310,7 @@ C) **호출자가 힌트를 넘긴다** — `Parse(b, truncated, plain bool)`. �
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 4
 
@@ -326,7 +328,7 @@ A) **줄마다 본다 — `message` 키가 있으면 원문, 없으면 껍데기
 **전문으로 남는 줄이라 본문이 있어 구별된다** — 규칙을 그렇게 적는다
 
 B) **표시 줄로 본다 — `enode.elided` 줄이 그 입력에 있으면 그 파일은 선별본이다.**
-`selectLogs` 는 stdout 이 비지 않는 한 언제나 그 줄을 쓴다 (`runner.go:357`).
+`selectLogs` 는 stdout 이 비지 않는 한 언제나 그 줄을 쓴다 (`runner.go:360`).
 파일 단위의 판정이라 흔들림이 없다. 대가는 `from` 오프셋으로 잘라 읽으면 그 줄이
 안 보이는 것이고 (그 줄은 stderr 앞, 즉 거의 끝이다) 링에는 아예 없다
 
@@ -336,7 +338,7 @@ C) **호출자가 넘긴다** — `Parse(b, truncated, selected bool)`. 부르�
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 5
 
@@ -360,7 +362,7 @@ C) **파서가 전문과 잘린 것을 둘 다 든다.** 화면이 고르고 응
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 6
 
@@ -383,7 +385,7 @@ C) **호출자가 정한다** — 스트림이면 버리고 봉인이면 남긴�
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 7
 
@@ -406,7 +408,7 @@ C) **맵을 겉면에서 없앤다** — `ParseLine` 이 내부 타입을 돌려
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 8
 
@@ -426,12 +428,12 @@ B) **`ParseLine` 이 subtype 을 넷째 값으로 돌려준다.** 이음매가 �
 
 C) **`selectLogs` 까지 `transcript` 로 옮긴다.** 도우미 문제가 통째로 사라지고
 짓는 쪽이 한 패키지에 전부 모인다. 대가 둘 — `runner.go` 가 결과 바이트만 받게
-되어 「어댑터가 아니라 여기서 한다」는 `runner.go:311` 의 근거 주석이 갈 곳을
+되어 「어댑터가 아니라 여기서 한다」는 `runner.go:312-314` 의 근거 주석이 갈 곳을
 잃고, `Q4 = A` 가 옮기라고 한 셋의 범위를 이 단계가 혼자 넓힌다
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 9
 
@@ -455,7 +457,7 @@ C) **`enode.EventKind` 를 없애고 `transcript.Kind` 로 통일한다.** 「�
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 10
 
@@ -480,7 +482,7 @@ C) **금지 넷 + 넷째 줄 + 시험 임포트까지 잰다** (`go list -test -
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 11
 
@@ -504,7 +506,7 @@ CONVENTIONS 1.4 와 같은 결의 중복이다
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ### Question 12
 
@@ -533,7 +535,7 @@ C) **미룬다.** 다음에 새 글자를 들여오는 커밋이 함께 한다. 
 
 D) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ---
 
@@ -563,56 +565,157 @@ D) Other (please describe after [Answer]: tag below)
 
 ### 4.1 순서
 
-- [ ] 답 열둘을 읽고 **모순을 먼저 센다.** 맞물리는 쌍이 셋이다 —
+- [x] 답 열둘을 읽고 **모순을 먼저 센다.** 맞물리는 쌍이 셋이다 —
       Q2 와 Q3 (`raw` 의 뜻) · Q5 와 Q1 (사건 하나가 무엇을 드나) ·
       Q7 과 Q8 (맵의 타입과 도우미의 공개 범위). 어긋나면
       `transcript-functional-design-clarification-questions.md` 를 낸다
-- [ ] 산출물 셋을 쓴다 (4.2)
-- [ ] 6절의 「회차 밖으로 낼 것」을 후보에서 **목록**으로 좁혀 산출물에 적는다
-- [ ] 완료 메시지를 규칙의 형식으로 낸다. **커밋하지 않는다** — 진행자가 한다
+      -> **모순 0.** 결과는 4.1.1. 해명 질문 파일을 안 냈다
+- [x] 산출물 셋을 쓴다 (4.2)
+- [x] 6절의 「회차 밖으로 낼 것」을 후보에서 **목록**으로 좁혀 산출물에 적는다
+- [x] 완료 메시지를 규칙의 형식으로 낸다. **커밋하지 않는다** — 진행자가 한다
+
+### 4.1.1 모순 검사 — 0 (2026-09-15)
+
+답 열둘이 전부 **A** 다. 맞물리는 쌍 셋과, 검사 중에 더 본 쌍 넷을 함께 쟀다.
+
+| 쌍 | 판정 | 근거 |
+|---|---|---|
+| **Q2 - Q3** | 모순 0 | Q2 = A 가 `raw` 를 「Kind 로 사상되지 않은 줄」로 넓히고 Q3 = A 가 「JSON 인데 Kind 를 모르는 줄」로 다시 좁힌다. **Q3 의 A 가 그 좁힘을 대가 줄에 미리 적었다** — 「(질문 2 의 답과 맞물린다)」. 사다리 하나로 둘 다 선다 |
+| **Q1 - Q5** | 모순 0 | Q1 = A 는 사건을 **나누는** 규칙이고 Q5 = A 는 사건 하나의 `Text` 를 **자르는** 규칙이다. 축이 다르다. 껍데기 줄기에는 자를 본문이 아예 없어 부딪칠 자리도 없다 |
+| **Q7 - Q8** | 모순 0 · **서로를 세운다** | Q8 = A 의 근거(「`Shell` 을 부르려면 어차피 그 맵을 손에 들어야 한다」)가 Q7 = A 를 전제한다. Q7 이 C(불투명 타입)였으면 Q8 = A 가 안 섰다 |
+| Q4 - Q2 | 모순 0 | Q4 = A 의 대가(「`message` 없는 원문 셋을 껍데기로 오인할 수 있다」)를 **판정을 `assistant` · `user` 에만 거는 것**으로 닫았다. `business-rules.md` R4.1 |
+| Q6 - Q4 | 모순 0 | `enode.elided` 줄은 stderr **앞**이라 꼬리가 아니다 (`runner.go:360`). Q6 = A 가 그 줄을 안 먹는다 |
+| Q6 - Q2 | 모순 0 | 안 읽은 꼬리는 `Lines` 에도 `Raw` 에도 안 센다. `Result.Partial` 이 그 사실을 든다 |
+| Q10 - Q11 | 모순 0 | 픽스처를 파일로 읽는 것은 임포트가 아니다. 경계 검사와 무관하다 |
+
+**모순은 0 이고 파생 규칙 다섯이 남았다.** 답에서 바로 안 나오고 FD 가 이름으로
+지어야 하는 것들이다 — 전부 산출물에 규칙으로 박았다.
+
+```text
+   ①  비JSON 과 미사상 JSON 의 2단 사다리          business-logic-model 2절 · R3.1 · R3.2
+   ②  블록이 0 인 껍데기도 사건 하나를 낸다         R5
+   ③  껍데기 판정을 assistant · user 에만 건다     R4.1
+   ④  안 읽은 꼬리 바이트를 Result 가 적는다        R7.2
+   ⑤  도우미 넷의 공개 이름과 Fields 별칭           domain-entities 2절 · 7절
+```
+
+**새 모호는 0 이고 문서 갈림이 하나 늘었다** — `user-stories.md` US-4 의 확인
+글자(「`raw` 사건」)가 R3.1 · R3.2 아래서 「`plain text` 또는 `raw`」 둘로
+갈린다. **스토리의 값은 선다** (둘 다 줄 원문을 `Text` 에 그대로 든다).
+6절이 그 문장을 고칠 자리와 사람을 적는다.
+
+### 4.1.2 되열림 하나 — U3 의 답이 `Kind` 를 하나 늘렸다 (2026-09-15)
+
+**4.1.1 의 「모순 0」은 그대로 참이다.** 이것은 U1 의 답끼리의 모순이 아니다.
+**U1 의 답 열둘은 한 글자도 안 바뀌었다** — 전부 `A` 그대로다.
+
+```text
+   무엇이 있었나   U3 progress-store 의 모순 검사가 그 유닛의 Q3 = A(상한 앞
+                  마지막 개행까지만 쓴다)와 Q4 = A(파일에 표시 줄을 안 박는다)를
+                  합치면 **진행 파일 안에 상한 도달의 흔적이 0** 임을 찾았다.
+                  GET 이 「닿아서 멈춘 것」과 「그냥 아직 작은 것」을 못 가르고
+                  NC-4 와 US-7 이 그 자리에서 죽는다
+
+   사용자가 고른 것  진행 파일이 상한에 닿으면 NDJSON 표시 줄을 한 줄 박는다.
+                  {"type":"enode.capped","bytes":<상한>}.  상한은 MaxBlobBytes
+                  이고 기본이 10 MiB 다 (config.go:51 의 int64 · :100 의 기본값)
+
+   U1 에 오는 것    그 줄을 **읽는** 규칙.  Kind 가 여섯에서 일곱이 된다.
+                  bytes 는 **닿은 상한**이고 총 길이가 아니다 (R3.9) —
+                  그 값의 뜻이 한 번 갈렸다 (4.1.3)
+```
+
+**되여는 값이 문서 셋 한 번인 것이 이 길을 고른 근거다.** 실측 —
+`git rev-list --count main..HEAD` 가 **13** 이다. `unit/transcript` 가 아직
+`main` 에 안 갔고, 그래서 되여는 것이 코드가 아니라 이 문서 넷이다.
+
+**이 계획이 그 대가를 미리 적어 두지는 않았다.** 6.4 가 적은 것은 이 유닛이
+**다음 유닛에 주는** 이음매 넷이고, **다음 유닛이 이 유닛에 돌려보내는** 길은
+한 줄도 없다. 4.1.3 이 그 빈자리를 진다.
+
+- [x] `Kind` 를 일곱으로 늘린다 — `domain-entities.md` 3절 · 3.2 사상표
+- [x] `enode.` 갈래를 규율 한 줄로 세운다 — `domain-entities.md` 3.3
+- [x] 판정 사다리에 자리를 준다 (`raw` 로 안 떨어지게) —
+      `business-logic-model.md` 2절 ② · 2.3
+- [x] 규칙 번호를 새로 부여한다 — **R3.5 · R3.6 · R3.7 · R3.8**.
+      기존 R3.1 ~ R3.4 의 뜻을 안 흔들었다 (R3.3 의 「여섯」이 「일곱」이 된
+      것 하나가 그 갈래를 센 결과다)
+- [x] 찍는 조건을 **안 적는다** — R3.8 이 U3 을 가리키기만 한다
+- [x] 6절의 고칠 문서 목록을 갱신한다
+
+### 4.1.3 이 회차가 배운 것 — 유닛 경계를 넘는 조합은 한 유닛이 못 본다
+
+**U1 의 모순 검사가 부실했던 것이 아니다.** 그 검사가 볼 수 있는 것은
+**이 유닛의 답끼리**이고, 이번에 막은 것은 **U3 의 답 둘이 합쳐져 U1 의 입력에서
+사라진 사실**이다. U1 의 답 열둘을 아무리 맞대어도 그 조합은 시야에 안 들어온다.
+
+```text
+   한 유닛의 모순 검사가 보는 것   자기 답끼리의 쌍.  이 계획 4.1.1 의 일곱
+   못 보는 것                    다른 유닛의 답이 자기 입력의 모양을 바꾸는 것
+   오늘 막은 자리                U3 이 자기 검사에서 찾았다 — 그 유닛의 입력이
+                                줄어든 것이 그 유닛의 눈에는 보였다
+   남는 위험                     **어느 유닛의 눈에도 안 보이는 조합.**
+                                회차의 검증(aidlc-verify)이 그 자리다
+```
+
+**그 「남는 위험」이 곧바로 실물로 났다** (2026-09-15 · 같은 날 두 번째).
+`enode.capped` 의 `bytes` 를 **U1 은 총 길이로, U3 은 상한으로** 정의했다.
+**두 유닛 다 자기 모순 검사에서 0 이었다** — 각자의 문서 안에서는 아무것도
+안 어긋났기 때문이다. **웨이브를 닫는 자리에서 진행자가 둘을 대 보고서야
+보였다.** 예측이 맞았다는 증거이고, 그래서 이 표의 마지막 줄이 분위기가 아니라
+절차다 — 고친 자리는 R3.9 와 `domain-entities.md` 4.4.
+
+**한 벌로 못 만드는 값은 맞대는 절차가 따로 있어야 한다.** `enode.elided` 는
+짓는 함수가 이 패키지에 있어 왕복 시험이 잡지만 `enode.capped` 는 그렇지
+않다 — `business-rules.md` 16.1 이 Code Generation 에 맞댈 것 둘을 이름으로 넘긴다.
+
+**웨이브 배치가 이 위험을 줄인다** — `unit-of-work-dependency.md` 2절이 U1 ·
+U2 · U3 을 같은 W0 에 뒀고, 그래서 U3 의 검사가 U1 의 병합 **전**에 돌았다.
+뒤 웨이브였으면 되여는 값이 문서 셋이 아니라 코드였다. **같은 W0 이 두 번 다
+값을 냈다.**
 
 ### 4.2 산출물 셋
 
 자리는 `aidlc-docs/taeels/construction/transcript/functional-design/` 다.
 
-- [ ] **`domain-entities.md`** — 이 유닛이 드는 형식
-  - [ ] `Kind` 의 값과 각각의 뜻 (Q2 가 개수를 정한다). **닫힌 어휘인가**를
+- [x] **`domain-entities.md`** — 이 유닛이 드는 형식
+  - [x] `Kind` 의 값과 각각의 뜻 (Q2 가 개수를 정한다). **닫힌 어휘인가**를
         한 줄로 적는다
-  - [ ] `Event` 의 필드 — 이름 · 타입 · 비었을 때의 뜻. 도구 이름 · 성공 여부 ·
+  - [x] `Event` 의 필드 — 이름 · 타입 · 비었을 때의 뜻. 도구 이름 · 성공 여부 ·
         토큰 수 · 본문 · 잘림 표시 (Q1 · Q5 가 정한다)
-  - [ ] `Result` 의 필드 셋과 `Raw` 의 정확한 뜻 (Q2)
-  - [ ] `Elided` 와 그 와이어 꼴 `{"type":"enode.elided","events":N,"bytes":B}`.
+  - [x] `Result` 의 필드 셋과 `Raw` 의 정확한 뜻 (Q2)
+  - [x] `Elided` 와 그 와이어 꼴 `{"type":"enode.elided","events":N,"bytes":B}`.
         **짓는 쪽과 읽는 쪽이 같은 구조체를 본다**는 것을 자리로 적는다 (1.1)
-  - [ ] `logShell` 의 필드 다섯과 그것이 읽히는 규칙 — `tools` 배열 ·
+  - [x] `logShell` 의 필드 다섯과 그것이 읽히는 규칙 — `tools` 배열 ·
         `ok` 의 삼상태(없음 · 참 · 거짓) · `tokens` 의 키 넷
-  - [ ] 옮겨 오는 일곱과 타입 둘의 최종 이름과 시그니처 (Q7 · Q8)
-  - [ ] `transcript.Kind` 와 `enode.EventKind` 의 관계 (Q9)
+  - [x] 옮겨 오는 일곱과 타입 둘의 최종 이름과 시그니처 (Q7 · Q8)
+  - [x] `transcript.Kind` 와 `enode.EventKind` 의 관계 (Q9)
 
-- [ ] **`business-logic-model.md`** — 읽는 순서와 흐름
-  - [ ] `Parse` 의 파이프라인 — 머리 자르기(`truncated`) · 줄 나누기 ·
+- [x] **`business-logic-model.md`** — 읽는 순서와 흐름
+  - [x] `Parse` 의 파이프라인 — 머리 자르기(`truncated`) · 줄 나누기 ·
         꼬리 판정(Q6) · 줄마다의 판정 · 사건 짓기 · `Elided` 걷기
-  - [ ] 원문 줄기와 껍데기 줄기가 갈리는 자리 하나와 그 판정식 (Q4)
-  - [ ] `tool_result` 를 그 `tool_use` 에 붙이는 규칙과, **붙일 호출이 없을 때**
+  - [x] 원문 줄기와 껍데기 줄기가 갈리는 자리 하나와 그 판정식 (Q4)
+  - [x] `tool_result` 를 그 `tool_use` 에 붙이는 규칙과, **붙일 호출이 없을 때**
         (링이 감겨 호출 줄이 잘렸다 · 껍데기라 `id` 가 없다)의 흐름
-  - [ ] `selectLogs` 가 `transcript` 를 부르는 뒤의 모양 — 남는 것과 옮긴 것의
+  - [x] `selectLogs` 가 `transcript` 를 부르는 뒤의 모양 — 남는 것과 옮긴 것의
         경계선을 코드 자리로 (Q8)
-  - [ ] 입력 넷(1.5)이 각각 어느 줄기를 타는지의 표
-  - [ ] 「링에서 읽든 record 에서 읽든 같은 사건 열」이 **어디까지 참인가** —
+  - [x] 입력 넷(1.5)이 각각 어느 줄기를 타는지의 표
+  - [x] 「링에서 읽든 record 에서 읽든 같은 사건 열」이 **어디까지 참인가** —
         선별본은 본문이 없으므로 사건의 **열**은 같고 **본문**은 다르다.
         FR-3 수용 기준의 글자를 그 값으로 좁혀 적는다
 
-- [ ] **`business-rules.md`** — 규칙과 불변식
-  - [ ] 사건을 안 버린다 — 입력의 줄 수와 `len(Events) + Elided` 의 관계를
+- [x] **`business-rules.md`** — 규칙과 불변식
+  - [x] 사건을 안 버린다 — 입력의 줄 수와 `len(Events) + Elided` 의 관계를
         **셀 수 있는 문장**으로 (Q1 의 답이 이 식을 정한다)
-  - [ ] 마스킹 금지와 상한 자르기가 어떻게 같이 서나 (Q5). 원문 토글이 그
+  - [x] 마스킹 금지와 상한 자르기가 어떻게 같이 서나 (Q5). 원문 토글이 그
         보증을 어디서 지는지를 자리로
-  - [ ] 아는 키만 읽는 규율 (SECURITY-13) — 모르는 키 · 모르는 모양 · 모르는
+  - [x] 아는 키만 읽는 규율 (SECURITY-13) — 모르는 키 · 모르는 모양 · 모르는
         Kind 의 셋이 각각 어디로 떨어지나
-  - [ ] 잘린 입력의 규칙 둘 — 머리(첫 개행 뒤부터)와 꼬리(Q6)
-  - [ ] 임포트 금지 넷(+ 넷째 줄)과 **그 검사가 시험 임포트를 안 본다**는
+  - [x] 잘린 입력의 규칙 둘 — 머리(첫 개행 뒤부터)와 꼬리(Q6)
+  - [x] 임포트 금지 넷(+ 넷째 줄)과 **그 검사가 시험 임포트를 안 본다**는
         한계를 이름으로 (1.6 · Q10)
-  - [ ] 파서에 실패 등급이 0 이라는 것과, 그래서 오류를 안 돌려준다는 것
-  - [ ] 커버리지 하한 80% 가 이 새 패키지에 어떻게 걸리나 (1.7 의 실측값)
+  - [x] 파서에 실패 등급이 0 이라는 것과, 그래서 오류를 안 돌려준다는 것
+  - [x] 커버리지 하한 80% 가 이 새 패키지에 어떻게 걸리나 (1.7 의 실측값)
 
 **셋 다 `frontend-components.md` 를 안 낸다** — 3절 표의 마지막 줄이 그 근거다.
 
@@ -631,40 +734,74 @@ D) Other (please describe after [Answer]: tag below)
 
 ---
 
-## 6. 파장 — 이 유닛 밖으로 가는 것
+## 6. 회차 밖으로 낼 것 — 확정
+
+**이 유닛이 지금 고치지 않는다.** 회차 루트(`aidlc-docs/v3-run-transcript/`)와
+요구 팩(`requirements/`)은 **진행자의 것**이고, `CONVENTIONS.md` 3.4 가
+「안 싣는 것 — 남의 문서 루트」로 그 선을 적었다. 여기 적는 것은 **무엇을 ·
+누가 · 언제**다.
+
+### 6.1 고쳐야 할 문서 일곱
+
+| | 문서 | 무엇을 | 누가 | 언제 |
+|---|---|---|---|---|
+| ① | `.../application-design/unit-of-work-file-matrix.md` | 1절 U1 행의 「경계 검사 표에 **두 줄**이 는다」 -> **넷**(R9.1 · R9.2)이고 `api/ui -> store` 까지 **다섯**(R9.3). 6.3 의 「자리는 Code Generation 이 정한다」는 그대로 참이다 | 진행자 | **U2 착수 전.** U2 가 같은 행렬을 읽고 `runner.go` 순서를 딛는다 |
+| ② | `.../application-design/component-methods.md` | 1.2 의 `map[string]any` -> `Fields`(= `map[string]json.RawMessage`). 1.1 의 `Event` 자리표(`/* ... */`)는 **안 고쳐도 된다** — 그 문서가 「필드는 Functional Design 이 닫는다」고 넘겼고 이 유닛의 `domain-entities.md` 4절이 그 자리다 | 진행자 | 이 FD 승인 뒤. **U4 착수 전** — U4 가 `as=events` 를 그 겉면 위에 짓는다 |
+| ③ | `.../application-design/components.md` | 1절 「옮겨 오는 것 **셋**」 -> 함수 일곱 + 타입 둘 (계획 1.1). 「들어오는 입력이 **둘**」 -> 넷 (계획 1.5). 「아는 것」 줄의 `enode.elided` 옆에 **`enode.capped`** 가 는다 (R3.5) | 진행자 | 같다 |
+| ④ | `.../requirements/requirements.md` (회차) | **두 자리다.** 5.1 의 「실측한 stream-json 줄을 `testdata` 에 둔다 — 실제로 받았던 것의 기록이므로 고치지 않는다」 -> 자리는 `testdata` 로 두되 「고치지 않는다」를 뺀다 (R15.2 · 원문은 저장소에 안 싣는다 · ⑳). FR-3 의 사건 종류 목록 **여섯 -> 일곱** (`capped` 가 는다 · R3.3) | 진행자 | 이 FD 승인 뒤. **이 유닛의 Code Generation 전** — 픽스처 파일이 그때 생긴다 |
+| ⑤ | `.../user-stories/user-stories.md` (회차) | US-4 의 확인 글자 「`raw` 사건」 -> 「`plain text` 또는 `raw`」. 스토리의 값은 안 바뀐다 — 둘 다 줄 원문을 `Text` 에 그대로 든다 (R3.1 · R3.2) | 진행자 | 같다 |
+| ⑥ | `requirements/transcript/decisions.md` (팩) | **두 자리다.** 2절의 `raw` 정의 「파싱 실패 줄의 원문」 -> 「JSON 인데 Kind 를 모르는 줄」 (파싱 실패 줄은 `text`/`plain` 이다 · Q3 = A). 같은 절의 사건 종류 **여섯 -> 일곱** — `capped` 는 하네스가 내는 것이 아니라 **enode 가 찍는 것**임을 함께 적는다 (R3.5 · R3.6) | 진행자 | 같다 |
+| ⑦ | `.../application-design/unit-of-work.md` (회차) | U1 절의 「껍데기를 짓는 **셋**(`ParseLine` · `Shell` · `ElidedMarker`)」 -> 함수 일곱 + 타입 둘 (계획 1.1). ①과 같은 사실이 유닛 정본에도 적혀 있다 | 진행자 | **U2 착수 전.** ①과 같은 때다 |
+
+**실측 행을 팩에 안 더한다.** `requirements/harness-components/decisions.md`
+6절 ⑳ 이 이미 사건 종류의 실측을 진다. 이 유닛이 행을 더하면 실측이 두 벌이
+되고 그것이 CONVENTIONS 1.4 가 막는 자리다 (R11.3).
+
+### 6.2 안 고치는 문서 둘
 
 ```text
-   파일 행렬        unit-of-work-file-matrix.md 1절의 U1 행.  경계 검사 줄이
-                   「두 줄」이 아니라 **넷(+넷째 줄이면 다섯)**이다.  6.3 의 세 줄도
-                   Q10 의 답으로 좁혀진다
+   requirements/transcript/scene-gates.md   U1 은 지는 게이트가 0 이고 CB0 ~ CB6 의
+                                            명령 중 이 유닛이 깨는 것이 0 이다
 
-   component-       1.2 의 map[string]any 를 Q7 의 답으로 고친다.  같은 문서 1.1 의
-   methods.md       Event 필드 자리표(/* ... */)를 산출물이 채운다 — 그 문서가
-                    「필드는 Functional Design 이 닫는다」고 스스로 넘긴 자리다
+   enode-design/ (정본)                      이 유닛이 정본에 닿는 자리가 0 이다.
+                                            agent-runtime R3 · R4 는 Decode 의 것이라
+                                            U2 가 지고, 되돌려 올리는 것은
+                                            팩 decisions.md 6절이 진행자에게 넘겼다
+```
 
-   components.md    1절의 「옮겨 오는 것 셋」을 일곱 + 타입 둘로 (1.1).
-                    「들어오는 입력이 둘」을 넷으로 (1.5)
+### 6.3 `GLOSSARY.md` — Q12 = A
 
-   transcript/      2절의 사건 종류 여섯.  Q2 의 답이 B 면 일곱이 되고 그 근거를
-   decisions.md     6절에 행으로 적는다.  Q3 · Q5 의 답도 2절의 표시 규칙 줄을 조인다.
-                    **실측 행은 안 더한다** — harness-components/decisions.md ⑳ 이
-                    이미 그 자리이고 두 벌로 두지 않는다
+```text
+   이 유닛이 들여오는 새 글자    0.  transcript 는 패키지 이름이고 축약이 아니다.
+                               U1 ~ U8 · CB · NC 는 앞선 커밋이 들여왔다
 
-   requirements.md  5.1 의 「실측한 stream-json 줄을 testdata 에 둔다」가 ⑳ 의
-   (회차)           「원문은 안 싣는다」와 갈린다 (1.8).  Q11 의 답이 그 문장을 고친다
+   지는 빚                      CB0 ~ CB6 의 행이 없다.  그리고 GLOSSARY.md 자체가
+                               아직 커밋되지 않았다 (git ls-files 가 0 을 낸다)
 
-   scene-gates.md   안 고친다.  U1 은 지는 게이트가 0 이고 CB0 ~ CB6 의 명령 중
-                    이 유닛이 깨는 것이 없다
+   누가 · 언제                  **진행자**가 이 유닛 밖에서 한 커밋으로 main 에 올린다.
+                               U2 가 같은 자리를 그렇게 처리한 선례가 있다
+                               (contract-vocab 질문 7 의 답 B)
 
-   GLOSSARY.md      Q12 의 답.  이 유닛은 새 글자를 안 들여온다 — 지는 것은
-                    CB 의 빈 행이고 그 파일이 아직 커밋도 안 됐다
+   푼 말                        **짐작하지 않는다.**  CP · CA 와 같이 「없다」로 적거나
+                               사람이 값을 준다.  CLAUDE.md 가 그것을 명시로 금지한다
+```
 
-   U2               Q9 가 enode.Event 와의 이음매를 정한다.  파일 행렬 2절이
-                    runner.go 를 U1 -> U2 순서로 못 박았으므로 이 유닛이 먼저 덜어낸다
+### 6.4 다음 유닛으로 가는 이음매 넷
 
-   U4 · U5 · U6 · U8   Q1 · Q2 · Q5 의 답이 화면 셋과 as=events 응답의 모양을 정한다.
-                    특히 Q5 = B 면 중앙 폴링이 2초마다 원문만 한 응답을 받는다 —
-                    U4 의 N1 (함대 규모에서의 폴링 부하)이 그 값을 진다
+```text
+   U2 node-stream    Q9 = A — enode.Event 를 안 섞는다.  U2 가 자기 Kind 를 정한다.
+                     파일 행렬 2절이 runner.go 를 U1 -> U2 로 못 박았으므로
+                     이 유닛이 먼저 덜어낸다.  U2 는 그 뒤의 파일 위에서 tee 를 잇는다
+
+   U4 log-api        Event 의 JSON 태그와 as=events 의 응답 형식.  이 유닛이 안 정한다.
+                     R8.1 이 파서에서 자르므로 그 응답이 원문만큼 커지지 않는다 —
+                     N1 의 부하 계산이 그 값을 쓴다
+
+   U5 · U6           Shell · Sub · Cut · Result.Elided · Result.Partial 다섯이
+                     카드가 그릴 값이다 (business-rules 16.2).  US-6 이 Shell 로 선다
+
+   U8 fleet-card     같은 다섯을 as=events 로 받는다.  「같은 모양」의 기계적 뜻은
+                     business-logic-model 4절의 표다
 ```
 
 **코드 게이트의 한 값을 미리 적어 둔다.** `internal/transcript` 는 새 패키지라
