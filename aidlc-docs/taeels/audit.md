@@ -698,3 +698,17 @@ CA2 에 값 하나가 더 붙었다 — 실행파일을 되돌리면 5분 뒤에
 **Context**: GATE · CA0 ~ CA6 전부 초록 · 진행자 서명 · unit/pack 병합 가능
 
 ---
+
+## GATE — CA2 의 화면 검증 S1 (진행자 서명)
+**Timestamp**: 2026-09-15T00:20:00Z
+**User Input**: "Mediator 상세 패널에 mcp서버 omab 있음 으로 표시 확인. 노드 제어판에서는 탐지 능력 (읽기 전용) 칸에 mcp.omab=1 이라고 나타남."
+**AI Response**: "CA2 의 마지막 줄이 닫혔다. 표가 CA2 를 「(S1 포함)」으로 적고 2.1 절이 「노드 카드에 mcp.<이름> 칩이 있다. 제어판 탐지 능력 카드에도 있다」로 두 화면을 요구하는데, 진행자가 사내 함대에서 둘 다 봤다 — 현황판은 상세 패널에 「MCP 서버 · omab 있음」이고 제어판은 탐지 능력(읽기 전용) 칸에 mcp.omab=1 이다.
+
+칩이 사는 자리를 이름으로 적어 둔다. 현황판에서 그 칩은 **노드 상세 패널**에 있고 함대 격자의 카드 면에는 없다. 카드 면은 identity.mjs 의 nodeIdentity() 가 고정 키 목록으로 짓는데(owner · hostname · os · host_arch · device_type · sandbox · provider · harness · tts · device · board · instance) 그 목록에 mcp.* 가 없다. U3 의 답 7=B 가 만든 attributeName · attributeValue 는 view.mjs 의 상세 패널에서만 돈다. format.test.mjs 의 단언도 그 함수를 직접 부르므로 카드 면을 안 잰다.
+
+그래서 S1 은 **상세 패널로 초록**이다. 카드 면에 올리는 것은 identity.mjs 를 고치는 일이고 이 회차의 파일 행렬 밖이다 — 다음 회차가 정할 자리로 남긴다.
+
+이로써 CA0 ~ CA6 이 하위 줄까지 전부 닫혔다."
+**Context**: GATE · CA2 의 S1 초록 · 회차의 게이트가 전부 닫혔다
+
+---
