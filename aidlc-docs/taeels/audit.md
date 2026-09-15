@@ -965,3 +965,30 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+## W-a Code Generation Part 2 — 구독 만료로 강제 종료
+**Timestamp**: 2026-09-16T00:10:00Z
+**User Input**: "구독만료로 작업 강제종료되었음 재개할 수 있는 지점으로부터 시작"
+**AI Response**: 유닛 둘이 Part 2 를 돌던 중 API 가 403 (`oauth_org_not_allowed`) 으로 끊겨 둘 다 중간에 죽었다. 진행자가 **재개 지점을 코드로 실측했다** — 에이전트의 말이 아니라 저장소의 상태로 쟀다.
+
+```text
+   U1   커밋 10fd7a2 까지 (불변식 F2 의 조건).  internal/transcript/ 넷이
+        커밋 안 된 채로 790 줄 — transcript.go · line.go · shell.go · parse.go
+        공개 심볼 열다섯이 다 섰다.  build · vet · test 초록
+        **runner.go 는 아직 안 덜어냈다** (금지 셋이 그대로 있다).  시험 0
+        testdata/lines 가 빈 디렉터리다 — 죽은 자리가 Step 9 의 픽스처다
+
+   U3   커밋 0.  제품 셋 수정(record.go · seal.go · reap.go · 102 줄) +
+        progress.go 703 줄 + progress_test.go 804 줄이 커밋 안 된 채로 있다
+        build · vet 초록 · internal/store 시험 초록
+        **internal/record 가 빨갛다** — TestTheFourGapsConverge 의
+        before_the_cut_write 하나.  capped 가 거짓이고 몸통에 표시 줄이 0 이다
+        틈 넷 중 하나가 안 수렴한다 — 죽은 자리가 그 시험을 짓던 중이다
+```
+
+**둘 다 계획의 체크박스를 하나도 안 채웠다** — 규칙의 「일을 끝낸 그 자리에서 `[x]` 로 고친다」를 안 지켰다. 그래서 계획으로는 진척을 못 재고 코드로 쟀다. 재개할 때 그 자리도 함께 고치게 건다.
+
+**커밋 안 된 것을 안 버린다** — U1 790 줄 · U3 1,507 줄 + 수정 102 줄이 전부 살아 있고 빌드가 선다. 재개는 이 위에서 이어 간다.
+**Context**: CONSTRUCTION — W-a Code Generation Part 2 중단과 재개 지점 실측
+
+---
+
