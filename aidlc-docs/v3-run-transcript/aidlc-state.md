@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-15T03:26:50Z
-- **Current Stage**: INCEPTION — User Stories Part 1. 질문 넷 대기
+- **Current Stage**: INCEPTION — User Stories 완료. 승인 대기
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-transcript` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-transcript/` (CLAUDE.md 의 회차별 layering)
@@ -107,9 +107,9 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
 - [x] Reverse Engineering — 전면 갱신 완료. 승인됨 2026-09-15T03:56:47Z
 - [x] Requirements Analysis — 승인됨 2026-09-15T04:10:00Z
       질문 셋 · 답 셋(B · A · B) · `requirements.md` 536줄 · 커밋 `b87ffc9`
-- [~] User Stories — **돈다.** 평가를 `plans/user-stories-assessment.md` 에 남겼다
-      (High Priority 셋 · Medium Priority 둘이 걸린다 · 깊이 minimal).
-      Part 1 의 계획과 질문 넷을 내고 멈췄다 (`plans/story-generation-plan.md`)
+- [x] User Stories — 2026-09-15T04:18Z. 승인 대기
+      평가(`plans/user-stories-assessment.md`) · 계획과 답 넷(전부 A) ·
+      페르소나 셋 · 스토리 열하나 · **새 완료 조건 여섯 (NC-1 ~ NC-6)**
 - [ ] Workflow Planning — ALWAYS
 - [ ] Application Design — 미정
 - [ ] Units Generation — 미정
@@ -152,3 +152,20 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
 같은 보안 헤더 다섯을 건다. 이 회차가 그 페이지에 신뢰할 수 없는 하네스 출력을
 그리므로 위험을 들여오는 쪽이 닫는다. 빼려면 그 절을 지우고 SECURITY-04 판정을
 다시 센다.
+
+## 이 단계가 낳은 새 완료 조건 여섯 — 하류가 받는다
+
+`inception/user-stories/user-stories.md` 3절이 전문이다. Q4 = A 에 따라
+**스토리가 지고 `requirements.md` 는 안 고친다.** Units Generation 이 유닛에 내린다.
+
+```text
+   NC-1   마지막 사건 이후 경과가 보인다.  침묵과 정지가 갈린다              US-1
+   NC-2   링이 감겨 앞이 잘렸음이 적힌다.  total 은 이미 나오는데 안 그린다   US-2
+   NC-3   링에 원문이 남는다는 사실이 제어판 카드에 한 줄로 적힌다           US-3
+   NC-4   진행 파일이 상한에 닿았음이 응답과 화면에 적힌다                   US-7
+   NC-5   mediator-api 의 GET log 절이 봉인 전후의 갈림을 적는다             US-8
+   NC-6   현황판 카드에 마지막 갱신 시각이 보인다.  밀림과 정지가 갈린다      US-9
+```
+
+**여섯 중 다섯이 같은 모양이다** — 「안 자라는 것」과 「끝난 것」을 사람이 구별할
+수 있는가. 게이트 조각 일곱이 전부 「자란다」를 재고 「안 자란다」를 재는 것이 0 이다.

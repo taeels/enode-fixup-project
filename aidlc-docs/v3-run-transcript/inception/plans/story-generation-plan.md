@@ -8,13 +8,12 @@
 
 # 1. 산출물 계획 (체크박스)
 
-- [ ] `user-stories/personas.md` — 페르소나. 새로 만들지 않고 짝 팩의 셋을 잇는다
-- [ ] `user-stories/user-stories.md` — 스토리. **오독 경로와 침묵 경로만**
-- [ ] 스토리마다 **FR 과 확인(게이트 조각 또는 새 완료 조건)** 을 붙인다
-- [ ] 스토리가 낳은 새 완료 조건을 목록으로 모은다 — Units Generation 이 유닛에 내린다
-- [ ] INVEST 를 확인한다 (Independent · Negotiable · Valuable · Estimable ·
-      Small · Testable). 각 스토리에 수용 기준이 붙어 있는지 센다
-- [ ] 페르소나를 스토리에 사상한다. 사상 안 된 페르소나가 0 임을 확인한다
+- [x] `user-stories/personas.md` — 페르소나 셋. P3 의 「무엇을 쓰나」 한 줄을 고쳤다
+- [x] `user-stories/user-stories.md` — 스토리 열하나. 오독 경로와 침묵 경로만
+- [x] 스토리마다 FR 과 확인을 붙였다 — 확인 열이 게이트 조각 또는 NC 번호를 가리킨다
+- [x] 새 완료 조건 여섯(NC-1 ~ NC-6)을 3절에 모았다
+- [x] INVEST 를 확인했다 (2.1). 수용 기준 없는 스토리 0
+- [x] 페르소나를 사상했다 (2.2). 사상 안 된 페르소나 0. FR 사상도 함께 냈다 (2.3)
 
 # 2. 안 하는 것
 
@@ -62,7 +61,7 @@ B) **넷으로.** P4 「함대 관찰자」를 더한다 — 회차를 안 돌�
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ## Q2. 스토리를 무엇에 쓰나
 
@@ -81,7 +80,7 @@ C) **저작 경로를 포함한다.** 이 팩에도 사람이 적는 자리가 �
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ## Q3. 스토리를 무엇으로 가르나
 
@@ -106,7 +105,7 @@ C) **Persona-Based 위에 FR 을 열로 단다.** A 의 묶음에 B 의 추적�
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ## Q4. 스토리가 낳는 새 요구를 어디에 두나
 
@@ -135,11 +134,39 @@ C) **`decisions.md` 에 더할 행으로만 적는다.** `requirements.md` 10절
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]:
+[Answer]: A
 
 ---
 
-# 5. 답이 닫히면 — Part 2 가 도는 순서
+# 5. 답 — 2026-09-15T04:18Z
+
+사용자 「권장대로」. 넷 다 권장값 **A** 다.
+
+**계획 승인으로도 읽었다.** 이 문서에서 승인할 것이 질문 넷의 답 말고 없고,
+사용자가 그것을 권장대로 닫았다. Step 13 의 승인과 Step 8 의 답이 같은 한
+문장이다 — 그 읽기를 `audit.md` 에 적었다.
+
+## 답의 모호함 분석 (Step 9 의 의무)
+
+추가 질문 없음. 「mix of」 · 「depends」 · 「hybrid」 같은 말이 0 이고 넷 다
+선택지 라벨 하나다. Q3 의 C(Persona 위에 FR 열)는 안 골렸지만 **A 를 고르고도
+FR 열은 단다** — 1절 체크박스가 「스토리마다 FR 과 확인을 붙인다」로 이미
+적었고 그것은 묶는 법이 아니라 추적이라 Q3 의 배타 선택과 안 부딪친다.
+
+## Q4 = A 가 뜻하는 것
+
+스토리가 낳은 요구를 **새 완료 조건**으로 이 단계가 지고, 승인된
+`requirements.md` 는 안 고친다. Units Generation 이 그것을 유닛에 내린다.
+
+```text
+   이 단계가 짓는다   user-stories.md 3절의 새 완료 조건 목록
+   안 하는 것        requirements.md 수정 · 재승인
+   다음이 받는다      Units Generation.  배정 안 된 완료 조건이 0 임을 거기서 센다
+```
+
+---
+
+# 6. 답이 닫히면 — Part 2 가 도는 순서
 
 ```text
    ①  personas.md          Q1 의 답이 셋이냐 넷이냐를 정한다
