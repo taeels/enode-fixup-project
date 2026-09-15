@@ -842,7 +842,26 @@ U2 가 U1 의 변경 위에서 재작업한다.
                           표시 줄이 무한히 쌓인다
                           U3 의 실측이 회차 계획을 고쳤다 — Seal 은 tar 를 안 짓는다
    Infrastructure Design  SKIP (회차 계획)
-   Code Generation        Part 1 (계획) 진행 중.  worktree 둘에서 병렬
+   Code Generation        Part 1 (계획) 2026-09-15.  승인 대기.  **코드 0 줄**
+                          커밋 9d907da · c4e6eec (U1) · f962d26 · 53ef404 (U3)
+                          Step 열아홉씩 · 체크박스 아흔여섯(U1) · 백스물둘(U3)
+
+                          **U1 이 불변식 F2 가 거짓인 것을 찾았다** — tool_use 의
+                          Text 는 RawMessage 를 다시 마샬한 것이라 compact 만
+                          지난다.  json.Marshal(json.RawMessage) 가 잘못된 UTF-8 을
+                          그대로 낸다 (진행자가 go1.26.6 으로 재현).  F2 에 조건을
+                          달아야 Part 2 가 첫 변이에서 안 멈춘다.  값은 안 바뀐다
+
+                          진행자 표본 검증이 유닛마다 하나씩 되돌렸다 —
+                          U1 의 셈(표는 여덟인데 글자가 일곱.  앞 문서에 틀린 값이
+                          두 벌) · U3 의 게이트 7(스물한 자리 중 여섯은 렌더링되는
+                          자리라 위반이 아니다.  위반은 열다섯 · 파일 여덟)
+
+                          **U3 가 진행자의 셈을 되돌렸다** — 「여덟 중 일곱이 행렬
+                          밖」이 아니라 여덟 전부가 밖이다.  짐작으로 안 따랐다
+
+                          기준선 실측 — go build · vet · test 전부 초록.  단 postgres
+                          가 서야 한다 (셋이 URL 없이 실패).  scripts/testdb.sh
 ```
 
 ## 이 웨이브가 회차 밖으로 낼 것 — 진행자의 몫
