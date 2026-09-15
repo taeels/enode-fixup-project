@@ -766,3 +766,27 @@ decisions.md 6절에 실측 행 ㉕ 로 적었다 — 회차가 어휘를 지었
 **Context**: GATE 이후 · 어휘 발견 가능성 · decisions ㉕ 와 features 4절 이월로 넘긴다
 
 ---
+
+## 회차 밖 — 어휘를 보이게 하는 넷 (㉕ 의 고침)
+**Timestamp**: 2026-09-15T02:00:00Z
+**User Input**: "맥락없는 에이전트 도움말 강화는 여기서 바로 수정해줘"
+**AI Response**: "브랜치 fix/runctl-shows-the-pack-vocabulary 에서 넷을 다 고쳤다. 회차는 PR #37 로 main 에 닫혔고 게이트가 서명된 뒤라 회차 브랜치에 안 실었다.
+
+1 runctl example pack — internal/contract/examples/pack.json. tar 를 짓는 명령 단계 하나와 두 키를 문 에이전트 단계 하나다. 명령이 mktemp 아래에 skills/hello/SKILL.md · agents/helper.md · mcp.json 을 짓고 tar -cf $OUT/pack -C $d skills agents mcp.json 으로 묶는다 — 배치가 argv 에 글자로 보이고 안전한 tar 꼴도 함께 보인다. 워크스페이스에 아무것도 안 남긴다. 팩의 서버 이름을 packed 로 지었다: probe 로 지으면 노드가 그 이름을 선언한 함대에서 R19(팩이 노드 선언을 덮는다)로 죽는다. 그리고 requires 에 mcp.<이름> 을 안 적었다 — 팩이 정의의 출처이므로 노드가 그 이름을 선언할 필요가 없다는 것이 이 예시가 가르치는 값이다.
+
+2 runctl schema pack — 슬롯 셋의 디스크 배치와 mcpServers 키, 두 키가 함께 있어야 한다는 것, tar -cf x.tar -C dir . 이 ./ 항목 때문에 pack entry ./ has an unsafe name 으로 거절된다는 함정, 팩의 스킬이 pack:<이름> 으로 namespace 된다는 것.
+
+3 runctl schema io — cwd · $OUT · $IN. schema steps 의 꼬리가 그것을 가리킨다. 한 자리에만 적고 나머지는 가리킨다 — 두 벌로 두면 갈린다.
+
+4 requires 값의 출처 — schema requires 의 꼬리와 help 의 capabilities 줄이 runctl capabilities 를 가리킨다. 옛 문구 attribute vocabulary of the fleet 가 그 값이 requires 에 적는 값이라는 것을 안 말했다.
+
+cmdSchema 를 글 절이 들어갈 수 있게 고쳤다 — typ 이 nil 이면 글이고, 필드 뒤에 붙는 꼬리를 따로 둔다. 구조체에서 뽑는 것만으로는 안 보이는 값이 있다는 것이 ㉕ 의 내용이다.
+
+시험이 그 글자를 센다. TestSchema_CarriesWhatTheErrorMessagesDoNotSay 가 mcp.json · mcpServers · skills/<name>/SKILL.md · agents/<name>.md · 두 키 · 함정 문구 · runctl example pack 을 이름으로 찾고, io 와 requires 와 steps 의 꼬리도 잰다. TestExamplePack_CarriesBothKeys 는 예시의 agent.pack 과 앞 단계의 out 과 in.from 이 같은 이름인지를 잰다 — 하나만 적으면 그 단계는 팩 없이 돌고 우리가 못 잡는다. 변이 둘을 넣어 빨개지는 것을 봤다 (mcpServers 를 지운다 · steps 의 꼬리를 걷는다).
+
+CA0 전부 초록이다. cmd/runctl 커버리지가 93.9% 에서 94.3% 로 올랐고 라우트 26 그대로다.
+
+features.md 4절의 이월 블록을 「닫혔다」로 고치고 원문을 아래에 남겼다. decisions.md ㉕ 의 근거 칸에도 고친 사실을 달았다."
+**Context**: 회차 밖 · ㉕ 의 넷을 고쳤다 · CA0 초록
+
+---
