@@ -359,6 +359,35 @@
    팩의 system.md · settings.json     ADR-034 §7.  실물 충돌 사례가 생기면
 ```
 
+### 이월 — 지은 어휘를 보이게 하는 일 (6절 ㉕)
+
+**이 팩이 어휘를 지었는데 그 어휘를 읽는 면은 안 늘었다.** `cmd/runctl` 의 소스
+diff 0 이 파일 행렬이 센 값이고, 게이트가 닫힌 뒤의 관찰이 그것을 비용으로
+되돌려줬다 — 문맥 없는 에이전트가 26분과 Run 스물넷을 썼고 그중 **열다섯이 팩
+tar 배치를 맞히는 데** 들었다.
+
+**값 순서다. 1 과 2 만으로 열다섯 번이 사라진다.**
+
+```text
+   1  runctl example pack      배치와 두 키(agent.pack · in.from)를 한 예시가 함께 보인다.
+                               example mcp 가 이미 있고 그것이 CA6 의 첫 줄을 싸게
+                               만든 이유다 — 복사해서 고치면 됐다.  팩에는 그 출발점이 없었다
+   2  runctl schema 에 팩 배치   mcpServers 객체를 담은 mcp.json · skills/<이름>/SKILL.md ·
+                               agents/<이름>.md.  함정을 함께 적는다 —
+                               tar -cf x.tar -C dir . 는 ./ 항목 때문에
+                               "pack entry ./ has an unsafe name" 로 거절된다.
+                               tar -cf x.tar skills mcp.json 으로 짓는다
+   3  runctl schema 에 $OUT     명령 단계의 cwd 가 워크스페이스이고 수확이 $OUT 을 읽는다.
+                               오케스트레이터가 받는 계획 프롬프트에는 있는데 schema 에
+                               없어서, 손으로 계약을 쓰는 사람은 찔러 봐야 안다
+   4  requires 값의 출처         runctl capabilities 를 가리킨다.  help 가 "attribute
+                               vocabulary of the fleet" 라고만 적어서, 그 값이 requires 에
+                               적는 값이라는 것이 안 보인다
+```
+
+**이 회차에서 안 고친다.** 서명이 끝난 게이트 아래의 코드를 건드리는 일이고,
+`cmd/runctl` 의 소스 diff 0 은 이 회차가 센 값이다. 다음 회차의 입력이다.
+
 ## 5. 미정
 
 **하나다.** 계약이나 파일 형식에 걸리므로 진행자가 `decisions.md` 에 행을

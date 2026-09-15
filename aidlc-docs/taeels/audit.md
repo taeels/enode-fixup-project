@@ -712,3 +712,57 @@ CA2 에 값 하나가 더 붙었다 — 실행파일을 되돌리면 5분 뒤에
 **Context**: GATE · CA2 의 S1 초록 · 회차의 게이트가 전부 닫혔다
 
 ---
+
+## GATE 이후 — 어휘 발견 가능성 관찰 (진행자 손기록)
+**Timestamp**: 2026-09-15T00:40:00Z
+**User Input**: "그전에 관찰한 문제점이 있어 손으로 타이핑 해 둔다. 속도를 위해 영어로 썼다.
+
+# Finding - runctl alone is not enough for an agent with no context
+
+# what was tested
+A fresh agent was given an empty directory containing only ./runctl, forbidden to read source, and told to make a Windows node install an MCP server named omab and then prove a later step sees it in its session.
+
+## result
+It succeeded. It reached the correct three-step contract (install -> mkpack -> prove) and found agent.pack, agent.mcp and in.from unaided, from unctl's own help, example and schema output.
+
+It took 26+ minutes and about 24 runs.
+
+## where the runs went
+1 to 2 : ligitimate   Is the node alive, does an agent step run
+18 to 19 : doc gaps    15 of them guessing the pack tar layout
+
+The layout guesses, each one a submitted run: mcp.json with a top-level server name, .mcp.json with an mcpServers key, mcp/omab.json, a pack with skills only, a pack with agents only. It also guessed device:\"led\" as a requires key, probed $OUT, CWD and USERPROFILE on the real machine to learn the run-step contract, and hunted through d:\\images\\.claude looking for where MCP config lives.
+
+Only aobut 2 mins of the 26+ was work that documentation could not have removed.
+
+## the refusals were not the problem
+R16 returned \"pack p.pack carries no skills, agents, or mcp servers\", which names the three convention slots. The other failure was \"mcp server omab is not available on this node\". the agent was reading error text and narrowing, not guessing blindly. THe messages are good.
+
+What is missing sits one layer below them: the file name mcp.json , and the fact that servers go under an mcpServers key inside it. The error says which three slot exist; it does not say what the mcp slot is called on disk.
+
+## what the gap costs
+20 failed runs sealed into the record, every one of them on the real board-attached windows machine, tokens spent on each harness start. The product currently teaches its own conventions by letting an agent measure them on live hardware.
+
+## Fixes, in order of value
+1. Add `runctl example pack`. One example shows the tar layout and both keys (agent.pack, in.from) at once. `example mcp` already exists and is precisely why CA6 verdict 1 was cheap to reach - the example was copied and edited. Thepack path had no such starting point.
+2. Put the pack tar layout in `runctl schema`: mcp.json carrying an mcpServers object, skills/<name>/SKILL.md, agents/<name>.md. Include the trap that `tar -cf x.tar -C dir .` is rejected with \"pack entry ./ has an unsafe name\" because of the ./ entry; use `tar -cf x.tar skills mcp.json`.
+3. Put the $OUT  convention in `runctl schema`: a run step's cwd is the workspace, and the harvest reads $OUT. This is stated in the plan prompt that orchestrators receive but not in schema, so a contract author writing by hand has to discover it by running a probe.
+4. Point at `runctl capabilities` as the source of requires attribute values.The help calls it \"attribute vocabulary of the fleet\", which does not make clear those are the values you write into requires.
+Items 1 and 2 alone remove the 15 layout runs.
+
+## what already works well
+`runctl lint` warned \"no condition judges step mkpack; it can fail and the run sitll succeeds\" and printed the JSON fragment to add . Both 400 refusals name the allowed fields and end with \"see: runctl lint <contract.json> / runctl example\""
+**AI Response**: "네 구멍이 오늘 코드에 실제로 있는지 먼저 셌다. 넷 다 있다.
+
+runctl example 의 목록이 여섯이고 pack 이 없다 (agent · command · demo-led-toggle · demo-welcome-audio · mcp · multi). runctl schema 의 네 섹션 전체에서 mcpServers 가 0 회이고 $OUT 도 0 회다. schema steps 는 agent 를 map[string]any 한 줄로만 찍으므로 agent.pack 도 안 보인다 — 6절 ㉑ 이 이미 적은 그 자리다.
+
+./ 함정도 실물로 재현했다. tar -cf x.tar -C dir . 이 첫 항목으로 ./ 를 낸다. U5 의 packEntryName 이 path.Clean(\"./\") == \".\" 을 R7 으로 거절하므로 문구가 정확히 pack entry ./ has an unsafe name 이다 — 관찰한 그대로다.
+
+이 관찰의 무게는 실패가 아니라 비용이다. 게이트는 전부 초록이고 거절 문구도 제 일을 했다 — 에이전트가 문구를 읽고 좁혀 갔다. 없는 것은 그 한 층 아래다: 슬롯 이름은 알려 주는데 그 슬롯이 디스크에서 무엇으로 불리는지를 안 알려 준다. 그래서 스무 번의 실패 Run 이 실물 보드가 달린 윈도우 기계에 봉인됐다.
+
+decisions.md 6절에 실측 행 ㉕ 로 적었다 — 회차가 어휘를 지었는데 그 어휘를 보이게 하는 면이 안 늘었다는 사실이 값이다. features.md 4절에 이월 넷을 이름으로 더했고, 1 과 2 만으로 열다섯 번이 사라진다는 관찰의 판정을 그대로 실었다.
+
+이 회차에서 안 고친다 — cmd/runctl 의 소스 diff 0 이 이 회차의 파일 행렬이 센 값이고(CA0 의 라우트 수와 같은 자리), 지금 고치면 서명이 끝난 게이트 아래의 코드를 건드리는 것이 된다. 다음 회차의 입력으로 넘긴다."
+**Context**: GATE 이후 · 어휘 발견 가능성 · decisions ㉕ 와 features 4절 이월로 넘긴다
+
+---
