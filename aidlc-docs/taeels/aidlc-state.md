@@ -759,3 +759,81 @@ U2 가 U1 의 변경 위에서 재작업한다.
 - 의존 `.../unit-of-work-dependency.md` · 파일 행렬 `.../unit-of-work-file-matrix.md`
 - 게이트 사상 `.../unit-of-work-story-map.md` · 요구 `.../requirements/requirements.md`
 - 팩 `requirements/transcript/` · RE `aidlc-docs/inception/reverse-engineering/`
+
+## 단계 진행 — W-a (U1 `transcript` · U3 `progress-store` 병렬)
+
+브랜치 `unit/transcript` · `unit/progress-store`. 둘 다 회차 브랜치에서 땄고
+**worktree 를 갈라 동시에 돌렸다** (`/home/sunny/enode-wt/`). 앞선 회차가
+브랜치를 앞 유닛 위에 쌓은 것과 다르다 — W-a 는 파일 교집합이 0 이라 쌓을
+이유가 없다.
+
+```text
+   Functional Design      2026-09-15.  승인 대기
+                          계획 둘 · 산출물 여섯.  커밋 edda804 · ac3acac (Part 1) ·
+                          d20c26c (U3) · adc93d0 (U1)
+                          물음 스물하나 + 막힌 뒤 낸 둘 = **스물셋.  전부 닫혔다**
+                          답 — 스물하나가 A (사용자 「권장대로」) · 둘이 B
+
+                          **둘 다 계획을 짓기 전에 코드를 읽었고 문서가 코드와
+                          갈린 자리를 여덟씩 찾았다.** 진행자가 표본 일곱을 코드에
+                          대고 확인했고 일곱 다 맞았다
+
+                          무거운 셋 — ① U1 이 옮길 범위가 문서의 셋이 아니라
+                          **일곱 + 타입 둘**이다 (components.md 와 unit-of-work.md
+                          가 함께 틀렸다) ② `go list -deps` 가 시험 임포트를 안
+                          보므로 경계 검사를 그 명령으로만 세우면 시험이 금지된
+                          패키지를 임포트해도 초록이다 ③ N2 의 오늘 값이
+                          「상한이 없다」가 아니라 **「지우는 코드가 0」**이다
+
+                          **U3 의 모순 검사가 막는 것 하나를 찾아 멈췄다** —
+                          Q3 = A 와 Q4 = A 를 합치면 진행 파일 안에 상한 도달의
+                          흔적이 0 이라 GET 이 못 가른다.  NC-4 와 US-7 이 그
+                          자리에서 죽는다.  사용자가 상한 값(10 MiB)을 묻고
+                          표시 줄을 골랐다 (물음 10 = B · 11 = B)
+
+                          같은 검사가 앞서 적은 구멍 하나를 **지웠다** —
+                          `Records` 가 nil 이면 `needRecords` 가 503 을 내므로
+                          진행 트리가 애초에 안 생긴다.  N2 의 구멍은 **둘**이다
+
+                          **교차 검사가 하나 더 잡았다** — 같은 필드를 U3 은
+                          상한으로 U1 은 총 길이로 정의했다.  상한이 맞고 취향이
+                          아니라 기계로 갈린다: 표시 줄이 총 길이에 드는 이상
+                          **자기가 든 총 길이를 담을 수 없다.**  U1 을 고쳤다
+
+   NFR Requirements       **다음이다.**  U1 · U3 둘 다 돈다 (회차 계획).
+                          **N2 의 숫자가 U3 에서 채워진다**
+   NFR Design             유닛마다 · 최소
+   Infrastructure Design  SKIP (회차 계획)
+   Code Generation        아직
+```
+
+## 이 웨이브가 회차 밖으로 낼 것 — 진행자의 몫
+
+**U3 의 Code Generation 전에 서야 하는 둘이 있다.** 기준선인 채로 병합하면
+그 자리에서 빨개진다.
+
+```text
+   때가 박힌 것   unit-of-work-file-matrix.md 5절   internal/store diff 0 이 거짓이 된다
+                 execution-plan.md 6절 품질 게이트 2  같은 이유.  contract 는 0 그대로
+                 unit-of-work-file-matrix.md 1절   U1 의 「경계 검사 두 줄」이 넷이다
+                 component-methods.md 1.2          map[string]any -> Fields
+
+   그 밖          components.md 1절 · application-design.md D1 의 줄 번호와 D4 의 근거
+                 requirements.md 5.1 (testdata) · FR-3 의 사건 종류 · 2.4 의 낡은 인용
+                 user-stories.md US-4 의 확인 글자
+                 팩 transcript/decisions.md 2절 — raw 정의와 사건 종류
+                 unit-of-work.md U1 절의 「셋」
+                 GLOSSARY.md 의 CB · N1 · N2 — **푼 말을 아무도 안 짐작했다**
+```
+
+## 이 웨이브가 배운 것 — 병렬의 대가 하나
+
+**유닛 경계를 넘는 답의 조합은 어느 한 유닛의 모순 검사도 못 본다.** AI-DLC 의
+Functional Design Step 5 는 그 유닛의 답끼리만 댄다. 같은 날 두 번 났고 **두 번
+다 두 유닛이 각자 모순 0 이었다.** 병렬로 돌리면 **웨이브를 닫는 자리에 유닛
+사이를 대 보는 검사가 따로 있어야 한다** — 이 회차는 진행자가 그것을 졌다.
+
+**한 벌로 못 만드는 값은 맞대는 절차가 따로 있어야 한다.** `enode.elided` 는
+짓는 함수가 같은 패키지라 왕복 시험이 잡지만 `enode.capped` 는 찍는 쪽이 U3 ·
+읽는 쪽이 U1 이라 한 패키지 시험으로 안 잡힌다. Code Generation 이 맞댈 것을
+값 이름까지 적어 뒀다 (`business-rules.md` 16.1).
