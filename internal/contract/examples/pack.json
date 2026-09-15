@@ -1,0 +1,51 @@
+{
+  "run_id": "example-pack",
+  "work": {
+    "id": { "system": "manual", "change_id": "example-pack" },
+    "system": "manual"
+  },
+  "requires": [
+    { "as": "worker", "capability": "agent.reason" }
+  ],
+  "steps": [
+    {
+      "id": "mkpack",
+      "uses": "worker",
+      "run": [
+        "sh",
+        "-c",
+        "d=$(mktemp -d) && mkdir -p \"$d/skills/hello\" \"$d/agents\" && printf '%s\\n' '---' 'name: hello' 'description: greets the caller' '---' '' 'Say hello.' > \"$d/skills/hello/SKILL.md\" && printf '%s\\n' '---' 'name: helper' 'description: helps' '---' '' 'Help.' > \"$d/agents/helper.md\" && printf '%s' '{\"mcpServers\":{\"packed\":{\"command\":\"true\"}}}' > \"$d/mcp.json\" && tar -cf \"$OUT/pack\" -C \"$d\" skills agents mcp.json"
+      ],
+      "out": ["pack"]
+    },
+    {
+      "id": "use_the_pack",
+      "uses": "worker",
+      "agent": {
+        "ask": "never",
+        "max_turns": 5,
+        "pack": "pack",
+        "mcp": ["packed"]
+      },
+      "in": {
+        "from": ["pack"],
+        "prompt": "The pack carried a skill and an mcp server into this session. Write $OUT/used.json as {\"skills\": [\"...\"], \"servers\": [\"...\"]} naming what you can see."
+      },
+      "out": ["used.json"],
+      "schema": {
+        "used.json": {
+          "type": "object",
+          "required": ["skills", "servers"],
+          "properties": {
+            "skills": { "type": "array", "items": { "type": "string" } },
+            "servers": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  ],
+  "success_when": [
+    { "step": "mkpack", "exit_code": 0, "produced": ["pack"] },
+    { "step": "use_the_pack", "produced": ["used.json"] }
+  ]
+}

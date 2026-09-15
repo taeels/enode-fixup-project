@@ -135,16 +135,29 @@ func suggestCondition(s contract.Step) string {
 //
 // 예시가 빠르고 스키마가 정확하다. 처음 오는 쪽에게는 example 을 먼저 권한다.
 func cmdSchema(section string) int {
+	// typ 이 nil 인 절은 글이다.
+	//
+	// 구조체에서 뽑는 것만으로는 안 보이는 값이 있다 — 팩 tar 의 배치와
+	// $OUT 규약은 필드가 아니라 규약이고, 필드 목록에는 나타날 자리가 없다.
+	// 그것을 안 적어 두면 문맥 없는 에이전트가 실물 기계 위에서 Run 을
+	// 던져 가며 맞혀야 한다 (decisions.md 6절 ㉕ 의 실측 — 스물넷 중 열다섯).
 	type sect struct {
 		name string
 		typ  reflect.Type
 		note string
+		text string // typ 이 nil 일 때 찍는다
+		tail string // 필드 뒤에 붙는 줄
 	}
 	sects := []sect{
-		{"contract", reflect.TypeOf(contract.Contract{}), "the whole contract"},
-		{"steps", reflect.TypeOf(contract.Step{}), "one entry of steps[]"},
-		{"requires", reflect.TypeOf(contract.Require{}), "one entry of requires[]; any other key is a matching attribute"},
-		{"success_when", reflect.TypeOf(contract.Condition{}), "one entry of success_when[]"},
+		{name: "contract", typ: reflect.TypeOf(contract.Contract{}), note: "the whole contract"},
+		{name: "steps", typ: reflect.TypeOf(contract.Step{}), note: "one entry of steps[]",
+			tail: "\nwhat a step gets (cwd, $OUT, $IN):\n  runctl schema io"},
+		{name: "requires", typ: reflect.TypeOf(contract.Require{}),
+			note: "one entry of requires[]; any other key is a matching attribute",
+			tail: "\nthe attribute values you write here are the ones the fleet advertises:\n  runctl capabilities"},
+		{name: "success_when", typ: reflect.TypeOf(contract.Condition{}), note: "one entry of success_when[]"},
+		{name: "io", note: "what a step gets: cwd, $OUT, $IN", text: schemaIO},
+		{name: "pack", note: "the pack tar layout and the two keys that carry it", text: schemaPack},
 	}
 	if section == "" {
 		for _, s := range sects {
@@ -159,7 +172,14 @@ func cmdSchema(section string) int {
 			continue
 		}
 		fmt.Printf("%s — %s\n\n", s.name, s.note)
+		if s.typ == nil {
+			fmt.Print(s.text)
+			return exitOK
+		}
 		printFields(s.typ)
+		if s.tail != "" {
+			fmt.Println(s.tail)
+		}
 		return exitOK
 	}
 	names := make([]string, 0, len(sects))
@@ -209,3 +229,56 @@ func typeName(t reflect.Type) string {
 	}
 	return t.String()
 }
+
+// schemaIO 는 단계가 무엇을 받는가다.
+//
+// 이 값들은 오케스트레이터가 받는 계획 프롬프트에는 있었고 schema 에는 없었다.
+// 그래서 손으로 계약을 쓰는 사람은 실물 기계에 프로브를 던져 알아내야 했다
+// (decisions.md 6절 ㉕).
+const schemaIO = `  cwd            the workspace on the node. a run step starts there
+  $OUT           the only place a step's results are collected from.
+                 out: ["name"] means the step wrote $OUT/name
+  $IN            what earlier steps produced, laid out by blob name.
+                 in: {"from": ["name"]} puts that blob at $IN/name
+                 the files are read-only and so is the directory
+
+both are absolute paths in the step's environment. nothing outside $OUT is
+collected. a fresh shell runs each step, so export what you need again.
+`
+
+// schemaPack 은 팩 tar 의 배치다.
+//
+// 거절 문구는 슬롯 셋을 이름으로 말한다 (pack %s carries no skills, agents,
+// or mcp servers). 안 말하는 것이 그 한 층 아래다 — 그 슬롯이 디스크에서
+// 무엇으로 불리는지. 이 글이 그 자리다.
+const schemaPack = `a pack is one tar. three slots are read; anything else is ignored and named
+in the node log.
+
+  skills/<name>/SKILL.md     a skill. files beside it travel with it
+  agents/<name>.md           a subagent
+  mcp.json                   {"mcpServers": {"<name>": {"command": "..."}}}
+                             the same shape a workspace .mcp.json uses
+
+two keys carry it into a step, and a step needs both:
+
+  "agent": {"pack": "<blob>"}     run this step with that pack
+  "in":    {"from": ["<blob>"]}   lay the blob down at $IN/<blob>
+
+the blob comes from an earlier step that wrote out: ["<blob>"].
+
+building it:
+
+  tar -cf pack.tar skills agents mcp.json     name the slots
+  tar -cf pack.tar -C dir skills mcp.json     or name them under -C
+  tar -cf pack.tar -C dir .                   refused. that form writes a "./"
+                                              entry and it comes back as
+                                              "pack entry ./ has an unsafe name"
+
+gzip is unwrapped for you. a pack carrying none of the three slots is refused
+rather than run empty, because a harness ignores a missing pack in silence.
+
+a skill from a pack is named pack:<name> in the session - the directory the
+pack is spread into becomes the prefix.
+
+  runctl example pack   a contract that builds one and uses it
+`

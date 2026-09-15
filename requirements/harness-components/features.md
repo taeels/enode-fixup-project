@@ -359,7 +359,30 @@
    팩의 system.md · settings.json     ADR-034 §7.  실물 충돌 사례가 생기면
 ```
 
-### 이월 — 지은 어휘를 보이게 하는 일 (6절 ㉕)
+### 닫혔다 — 지은 어휘를 보이게 하는 일 (6절 ㉕)
+
+**이월로 세웠다가 회차 밖에서 바로 고쳤다** (2026-09-15 · 브랜치
+`fix/runctl-shows-the-pack-vocabulary`). 넷 다 `cmd/runctl` 의 출력이고 게이트가
+서명된 뒤라 회차 브랜치에 안 실었다.
+
+```text
+   1  runctl example pack      냈다.  internal/contract/examples/pack.json —
+                               tar 를 짓는 명령 단계와 두 키를 문 에이전트 단계.
+                               lint 깨끗하고 TestExamples_LintClean 이 그것을 센다
+   2  runctl schema pack       냈다.  슬롯 셋의 디스크 배치 · mcpServers 키 ·
+                               두 키 · -C dir . 함정 · pack:<이름> namespace
+   3  runctl schema io         냈다.  cwd · $OUT · $IN.  schema steps 가 가리킨다
+   4  requires 값의 출처         냈다.  schema requires 의 꼬리와 help 한 줄이
+                               runctl capabilities 를 가리킨다
+```
+
+**시험이 그 글자를 센다** — `TestSchema_CarriesWhatTheErrorMessagesDoNotSay` 가
+`mcp.json` · `mcpServers` · 슬롯 배치 · 두 키 · 함정 문구를 이름으로 찾는다.
+지우면 빨개진다. 변이 둘로 확인했다.
+
+---
+
+### 이월이었던 것 — 원문 (6절 ㉕)
 
 **이 팩이 어휘를 지었는데 그 어휘를 읽는 면은 안 늘었다.** `cmd/runctl` 의 소스
 diff 0 이 파일 행렬이 센 값이고, 게이트가 닫힌 뒤의 관찰이 그것을 비용으로
@@ -385,8 +408,9 @@ tar 배치를 맞히는 데** 들었다.
                                적는 값이라는 것이 안 보인다
 ```
 
-**이 회차에서 안 고친다.** 서명이 끝난 게이트 아래의 코드를 건드리는 일이고,
-`cmd/runctl` 의 소스 diff 0 은 이 회차가 센 값이다. 다음 회차의 입력이다.
+**이 회차 브랜치에서 안 고쳤다.** 서명이 끝난 게이트 아래의 코드를 건드리는
+일이고, `cmd/runctl` 의 소스 diff 0 은 이 회차가 센 값이다. 회차가 `main` 에
+닫힌 뒤 별도 브랜치로 고쳤다 — 위 절.
 
 ## 5. 미정
 

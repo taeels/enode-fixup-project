@@ -141,3 +141,92 @@ func TestNextStep_PointsAtTheCommandThatHasTheAnswer(t *testing.T) {
 		t.Errorf("nextStep(모르는 사유) = %q, want \"\"", got)
 	}
 }
+
+// 문맥 없는 에이전트가 맞혀야 했던 것들이 이제 출력에 글자로 있다.
+//
+// decisions.md 6절 ㉕ 의 실측이 근거다 — 빈 디렉터리에 runctl 하나만 둔
+// 에이전트가 Run 스물넷을 썼고 그중 열다섯이 팩 tar 배치를 맞히는 데 들었다.
+// 거절 문구는 슬롯 셋을 이름으로 말했는데, 그 슬롯이 디스크에서 무엇으로
+// 불리는지는 어디에도 없었다. 그 글자들을 여기서 센다 — 지우면 빨개진다.
+func TestSchema_CarriesWhatTheErrorMessagesDoNotSay(t *testing.T) {
+	for _, tc := range []struct {
+		section string
+		want    []string
+	}{
+		{"pack", []string{
+			"mcp.json",                         // 파일 이름.  거절 문구가 안 말하던 것
+			"mcpServers",                       // 그 안의 키.  같은 자리
+			"skills/<name>/SKILL.md",           // 슬롯의 디스크 배치
+			"agents/<name>.md",                 //
+			`"pack": "<blob>"`,                 // 두 키가 함께 있어야 한다
+			`"from": ["<blob>"]`,               //
+			"pack entry ./ has an unsafe name", // -C dir . 함정
+			"runctl example pack",              // 다음 걸음
+		}},
+		{"io", []string{"$OUT", "$IN", "cwd"}},
+		{"requires", []string{"runctl capabilities"}},
+		{"steps", []string{"runctl schema io"}},
+	} {
+		t.Run(tc.section, func(t *testing.T) {
+			var code int
+			out, _ := captureOutput(t, func() { code = cmdSchema(tc.section) })
+			if code != exitOK {
+				t.Fatalf("cmdSchema(%q) = %d, want %d", tc.section, code, exitOK)
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(out, w) {
+					t.Errorf("schema %s does not carry %q", tc.section, w)
+				}
+			}
+		})
+	}
+}
+
+// 목록이 새 절 둘을 알려야 한다 — 이름을 미리 아는 사람만 찾을 수 있으면
+// 적어 둔 값이 절반이다.
+func TestSchema_TheListNamesTheProseSections(t *testing.T) {
+	out, _ := captureOutput(t, func() { cmdSchema("") }) //nolint:errcheck
+	for _, w := range []string{"io", "pack"} {
+		if !strings.Contains(out, w) {
+			t.Errorf("schema list does not name %q", w)
+		}
+	}
+}
+
+// 팩 예시가 두 키를 함께 들고 있어야 한다.
+//
+// 하나만 적으면 그 단계는 팩 없이 돈다 — 잊은 것을 우리가 못 잡는다.
+// 예시가 출발점이므로 여기서 둘이 갈리면 베끼는 쪽이 그대로 갈린다.
+func TestExamplePack_CarriesBothKeys(t *testing.T) {
+	b, err := contract.Example("pack")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c contract.Contract
+	if err := json.Unmarshal(b, &c); err != nil {
+		t.Fatal(err)
+	}
+	var produced, carried, laid string
+	for _, s := range c.Steps {
+		if len(s.Out) > 0 && s.Agent == nil {
+			produced = s.Out[0]
+		}
+		if s.Agent != nil {
+			if v, ok := s.Agent["pack"].(string); ok {
+				carried = v
+			}
+		}
+	}
+	if produced == "" || carried == "" {
+		t.Fatalf("the example does not show a blob being produced and carried: %q %q", produced, carried)
+	}
+	if produced != carried {
+		t.Errorf("agent.pack is %q but the earlier step produces %q", carried, produced)
+	}
+	// in.from 이 같은 이름을 가리켜야 $IN 에 깔린다.
+	raw := string(b)
+	laid = `"from": ["` + produced + `"]`
+	if !strings.Contains(raw, laid) {
+		t.Errorf("the example does not lay the blob down with %s", laid)
+	}
+}
