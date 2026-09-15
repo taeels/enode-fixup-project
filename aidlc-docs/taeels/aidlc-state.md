@@ -842,7 +842,8 @@ U2 가 U1 의 변경 위에서 재작업한다.
                           표시 줄이 무한히 쌓인다
                           U3 의 실측이 회차 계획을 고쳤다 — Seal 은 tar 를 안 짓는다
    Infrastructure Design  SKIP (회차 계획)
-   Code Generation        Part 1 (계획) 2026-09-15.  승인 대기.  **코드 0 줄**
+   Code Generation        Part 1 (계획) 승인 2026-09-15T14:20:00Z (사용자 「넘어가지」)
+                          Part 2 (생성) 진행 중.  worktree 둘에서 병렬
                           커밋 9d907da · c4e6eec (U1) · f962d26 · 53ef404 (U3)
                           Step 열아홉씩 · 체크박스 아흔여섯(U1) · 백스물둘(U3)
 

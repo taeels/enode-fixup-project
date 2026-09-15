@@ -955,3 +955,13 @@ U3 의 R11 이 상한 앞 마지막 개행까지만 쓰고 R13 이 표시 줄을
 
 ---
 
+## W-a Code Generation Part 1 — 승인
+**Timestamp**: 2026-09-15T14:20:00Z
+**User Input**: "넘어가지"
+**AI Response**: 계획 둘을 승인으로 받고 Part 2 를 연다. **물음 하나(U1 의 `tool_result` 배열 꼴)에 답이 안 얹혔으므로 계획이 적은 순서를 그대로 간다** — Step 2 가 실물 하네스(`claude 2.1.271`)를 돌려 실측하고, 답이 나오면 그것이 이기고 못 돌리면 A 로 짓되 규칙 번호를 비워 둔다. 짐작한 값을 규칙으로 굳히지 않는다.
+
+Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 먼저 고치고 시작한다 — 안 고치면 퍼즈가 첫 변이에서 멈춘다.
+**Context**: CONSTRUCTION — W-a Code Generation Part 1 승인. Part 2 착수
+
+---
+
