@@ -306,7 +306,11 @@ flowchart TD
     - 청크 PUT 실패가 실행과 링을 막지 않는 분리 (`requirements.md` FR-5)
     - 폴링 타이머의 분리 — 현황판 목록 5초(`client.mjs:67`)와 단계 카드 2초
     - 파서가 아는 키만 읽는 규율 (SECURITY-13 · `runner.go` 의 `parseEventLine`)
-    - **봉인 때의 순서** — 진행 파일을 지우는 것이 tar 보다 앞이다 (D1)
+    - **봉인 때의 순서** — 진행 파일을 지우는 것이 `seal(d)` 의 chmod 보다 앞이다 (D1).
+      **앞 판이 「tar 보다 앞」으로 적었고 U3 의 NFR Design 이 실측으로 고쳤다** —
+      `Seal` 은 tar 를 안 짓는다. `seal(d)` 의 chmod 로 끝나고 (`record.go:120`)
+      `Tar` 는 `GET /record` 때 호출자 하나에서 돈다 (`api.go:1043`). 결과적으로
+      참이지만 가리키는 자리가 틀렸다 — 막아야 할 것은 0444 · 0555 다
   - **이 단계가 안 하는 것**: Functional Design 이 닫은 형식을 다시 적는 것
 - [ ] Infrastructure Design — **SKIP**
   - **근거**: 배포 모형이 안 바뀐다. 새 실행파일 0 · 새 포트 0 · 새 전송 0 ·
