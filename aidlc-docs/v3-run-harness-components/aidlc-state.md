@@ -199,7 +199,9 @@ Q1 은 규칙이 정한 선택지에만 반대 근거가 붙어 있었고, Q3 �
 - [ ] NFR Design — SKIP
 - [ ] Infrastructure Design — SKIP
 - [ ] Code Generation — EXECUTE (유닛마다 · 계획 뒤 생성)
-- [ ] Build and Test — EXECUTE (조각 게이트 CA0 ~ CA6)
+- [x] Build and Test — 완료 2026-09-15. **조각 게이트 CA0 ~ CA6 이 전부 초록이다** —
+      진행자가 사내에서 `unit/pack` 브랜치로 집행했다 (`unit-of-work-dependency.md` 8.1
+      의 배정표). 서명 기록은 `aidlc-docs/taeels/audit.md` 의 CA0 ~ CA6 항목
 
 ### OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER

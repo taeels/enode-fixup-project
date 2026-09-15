@@ -672,3 +672,29 @@ init 줄의 mcp_servers 가 [] 다. 개인 서버 일곱이 전부 끊겼다. sl
 **Context**: GATE · CA1 OAuth 절반 초록 · 게이트웨이 절반은 사내 확인 대기
 
 ---
+
+## GATE — CA0 ~ CA6 집행 (진행자 서명)
+**Timestamp**: 2026-09-15T00:00:00Z
+**User Input**: "잠시 돌아가자. Ca 0 ~ ca6 까지 확인 필요하다고 했지? 회사에서 unit/pack 브랜치로 확인했다.
+
+ca0 초록.
+ca1 초록. Oauth 절반 + 게이트웨이 절반
+ca2 초록. 광고에 실림. 실행파일 없으면 빠지고 사유 남음. 놓으면 5분 뒤 복귀
+ca3 초록. 422(없는 키), 400(모르는 에이전트 키), 400(mcp 문자열), lint, dry-run
+ca4 초록. 셋 중 요청한 하나만 열림. 워크스페이스 것도 열림. 없는 이름은 하네스 안 뜨고 그 사유로 실패
+ca5 초록. pack:hello가 skills/slash_commands에. probe4 failed. 다이제스트 일치
+ca6 초록. omab(내가만든 사내 mcp) connected. 다이제스트 blob과 일치."
+**AI Response**: "진행자가 사내에서 unit/pack 브랜치로 일곱을 전부 초록으로 서명했다. 집행자는 진행자다 (unit-of-work-dependency.md 8.1). 이것이 서명이고, 그 앞의 합성 함대 실측들은 미리 밟은 자리였다.
+
+무거운 것 셋을 기록에 남긴다.
+
+CA1 의 게이트웨이 절반이 닫혔다. 이 기계에서는 ~/.claude/settings.json 에 apiKeyHelper 도 env 도 없어 gatewayAuthFields() 가 옮길 필드가 0 이라 못 쟀고, 사내 기계가 그 절반을 냈다. 가짜 홈으로 옮겨도 게이트웨이 인증이 사는 경로가 그 두 필드뿐이라는 설계가 실물에서 선다.
+
+CA6 이 실물 MCP 로 초록이다. 스크래치 게이트들은 가짜 서버(true)를 써서 mcp_servers 에 failed 로 나타나는 것이 판정 재료였는데, 사내에서는 omab 이 connected 다 — 뜨기만 하는 것이 아니라 MCP 로 답한다. 그리고 harness.pack 의 다이제스트가 같은 Run 의 blob 과 맞았다. U5 가 SHA256 을 받은 바이트의 것으로 정한 이유(봉인을 읽는 사람이 blob 을 받아 sha256sum 으로 맞출 수 있어야 한다)가 실물 대조로 확인된 것이다.
+
+CA2 에 값 하나가 더 붙었다 — 실행파일을 되돌리면 5분 뒤에 광고로 복귀한다. 그것이 -detect-every 의 기본값이다. 내가 합성 함대에서 잰 것은 15초로 줄인 값이었고, 사내 측정이 기본값의 실제 지연을 냈다.
+
+남은 것은 병합이다. CONVENTIONS.md 3.3 이 「그 유닛의 장면 게이트가 초록인 뒤」를 병합 지점으로 못 박았고 이제 그 조건이 섰다."
+**Context**: GATE · CA0 ~ CA6 전부 초록 · 진행자 서명 · unit/pack 병합 가능
+
+---
