@@ -179,3 +179,47 @@ func TestConfig_DurationsComeFromSeconds(t *testing.T) {
 		}
 	}
 }
+
+// executor.pack — 설정이 비면 오늘 그대로다 (U5 · business-rules R31).
+//
+// nil 이 「팩 없음」이고, pack: 을 적었는데 argv 가 없는 것은 설정 오류다.
+// 둘을 안 가르면 오타 하나가 스킬 없이 도는 단계를 조용히 만든다.
+func TestLoadConfig_ThePackIsOptionalButNotHalfWritten(t *testing.T) {
+	t.Run("absent", func(t *testing.T) {
+		c, err := LoadConfig(writeConfig(t, minimalConfig))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Executor.Pack != nil {
+			t.Fatalf("a config that says nothing about packs grew one: %+v", c.Executor.Pack)
+		}
+	})
+
+	t.Run("fetch is required", func(t *testing.T) {
+		_, err := LoadConfig(writeConfig(t, minimalConfig+`
+executor:
+  pack:
+    name: pack
+`))
+		if err == nil || !strings.Contains(err.Error(), "executor.pack.fetch is required") {
+			t.Fatalf("a pack with no way to fetch it was accepted: %v", err)
+		}
+	})
+
+	t.Run("the blob name defaults", func(t *testing.T) {
+		c, err := LoadConfig(writeConfig(t, minimalConfig+`
+executor:
+  pack:
+    fetch: ["curl", "-o", "$OUT/pack", "https://packs.test/skills.tar"]
+`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.Executor.Pack.Name != "pack" {
+			t.Fatalf("name = %q, want the default pack", c.Executor.Pack.Name)
+		}
+		if len(c.Executor.Pack.Fetch) != 4 {
+			t.Fatalf("fetch = %v", c.Executor.Pack.Fetch)
+		}
+	})
+}

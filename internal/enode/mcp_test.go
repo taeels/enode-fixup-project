@@ -111,7 +111,7 @@ func TestMCP_TheAllowlistFileIsLockedDown(t *testing.T) {
 // 안 적으면 0 이다. 빈 맵을 세워 돌려주는 것이 nil 과 빈 것을 쓰는 쪽이
 // 안 가르게 한다.
 func TestMCP_ResolveComponentsOpensNothing(t *testing.T) {
-	c, err := resolveComponents(Job{})
+	c, err := resolveComponents(Job{}, packInput{})
 	if err != nil {
 		t.Fatal(err)
 	}

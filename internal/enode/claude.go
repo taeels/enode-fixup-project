@@ -199,7 +199,7 @@ func claudeUsable(ctx context.Context, path string) error {
 //	<dir>/home/settings.json      훅과 게이트웨이 인증 필드
 //	<dir>/home/.credentials.json  실제 홈에 있으면 0600 으로 복사
 //	<dir>/mcp.json                허용목록.  홈 밖이다
-//	<dir>/home/skills · agents    U5 가 짓는다.  없는 것이 오늘의 참이다
+//	<dir>/pack/                   팩.  홈 밖이다 — --plugin-dir 이 가리킨다
 //
 // 조기 반환하지 않는다 — 보조 실패를 만나도 남은 쓰기를 끝까지 하고 마지막에
 // 낸다. 훅 쓰기 하나가 실패했다고 나가면 허용목록이 아예 안 쓰이고 치명도
@@ -226,7 +226,20 @@ func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]s
 	hookFlags, aux := WriteHookSettings(home, self, a)
 	flags = append(flags, hookFlags...)
 
-	// ③ 팩을 홈 아래 편다 — U5 다. c.Pack 이 nil 이면 아무것도 안 한다.
+	// ③ 팩. c.Pack 이 nil 이면 아무것도 안 한다 — 팩 없는 단계의 argv 가
+	// 오늘과 한 글자도 안 달라야 CA1 이 받은 서명이 이 유닛으로 안 흔들린다.
+	//
+	// ④ 앞인 것에 뜻은 없다. 둘 다 치명이고 서로를 안 본다 — 순서를 굳혀 두는
+	// 이유는 실패 문구가 어느 것에서 먼저 나오는지가 시험마다 안 흔들리게 하는 것뿐이다.
+	if c.Pack != nil {
+		packDir := filepath.Join(dir, packDirName)
+		if err := writePack(packDir, c.Pack); err != nil {
+			return flags, fmt.Errorf("cannot extract the pack: %w", err)
+		}
+		// 등호 형태다 — --mcp-config 와 같은 이유이고(ADR-034 §3 ② 의 가변인자
+		// 함정), 이 자리 바로 뒤에 --strict-mcp-config 가 따라붙는다.
+		flags = append(flags, "--plugin-dir="+packDir)
+	}
 
 	// ④ 허용목록. 실패는 치명이다 — 안 쓰이면 요청한 서버가 조용히 없고,
 	// 그 단계는 exit 0 으로 성공이 봉인된다.
@@ -243,6 +256,44 @@ func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]s
 		return flags, err
 	}
 	return flags, aux
+}
+
+// packDirName 은 계장 아래 팩이 사는 디렉터리다 (features.md 3.6).
+//
+// 홈 밖이다 — 팩이 settings.json 이나 .credentials.json 과 같은 나무에 없다.
+// 규약의 접두가 이미 막지만 여기서는 규칙이 아니라 구조가 막는다.
+//
+// 이름이 곧 접두다 — --plugin-dir 로 실은 스킬을 하네스가
+// <디렉터리 이름>:<스킬 이름> 으로 부른다 (실측 · claude 2.1.270). pack 이라
+// pack:hello 다. 모델이 설명으로 스킬을 고르는 경로는 그대로이고, 바뀌는 것은
+// 사람과 게이트가 읽는 글자다.
+const packDirName = "pack"
+
+// writePack 은 검증을 통과한 팩을 계장 아래에 편다 (R24).
+//
+// 검증을 다시 안 한다 — Pack 을 짓는 자리가 readPack 하나이고 절대경로도
+// .. 도 거기서 이미 거절됐다. 여기서 또 세면 규칙이 두 벌이 되고, 두 벌이
+// 되면 규칙이 갈린다.
+//
+// tar 의 모드를 안 쓴다 — 규약 안이 전부 글자라 실행 비트가 할 일이 0 이고,
+// 받으면 팩이 0777 파일을 계장 안에 남긴다. 계장 안의 다른 파일과 같은 값으로
+// 둔다 (mcp.json · .credentials.json 이 0600).
+//
+// 팩의 mcp.json 은 여기 안 쓴다 — 그것은 허용목록으로 합쳐져 ④ 가 쓴다.
+func writePack(dir string, p *Pack) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	for _, f := range p.Files {
+		path := filepath.Join(dir, filepath.FromSlash(f.Name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, f.Data, 0o600); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // credentialsName 은 OAuth 세션이 사는 파일이다 (ADR-034 §3 ①).

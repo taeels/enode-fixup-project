@@ -33,7 +33,25 @@ func BuildContract(cfg *Config, runID, issueKey string, issue *Issue, rr *Runner
 		worker[k] = v
 	}
 
-	steps := []any{
+	steps := []any{}
+	// 팩 단계는 맨 앞이다 (ADR-034 §2.2).
+	//
+	// plan 에 needs 를 안 적으므로 NeedsOf 의 기본값(직전 단계)이 순서를
+	// 만든다 (internal/contract/contract.go 의 NeedsOf). in.from 은 이름을
+	// 가리킬 뿐 순서를 안 만들므로, 맨 앞에 놓는 것만으로 그 뒤 전부가 이
+	// 단계를 딛는다.
+	//
+	// plan 자신은 팩을 안 문다 — 오케스트레이션 노드에 실행용 스킬이 필요
+	// 없고, 물리면 역할이 흐려지고 plan 의 in.from 이 늘어 계약이 커진다.
+	if p := cfg.Executor.Pack; p != nil {
+		steps = append(steps, map[string]any{
+			"id":   "pack",
+			"uses": cfg.Executor.As,
+			"run":  p.Fetch,
+			"out":  []string{p.Name},
+		})
+	}
+	steps = append(steps,
 		map[string]any{
 			"id":   "plan",
 			"uses": "planner",
@@ -85,7 +103,7 @@ func BuildContract(cfg *Config, runID, issueKey string, issue *Issue, rr *Runner
 				"adopt_when": "ok",
 			},
 		},
-	}
+	)
 
 	c := map[string]any{
 		"run_id": runID,
@@ -191,7 +209,20 @@ func planPrompt(cfg *Config, issueKey string, issue *Issue, rr *RunnerRun) strin
   The verdict looks only at that fact — how many steps come before report does not matter.
 - After you submit the plan a person answers whether they approve it. On a rejection
   you come back to this step and build again, and the reason is passed to you.
-
+`)
+	// 팩의 이름과 두 키를 이름으로 알려준다 (ADR-034 §2.2).
+	//
+	// 계획이 이 두 줄을 잊으면 그 단계는 팩 없이 돈다 — 오늘 그대로다.
+	// 잊은 것을 우리가 못 잡는다는 것이 이 길의 대가이고, 그 침묵은
+	// decisions.md 6절 ㉑ 이 이미 이름으로 진 자리다.
+	if p := cfg.Executor.Pack; p != nil {
+		fmt.Fprintf(&b, `- The first step is already built for you: it fetches a pack archive and
+  produces the blob %q. A step that should run with the skills and MCP servers
+  from that pack must set both "agent": {"pack": %q} and "in": {"from": [%q]}.
+  A step that leaves them out simply runs without the pack.
+`, p.Name, p.Name, p.Name)
+	}
+	b.WriteString(`
 # Rules for building the plan
 
 - Keep the steps to a minimum. Two or three are enough.

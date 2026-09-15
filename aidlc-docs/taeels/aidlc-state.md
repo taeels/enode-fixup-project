@@ -122,11 +122,34 @@ NAT 뒤의 관객 전체가 막혀 CP10 을 직접 깨므로 이쪽을 수락했
 
 | | 유닛 | 맡는 기능 | 닫는 게이트 | 선행 | 상태 |
 |---|---|---|---|---|---|
-| U1 | `isolation` | 3.1 · 3.2 의 최소 | CA1 | 없음 | **코드 완료 · CA1 대기** |
-| U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 | **코드 완료 · CA3 앞 절반 초록 · 병합 대기** |
-| U3 | `advert` | 3.3 | CA2 · CA3 완결 | U1 · U2 | **FD 계획 · 답 일곱 대기** |
-| U4 | `sources` | 3.4 · 3.2 의 완성 | CA4 | U1 · U2 · U3 | 대기 |
-| U5 | `pack` | 3.6 · 3.7 | CA5 · CA6 | U1 · U2 · U4 | 대기 |
+| U1 | `isolation` | 3.1 · 3.2 의 최소 | CA1 | 없음 | **병합됨 (PR #33) · CA1 초록** |
+| U2 | `contract-vocab` | 3.5 | CA3 의 절반 | 없음 | **병합됨 (PR #34) · CA3 초록** |
+| U3 | `advert` | 3.3 | CA2 · CA3 완결 | U1 · U2 | **병합됨 (PR #35) · CA2 · CA3 초록** |
+| U4 | `sources` | 3.4 · 3.2 의 완성 | CA4 | U1 · U2 · U3 | **병합됨 (PR #36) · CA4 초록** |
+| U5 | `pack` | 3.6 · 3.7 | CA5 · CA6 | U1 · U2 · U4 | **CA5 · CA6 초록 · 병합 대기** |
+
+**게이트 일곱이 전부 초록이다** (2026-09-15 · 진행자가 사내에서 `unit/pack`
+브랜치로 집행했다). 유닛 넷은 그 앞에 병합됐고 — 「병합됨」이 서명이 아니었던
+자리다 — 서명이 뒤늦게 붙었다. `unit/pack` 은 서명 뒤에 올린다
+(`CONVENTIONS.md` 3.3 의 병합 지점). 서명 기록은 `audit.md` 의 CA0 ~ CA6 항목.
+
+```text
+   CA0   기계.  유닛 다섯 전부에서 초록
+   CA1   OAuth 절반과 게이트웨이 절반 둘 다.  게이트웨이는 사내 기계가 냈다
+   CA2   광고에 실린다 · 실행파일을 치우면 빠지고 사유가 남는다 ·
+         되돌리면 5분 뒤 복귀 (-detect-every 의 기본값)
+         S1 — 현황판 상세 패널에 「MCP 서버 · omab 있음」 ·
+         제어판 탐지 능력(읽기 전용) 칸에 mcp.omab=1.
+         현황판의 그 칩은 **상세 패널**에 있고 함대 격자의 카드 면에는 없다 —
+         카드는 identity.mjs 의 고정 키 목록으로 짓고 그 목록에 mcp.* 가 없다.
+         카드 면에 올리는 것은 이 회차의 파일 행렬 밖이다
+   CA3   422(없는 키) · 400(모르는 에이전트 키) · 400(mcp 를 문자열로) · lint · dry-run
+   CA4   셋 중 요청한 하나만 열린다 · 워크스페이스 것도 열린다 ·
+         없는 이름은 하네스가 안 뜨고 그 사유로 실패한다
+   CA5   pack:hello 가 skills 와 slash_commands 에 · probe4 가 failed 로 ·
+         다이제스트 일치
+   CA6   사내 MCP omab 이 connected · harness.pack 이 blob 과 다이제스트 일치
+```
 
 **모든 유닛의 완료 조건에 CA0 가 들어간다** — `internal/enode` 커버리지 80% 를
 유닛 단위로 집행한다 (`unit-of-work.md` 6절).
@@ -199,10 +222,19 @@ NAT 뒤의 관객 전체가 막혀 CP10 을 직접 깨므로 이쪽을 수락했
 
 ## 다음 — U1
 
-**남은 것은 CA1 과 병합이다.** CA1 은 사람이 재고 **집행자는 이 유닛을 구현하지
-않은 사람**이다 (`scene-gates.md` 2절 머리) — 개인 MCP 서버와 계정 커넥터가 있는
-기계에서, OAuth 노드와 게이트웨이 노드 둘 다에서 잰다. 초록인 뒤에 `unit/isolation`
-을 PR 로 `main` 에 올린다 (`CONVENTIONS.md` 3.3).
+**남은 것은 CA1 의 게이트웨이 절반이다.** CA1 은 사람이 재고 **집행자는 이 유닛을
+구현하지 않은 사람**이다 (`scene-gates.md` 2절 머리 · 회차는 진행자로 닫았다) —
+개인 MCP 서버와 계정 커넥터가 있는 기계에서, OAuth 노드와 게이트웨이 노드 둘 다에서
+잰다. `unit/isolation` 은 이미 `main` 에 있다 (PR #33 · 게이트 앞에 병합됐다).
+
+**OAuth 절반을 합성 함대로 돌려 초록이다** (2026-09-14 · `audit.md` 의 CA1 항목).
+개인 서버 일곱(claude.ai 계정 커넥터 넷 포함)이 붙은 로그인된 기계에서 `agent.mcp`
+없는 단계를 돌렸고 `init` 줄의 `mcp_servers` 가 `[]` 다. 같은 단계가 `Not logged in`
+없이 돌았고 산출물이 나왔다 — **두 겹이 동시에 섰다.**
+
+**게이트웨이 절반은 사내에서 잰다.** 이 기계의 `~/.claude/settings.json` 에
+`apiKeyHelper` 도 `env` 도 없어 `gatewayAuthFields()` 가 옮길 필드가 0 이고,
+가짜 게이트웨이로 돌리면 API 호출에서 죽어 판정이 안 선다.
 
 **진행자에게 넘기는 것이 다섯이다** — `code-summary.md` 6절. 무거운 둘:
 `decisions.md` 6.1 의 문자열 검사 스크립트가 **어느 유닛에도 배정되지 않았고**
@@ -536,3 +568,133 @@ U1 이 먼저 `main` 에 들어가야 이 PR 의 차이가 U2 것만 남는다. 
 원격 노드 선언만으로는 인증이 안 실린다(정본 개정 후보다) · 깨진 워크스페이스
 파일이 MCP 를 쓰는 단계를 전부 죽인다(답 4=A 의 대가) · Notes 가 노드 로그에만
 남아 봉인을 읽는 사람은 겹침과 빠짐을 못 본다.
+
+---
+
+## 단계 진행 — U5 `pack`
+
+브랜치 `unit/pack`. **`main` 에서 땄다** — U1 ~ U4 가 PR #33 ~ #36 으로 전부
+들어와 있어 U4 처럼 앞 유닛 브랜치에서 딸 이유가 없다. 회차의 Inception 산출물도
+같은 나무에 있다. 근거는 계획 6절.
+
+```text
+   Functional Design      승인 2026-09-14 (사용자가 「64메가 이외 모두 a로 한다」로
+                          닫았다).  계획과 답 여덟은 construction/plans/
+                          pack-functional-design-plan.md · 산출물 셋은
+                          construction/pack/functional-design/
+                          (domain-entities · business-rules · business-logic-model)
+
+                          답 여덟 전부 A 다.  값 하나만 사용자가 올렸다 —
+                          PackLimits.MaxBytes 를 32 MiB 에서 64 MiB 로
+
+                          계획을 짓기 전에 만지는 자리를 코드로 읽고 실물
+                          claude 2.1.270 으로 다섯을 쟀다.  그 실측이 유닛의
+                          뼈대를 바꿨다 —
+                          ① 오늘의 플래그(--setting-sources "")로는 가짜 홈의
+                          skills/ 와 agents/ 를 하네스가 아예 안 읽는다.  파일은
+                          생기는데 init 줄의 skills 에도 agents 에도
+                          slash_commands 에도 안 나타난다.  unit-of-work.md 5절의
+                          「Instrument 가 <dir>/home/skills/ 를 편다」가 펴기만
+                          하고 안 읽히는 자리였고, 그대로면 CA5 가 확정 빨강이며
+                          원인이 팩 코드가 아니라 플래그다
+                          ② 길이 둘이고 둘 다 선다 — --setting-sources user 는
+                          CLAUDE_CONFIG_DIR 이 user 범위를 통째로 옮겨서 사람의
+                          ~/.claude/skills 수십과 agents 둘이 하나도 안 샜다.
+                          --plugin-dir <계장>/pack 은 --setting-sources "" 를 그대로
+                          둔 채 실리고 plugin.json 이 없어도 되며 이름이
+                          pack:<이름> 으로 namespace 된다
+                          ③ 워크스페이스 .claude/skills/ 는 어느 경우에도 안 읽힌다 —
+                          features.md 5절과 decisions.md 2절의 열린 미정이
+                          「안 읽는다.  팩으로 나른다」로 닫힌다
+                          ④ --plugin-dir 에 없는 경로를 주면 종료코드 0 에 stderr 도
+                          없이 조용히 무시된다.  빠짐을 우리가 잡아야 한다
+                          ⑤ 가짜 홈의 settings.json 이 user 설정과 --settings 로
+                          두 번 실려도 Stop 훅은 한 번만 뛴다
+
+                          답 1=A 가 격리를 안 건드리는 길을 골랐다 —
+                          --plugin-dir 은 「아무것도 읽지 마라 + 우리가 지은 이
+                          자리만」이라 --strict-mcp-config --mcp-config=<경로> 와
+                          같은 문장이고, 팩이 없는 단계의 argv 가 오늘과 한 글자도
+                          안 달라 CA1 의 서명이 그대로 산다.  대가는 스킬 이름이
+                          pack:hello 가 되는 것이고 CA5 의 문장이 함께 바뀐다
+
+                          답 3=A 가 가장자리를 runner.go 로 정했다 (claim.go 는
+                          이 유닛의 파일 행렬 밖이다).  resolveComponents 는
+                          검증을 통과한 *Pack 을 받아 필터와 충돌만 본다 —
+                          「정하는 함수는 파일을 안 만진다」가 그대로 산다
+
+                          답 4=A 의 64 MiB 는 받은 바이트와 푼 바이트 둘 다에
+                          걸린다.  전송 상한 10 MiB 의 여섯 배라 gzip 을 투명하게
+                          받아도(답 5=A) 압축률 6.4 까지가 그 안이다
+
+                          답 6=A 가 노드 선언 충돌의 범위를 요청된 이름으로
+                          좁혔다.  요청 안 한 이름은 어디에도 안 실리므로 뒤집을
+                          것이 없고, 전부 보면 실행 위험 0 인 팩까지 죽인다.
+                          CA5 의 충돌 줄에 agent.mcp 한 줄을 더해야 한다
+
+   NFR Requirements       SKIP (회차 실행 계획)
+   NFR Design             SKIP
+   Infrastructure Design  SKIP
+   Code Generation        승인 2026-09-14 (사용자가 「승인」으로 계획을 닫았고
+                          단계 열셋을 그대로 돌렸다).  계획은 construction/plans/
+                          pack-code-generation-plan.md · 요약은
+                          construction/pack/code/code-summary.md
+
+                          제품 파일 여섯 · 새 제품 파일 0 · 새 시험 파일 하나
+                          (pack_test.go).  claim.go 는 소스 diff 0 이다 —
+                          답 3=A 가 가장자리를 runner.go 로 정했기 때문이다
+
+                          CA0 전부 초록.  internal/enode 커버리지가 표준 명령으로
+                          87.0% 다 (U4 뒤 86.4% 에서 올랐다).  라우트 26 그대로
+
+                          변이 일곱을 넣어 전부 빨개지는 것을 봤다.  다섯과
+                          여섯과 일곱은 순수 시험과 배선 시험이 함께 빨개졌다
+
+                          실측 하나를 더 했다 — 우리 코드가 지은 <계장>/pack 을
+                          claude 2.1.270 이 --plugin-dir= 로 읽는다.  skills 에
+                          pack:hello · agents 에 pack:helper · slash_commands 에
+                          pack:hello · plugins 에 pack@inline · mcp_servers 에
+                          probe4.  이 단계가 새로 잰 것은 등호 형태다 — 이 자리
+                          바로 뒤에 --strict-mcp-config 가 따라붙는데 가변인자면
+                          그것을 삼킨다.  안 삼켰다
+
+                          계획에 없던 것을 둘 더했다 — ① command 도 url 도 없는
+                          팩 항목의 거절 (U4 가 워크스페이스에서 이미 거절한 같은
+                          실패이고, 하네스의 침묵이 출처를 안 가린다)
+                          ② Notes 복사를 걸음 0 의 오류보다 앞으로 (거절과 함께
+                          규약 밖 항목의 이름이 사라지면 안 된다)
+```
+
+## 이 유닛이 회차 밖으로 낸 것
+
+Code Generation 이 실었다 (U4 와 같은 자리다).
+
+```text
+   decisions.md 6절    실측 행 ㉔ — 위 다섯에 등호 형태까지 한 행에
+   decisions.md 2절    워크스페이스 .claude/skills 행이 값이 됐다 ·
+                       팩의 형식 행에 gzip 과 상한
+   features.md 5절     미정이 둘에서 하나로
+   features.md 3.6     펴는 자리가 <계장>/pack 과 --plugin-dir= 로
+   unit-of-work.md 5절  claude.go 줄 · 완료 조건의 「판정」이 「확인」으로
+   scene-gates.md      CA5 의 표 한 줄과 3절 명령 넷
+   component-methods.md 2.1 의 Components.Servers(U4 가 남긴 낡은 줄) ·
+                       Pack.MCP · PackFile.Mode · PackLimits 의 값
+   파일 행렬            새 시험 파일 행 · resolve_test.go 의 U5 칸 ·
+                       2.1 · 2.2 · 2.3 의 U5 칸
+```
+
+## 다음 — U5
+
+**남은 것은 병합이다.** CA5 와 CA6 이 2026-09-15 에 초록이 됐다 — 진행자가
+사내에서 `unit/pack` 브랜치로 집행했고, CA5 는 `pack:hello` 가 `skills` 와
+`slash_commands` 에 서고 `probe4` 가 `failed` 로 나타나며 다이제스트가 맞는 것을,
+CA6 은 사내 MCP `omab` 이 **connected** 로 뜨고 `harness.pack` 이 같은 Run 의
+blob 과 맞는 것을 냈다.
+
+**CA6 이 실물 MCP 로 섰다는 것이 값이다.** 스크래치 게이트들은 가짜 서버(`true`)라
+`mcp_servers` 에 `failed` 로 나타나는 것이 판정 재료였는데, 사내에서는 뜨기만 하는
+것이 아니라 MCP 로 답했다. 그리고 `SHA256` 을 **받은 바이트**의 것으로 정한 U5 의
+판단(봉인을 읽는 사람이 blob 을 받아 `sha256sum` 으로 맞출 수 있어야 한다)이
+실물 대조로 확인됐다.
+
+`unit/pack` 을 PR 로 `main` 에 올린다 (`CONVENTIONS.md` 3.3).

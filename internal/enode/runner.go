@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -88,16 +89,20 @@ type Job struct {
 //
 // 치명이 전부 exec 앞에 모인다 (components.md 3절)
 //
-//	①  계장 디렉터리          못 만들면 단계 실패
-//	②  resolveComponents     무엇을 열지 여기서 정해진다.  파일을 안 만진다.
-//	                        Notes 를 찍는 것이 그 바로 뒤다 — 거절로 끝날 때도 찍는다
-//	③  Argv
-//	④  Instrument            errAux 만 삼킨다.  삼킬 때도 얻은 플래그는 붙인다
-//	⑤  Fixed(tmp)
-//	⑥  exec
-//	⑦  Decode · Version · 자백
-//	⑧  logs/ 에 실을 것을 고른다
-//	⑨  defer 가 계장 디렉터리를 지운다
+//	①    계장 디렉터리        못 만들면 단계 실패
+//	①.5  openPack             팩이 있을 때만 $IN 을 연다.  가장자리다
+//	②    resolveComponents    무엇을 열지 여기서 정해진다.  파일을 안 만진다.
+//	                          Notes 를 찍는 것이 그 바로 뒤다 — 거절로 끝날 때도 찍는다
+//	③    Argv
+//	④    Instrument           errAux 만 삼킨다.  삼킬 때도 얻은 플래그는 붙인다
+//	⑤    Fixed(tmp)
+//	⑥    exec
+//	⑦    Decode · Version · 자백
+//	⑧    logs/ 선별 + 무엇을 물렸나를 기록한다
+//	⑨    defer 가 계장 디렉터리를 지운다
+//
+// ①.5 가 ② 앞인 이유 — 검증 실패가 곧 단계 실패이고 그 판정을 하는 것이 ② 다.
+// 파일을 여는 것은 가장자리이고 등급과 문구를 정하는 것은 정책이다.
 //
 // 앞에 모으는 이유는 격리가 안 선 채로 하네스가 뜨는 경로를 없애는 것이다.
 // 뒤에서 알면 그때는 이미 개인 설정과 계정 커넥터를 본 프로세스가 돈 뒤다.
@@ -117,9 +122,12 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	// 아니라 복제본을 잰다는 것이고, 그 한계를 게이트가 명시로 안다.
 	defer os.RemoveAll(tmp) //nolint:errcheck
 
+	// ①.5 팩을 연다. agent.pack 이 비면 파일을 아예 안 만진다.
+	pk := openPack(j)
+
 	// ② 무엇을 열지는 여기서 정해진다. 실패하면 하네스를 안 띄운다 —
 	// 요청한 것을 조용히 빼고 도는 것이 「없음이 실패보다 나쁘다」의 그 자리다.
-	c, err := resolveComponents(j)
+	c, err := resolveComponents(j, pk)
 	// 오류 검사보다 앞이다 — 왜 실패했는지를 아는 데 필요한 사실이 실패와
 	// 함께 사라지면 안 된다. 겹침과 빠짐이 여기로 나간다.
 	if j.Log != nil {
@@ -234,8 +242,54 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	} else if err != nil && res.Reason == ReasonError && res.Message == "" {
 		res.Message = err.Error()
 	}
-	// ⑧ logs/ 는 허용목록이다 — 아는 것만 남는다 (ADR-005 의 logs/).
+	// ⑧ 무엇을 물렸나를 봉인에 남긴다 (ADR-005 성질 4).
+	//
+	// 여기가 exec 을 실제로 지난 유일한 자리다. ②나 ④에서 채우면 exec 앞에
+	// 죽은 단계의 봉인에도 값이 남아 「실린 것」이라는 필드의 뜻이 흐려진다 —
+	// 안 실린 팩의 sha256 이 harness.pack 에 있으면 봉인을 읽는 사람이
+	// 실렸다고 읽는다. 타임아웃은 채운다: 하네스는 이미 떴다.
+	//
+	// 요청한 것이 아니라 실린 것이다. 팩이 실었으나 요청 안 한 이름은
+	// Notes 에만 있고 이 필드에는 없다.
+	if len(c.Servers) > 0 {
+		res.MCP = entryNames(c.Servers)
+	}
+	if c.Pack != nil {
+		res.Pack = c.Pack.SHA256
+	}
+	// logs/ 는 허용목록이다 — 아는 것만 남는다 (ADR-005 의 logs/).
 	return selectLogs(stdout.Bytes(), stderr.Bytes()), res
+}
+
+// openPack 은 $IN 의 팩을 연다 (R1 · R2).
+//
+// 파일을 여는 유일한 자리다. claim.go 가 아니라 여기인 이유는 claim.go 가 이
+// 유닛의 파일 행렬 밖이기 때문이고, 그래서 가장자리가 둘로 갈린다 —
+// 워크스페이스 선언은 claim.go 가 열고 팩은 여기가 연다. 그 비대칭을 이 주석이
+// 진다. 같은 파일의 readCannot 이 이미 같은 종류의 자리다.
+//
+// 등급과 문구를 안 정한다. Err 를 그대로 담아 resolveComponents 가 정한다 —
+// Job.WorkspaceMCPErr 와 같은 규율이고, 읽는 쪽이 등급까지 정하면 그 거절이
+// HarnessResult 를 안 타고 나가서 단계 오류의 꼴이 경로마다 달라진다.
+//
+// 없는 파일이 값이 아니라 오류인 것이 ADR-058 의 예외다. 「없는 입력은 값이다」는
+// in.from 의 규칙이고 그 근거는 dispatch 로 안 간 가지를 가리킬 수 있다는
+// 것이었다. 팩은 다르다 — agent.pack 은 이 단계가 그것으로 돌겠다고 적은
+// 이름이고, 없는 채로 돌면 스킬 없이 도는 단계가 exit 0 으로 봉인된다.
+func openPack(j Job) packInput {
+	name := j.Params.Pack
+	if name == "" {
+		return packInput{}
+	}
+	// Base 로 좁힌다 — blob 이름 공간은 평평하지만 여는 쪽이 그것을 가정하지
+	// 않는다. 가정이 깨지는 날 $IN 밖을 여는 것보다 파일을 못 찾는 것이 낫다.
+	f, err := os.Open(filepath.Join(j.IO.In, filepath.Base(name)))
+	if err != nil {
+		return packInput{Err: fmt.Errorf("pack blob %s was not produced by this run", name)}
+	}
+	defer f.Close() //nolint:errcheck
+	p, notes, err := readPack(name, f, defaultPackLimits)
+	return packInput{Pack: p, Notes: notes, Err: err}
 }
 
 // logs/ 의 허용목록 — 아는 것만 남기고 나머지는 걷는다 (decisions.md 6절 ⑱)

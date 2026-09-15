@@ -34,7 +34,7 @@ func TestResolve_OnlyRequestedNamesAreOpened(t *testing.T) {
 			"probe2": {Command: "/usr/bin/true"},
 		},
 		map[string]map[string]any{"probe3": {"command": "/usr/bin/true"}},
-	))
+	), packInput{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +52,7 @@ func TestResolve_TheNodeWinsOverTheWorkspace(t *testing.T) {
 		[]string{"probe"},
 		map[string]MCPServer{"probe": {Command: "/usr/bin/node-one"}},
 		map[string]map[string]any{"probe": {"command": "/usr/bin/workspace-one"}},
-	))
+	), packInput{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestResolve_AMissingNameStopsTheStep(t *testing.T) {
 		[]string{"zulu", "alpha"},
 		map[string]MCPServer{"probe": {Command: "/usr/bin/true"}},
 		nil,
-	))
+	), packInput{})
 	if err == nil {
 		t.Fatal("a contract that asked for servers this node does not have was accepted")
 	}
@@ -98,7 +98,7 @@ func TestResolve_AnUnreadableWorkspaceFileStopsTheStepOnlyWhenSomethingWasReques
 		NodeMCP:         map[string]MCPServer{"probe": {Command: "/usr/bin/true"}},
 		WorkspaceMCPErr: errBrokenFixture,
 	}
-	_, err := resolveComponents(broken)
+	_, err := resolveComponents(broken, packInput{})
 	if err == nil || !strings.HasPrefix(err.Error(), "cannot read workspace .mcp.json: ") {
 		t.Fatalf("a broken workspace file did not name itself: %v", err)
 	}
@@ -109,7 +109,7 @@ func TestResolve_AnUnreadableWorkspaceFileStopsTheStepOnlyWhenSomethingWasReques
 
 	quiet := broken
 	quiet.Params = AgentParams{}
-	if _, err := resolveComponents(quiet); err != nil {
+	if _, err := resolveComponents(quiet, packInput{}); err != nil {
 		t.Fatalf("a step that asked for nothing died on someone else's file: %v", err)
 	}
 }
@@ -125,7 +125,7 @@ func TestResolve_AWorkspaceEntryWithoutCommandOrURLIsRejected(t *testing.T) {
 		"blank":  {"url": ""},
 	} {
 		_, err := resolveComponents(jobWith([]string{"ws"}, nil,
-			map[string]map[string]any{"ws": entry}))
+			map[string]map[string]any{"ws": entry}), packInput{})
 		if err == nil || !strings.Contains(err.Error(),
 			"workspace mcp server ws declares neither command nor url") {
 			t.Fatalf("%s: a shapeless workspace entry was accepted: %v", name, err)
@@ -151,7 +151,7 @@ func TestResolve_TheTypeIsFilledInOnlyWhenItIsAbsent(t *testing.T) {
 			"url":     "https://ws.invalid/mcp",
 			"headers": map[string]any{"Authorization": "Bearer ${WS_TOKEN}"},
 		}},
-	))
+	), packInput{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func TestResolve_UnrequestedWorkspaceNamesBecomeNotes(t *testing.T) {
 		[]string{"probe"},
 		map[string]MCPServer{"probe": {Command: "/usr/bin/true"}},
 		map[string]map[string]any{"probe3": {"command": "/usr/bin/true"}},
-	))
+	), packInput{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +194,7 @@ func TestResolve_NotesSurviveARejection(t *testing.T) {
 		[]string{"probe", "nope"},
 		map[string]MCPServer{"probe": {Command: "/usr/bin/true"}},
 		map[string]map[string]any{"probe": {"command": "/usr/bin/other"}},
-	))
+	), packInput{})
 	if err == nil {
 		t.Fatal("a missing name was accepted")
 	}
@@ -209,11 +209,156 @@ func TestResolve_NotesSurviveARejection(t *testing.T) {
 // 그대로다. 원본을 고치면 같은 Job 을 두 번 쓰는 호출자와 시험이 조용히 갈린다.
 func TestResolve_TheJobsWorkspaceEntriesAreNotModified(t *testing.T) {
 	ws := map[string]map[string]any{"ws": {"command": "/usr/bin/true"}}
-	if _, err := resolveComponents(jobWith([]string{"ws"}, nil, ws)); err != nil {
+	if _, err := resolveComponents(jobWith([]string{"ws"}, nil, ws), packInput{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := ws["ws"]["type"]; ok {
 		t.Fatalf("resolve wrote into the job's own map: %v", ws["ws"])
+	}
+}
+
+// 팩 출처 — U5 가 걸음 넷을 더했다 (business-rules R17 ~ R22).
+
+// packOf 는 시험용 Pack 하나다. tar 를 안 짓는다 — 그 길은 pack_test.go 가 잰다.
+func packOf(mcp map[string]map[string]any, files ...string) *Pack {
+	p := &Pack{SHA256: "cafe", MCP: mcp}
+	for _, name := range files {
+		p.Files = append(p.Files, PackFile{Name: name, Data: []byte("x")})
+	}
+	return p
+}
+
+// 팩의 서버도 agent.mcp 필터를 탄다 (R17 · R18).
+//
+// 팩은 정의의 출처이지 허가의 출처가 아니다. 이 줄이 없으면 계약 작성자가
+// 이름을 안 적고도 임의의 stdio 서버를 물릴 수 있고, --strict-mcp-config 도
+// 가짜 홈도 그것을 안 막는다 — 허용목록 자체가 싣기 때문이다.
+func TestResolve_ThePacksServersAreFilteredToo(t *testing.T) {
+	pk := packInput{Pack: packOf(map[string]map[string]any{
+		"probe4": {"command": "true"},
+		"extra":  {"command": "true"},
+	})}
+	c, err := resolveComponents(jobWith([]string{"probe4"}, nil, nil), pk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := names(c.Servers); len(got) != 1 || got[0] != "probe4" {
+		t.Fatalf("the allowlist carries something the step did not request: %v", got)
+	}
+	if !noted(c, "pack declares mcp server extra, which this step did not request") {
+		t.Fatalf("the unrequested pack server was silent: %v", c.Notes)
+	}
+}
+
+// 요청이 0 이어도 스킬은 펴진다.
+//
+// 걸음 1 이 걸음 2 앞이라 그렇다. 계약이 서버를 안 적고 스킬만 쓰는 것이
+// 정상이고, CA5 의 둘째 줄이 정확히 그 경우다.
+func TestResolve_AnEmptyRequestStillCarriesThePack(t *testing.T) {
+	pk := packInput{Pack: packOf(nil, "skills/hello/SKILL.md")}
+	c, err := resolveComponents(Job{}, pk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Pack == nil || len(c.Pack.Files) != 1 {
+		t.Fatalf("a step that asked for no servers lost its skills: %+v", c.Pack)
+	}
+	if len(c.Servers) != 0 {
+		t.Fatalf("the allowlist is not empty: %v", c.Servers)
+	}
+}
+
+// 깨진 팩은 요청이 0 이어도 단계를 죽인다.
+//
+// 걸음 0 이 걸음 2 앞이라 그렇다. 팩을 적은 것은 계약이고, 그 팩이 안 열리는데
+// 조용히 도는 것이 「없음이 실패보다 나쁘다」의 그 자리다. 문구를 안 감싼다 —
+// 게이트가 부분 문자열로 찾는 글자다.
+func TestResolve_ABrokenPackStopsTheStepEvenWithNoRequest(t *testing.T) {
+	pk := packInput{
+		Notes: []string{"pack carries readme.txt, which is outside the pack convention; ignoring it"},
+		Err:   errorString("pack tarball is not a tar archive"),
+	}
+	c, err := resolveComponents(Job{}, pk)
+	if err == nil || err.Error() != "pack tarball is not a tar archive" {
+		t.Fatalf("the pack error did not come through unwrapped: %v", err)
+	}
+	// 왜 실패했는지를 아는 재료가 실패와 함께 사라지면 안 된다.
+	if !noted(c, "outside the pack convention") {
+		t.Fatalf("the pack notes were thrown away with the failure: %v", c.Notes)
+	}
+}
+
+// 팩이 노드 선언 이름을 덮으면 거절이다 (R19 · R20).
+//
+// 막는 것은 소유권의 뒤집힘이다 — 계약이 requires 로 소유자의 선언을 보고
+// 노드를 고른 뒤 자기 팩의 정의로 그 이름을 덮으면, 매칭은 소유자의 값으로
+// 하고 실행은 계약의 값으로 하는 것이 된다.
+//
+// 요청된 이름만 본다 — 그 뒤집힘은 이름이 실제로 허용목록에 실릴 때만 열린다.
+func TestResolve_APackMayNotRedefineANodeDeclaredServer(t *testing.T) {
+	node := map[string]MCPServer{"probe": {Command: "/usr/bin/true"}}
+	pk := packInput{Pack: packOf(map[string]map[string]any{"probe": {"command": "mine"}})}
+
+	_, err := resolveComponents(jobWith([]string{"probe"}, node, nil), pk)
+	if err == nil || err.Error() != "pack redefines node-declared mcp server probe" {
+		t.Fatalf("the rejection does not carry the gate's sentence: %v", err)
+	}
+
+	// 요청 안 한 이름의 겹침은 단계를 안 죽인다. 실행 위험이 0 이기 때문이다 —
+	// 전부 보면 노드가 흔한 이름을 선언해 둔 것만으로 팩이 전부 막힌다.
+	c, err := resolveComponents(jobWith(nil, node, nil), pk)
+	if err != nil {
+		t.Fatalf("an overlap on a name nobody requested killed the step: %v", err)
+	}
+	if c.Pack == nil {
+		t.Fatal("the pack was dropped")
+	}
+}
+
+// 팩이 워크스페이스를 이긴다 (R21).
+//
+// 계약이 실어 보낸 것이 가장 재현 가능하다. 노드 선언과의 관계만 R19 가
+// 거절로 바꾼다.
+func TestResolve_ThePackWinsOverTheWorkspace(t *testing.T) {
+	pk := packInput{Pack: packOf(map[string]map[string]any{"dup": {"command": "/from/pack"}})}
+	c, err := resolveComponents(jobWith([]string{"dup"}, nil,
+		map[string]map[string]any{"dup": {"command": "/from/workspace"}}), pk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Servers["dup"]["command"] != "/from/pack" {
+		t.Fatalf("the workspace won: %v", c.Servers["dup"])
+	}
+	if !noted(c, "declared by both the pack and the workspace; the pack wins") {
+		t.Fatalf("the overlap was silent: %v", c.Notes)
+	}
+}
+
+// 종류를 채우는 자리를 팩도 지나고, 팩의 맵은 안 고쳐진다 (R22).
+func TestResolve_ThePackEntryGetsATypeAndTheOriginalIsLeftAlone(t *testing.T) {
+	mcp := map[string]map[string]any{"probe4": {"command": "true"}}
+	pk := packInput{Pack: packOf(mcp)}
+	c, err := resolveComponents(jobWith([]string{"probe4"}, nil, nil), pk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Servers["probe4"]["type"] != "stdio" {
+		t.Fatalf("the pack entry did not go through the shared type rule: %v", c.Servers["probe4"])
+	}
+	if _, ok := mcp["probe4"]["type"]; ok {
+		t.Fatalf("resolve wrote into the pack's own map: %v", mcp["probe4"])
+	}
+}
+
+// 종류를 못 정하는 팩 항목은 거절이다.
+//
+// 워크스페이스 출처와 같은 실패다 — 채우지 못한 항목을 하네스가 말없이 버리고,
+// 계약이 이름으로 요청한 것이 조용히 사라진다. 출처가 그 판정을 안 가른다.
+func TestResolve_APackEntryWithoutCommandOrURLIsRejected(t *testing.T) {
+	pk := packInput{Pack: packOf(map[string]map[string]any{"probe4": {"headers": "x"}})}
+	_, err := resolveComponents(jobWith([]string{"probe4"}, nil, nil), pk)
+	if err == nil || err.Error() != "pack mcp server probe4 declares neither command nor url" {
+		t.Fatalf("a shapeless pack entry was accepted: %v", err)
 	}
 }
 

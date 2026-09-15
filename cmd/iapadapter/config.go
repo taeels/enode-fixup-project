@@ -71,6 +71,29 @@ type ExecutorConfig struct {
 	As string `yaml:"as"`
 	// Attrs 는 requires 에 그대로 실리는 매칭 속성이다 (harness · os · ws …).
 	Attrs map[string]string `yaml:"attrs"`
+	// Pack 은 이 함대가 에이전트 단계에 실어 보낼 팩이다 (ADR-034 §2.2).
+	//
+	// 비면 오늘 그대로다 — 팩 단계가 안 붙고 agent.pack 도 안 붙는다.
+	Pack *PackConfig `yaml:"pack,omitempty"`
+}
+
+// PackConfig 는 팩 단계 하나의 모양이다.
+//
+// 계약 저자가 쓸 수 있는 것이 argv 하나뿐이라(셸이 없다) 받아 오는 방법도
+// argv 하나로 끝나야 한다. 새 전송이 0 이고 rev 가 argv 에 박혀 manifest 에
+// 남으며 blob 이라 봉인이 공짜다.
+type PackConfig struct {
+	// Fetch 는 팩 단계의 argv 다.
+	//
+	//	["curl", "-o", "$OUT/pack", "<tar 주소>"]
+	//	["git", "archive", "--remote=<url>", "-o", "$OUT/pack", "<rev>"]
+	Fetch []string `yaml:"fetch"`
+	// Name 은 그 단계가 내는 blob 이름이다. 비면 "pack".
+	//
+	// agent.pack 과 in.from 이 같은 이름을 가리킨다. 이름의 글자를 여기서
+	// 안 검증한다 — blob 이름의 정본은 contract.Validate 이고 그것이 제출에서
+	// 거절한다. 두 벌로 두면 규칙이 갈린다.
+	Name string `yaml:"name"`
 }
 
 // TransitionConfig 는 보드가 읽는 것이다 (ADR-040 §2.1).
@@ -117,6 +140,16 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	if c.Executor.As == "" {
 		c.Executor.As = "worker"
+	}
+	if p := c.Executor.Pack; p != nil {
+		// pack: 을 적었는데 argv 가 없는 것은 설정 오류이지 「팩 없음」이
+		// 아니다. 조용히 팩 없이 돌면 스킬 없는 단계가 exit 0 으로 끝난다.
+		if len(p.Fetch) == 0 {
+			return nil, fmt.Errorf("executor.pack.fetch is required when executor.pack is set")
+		}
+		if p.Name == "" {
+			p.Name = "pack"
+		}
 	}
 	return &c, nil
 }

@@ -32,7 +32,8 @@
 | `internal/contract/planshape.go` | | x | | | | 요약 표에 없던 셋째. 4.3 절 |
 | `internal/contract/examples/mcp.json` (새 파일) | | x | | | | |
 | `internal/enode/config_mcp_test.go` (새 파일) | | | x | | | 시험. 거절 여섯과 성한 선언 |
-| `internal/enode/resolve_test.go` (새 파일) | | | | x | | 시험. 합치는 규칙 R1 ~ R11 과 `readWorkspaceMCP` 의 넷 |
+| `internal/enode/resolve_test.go` (새 파일) | | | | x | x | 시험. 합치는 규칙 R1 ~ R11 과 `readWorkspaceMCP` 의 넷. U5 가 팩 출처의 여덟을 더한다 |
+| `internal/enode/pack_test.go` (새 파일) | | | | | x | 시험. `readPack` 의 표 — 악성 tar 를 메모리에서 짓는다 |
 | `internal/enode/detect_mcp_test.go` (새 파일) | | | x | | | 시험. 뜨나 판정 · 순회 · 문턱 |
 | `internal/api/ui/static/shared/fleet/format.mjs` | | | x | | | 4.4 절. U3 의 답 7=B |
 | `internal/api/ui/tests/format.test.mjs` | | | x | | | 시험. 그 짝 |
@@ -83,8 +84,10 @@ U4 가 낸 하나(`resolve_test.go`)는 새 코드의 짝이라 표에만 적고
         wantedMCP · notAvailable · entryNames.
         **allowlistEntry 는 안 고친다** — 종류를 채우는 것은 두 출처가 함께
         지나는 공용 자리다
-   U5   Pack · PackFile · PackLimits · readPack
-        resolveComponents 에 팩 출처를 더한다
+   U5   Pack · PackFile · PackLimits · packInput · readPack 과 그 헬퍼 넷
+        (countingReader · overLimit · packEntryKind · packEntryName ·
+        packSafeName · packMCPServers)
+        resolveComponents 에 팩 출처를 더한다.  시그니처에 인자 하나가 는다
 ```
 
 **같은 자리를 만지는 것은 `resolveComponents` 하나**이고 U1 · U4 · U5 가 차례로
@@ -99,7 +102,9 @@ U4 가 낸 하나(`resolve_test.go`)는 새 코드의 짝이라 표에만 적고
         ② 뒤에서 Notes 를 찍는 줄.  오류 검사보다 앞이다
    U1   링 tee 를 끄는 자리 (⑲ · :104-105) · logs/ 에 실을 것을 고르는 자리 (⑱ · :155-156).
         둘 다 exec 뒤다 — 짝 팩의 스트림 처리와 겹친다
-   U5   ⑧ 에서 HarnessResult.MCP · .Pack 을 채운다
+   U5   ①.5 에 openPack 이 낀다 (팩을 여는 유일한 자리) ·
+        ② 의 호출이 packInput 을 둘째 인자로 받는다 ·
+        ⑧ 에서 HarnessResult.MCP · .Pack 을 채운다
 ```
 
 **U1 이 호출 순서의 최종형을 세운다.** ② 의 `resolveComponents` 호출을 U1 이
@@ -109,7 +114,8 @@ U4 가 낸 하나(`resolve_test.go`)는 새 코드의 짝이라 표에만 적고
 
 ```text
    U1   Fixed(dir) · Instrument 의 가짜 홈 · 자격증명 복사 · mcp.json 쓰기 · 플래그
-   U5   Instrument 안에서 팩을 펴는 블록
+   U5   Instrument 의 ③ — packDirName · writePack · --plugin-dir=.
+        홈 안이 아니라 <dir>/pack 이다 (decisions.md 6절 ㉔)
 ```
 
 `Decode` 는 **어느 유닛도 안 만진다.** `Argv` 는 U1 이 플래그 한 줄을 더한다 (⑮) —
