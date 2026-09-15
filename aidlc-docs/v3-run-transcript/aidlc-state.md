@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-15T03:26:50Z
-- **Current Stage**: INCEPTION — Application Design 완료. 승인 대기
+- **Current Stage**: INCEPTION — Units Generation 완료. 승인 대기. **승인되면 Inception 이 닫힌다**
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-transcript` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-transcript/` (CLAUDE.md 의 회차별 layering)
@@ -147,6 +147,40 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
 `internal/runctl` 의 클라이언트 메서드 하나가 는다. `enodectl.exe` 의 차단
 게이트에는 안 걸린다 — `cmd/enodectl` 이 `internal/runctl` 을 임포트하지 않는다.
 
+## Units Generation — 유닛 여덟 (2026-09-15T06:50:00Z)
+
+전문은 `inception/application-design/unit-of-work*.md` 넷.
+
+```text
+   U1 transcript      FR-3           코드 게이트만.  가장 먼저 선다
+   U2 node-stream     FR-1 · FR-2    코드 게이트만.  U1 을 안 기다린다
+   U3 progress-store  FR-5 (med)     코드 게이트만.  **N2 를 진다**
+   U4 log-api         FR-6 · FR-5    CB0.  **N1 을 진다**
+   U5 panel-live      FR-4 절반      **CB1** — 이 팩의 이유
+   U6 panel-past      FR-4 나머지    CB2
+   U7 chunk-push      FR-5 (노드)    CB3
+   U8 fleet-card      FR-7           CB4 · CB6
+```
+
+**착수 순서는 웨이브가 아니라 CB1 이 정한다** (Q3 = B) —
+U1 · U2 · **U5(CB1)** · U3 · U4(CB0) · U6(CB2) · U7(CB3) · U8(CB4 · CB6).
+
+**병합 규칙은 Q2 = A 다** — 게이트가 재는 기능을 마지막으로 완성하는 유닛이
+그 게이트를 지고, 앞선 유닛은 코드 게이트로 병합한다. `CONVENTIONS.md` 3.3 을
+그대로 읽으면 CB1 하나가 유닛 셋을 묶어 세워 아무것도 안 움직인다.
+
+**배정 안 된 것 0 · 셋 다** — 스토리 열하나 · 완료 조건 여섯 · 기능 여덟.
+CB5 와 FR-8 은 이월이라 유닛이 0 이다.
+
+## 이 단계가 찾은 것 — 경계 검사 둘
+
+```text
+   ①  requirements.md 5.2 의 넷 중 **셋만 검사기에 있다**.
+      api/ui -> store 는 규칙으로만 있고 검사가 없다 (boundary_test.go 가 유일한 검사)
+   ②  「검사기는 표를 읽는다」가 반쯤만 참이다.  panel 의 금지만 슬라이스이고
+      나머지는 if 둘이다.  transcript 의 금지 넷을 넣을 자리를 U1 이 정한다
+```
+
 ## Stage Progress
 
 ### INCEPTION PHASE
@@ -159,10 +193,11 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
       페르소나 셋 · 스토리 열하나 · **새 완료 조건 여섯 (NC-1 ~ NC-6)** · 커밋 `94d28ed`
 - [x] Workflow Planning — 승인됨 2026-09-15T06:05:00Z (사용자 「승인」)
       `plans/execution-plan.md` 477줄. 실행 7 · 스킵 1. 새로 찾은 것 셋(D7 · N1 N2 · 주석 넷) · 커밋 `2b0d6f2`
-- [x] Application Design — 2026-09-15T06:20:00Z. 승인 대기
+- [x] Application Design — 승인됨 2026-09-15T06:35:00Z (사용자 「승인」)
       계획과 답 넷(전부 A) · 산출물 다섯 931줄. **D1 ~ D7 이 전부 닫혔다** ·
-      일곱째 경로 하나(`internal/runctl`)
-- [ ] Units Generation — **EXECUTE**. 파일 행렬이 필수다
+      일곱째 경로 하나(`internal/runctl`) · 커밋 `9af7f3a`
+- [x] Units Generation — 2026-09-15T06:50:00Z. 승인 대기
+      계획과 답 셋(A · A · B) · 산출물 넷. **유닛 여덟** · 배정 안 된 스토리 · NC · FR 이 0
 
 ### CONSTRUCTION PHASE
 담당은 `taeels` 하나. 문서 루트 `aidlc-docs/taeels/` · 유닛마다 `unit/<유닛>`.

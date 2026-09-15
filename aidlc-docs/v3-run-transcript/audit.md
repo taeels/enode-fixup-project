@@ -172,3 +172,19 @@
 **Context**: INCEPTION — Units Generation Part 1. 답 대기
 
 ---
+
+## Units Generation Part 2 — 답과 생성
+**Timestamp**: 2026-09-15T06:50:00Z
+**User Input**: "권장대로"
+**AI Response**: 질문 셋을 권장값 **A · A · B** 로 닫았다 — 유닛 여덟 · 게이트는 마지막으로 완성하는 유닛이 진다 · CB1 을 먼저 세우는 길로 간다. 모순·모호 분석 결과 **추가 질문 0** (셋이 서로를 받친다). 3절 체크박스를 그 자리에서 `[x]` 로 바꾸고 산출물 넷을 냈다 — `unit-of-work.md` · `unit-of-work-dependency.md` · **`unit-of-work-file-matrix.md`**(팩이 명시로 건 것) · `unit-of-work-story-map.md`. **배정 안 된 것이 셋 다 0 이다** — 스토리 열하나 · 완료 조건 여섯 · 기능 여덟. CB5 와 FR-8 은 이월이라 유닛이 0 이고 그것을 명시했다. **파일 행렬이 둘을 찾았다** — ① `CONVENTIONS.md` 3.1 이 경고한 `internal/api/api.go` 는 만지는 유닛이 U4 하나뿐이라 직렬이 안 생기고, **실제로 직렬인 자리는 다른 데 셋이다**(`runner.go` U1->U2 · `claim.go` U2->U7 · `panel/transcript.go` U5->U6). ② 경계 검사기를 열어 보니 `requirements.md` 5.2 의 넷 중 **셋만 검사기에 있고** `api/ui -> store` 는 규칙으로만 있다. 「검사기는 표를 읽는다」도 반쯤만 참이다 — `panel` 의 금지만 슬라이스이고 나머지는 `if` 둘이다.
+**Context**: INCEPTION — Units Generation Part 2. 승인 대기
+
+---
+
+## Security Compliance — Units Generation
+**Timestamp**: 2026-09-15T06:50:00Z
+**User Input**: (없음)
+**AI Response**: `security-baseline` 열다섯 규칙을 이 단계의 산출물에 댔다. **차단 findings 0.** 준수 둘(SECURITY-11 · 03) · N/A 열셋. SECURITY-11 은 **NFR Requirements 를 도는 유닛 여섯과 스킵하는 둘을 근거와 함께 박은 것**이 근거다 — 새 표면을 만드는 유닛만 돌고 스킵하는 둘도 그 자리에 이유를 적었다. SECURITY-03 은 **되돌리기의 단위가 갈렸음을 센 것**이 근거다 — 잔여 ③(링에 원문)은 U2 를, 잔여 ①(Mediator 디스크에 원문)은 U3 · U7 을 되돌리면 되고 둘이 다른 PR 이다. N1 · N2 를 지는 유닛을 하나씩(U4 · U3) 박아 「어딘가에서 하겠지」로 안 남겼다.
+**Context**: INCEPTION — Units Generation. 확장 규칙 준수 요약
+
+---
