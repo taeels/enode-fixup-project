@@ -925,3 +925,11 @@ U3 의 R11 이 상한 앞 마지막 개행까지만 쓰고 R13 이 표시 줄을
 
 ---
 
+## W-a NFR Design — 승인
+**Timestamp**: 2026-09-15T13:35:00Z
+**User Input**: "승인한다. 코드 쓰자"
+**AI Response**: W-a 의 NFR Design 을 닫았다. 다음은 **Code Generation** 이고 규칙이 Part 1(계획) · Part 2(생성)로 가른다. 사용자의 「코드 쓰자」는 단계 착수의 지시이고, Part 2 는 계획 승인 뒤에 연다. 유닛 둘의 계획을 worktree 둘에서 병렬로 짓는다 (`unit/transcript` · `unit/progress-store`).
+**Context**: CONSTRUCTION — W-a NFR Design 승인. Code Generation Part 1 착수
+
+---
+
