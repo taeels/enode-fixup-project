@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/taeels/enode/internal/contract"
+	"github.com/taeels/enode/internal/record"
 )
 
 // Reap 은 만료된 임대를 회수한다 (ADR-008).
@@ -105,7 +106,61 @@ func (s *Store) Reap(ctx context.Context, log *slog.Logger) (int, error) {
 			log.Error("cannot seal reclaimed run", "err", err)
 		}
 	}
+	// 고아 진행 트리를 걷는다 (N2 · R24). 조건 없이 매 주기 돈다 —
+	// 위의 sealExpired 와 달리 회수가 0 인 주기에도 고아는 생긴다 (V2).
+	// 봉인이 안 걸리는 자리가 고아를 낳는 자리이고, 그 자리는 회수와 무관하다.
+	s.sweepProgress(ctx, log)
 	return n, nil
+}
+
+// sweepProgress 는 고아 진행 트리를 걷는다 (N2 · R24).
+//
+// 새 타이머도 새 고루틴도 새 설정 키도 없다 (V1). 이미 도는 RunReaper 에
+// 얹는다 — 그 루프가 time.NewTimer(0) 으로 기동에 한 번 먼저 돌므로
+// R24 의 「기동과 주기마다」가 글자 그대로 이미 거기 있다.
+//
+// 실패가 Reap 을 안 죽인다 (R25). 로그만 내고 회수 수를 안 바꾼다 —
+// 회수와 쓸기는 서로의 결과를 안 본다.
+func (s *Store) sweepProgress(ctx context.Context, log *slog.Logger) {
+	// 디렉터리를 먼저 본다. 진행 트리가 하나도 없으면 아래 질의가 0 번 돈다 —
+	// runs.state 에는 인덱스가 없어 그 질의가 전수 스캔이고, 주기마다 도는
+	// 것을 진행 트리가 0 인 동안에는 아예 안 만들어야 한다.
+	if s.Records == nil || !s.Records.HasProgress() {
+		return
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT run_id FROM runs WHERE state NOT IN ('SUCCEEDED','FAILED')`)
+	if err != nil {
+		if log != nil {
+			log.Error("cannot list live runs for the progress sweep", "err", err)
+		}
+		return
+	}
+	var live []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			break
+		}
+		live = append(live, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		// 절반만 읽은 목록으로 쓸면 살아 있는 Run 의 트리를 지운다.
+		// 목록이 온전하지 않으면 이번 주기를 통째로 건너뛴다.
+		if log != nil {
+			log.Error("cannot list live runs for the progress sweep", "err", err)
+		}
+		return
+	}
+	n, err := s.Records.SweepProgress(live, record.ProgressMaxAge, time.Now())
+	if err != nil && log != nil {
+		log.Error("cannot sweep orphan progress trees", "err", err)
+	}
+	if n > 0 && log != nil {
+		// 종류와 수만 적는다. 경로도 본문도 안 싣는다 (SECURITY-03).
+		log.Info("swept orphan progress items", "items", n)
+	}
 }
 
 // sealExpired 는 아직 안 봉인된 종료 Run 을 봉인한다.
