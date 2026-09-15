@@ -188,3 +188,19 @@
 **Context**: INCEPTION — Units Generation. 확장 규칙 준수 요약
 
 ---
+## Units Generation — 승인 · Inception 종료
+**Timestamp**: 2026-09-15T08:32:42Z
+**User Input**: "승인. 이제 구축 하자"
+**AI Response**: Units Generation 을 닫았고 **Inception 이 종료됐다**. 유닛 여덟 · 배정 안 된 스토리 · NC · FR 이 셋 다 0 · 파일 행렬이 직렬 자리 셋을 찾았다. 다음은 CONSTRUCTION 이다 — 문서 루트가 회차 루트에서 담당 루트(`aidlc-docs/taeels/`)로 바뀐다 (`CLAUDE.md` 의 문서 루트 규약).
+**Context**: INCEPTION — Units Generation 승인. Inception 종료
+
+---
+
+## Construction 착수 — 병렬 지시
+**Timestamp**: 2026-09-15T08:33:10Z
+**User Input**: "병렬로 돌릴 수 있으면 돌려"
+**AI Response**: `unit-of-work-dependency.md` 3절의 착수 순서는 **한 손(질문 3 = B)을 전제로 여덟을 직렬로** 적었다. 그 전제가 사람 수의 전제이지 의존의 전제가 아니므로, 의존 행렬(1절)과 파일 행렬(`unit-of-work-file-matrix.md` 2절)에 다시 대고 **웨이브 다섯**으로 갈랐다. 가르는 기준 둘 — **코드 의존**과 **같은 파일**이다. W-a `U1 ∥ U3` · W-b `U2 ∥ U4` · W-c `U5 단독` · W-d `U6 ∥ U7` · W-e `U8 단독`. **U1 과 U2 는 같은 웨이브에 못 든다** — 둘 다 `internal/enode/runner.go` 를 만지고 행렬 2절이 U1 -> U2 로 못 박았다. **U5 를 단독으로 두는 것이 이 배치의 값이다** — CB1 이 뒤의 셋(U6 · U7 · U8)이 전부 딛는 게이트라, 그것을 보기 전에 셋을 지으면 앞 팩의 CP6 이 늦게 눈을 뜬 그 실패를 그대로 반복한다. 병렬은 **되돌릴 것이 안 느는 자리에서만** 쓴다.
+**Context**: CONSTRUCTION — 착수. 병렬 배치 결정
+
+---
+

@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-15T03:26:50Z
-- **Current Stage**: INCEPTION — Units Generation 완료. 승인 대기. **승인되면 Inception 이 닫힌다**
+- **Current Stage**: **INCEPTION 종료** (2026-09-15T08:32:42Z 승인). CONSTRUCTION 은 담당 루트에서 돈다 — `aidlc-docs/taeels/`
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-transcript` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-transcript/` (CLAUDE.md 의 회차별 layering)
@@ -196,11 +196,31 @@ CB5 와 FR-8 은 이월이라 유닛이 0 이다.
 - [x] Application Design — 승인됨 2026-09-15T06:35:00Z (사용자 「승인」)
       계획과 답 넷(전부 A) · 산출물 다섯 931줄. **D1 ~ D7 이 전부 닫혔다** ·
       일곱째 경로 하나(`internal/runctl`) · 커밋 `9af7f3a`
-- [x] Units Generation — 2026-09-15T06:50:00Z. 승인 대기
-      계획과 답 셋(A · A · B) · 산출물 넷. **유닛 여덟** · 배정 안 된 스토리 · NC · FR 이 0
+- [x] Units Generation — 승인됨 2026-09-15T08:32:42Z (사용자 「승인. 이제 구축 하자」)
+      계획과 답 셋(A · A · B) · 산출물 넷. **유닛 여덟** · 배정 안 된 스토리 · NC · FR 이 0 · 커밋 `93a97ad`
+
+**Inception 이 여기서 닫혔다.** 아래 CONSTRUCTION 의 진행은 이 파일이 안 진다 —
+담당 루트 `aidlc-docs/taeels/aidlc-state.md` 가 진다 (`CLAUDE.md` 의 문서 루트 규약).
+이 절은 회차 계획이 무엇을 EXECUTE 로 정했는지의 기록으로만 남는다.
 
 ### CONSTRUCTION PHASE
 담당은 `taeels` 하나. 문서 루트 `aidlc-docs/taeels/` · 유닛마다 `unit/<유닛>`.
+
+**착수 배치가 웨이브 다섯이다 (2026-09-15T08:33:10Z · 사용자 「병렬로 돌릴 수
+있으면 돌려」).** `unit-of-work-dependency.md` 3절의 여덟 직렬은 **한 손을 전제로**
+쓴 순서이고, 의존 행렬과 파일 행렬에 다시 대면 다섯으로 준다. 전문은 담당 루트.
+
+```text
+   W-a   U1 transcript   병렬  U3 progress-store    의존 0 · 파일 겹침 0
+   W-b   U2 node-stream  병렬  U4 log-api           enode 대 api.  **CB0**
+   W-c   U5 panel-live   단독                       **CB1** — 뒤의 셋이 전부 딛는다
+   W-d   U6 panel-past   병렬  U7 chunk-push        panel·runctl 대 enode
+   W-e   U8 fleet-card   단독                       **CB4 · CB6**
+```
+
+**U1 과 U2 가 같은 웨이브에 못 든다** — 둘 다 `internal/enode/runner.go` 를 만지고
+파일 행렬 2절이 `U1 -> U2` 로 못 박았다. **U5 를 단독으로 두는 것이 이 배치의 값**
+이다 — CB1 을 보기 전에 뒤의 셋을 지으면 되돌릴 것이 셋이 된다.
 
 - [ ] Functional Design — **EXECUTE** (유닛마다). 형식 다섯을 닫는다
 - [ ] NFR Requirements — **EXECUTE** (유닛마다 · 최소). 안 닫힌 값 둘(N1 · N2)

@@ -4,8 +4,9 @@
 그래서 회차가 바뀌어도 주소가 안 바뀌고, 여기 회차 둘의 Construction 이 쌓인다.
 
 ```text
-   v1-run-dhseo                obs · mcp        아래 「회차 v1」
-   v3-run-harness-components   isolation 외 넷   아래 「회차 v3」
+   v1-run-dhseo                obs · mcp         아래 「회차 v1」
+   v3-run-harness-components   isolation 외 넷    아래 「회차 v3 — harness-components」
+   v3-run-transcript           transcript 외 일곱  아래 「회차 v3 — transcript」
 ```
 
 자기 브랜치에서 작업하고 PR 로 main 에 병합한다(게이트 초록 뒤). 산출물은 이
@@ -698,3 +699,63 @@ blob 과 맞는 것을 냈다.
 실물 대조로 확인됐다.
 
 `unit/pack` 을 PR 로 `main` 에 올린다 (`CONVENTIONS.md` 3.3).
+
+
+---
+
+# 회차 v3 — v3-run-transcript
+
+담당은 taeels 하나다 (회차 질문 3 = B). 유닛 **여덟**을 **웨이브 다섯**으로 돈다.
+회차 정본은 `aidlc-docs/v3-run-transcript/` 이고 요구 팩은
+`requirements/transcript/` 다. Inception 이 2026-09-15T08:32:42Z 에 닫혔다.
+
+## 착수 배치 — 여덟 직렬을 다섯 웨이브로
+
+회차의 `unit-of-work-dependency.md` 3절은 착수 순서를 **여덟 직렬**로 적었다.
+그 문서가 근거로 댄 것은 의존이 아니라 **한 손**이다 — 「한 손이므로 웨이브는
+병렬 기회가 아니라 순서의 하한이다」. 사용자가 병렬을 지시해
+(2026-09-15T08:33:10Z 「병렬로 돌릴 수 있으면 돌려」) 그 전제를 걷고 의존 행렬과
+파일 행렬에 다시 댔다.
+
+**가르는 기준이 둘이다** — 코드 의존과 **같은 파일**. 둘째가 없으면 의존 0 인
+U1 과 U2 를 같은 웨이브에 넣게 되는데 둘 다 `runner.go` 를 만진다.
+
+```text
+   W-a   U1 transcript   병렬  U3 progress-store    의존 0 · 파일 겹침 0
+   W-b   U2 node-stream  병렬  U4 log-api           enode 대 api.  **CB0**
+   W-c   U5 panel-live   단독                       **CB1**
+   W-d   U6 panel-past   병렬  U7 chunk-push        panel·runctl 대 enode
+   W-e   U8 fleet-card   단독                       **CB4 · CB6**
+```
+
+**U5 를 단독으로 두는 것이 이 배치의 값이다.** CB1 은 뒤의 셋(U6 · U7 · U8)이
+전부 딛는 게이트다. 그것을 보기 전에 셋을 지으면 빨갰을 때 되돌릴 것이 셋이 되고,
+그것이 앞 팩의 CP6 이 눈을 늦게 떠서 이 팩이 생긴 바로 그 실패다. **병렬은
+되돌릴 것이 안 느는 자리에서만 쓴다.**
+
+**W-a 가 U1 · U2 가 아니라 U1 · U3 인 이유**가 파일 행렬 2절이다 — U1 이
+`runner.go` 에서 셋을 덜어내고 U2 가 그 뒤에 tee 를 잇는다. 같은 웨이브에 넣으면
+U2 가 U1 의 변경 위에서 재작업한다.
+
+## 유닛
+
+| | 유닛 | 맡는 기능 | 지는 게이트 | 선행 | 웨이브 | 상태 |
+|---|---|---|---|---|---|---|
+| U1 | `transcript` | FR-3 | (코드만) | 없음 | W-a | 착수 |
+| U2 | `node-stream` | FR-1 · FR-2 | (코드만) | U1 (파일) | W-b | 대기 |
+| U3 | `progress-store` | FR-5 (med) | (코드만) | 없음 | W-a | 착수 |
+| U4 | `log-api` | FR-6 · FR-5 (api) | **CB0** | U1 · U3 | W-b | 대기 |
+| U5 | `panel-live` | FR-4 (절반) | **CB1** | U1 · U2 | W-c | 대기 |
+| U6 | `panel-past` | FR-4 (나머지) | **CB2** | U4 · CB1 | W-d | 대기 |
+| U7 | `chunk-push` | FR-5 (노드) | **CB3** | U2 · U4 · CB1 | W-d | 대기 |
+| U8 | `fleet-card` | FR-7 | **CB4** · **CB6** | U4 · CB3 | W-e | 대기 |
+
+**NFR Requirements 를 도는 유닛이 여섯이고 스킵이 둘이다** (U2 · U6). 회차 계획이
+「새 표면을 만드는 유닛만 돈다」로 걸었다. **N1 은 U4 가 · N2 는 U3 가 진다.**
+
+## 선행 · 공용
+
+- 유닛 정본 `aidlc-docs/v3-run-transcript/inception/application-design/unit-of-work.md`
+- 의존 `.../unit-of-work-dependency.md` · 파일 행렬 `.../unit-of-work-file-matrix.md`
+- 게이트 사상 `.../unit-of-work-story-map.md` · 요구 `.../requirements/requirements.md`
+- 팩 `requirements/transcript/` · RE `aidlc-docs/inception/reverse-engineering/`
