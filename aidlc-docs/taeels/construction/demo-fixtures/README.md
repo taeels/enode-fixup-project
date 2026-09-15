@@ -23,9 +23,16 @@ capability 가 아니라 `agent.reason` 의 attrs 로 겨눈다. 매처가 부�
 
 ```text
    요구 (requires[].<attr>)      광고하는 노드            담당
-   device: led                   windows (ssh -> rpi)     nacl1119
-   device: speaker               windows (rpi 스피커)      nacl1119
-   tts: higgsfield               mac                      shin-son
+   device: led                   보드가 물린 기계 (ssh -> rpi)   보드를 든 사람
+   board: rpi2b-v1.1             보드가 물린 기계 (ssh -> rpi)   보드를 든 사람   (welcome-audio 의 board)
+   tts_typecast: yes             mac                      shin-son
+   voice_typecast: Sanghyun      mac                      shin-son
+
+   2026-09-09 갱신 — welcome-audio 의 voice 는 tts: higgsfield 가 아니라 Typecast
+   (상현) 로 정했다. board 는 device: speaker 대신 board: rpi2b-v1.1 로 겨눈다 —
+   device 는 한 노드에 한 값이라 led 와 speaker 를 한 노드가 같이 못 광고했다.
+   play 스텝은 enode-demo-play 대신 sh -c 안에서 scp 와 ssh aplay 로 직접 잭에 낸다.
+   보드는 그날 세 기계를 옮겨 다녔다 (sunnybook -> DESKTOP-5DRAFHN -> Runixsui-MacBookPro).
 ```
 
 sandbox 표시도 같은 자리다 — 노드 설정의 `labels: {sandbox: <값>}` 한 줄이

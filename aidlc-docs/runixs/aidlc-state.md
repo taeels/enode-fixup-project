@@ -9,6 +9,27 @@
 
 ## 현재 기준 — 2026-09-09
 
+**공개 음성 wire 운영 반영**: 기존 higgsfield/speaker 요구가 실제 함대와
+맞지 않아 422로 거절되던 문제를 고쳤다. PR #30의 Typecast 상현·rpi2b-v1.1
+계약을 인수해 Mac mini mediator에 반영했다(PID 81093, 터널 70718 유지).
+공개 제출 `demo-b301d99a…`의 합성·Pi 재생 모두 SUCCEEDED다.
+PR #29·#30은 CI 통과 후 main `3c4137a`에 병합했다. #28에도 운영 기록과
+최신 main을 반영하며 사용자에게 웹에서 직접 사운드를 실행할 수 있다고 알렸다.
+[계획](construction/plans/audio-wire-plan.md), [운영 기록](construction/ui/code/audio-wire.md).
+자동 테스트는 로컬에서 생략했고 CI 결과와 실제 실행 결과를 구분한다.
+사용자가 웹 사운드 실제 동작을 확인했다. #28은 후속 지시로 CI 생략 병합한다.
+공동 CP10 전체는 별도 확인 사항이다.
+
+**LED 직결 운영 보완**: `Runixs/fix-wire`에서 이 Mac의 enode/runctl과 Mac mini
+SSH 터널을 `/Users/runixs/enode-led-bridge`에 설치했다. Pi의 sunny 계정에
+이 Mac 공개키를 추가하고 `ssh sunny` 별칭을 설정했다. 노드 `85ccc712ee24`가
+`device=led`를 광고하며 기존 LED 계약의 POSIX 명령을 pi-stage에 추가했다.
+`led-bridge-20260909-0736`의 heartbeat·persistent 모두 SUCCEEDED이고 Mac mini
+SSH 조회·Pi brightness 읽기·사용자의 실제 점멸 확인이 일치한다.
+공개 LED 제출 `demo-f9929b15…`도 대기열 승격 후 두 단계 모두 SUCCEEDED다.
+전체 자동 테스트는 사용자 지시로 생략했다. 음성 시나리오와 공동 CP10은 별도다.
+[계획](construction/plans/led-bridge-plan.md), [운영 기록](construction/ui/code/led-bridge.md).
+
 **원격 실행 가치·장비 식별 후속 작업**: `unit/runixs-remote-identity`에서 새 작업
 카드에 타인의 에이전트·원격 장비·sandbox의 실행 가치를 설명했다. Run마다 작업색을,
 호스트마다 장비색을 유지하고 소유자 표시·hostname·OS/CPU·역할·연결 장치를

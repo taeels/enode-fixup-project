@@ -184,8 +184,7 @@ export function runScene({ steps = [], nodes = [], run = {}, stale = false, comp
   label(root, 30, zoneY + 55, '장비별 실행 단계', { 'font-size': 17, 'font-weight': 600 });
   label(root, width - 30, zoneY + 55, `${hostCount ? `${hostCount}개 호스트 확인` : '호스트 미확인'} · ${steps.length}단계`, { 'text-anchor': 'end', fill: theme.accent, 'font-size': 10 });
   const legendY = compact ? 526 : 290;
-  root.append(svg('rect', { x: mediator.x - 8, y: legendY - 16, width: 286, height: 24, rx: 6, fill: '#101A24' }));
-  label(root, mediator.x + 135, legendY, stale ? '관측 갱신 지연 · 마지막 상태' : facts.description, { 'text-anchor': 'middle', fill: stale ? COLORS.asked : '#9AB1C3', 'font-size': 11, class: 'flow-description' });
+  label(root, mediator.x + 135, legendY, stale ? '관측 갱신 지연 · 마지막 상태' : facts.description, { 'text-anchor': 'middle', fill: stale ? COLORS.asked : '#9AB1C3', stroke: '#101A24', 'stroke-width': 4, 'stroke-linejoin': 'round', 'paint-order': 'stroke fill', 'font-size': 11, class: 'flow-description' });
   flowActor(root, { ...guest, kind: 'guest', name: run.submitter === undefined ? '제출자 미확인' : run.submitter || '제출자 미제공', status: '브라우저에서 요청', description: '실행할 일만 요청합니다', color: '#87CFC4', iso, mode, selected: actor, onSelect: onActorSelect, active: false });
   flowActor(root, { ...mediator, kind: 'mediator', name: 'Mediator', status: facts.label, description: '서버 · 장비 배정과 결과 수집', color: '#D7B67A', statusColor: COLORS[facts.tone], iso, mode, selected: actor, onSelect: onActorSelect, active: facts.activeSteps.length > 0 });
   for (const s of placed) {

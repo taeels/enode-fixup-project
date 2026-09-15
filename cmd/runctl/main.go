@@ -489,15 +489,17 @@ func usage() {
   runctl status  <run-id>
   runctl record  <run-id> [-o out.tar]    fetch the sealed run record
   runctl cancel  <run-id>
-  runctl capabilities                     attribute vocabulary of the fleet
+  runctl capabilities                     the attribute values requires[] can ask for
   runctl asks                             questions awaiting an answer
   runctl answer <run-id> <seq> --set k=v [--set ...]   answer a question
 
-Writing a contract           these three need no mediator and no token
+Writing a contract           these need no mediator and no token
   runctl example                          list the ready-to-run examples
   runctl example <name>                   print one; it is valid as-is
   runctl lint <contract.json>             check it before you submit it
   runctl schema [section]                 the field vocabulary
+  runctl schema pack                      the pack tar layout
+  runctl schema io                        what a step gets: cwd, $OUT, $IN
 
 Exit codes
   0  run succeeded (or is still running)

@@ -198,21 +198,25 @@ func TestHook_ReportsWhatChanged(t *testing.T) {
 }
 
 // 설정 파일이 $OUT 밖에 놓인다 — 안에 두면 ④수확이 산출물로 걷어 올린다.
+//
+// 자리가 가짜 홈 안으로 옮겨졌다 (decisions.md 6절 ⑧) — 그래도 $OUT 밖인
+// 것은 그대로다. 계장 임시 디렉터리가 통째로 $OUT 밖이기 때문이다.
 func TestHook_TheSettingsFileSitsOutsideOUT(t *testing.T) {
-	inst, out := t.TempDir(), t.TempDir()
-	flags, err := WriteHookSettings(inst, "/usr/bin/enode", HookArgs{Out: out, Expect: []string{"a"}})
+	home, out := t.TempDir(), t.TempDir()
+	flags, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out, Expect: []string{"a"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(harvest(out)) != 0 {
 		t.Fatalf("the instrumentation file landed in $OUT: %v", harvest(out))
 	}
-	// 개인 설정을 차단한다 (R6) — 안 하면 노드마다 결과가 달라진다.
-	j := strings.Join(flags, " ")
-	if !strings.Contains(j, "--setting-sources") {
-		t.Fatalf("personal settings were not blocked: %v", flags)
+	// 이 함수가 내는 플래그는 자기 파일을 가리키는 것 하나다 —
+	// --setting-sources "" 는 파일과 무관해서 어댑터가 언제나 붙인다
+	// (TestAdapter_TheIsolationFlagsSurviveAnAuxiliaryFailure 가 잰다).
+	if j := strings.Join(flags, " "); j != "--settings "+filepath.Join(home, hookSettingsName) {
+		t.Fatalf("the flags did not point at the settings file: %v", flags)
 	}
-	b, err := os.ReadFile(filepath.Join(inst, "enode-settings.json"))
+	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,9 +230,9 @@ func TestHook_TheSettingsFileSitsOutsideOUT(t *testing.T) {
 // 값은 값이 아니라 통과 여부만 본다 — apiKeyHelper 는 실행되는 스크립트 경로고
 // env 는 그 스크립트가 인증 모드를 고르는 재료라, 병합 대상인지가 중요하다.
 func TestHook_MergesGatewayAuthFieldsFromPersonalSettings(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	if err := os.MkdirAll(filepath.Join(home, ".claude"), 0o755); err != nil {
+	personalHome := t.TempDir()
+	t.Setenv("HOME", personalHome)
+	if err := os.MkdirAll(filepath.Join(personalHome, ".claude"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	personal := `{
@@ -236,15 +240,15 @@ func TestHook_MergesGatewayAuthFieldsFromPersonalSettings(t *testing.T) {
 		"env": {"OIDC_ISSUER_URL": "https://example.invalid", "OIDC_CLIENT_ID": "abc123"},
 		"permissions": {"allow": ["Bash"]}
 	}`
-	if err := os.WriteFile(filepath.Join(home, ".claude", "settings.json"), []byte(personal), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(personalHome, ".claude", "settings.json"), []byte(personal), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
-	inst, out := t.TempDir(), t.TempDir()
-	if _, err := WriteHookSettings(inst, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	home, out := t.TempDir(), t.TempDir()
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
 		t.Fatal(err)
 	}
-	b, err := os.ReadFile(filepath.Join(inst, "enode-settings.json"))
+	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,11 +274,11 @@ func TestHook_MergesGatewayAuthFieldsFromPersonalSettings(t *testing.T) {
 func TestHook_NoPersonalSettingsIsFine(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // .claude/settings.json 이 존재하지 않는 HOME
 
-	inst, out := t.TempDir(), t.TempDir()
-	if _, err := WriteHookSettings(inst, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	home, out := t.TempDir(), t.TempDir()
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
 		t.Fatal(err)
 	}
-	b, err := os.ReadFile(filepath.Join(inst, "enode-settings.json"))
+	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,15 +293,15 @@ func TestHook_NoPersonalSettingsIsFine(t *testing.T) {
 
 // 공백이 든 경로가 훅 명령에서 안 깨진다 — 셸이 한 줄로 받기 때문이다.
 func TestHook_APathWithSpacesSurvives(t *testing.T) {
-	inst := t.TempDir()
+	home := t.TempDir()
 	out := filepath.Join(t.TempDir(), "folder with spaces")
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := WriteHookSettings(inst, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
 		t.Fatal(err)
 	}
-	b, _ := os.ReadFile(filepath.Join(inst, "enode-settings.json"))
+	b, _ := os.ReadFile(filepath.Join(home, hookSettingsName))
 	var cfg struct {
 		Hooks map[string][]struct {
 			Hooks []struct{ Command string } `json:"hooks"`

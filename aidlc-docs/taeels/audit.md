@@ -258,3 +258,535 @@ queue(W1)가 만든다. 그리고 위 측정은 합성 함대라 실 데몬 함�
 **Context**: CONSTRUCTION · obs 유닛 · Code Generation 완료 · CP0 초록 · CP1 부분 측정
 
 ---
+
+## CONSTRUCTION — U1 isolation · Functional Design 착수
+**Timestamp**: 2026-09-12T11:55:49Z
+**User Input**: "이제 functional design"
+**AI Response**: "v3-run-harness-components 회차의 CONSTRUCTION 을 연다. 첫 유닛은 U1 isolation 이고 선행이 없다 (unit-of-work.md 1절 · 회차 aidlc-state.md 의 Next Stage). 브랜치 unit/isolation 을 회차 브랜치에서 땄다 (CONVENTIONS 3.1). functional-design.md 의 Step 1 ~ Step 4 를 돌려 계획과 물음 다섯을 aidlc-docs/taeels/construction/plans/isolation-functional-design-plan.md 에 냈다.
+
+계획을 짓기 전에 decisions.md 6절 ⑱ 이 U1 에 남긴 숙제를 먼저 쟀다 — stream-json 의 사건 종류다. claude 2.1.266 에 -p --output-format stream-json --verbose 로 두 줄기(도구 성공 · 도구 실패)를 돌렸다. 본 것은 다섯이다 — system(init · hook_started · hook_response · thinking_tokens) · assistant · user · rate_limit_event · result. 원문은 저장소에 안 싣는다 (개인 홈의 서버 이름과 절대경로가 들어 있다).
+
+실측이 문서의 전제 하나를 뒤집었다. ⑱ 과 unit-of-work.md 1절이 「init 이 나오는 경로에서 첫 줄은 언제나 system/init 이다 — 게이트가 head -1 로 읽는다」로 못 박았는데, 실측에서 첫 줄은 system/hook_started 였고 init 은 아홉째 줄이었다. SessionStart 훅 넷이 앞에 사건 여덟을 냈다. 가짜 홈 아래서는 --setting-sources '' 가 개인 설정을 끊고 우리 settings.json 에 Stop 훅 하나뿐이라 안 날 가능성이 높지만, 그것은 하네스의 보증이 아니라 우리 설정 파일의 내용에 기댄 전제다. 질문 3 이 그 전제를 어디에 둘지 묻는다.
+
+실측이 굳힌 것도 셋이다 — init 의 mcp_servers 는 맵이 아니라 [{name,status}] 배열이라 CA1 의 「비어 있다」는 [] 다. 도구 이름은 assistant 의 message.content[] 중 tool_use 의 name 이고 성공 여부는 user 의 tool_result 의 is_error 인데 성공하면 그 키가 아예 없다. 그리고 본문이 content 블록 밖에도 있다 — assistant 의 wire_tool_inputs 와 user 의 tool_use_result 가 도구 입력과 결과를 최상위에 한 번 더 싣는다. 블록만 지우는 구현은 안 닫힌다는 뜻이고 ⑱ 이 허용목록을 고른 것이 옳았다는 증거다.
+
+물음 다섯 — ① 껍데기 한 줄의 표현(새 JSON 객체 · 텍스트 · 원본에서 지우기) ② 껍데기가 담는 범위(셋만 · 블록 종류 추가 · 토큰 수 추가) ③ 「첫 줄은 init」 전제를 어디에 두나(게이트가 순서에 안 기댄다 · 불변식 유지 · runner 가 순서를 만든다) ④ 걷었음을 표시하는 줄의 자리 ⑤ U1 이 mcp.json 직렬화를 어디까지 짓나. 다섯 다 Other 선택지를 든다."
+**Context**: CONSTRUCTION · U1 isolation · Functional Design Step 1 ~ 4 완료 · 답 대기
+
+---
+
+## CONSTRUCTION — U1 isolation · Functional Design 산출
+**Timestamp**: 2026-09-12T12:15:13Z
+**User Input**: "답했음."
+**AI Response**: "계획 파일의 [Answer] 다섯을 읽었다 — 1=A · 2=C · 3=B · 4=A · 5=A. 모호한 답이 0 이라 추가 질문 없이 Step 6 으로 갔다. 산출물 셋을 construction/isolation/functional-design/ 에 냈다.
+
+답 2=C 를 짓기 전에 usage 의 실제 모양을 다시 쟀다. usage 안에 숫자가 아닌 것이 있다 — service_tier 와 inference_geo 는 문자열이고 cache_creation 은 객체다. 그래서 usage 를 통째로 못 옮긴다. 이름으로 넷만 집는다 (input_tokens · output_tokens · cache_creation_input_tokens · cache_read_input_tokens). system/thinking_tokens 의 estimated_tokens 하나를 더 실었고 그것이 답 2 의 글자 밖이라 domain-entities 5.3 에 이름으로 적었다.
+
+답 3=B 를 받아 「첫 줄은 init」을 불변식으로 유지했다. 그 불변식이 서는 근거 셋과 시험 둘을 business-rules 6절에 적었고, 잔여 위험을 6.3 에 이름으로 남겼다 — 근거 둘째(하네스가 init 앞에 우리 설정과 무관한 사건을 안 낸다)는 우리가 못 재고 하네스의 계약도 아니다. 깨지면 게이트의 head -1 이 mcp_servers 키가 없는 줄을 읽어 「비어 있다」로 오독될 수 있다. 답 3=A 가 그 위험을 없앴을 길이고 사용자가 B 를 골랐다.
+
+답 5=A 를 받아 직렬화를 U1 이 전부 짓는다. 그러면서 셋을 정했다 — Credential 은 mcp.json 에 안 나간다 (하네스가 모르는 키이고 갈 이유가 0 이며 ADR-035 §8 이 같은 값을 이미 골랐다. 사는 자리는 U3 의 mcpUp 이다) · 빈 파일은 {} 가 아니라 {\"mcpServers\":{}} 다 (키 없는 파일을 하네스가 어떻게 읽는지 실측이 없다) · Env 의 표현과 미지 키 통과는 U3 의 것이고 U1 은 운반만 지고 이음매를 이름으로 적었다.
+
+설계가 답 밖에서 더 정한 것 둘. 플래그를 산출물마다 붙인다 — 훅 설정을 못 쓰면 --settings 는 안 붙이고 --setting-sources '' 와 --strict-mcp-config 는 붙인다. 없는 파일을 가리키는 플래그는 보조 실패를 치명으로 만든다. 그리고 표시 줄은 stdout 이 통째로 빌 때 안 쓴다 — 쓰면 그것이 첫 줄이 되어 「init 이 안 나오면 stderr 가 첫 줄」이 깨진다.
+
+한계 하나를 찾아 적었다 (business-rules 8.1). R3(훅 설정 쓰기)이 보조인데 그 파일이 gatewayAuthFields 도 든다. 디스크 실패로 못 쓰면 게이트웨이 노드가 Not logged in 으로 늦게 죽는데, 같은 회차가 R6(자격증명 복사)을 치명으로 올린 근거가 바로 「늦게 아는 실패를 앞으로 당긴다」였다. 등급은 안 바꿨다 — ⑨ 와 ⑪ 이 닫은 값이고 FD 가 뒤집을 자리가 아니다. 조건부 등급(gatewayAuthFields 가 무엇을 돌려줬는지로 가른다)은 그 함수가 실제 홈을 읽어 시험이 조건을 못 세우므로 안 골랐다. 진행자에게 넘긴다.
+
+남은 것 하나 — decisions.md 6절의 실측 행. 팩 문서라 이 단계의 승인 뒤에 싣는다."
+**Context**: CONSTRUCTION · U1 isolation · Functional Design Step 5 ~ 7 완료 · 승인 대기
+
+---
+
+---
+
+## CONSTRUCTION — U1 isolation · Code Generation (Part 1 계획 · Part 2 실행)
+**Timestamp**: 2026-09-12T15:40:00Z
+**User Input**: "isolation 코드 써"
+**AI Response**: "이 지시가 둘을 겸한다 — 앞 단계(Functional Design)의 승인과 Code Generation 착수다. FD 는 산출물 셋을 낸 채 승인을 기다리고 있었고 다음 단계로 가라는 지시가 곧 그 승인이다. 같은 문서 루트의 obs 유닛이 NFR Requirements 에서 같은 판단을 했다.
+
+Part 1 계획을 construction/plans/isolation-code-generation-plan.md 에 냈다. obs 때와 달리 병렬로 안 갈랐다 — 다섯 파일이 한 패키지 안에서 한 시그니처 변경(Fixed(dir) · Instrument(..., c))을 함께 받아서, 갈라 짜면 세 갈래가 컴파일되는 시점이 하나뿐이라 병렬이 아니라 대기가 된다.
+
+계획이 FD 에 없던 자리 셋을 정했다. WriteHookSettings 가 계장 디렉터리가 아니라 가짜 홈을 받는다(배치는 claude 의 것이고 hook.go 는 CLAUDE_CONFIG_DIR 을 모르는 편이 낫다) · --setting-sources '' 를 hook.go 에서 어댑터로 옮긴다(그것은 파일을 안 가리키므로 훅 쓰기의 성패와 무관하고, 두 곳에 두면 불변식 ② 가 깨진다) · 선별이 사건을 구조체가 아니라 map[string]json.RawMessage 로 읽는다(모르는 필드의 모양 하나가 줄 전체를 떨어뜨리지 않게).
+
+Part 2 를 돌렸다. 제품 파일은 행렬 그대로 다섯이고 새 파일은 mcp.go 하나다. 행렬 밖은 새 시험 파일 셋(mcp_test.go · instrument_test.go · logs_test.go)뿐이라 파일 행렬 1절에 행으로 더했다 — 그 문서 6절 ② 의 절차다. 행렬이 빨개진다고 예고한 여섯 중 다섯은 실제로 빨갰고(claude_test.go 하나 · hook_test.go 넷) worker_unix_test.go 는 안 빨갰다 — stubHarness 가 이미 type:\"result\" 봉투를 찍는다.
+
+CA0 이 전부 초록이다. go test ./... · vet · glyphscan(104 파일 · 장식 문자 0) · gofmt · 워킹트리 청결 · 크로스 빌드와 심볼 상한(net/http 6, 상한 50). 커버리지 미달 0 이고 전체 87.0% · internal/enode 85.6% 다. 커버리지 실행이 cmd/enodectl/probe.lock 을 바꾼 것은 되돌렸다 — obs 때와 같은 자리다.
+
+초록이 곧 시험이 문다는 뜻은 아니라서 변이 넷을 돌렸다. type 검사를 끄면 ⑯ 의 시험 둘이 빨개지고, 링 tee 를 되살리면 ⑲ 의 시험이 빨개진다. 그런데 selectLogs 를 원문 반환으로 되돌렸을 때 아무것도 안 빨개졌다 — logs_test.go 가 함수를 직접 부르고 배선을 안 쟀기 때문이다. 함수가 있어도 runHarness 가 안 부르면 원문이 그대로 Record 로 올라가 봉인된다. 배선을 재는 시험(TestRunHarness_TheUploadedLogIsTheFilteredOne)을 더했고 같은 변이가 그 뒤 빨개진다.
+
+FD 가 승인에 걸어 둔 하나를 실었다 — requirements/harness-components/decisions.md 6절에 실측 행 ⑳ 이다. 사건 종류 다섯과, 실측이 뒤집은 전제(첫 줄이 init 이 아니었다)와, 굳힌 것 셋(mcp_servers 는 배열 · usage 에 숫자 아닌 것이 있다 · 본문이 블록 밖에도 있다)을 적었다. 플래그도 실물로 쟀다 — claude 2.1.266 의 --help 가 --mcp-config <configs...> 로 가변인자임을 보여 등호 형태를 고른 근거(ADR-034 §3 ②)가 섰다.
+
+넘기는 것이 다섯이고 그중 하나가 새로 드러났다 — decisions.md 6.1 의 문자열 검사 스크립트가 「자리는 scripts/ 다. 짓는 것은 Construction 의 몫」으로 자리만 적힌 채 어느 유닛에도 배정되지 않았다. U1 의 완료 조건에도 파일 행렬에도 없어서 이 유닛이 안 지었다. 오늘은 진행자가 손으로 돈다.
+
+CA1 은 이 유닛이 안 닫는다 — 집행자는 이 유닛을 구현하지 않은 사람이다(scene-gates.md 2절 머리)."
+**Context**: CONSTRUCTION · U1 isolation · Functional Design 승인 · Code Generation 완료 · CA0 초록 · CA1 대기
+
+---
+
+## CONSTRUCTION — U2 contract-vocab · Functional Design 착수 (Step 1 ~ 4)
+**Timestamp**: 2026-09-12T15:52:00Z
+**User Input**: "다음할일해라"
+**AI Response**: "U1 isolation 은 단계가 다 돌았고 남은 둘(CA1 측정 · PR 병합)이 전부 사람의 것이다 — CA1 의 집행자는 이 유닛을 구현하지 않은 사람이고(scene-gates.md 2절 머리) 병합은 그 게이트가 초록인 뒤다(CONVENTIONS 3.3). 그래서 이 회차의 다음 유닛으로 갔다. 착수 순서가 U1 -> U2 이고 U2 contract-vocab 의 선행은 없다(unit-of-work.md 0절).
+
+브랜치를 unit/isolation 에서 땄다 — CONVENTIONS 3.1 은 회차 브랜치를 적는데 그러지 않은 이유 둘을 계획 6절에 적었다. U1 이 아직 main 에 없고, aidlc-docs/taeels/aidlc-state.md 가 자동 병합이 안 되는 파일이라 회차 브랜치에서 따면 U1 의 절과 U2 의 절이 파일 꼬리에서 각자 자라 병합에서 부딪친다. 코드는 안 부딪친다 — 행렬이 U1 과 U2 의 파일 교집합을 0 으로 센다.
+
+계획을 짓기 전에 이 유닛이 만지는 자리를 실제로 읽었고 갈린 문장 셋을 찾았다.
+
+① features.md 3.5 의 「runctl schema steps 가 새 키를 낸다 — 구조체에서 뽑으므로 저절로 는다」가 거짓이다. printFields(shape.go:172)는 reflect 로 Step 의 최상위 필드만 찍고 Step.Agent 는 map[string]interface{} 라(contract.go:447) 출력이 언제나 agent map[string]any 한 줄이다. cmd/runctl 은 AgentParams 도 agentKeys 도 import 하지 않는다.
+
+② in.from 의 「<단계>.<blob 이름>」이 절반만 참이다. blob 이름 공간은 Run 하나에 평평하고(api.go:107-108) claim.go:520 이 그 이름을 그대로 $IN 의 파일 이름으로 쓴다. 점은 이름의 한 글자이고 단계 참조가 아니다.
+
+③ ②가 게이트 하나를 깬다. scene-gates.md 3절 CA5 는 첫 단계가 $OUT/pack 을 내는데 둘째 단계가 in.from: [\"fetch.pack\"] 을 적는다. 앞이 내는 blob 이름은 pack 이고, 없는 입력은 값으로 취급되므로(claim.go:505-535) 단계가 죽지 않고 팩 없이 돈다 — CA5 를 그대로 돌리면 빨간 이유가 팩 코드가 아니라 이름 불일치가 된다.
+
+그리고 행렬에 없는 파일 하나가 이 유닛의 것이었다 — internal/contract/planshape.go 다. PlanShape 의 두 줄이 「agent 는 max_turns, max_tokens, ask, model, harness — nothing else」와 「그 밖의 키는 계획 전체를 거절한다」를 못으로 박고 있어서, agentKeys 에 둘을 더하면 그 문장이 계획에게 거짓말을 한다. components.md 1.6 은 Grammar 만 적었고 행렬에는 행이 없다.
+
+타입 검증의 자리가 어긋나 있는 것도 찾았다. decisions.md 2절은 검증 자리를 contract.Validate 로 적었는데 그것이 참인 것은 키 이름이고 값의 타입은 아니다 — agent.mcp 를 문자열로 적은 계약은 400 을 안 받고 노드까지 가서 json.Unmarshal 로 죽는다. 스토리 US-7 은 「제출에서 걸린다」이고 unit-of-work.md 2절의 완료 조건은 「parseAgentParams 가 문구로 낸다」로, 둘이 같은 자리를 안 가리킨다.
+
+물음 일곱을 aidlc-docs/taeels/construction/plans/contract-vocab-functional-design-plan.md 에 냈다 — ① 타입 위반을 어디서 잡나 ② agent.pack 과 in.from 의 대조를 제출에서 하나 ③ runctl schema 에 열거 면을 만드나 ④ 계획에게 이름의 출처를 가르치나 ⑤ examples/mcp.json 이 무엇을 담나 ⑥ 갈린 문장 셋을 어디에 적나 ⑦ GLOSSARY.md 를 이 단계가 만드나. 일곱 다 Other 선택지를 든다.
+
+⑦ 을 물은 이유 — CLAUDE.md 의 새 규약이 CP 와 CA 를 이름으로 지목하고 자리를 루트 GLOSSARY.md 로 박았는데 그 파일이 main 에도 없다. 같은 규약이 「푼 말을 모르면 적지 말고 묻는다」로 짐작을 금지하므로 답으로 받는다."
+**Context**: CONSTRUCTION · U2 contract-vocab · Functional Design Step 1 ~ 4 완료 · 답 대기
+
+---
+
+## CONSTRUCTION — U2 contract-vocab · Functional Design 산출 (Step 5 ~ 7)
+**Timestamp**: 2026-09-12T16:20:00Z
+**User Input**: "다음으로"
+**AI Response**: "계획 파일의 [Answer] 일곱이 다 비어 있어서 먼저 답을 받았다. 물음은 파일에 있고 (질문은 채팅에 안 쓴다) 받은 답을 그 파일의 [Answer] 뒤에 적었다 — A · A · A · A · A · A · B. 모호한 답이 0 이고 서로 어긋나는 답도 0 이라 추가 질문 없이 Step 6 으로 갔다.
+
+답 여섯이 권장이고 하나가 갈렸다 — 7=B 는 GLOSSARY.md 를 이 유닛 밖의 커밋으로 뺐다 (규약 자체가 그랬다: 76e2201). 푼 말은 여전히 사람에게서 와야 한다.
+
+답 1=A 와 2=A 가 검증 자리를 Mediator 로 올렸다. contract.Validate 가 agent.mcp 의 타입(문자열 배열)과 agent.pack 의 타입(문자열)을 보고, agent.pack 이 적은 이름이 같은 단계의 in.from 에 있는지를 대조한다. 그러면 US-7 의 「제출에서 걸린다」가 참이 되고, 계획이 지은 단계도 같은 검사를 받는다 — 근거를 코드로 확인했다: checkplan.go:82 의 빠른 훅과 store/expand.go:206 의 applyExpands 가 둘 다 같은 Validate 를 부른다. 노드 쪽 parseAgentParams 의 문구도 같은 문장으로 고쳐 둘째 겹으로 남긴다.
+
+답 2=A 가 CA5 의 값을 바꿨다. 오늘은 in.from 의 이름 불일치가 조용한 실패다 — 없는 입력은 값이라 단계가 안 죽고 팩 없이 돈다 (claim.go:505-535). Validate 가 대조하면 그 계약은 제출에서 400 이므로, scene-gates.md CA5 의 명령을 고치지 않으면 그 게이트를 시작조차 못 한다. 답 6=A 가 그것을 함께 고치게 했다.
+
+산출물 셋을 construction/contract-vocab/functional-design/ 에 냈다. 규칙은 여섯이고 (R1 모르는 키 400 은 오늘 그대로 · R2~R6 이 새로 선다) 문구는 영어로 지었다. grammar_test.go 가 재는 형태에 맞춰 한 문장에 한 거절 사유로 썼고, 문법 대조가 필요한 셋(R2 · R4 · R5)의 mustSay 와 wantErr 를 표로 적었다.
+
+예시를 오늘 코드에 실측으로 걸었다 — 임시 시험으로 examples/mcp.json 의 내용을 Contract 로 풀고 Validate 에 태웠다. requires 의 mcp.probe 는 Attrs 로 들어가고(map[string]string{\"mcp.probe\":\"1\"}) 유일한 거절은 unknown field \"mcp\" 이며 그것을 뺀 같은 계약은 통과한다. 그래서 예시는 agentKeys 가 느는 같은 커밋에서 초록이 된다 — 먼저 넣으면 example_test 가 확정적으로 빨갛다. 임시 시험 파일은 지웠다.
+
+답 밖에서 더 정한 것 다섯을 business-rules 6절에 이름으로 적었다 — in.from 의 타입 검사(답 2=A 의 대조가 그 값을 읽어야 한다) · 빈 문자열 이름 거절 · PlanShape 와 agentKeys 가 갈리지 않는 것을 시험이 잰다(Grammar 에는 그 장치가 있고 PlanShape 에는 없었다) · 팩은 하나다 · requires 와 agent.mcp 를 묶어 검증하지 않는다(워크스페이스와 팩에서 온 이름은 광고에 없어 requires 에 적을 수 없고, 묶으면 정당한 계약이 거절된다).
+
+한계 둘을 남겼다 (7절). agent 의 나머지 다섯 키는 타입 검사가 여전히 노드뿐이라 비대칭이 남는다 — 답 1=A 가 새 키 둘로 범위를 정했고 features.md 3.5 의 범위도 새 어휘다. 그리고 max_tokens 의 개명이 이 팩 밖이라 알려진 키 일곱에 옛 이름이 그대로 있다.
+
+팩 문서 둘(decisions.md 6절의 실측 행 · scene-gates.md CA5)은 이 단계의 승인 뒤에 싣는다 — U1 이 ⑳ 에서 같은 순서를 밟았다."
+**Context**: CONSTRUCTION · U2 contract-vocab · Functional Design Step 5 ~ 7 완료 · 승인 대기
+
+---
+
+## CONSTRUCTION — U2 contract-vocab · Code Generation (Part 1 계획 · Part 2 실행)
+**Timestamp**: 2026-09-12T17:05:00Z
+**User Input**: "다음"
+**AI Response**: "이 지시가 둘을 겸한다 — Functional Design 의 승인과 Code Generation 착수다. U1 과 obs 가 같은 판단을 했다. 승인이 열어 준 팩 문서 둘도 이 단계가 실었다.
+
+Part 1 계획을 construction/plans/contract-vocab-code-generation-plan.md 에 냈다. 단계 여덟이고 체크박스 스물여섯이 전부 [x] 다. 갈래를 안 갈랐다 — 제품 파일 다섯 중 넷이 한 패키지이고, 예시가 agentKeys 와 같은 커밋이어야 해서 갈래가 서로를 기다린다.
+
+Part 2 를 돌렸다. contract.go 에 agentKeys 둘과 새 함수 agentValues(R2~R6) · grammar.go 에 절 하나 · planshape.go 의 목록과 설명 · examples/mcp.json · agent.go 의 AgentParams 둘과 checkComponentTypes 다. 새 시험 파일이 0 이고 기존 셋에 붙었다 — 행렬 3절이 예고한 그 셋이다. cmd/runctl 의 소스 diff 는 0 이다 (답 3=A).
+
+CA0 이 전부 초록이다. go test ./... exit 0 · 커버리지 미달 0(전체 6795/7804 = 87.1% · internal/contract 89.3% · internal/enode 85.6%) · vet · gofmt · U+2605 전수 grep 0 · glyphscan 104 파일 · 크로스 빌드 셋 · 심볼 상한(tls 1 · http 6) · 라우트 26 · 워킹트리 청결. 커버리지 실행이 cmd/enodectl/probe.lock 을 바꾼 것은 되돌렸다 — obs · U1 과 같은 자리다.
+
+FD 5절이 internal/contract 를 「하한에 가장 가까운 자리」로 적었는데 표준 명령으로 재면 89.3% 다. 단독 측정(79.5%)과 다른 이유는 -coverpkg=./... 가 다른 패키지의 시험이 덮은 문장을 함께 세기 때문이다.
+
+CA3 의 앞 절반을 runctl lint 로 쟀다 — 그 명령이 Validate 를 부른다. 모르는 키를 적으면 허용 목록이 일곱으로 함께 늘어 나오고(답 3=A 가 기댄 성질이 실물로 섰다), agent.mcp 를 문자열로 적은 계약과 agent.pack 만 적은 계약이 R2 · R5 의 문장으로 거절된다. runctl example mcp 는 exit 0 이고 lint 경고 0 이다. runctl schema steps 도 쟀다 — agent map[string]any optional 한 줄 그대로이고 하위 키가 안 나온다.
+
+변이 다섯을 돌려 다 빨개졌다 — agentKeys 되돌리기 · agentValues 호출 빼기 · PlanShape 목록에서 둘 빼기 · parseAgentParams 의 타입 검사 빼기 · Grammar 의 절 지우기. U1 과 달리 구멍이 0 인 이유는 규칙이 전부 순수 함수 하나를 지나기 때문이다 — 배선이 한 자리이고 변이 ② 가 그 자리를 직접 잰다.
+
+실측이 FD 의 주장 하나를 뒤집었고 고쳤다. FD 는 「CA5 의 이름 불일치는 조용한 실패다」로 적었는데, Validate 에 in.from 의 정적 검사가 이미 있다(contract.go:1109-1126 · ADR-023 §6.2.1). CA5 의 계약을 그대로 넣어 재니 step \"work\": in.from refers to \"fetch.pack\", which no step produces 로 오늘도 제출에서 거절된다. 게이트가 안 도는 것은 그대로 참이고 이유가 침묵이 아니라 그 거절이며, 그 문구가 팩을 안 가리켜서 게이트를 돌리는 사람이 팩 코드의 결함으로 읽는다. R5 가 닫는 것은 in.from 을 아예 안 적은 경우 하나로 좁아졌다 — 오타는 있던 검사가 막고 빠뜨림만 성공으로 온다. 고친 자리는 FD 계획 1.2 · business-rules 2절 · business-logic-model 8절 · domain-entities 4.1 과 contract.go 의 주석이다.
+
+팩 문서 둘을 실었다. decisions.md 6절에 실측 행 ㉑(열거 면 · blob 이름 공간 · CA5 를 한 행에)과 6절 제목의 날짜, scene-gates.md CA5 의 명령(out: [\"pack\"] · in.from: [\"pack\"] 과 왜인지). 파일 행렬에는 planshape.go 행을 더해 만지는 파일이 16 이 되고 4절 제목이 「둘」에서 「셋」이 되었다.
+
+넘기는 것 다섯이고 그중 하나가 새로 드러났다 — 회차 문서 루트의 aidlc-state.md 가 decisions.md 의 행을 「열아홉」으로 적는데 실제로는 스물하나다(U1 의 ⑳ · 이 유닛의 ㉑). 같은 파일의 「요약 표에 없던 파일 둘」도 셋이다. 그 루트는 회차 진행자의 것이라 안 고쳤다 (CONVENTIONS 3.4)."
+**Context**: CONSTRUCTION · U2 contract-vocab · Functional Design 승인 · Code Generation 완료 · CA0 초록 · CA3 앞 절반 초록
+
+---
+
+## CONSTRUCTION — U3 advert · Functional Design (Part 1 계획 · 물음 일곱)
+**Timestamp**: 2026-09-13T00:00:00Z
+**User Input**: "u3 advert 시작"
+**AI Response**: "U3 advert 를 착수했다. 브랜치 unit/advert 를 unit/contract-vocab 에서 땄다 — 선행이 U1 · U2 둘이고 aidlc-state.md 가 자동 병합이 안 되는 파일이라 회차에서 따면 세 유닛의 절이 부딪친다 (계획 6절).
+
+계획을 짓기 전에 만지는 자리를 코드로 읽고 yaml 실측 열일곱을 돌렸다. 갈린 자리 셋을 찾았다. ① decisions.md 2절의 「그 밖의 키는 그대로 허용목록에 옮긴다」가 오늘 코드로 성립하지 않는다 — yaml 이 모르는 키를 말없이 버리므로 옮길 맵이 안 생기고, U1 의 allowlistEntry 이음매 주석과 파일 행렬 2.1 의 「U3 은 U1 의 것을 안 고친다」가 같은 자리를 두고 서로 다르게 말한다. ② env 가 이름인지 값인지가 갈린다 — features.md 3.2 는 「값은 적지 않는다」인데 형식은 map[string]string 이고 allowlistEntry 가 통째로 옮기며 ADR-035 §4.4 의 예시에는 env 가 아예 없다. ③ 현황판이 새 키를 원문으로 낸다 — 같은 사실이 실행 도구 = claude 와 harness.claude = 1 두 줄로 보인다.
+
+yaml 실측이 검증 범위를 쟀다 — 잡는 것은 종류뿐이고 일곱이 그대로 통과한다 (command: 5 가 \"5\" 가 되고, 빈 서버 · 빈 이름 · command 와 url 이 둘 다인 선언이 다 선다). 동작 중립의 근거 셋도 쟀다 — harnesses 가 하나라 break 를 걷어도 결과가 안 바뀌고, Detector 의 시계가 CA2 의 「탐지 주기 뒤」를 배선 0 으로 세우며, hasCapability 가 mcp.<이름> 하나로 참이 되어 하네스 없는 노드가 광고를 낸다.
+
+계획을 construction/plans/advert-functional-design-plan.md 에 냈고 물음이 일곱이다 — 설정 검증의 범위 · 「그 밖의 키」의 자리 · env 의 뜻 · Fingerprinter.Probe 의 오류 · 누락 사유 로그의 빈도 · 하네스 없는 노드의 광고 · 현황판 표시. 답 대기다."
+**Context**: CONSTRUCTION · U3 advert · Functional Design Step 1 ~ 4 완료 · 답 대기
+
+---
+
+## CONSTRUCTION — U3 advert · Functional Design (답 수집 · 산출물 셋)
+**Timestamp**: 2026-09-13T00:30:00Z
+**User Input**: "6=B, 7=B,  나머지 A"
+**AI Response**: "답 일곱을 계획 2절에 적었다 — 1=A · 2=A · 3=A · 4=A · 5=A · 6=B · 7=B. 모순도 모호도 없어 확인 질문 파일을 안 만들었다.
+
+산출물 셋을 construction/advert/functional-design/ 에 냈다.
+
+domain-entities.md — Local.MCP 와 MCPServer 의 형식. 답 2=A 로 Extra 필드가 서고 UnmarshalYAML 이 같은 노드를 두 번 푼다(그림자 구조체로 종류 검사를 지키고 맵으로 모르는 키를 집는다). 답 3=A 로 env 가 이름에서 이름으로 가고 허용목록에 ${이름} 참조로 나간다. 광고 키 셋과 값이 언제나 \"1\" 인 이유(매처가 완전 일치만 본다). Fingerprinter 의 계약과 종류 셋.
+
+business-rules.md — 거절 다섯(R1~R5)이 「어느 종류인가」를 한 값으로 만든다. env 의 꼴 검사 R6. 뜨나 판정 둘과 못 잡는 것 셋. 순회의 오류 규칙 R7~R8(답 4=A). 누락 사유를 탐지마다 내는 R9(답 5=A). 광고의 문턱 R10~R11(답 6=B)과 그 침묵을 막는 R12. 화면의 R13~R14(답 7=B). 동작 중립을 판정하는 기존 시험. 한계 다섯.
+
+business-logic-model.md — enode.yaml 에서 현황판까지의 한 줄기. 시계 둘이 가르는 자리와 CA2 의 「탐지 주기 뒤」가 배선 0 으로 서는 이유. costlyAttrs 의 순회 코드. CA2 · CA3 이 어디서 초록이 되나. 완료 조건 여덟과의 대조.
+
+어긋남 하나를 기록했다 — 답 6=B 가 hasCapability 를 고치므로 unit-of-work.md 3절의 「cheapAttrs · capabilities · Detector 에 diff 0」이 글자로는 서고 뜻으로는 안 선다. capabilities 의 글자는 그대로이고 동작이 바뀐다. 그 대가는 물음 6 의 B 가 미리 적었다.
+
+파장 둘이 승인 뒤로 간다 — 파일 행렬 2.1 의 「U3 은 U1 의 것을 안 고친다」가 답 2=A 로 거짓이 되고, internal/api/ui 의 0 이 답 7=B 로 깨진다. 만지는 파일이 16 에서 17 이 된다. decisions.md 6절의 실측 행과 2절의 env 줄도 같은 시점이다 — U1 · U2 가 밟은 순서 그대로 승인 뒤에 싣는다."
+**Context**: CONSTRUCTION · U3 advert · Functional Design Step 5 ~ 7 완료 · 승인 대기
+
+---
+
+## CONSTRUCTION — U3 advert · Functional Design 승인
+**Timestamp**: 2026-09-13T00:45:00Z
+**User Input**: "승인."
+**AI Response**: "Functional Design 을 닫고 커밋했다 — 계획(답 일곱 포함) · 산출물 셋 · 상태 · 감사 여섯 파일이다. 팩 문서와 회차 문서의 파장은 Code Generation 이 싣는다 (U1 의 ⑳ · U2 의 ㉑ 과 같은 순서).
+
+Code Generation Part 1 로 간다."
+**Context**: CONSTRUCTION · U3 advert · Functional Design 승인 · Code Generation 착수
+
+---
+
+## CONSTRUCTION — U3 advert · Code Generation Part 1 (계획)
+**Timestamp**: 2026-09-13T00:50:00Z
+**User Input**: (없음 — 앞의 「승인」이 이 단계의 착수다)
+**AI Response**: "Code Generation 계획을 construction/plans/advert-code-generation-plan.md 에 냈다. 단계 열이고 체크박스 마흔둘이다.
+
+제품 파일 넷이다 — config.go(Local.MCP · 거절 여섯 · SampleLocal) · mcp.go(태그 · Extra · UnmarshalYAML · allowlistEntry · mcpUp · mcpFP) · detect.go(Fingerprinter · harnessFP · repoFP · 순회 · hasCapability) · format.mjs(접두 둘). 새 시험 파일 하나(detect_mcp_test.go)와 기존 셋에 붙인다.
+
+갈래를 안 나눈다 — Go 셋이 서로를 기다려 컴파일되는 시점이 하나뿐이다. format.mjs 는 진짜 독립이지만 여섯 줄이라 갈래 비용이 이득보다 크다.
+
+Step 6 이 실측 하나다 — 이 기계의 claude 2.1.266 으로 env 의 ${이름} 참조를 하네스가 펴는지 잰다. 안 펴면 env 를 허용목록에서 빼고 노드 환경 상속에 맡긴다. 어느 쪽이든 값이 파일에 안 실린다는 규칙은 산다.
+
+Step 8 이 변이 다섯이다 — hasCapability 의 접두 · allowlistEntry 의 순서 · mcpUp 의 remote 갈래 · 옛 harness 키 · repoFP 의 WorkspaceID fallback.
+
+FD 에 없던 자리 셋을 이 계획이 정했다 — validateMCP 를 config.go 에 두는 것, R12 를 capabilities 가 nil 을 돌려주기 직전에 내는 것(그 대가로 광고 주기마다 나온다), 로그 키 이름 셋.
+
+승인이 열어 준 문서 셋(decisions.md 6절과 2절 · 파일 행렬 둘)은 Step 10 이 싣는다."
+**Context**: CONSTRUCTION · U3 advert · Code Generation Part 1 완료 · 계획 승인 대기
+
+---
+
+## CONSTRUCTION — U3 advert · Code Generation Part 2 (실행)
+**Timestamp**: 2026-09-13T01:30:00Z
+**User Input**: "생성해"
+**AI Response**: "계획 열 단계를 돌렸고 체크박스 마흔여덟이 전부 [x] 다.
+
+제품 파일 넷이다 — config.go(Local.MCP · validateMCP · validateEnvNames · isEnvName · SampleLocal 한 줄) · mcp.go(태그 다섯 · Extra · UnmarshalYAML · kind · mcpUp · mcpFP · envRefs · allowlistEntry) · detect.go(Fingerprinter · fingerprinters · harnessFP · repoFP · 순회 · hasCapability · warnMCPWithoutCapability) · format.mjs(접두 둘). 새 시험 파일 셋과 고친 옛 시험 둘이다.
+
+CA0 이 전부 초록이다 — go test ./... 18 패키지 · 커버리지 미달 0(전체 6887/7902 = 87.2% · internal/enode 1795/2086 = 86.0% · internal/api/ui 98.4%) · vet · gofmt · U+2605 전수 grep 0 · glyphscan 104 파일 · 크로스 빌드 셋 · 심볼 상한(tls 1 · http 6) · 라우트 26 · node --test 75 통과 · 워킹트리 청결. 커버리지 실행이 바꾼 cmd/enodectl/probe.lock 은 되돌렸다 — obs · U1 · U2 와 같은 자리다.
+
+Step 6 의 실측이 FD 의 미정 하나를 닫았다. claude 2.1.266 에 env: {PROBE_X: ${SRC}} 를 주고 --strict-mcp-config 로 돌리니 서버 프로세스의 PROBE_X 가 SRC 의 값(expanded-value-42)이었다. 하네스가 참조를 편다 — 그래서 envRefs 의 ${이름} 꼴이 확정이고 「안 펴면 env 를 안 쓴다」는 대안이 닫혔다. 덤으로 U1 의 ⑳ 이 이 기계에서도 섰다 — 첫 줄이 system/init 이 아니라 system/hook_started 였다.
+
+CA3 의 뒤 절반을 합성 함대로 쟀다. Mediator 를 시험 DB 위 127.0.0.1:18080 에 띄우고 노드 둘을 심었다. runctl capabilities 에 mcp.probe 와 harness.claude 가 나오고, requires: mcp.probe 를 적은 계약이 node-with-probe 에만 가고, mcp.nope 는 422 다. 셋 다 코드 0 으로 닫혔다 — store.Capabilities 가 키 이름을 안 가리고 Capability.Satisfies 가 완전 일치를 본다. 덤으로 희소성 정렬도 실물로 섰다: mcp 를 안 요구하는 계약은 node-plain 으로 갔다. 게이트를 돌릴 사람이 밟을 자리 하나를 적었다 — 같은 run_id 로 두 번 제출하면 둘째는 422 가 아니라 200 이고 본문이 FAILED 와 저장된 reject 다(멱등).
+
+변이 다섯을 돌려 다 빨개졌다. 구멍 0 이다. 다만 계획이 예고 안 한 옛 시험 둘이 확정 빨강이었다 — enode_test.go 의 TestDetectEmpty(광고에 실릴 수 있는 키를 셋으로 못 박는다. harness. 접두를 함께 허용했다)와 mcp_test.go 의 allowlistEntry 시험(env 가 값 그대로 실리는 것을 잰다. 답 3=A 가 참조로 바꿨다). 둘 다 행렬 밖이라 행렬 3절에 행으로 더했다.
+
+시험 픽스처 하나가 검사의 한계를 드러냈다 — env 값으로 ghp_secret 을 적고 거절을 기대했는데 통과한다. [A-Za-z_][A-Za-z0-9_]* 를 그대로 만족한다. FD business-rules 2절이 이미 적은 한계이고, 픽스처를 실제로 걸리는 값으로 고치고 그 한계를 재는 시험을 따로 더했다.
+
+계획에 없던 자리 둘을 이 단계가 정했다 — 거절의 검사 순서(좁은 것을 먼저: R1 · R3 · R4 · R5 · R2)와 mcpUp 의 문구 둘(절대경로는 PATH 를 안 보므로 not found in PATH 가 거짓이 된다).
+
+회차 밖으로 낸 것은 decisions.md 6절의 실측 행 ㉒ 와 2절의 env 줄, 그리고 파일 행렬(2.1 의 U3 칸 · format.mjs 와 시험 넷 · 만지는 파일 16 -> 17 · 패키지 3 -> 4 · 3절의 옛 시험 둘 · 4.4 · 4.5 절)이다. scene-gates.md 와 component-methods.md 는 안 고쳤다.
+
+넘기는 것 여섯이다. 무거운 셋: 완료 조건의 「capabilities 에 diff 0」이 글자로는 서고 뜻으로는 안 선다(답 6=B) · R12 가 탐지 주기가 아니라 광고 주기마다 나온다 · 라벨로 선언 없이 mcp.<이름> 을 광고할 수 있다(오늘 그대로의 성질이고 이 유닛이 안 좁혔다).
+
+CA2 는 사람이 잰다 — 집행자는 이 유닛을 구현하지 않은 사람이고 눈 검증 S1 도 그 사람이 본다."
+**Context**: CONSTRUCTION · U3 advert · Code Generation 완료 · CA0 초록 · CA3 뒤 절반 초록 · CA2 사람 대기
+
+## CONSTRUCTION — U4 sources · Functional Design (계획)
+**Timestamp**: 2026-09-13T03:16:24Z
+**User Input**: "u4 시작"
+**AI Response**: "U3 가 코드까지 닫혔으므로 회차의 넷째 유닛 U4 sources 를 착수했다. 브랜치 unit/sources 를 unit/advert 에서 땄다 — 선행이 U1 · U2 · U3 셋이고 aidlc-state.md 가 자동 병합이 안 되는 파일이라 회차에서 따면 네 유닛의 절이 파일 꼬리에서 부딪친다 (계획 6절).
+
+계획을 짓기 전에 만지는 자리를 코드로 읽고 claude 2.1.266 으로 돌렸다. 갈린 자리 넷을 찾았다 — ① 워크스페이스 .mcp.json 은 하네스가 스스로 쓰는 파일이라 우리 어휘에 없는 키 셋(type · headers · 값으로서의 env)을 담는다 ② 그것을 MCPServer 로 받으면 셋을 잃거나 망친다 (Extra 가 yaml 전용이라 type 과 headers 가 사라지고, envRefs 가 값을 두 번 감싸 ${${X}} 가 되며, 종류 오류 하나가 파일 전체를 죽인다) ③ url 만 적힌 항목을 하네스가 말없이 버린다 — 실측에서 목록에 이름조차 안 나왔고, 그것이 ADR-035 §4.4 예시 그대로 적은 원격 노드 선언의 오늘 모양이다 ④ ${} 는 한 겹만 펴진다.
+
+물음 일곱을 냈다 — 워크스페이스 파일을 누가 읽나(순수성) · 원문을 어떤 꼴로 나르나 · 조용히 사라지는 원격 항목을 막나 · 못 읽는 파일의 등급 · Notes 가 나가는 면 · 없는 이름이 여럿일 때의 거절 · 원격 인증. 계획은 aidlc-docs/taeels/construction/plans/sources-functional-design-plan.md 다."
+**Context**: CONSTRUCTION · U4 sources · Functional Design Part 1 완료 · 답 일곱 대기
+
+## CONSTRUCTION — U4 sources · Functional Design (산출물)
+**Timestamp**: 2026-09-13T03:38:12Z
+**User Input**: "모두 권장대로"
+**AI Response**: "답 일곱을 전부 A 로 적고 계획 3절의 체크박스 스물을 [x] 로 닫았다. 산출물 셋을 construction/sources/functional-design/ 에 냈다.
+
+domain-entities 는 출처를 「누가 쓰는 파일인가」로 갈랐다 — 노드 선언은 우리 어휘(MCPServer)이고 워크스페이스와 팩은 하네스 어휘다. 그래서 Components.Servers 의 타입을 map[string]MCPServer 에서 허용목록 항목(map[string]map[string]any)으로 올렸다. 노드 것은 allowlistEntry 를 거쳐 들어오고 워크스페이스 것은 원문 그대로 들어온다 — 번역하는 코드가 없으므로 계획 1.2 의 손상 셋이 구조적으로 못 생긴다. Job 에 넷을 더한다 (NodeMCP · WorkspaceMCP · WorkspaceMCPErr · Log).
+
+business-rules 는 열넷이다. R1 요청 필터 · R2 요청 0 이면 파일도 안 연다 · R3 노드가 워크스페이스를 이긴다(Note) · R4 없는 이름은 하네스를 안 띄운다 · R5 나머지는 Note · R6 워크스페이스가 없으면 출처도 없다(os.TempDir 의 파일을 안 믿는다) · R7 못 읽는 파일은 거절 · R8 command 도 url 도 없는 요청된 항목은 거절 · R9 type 은 없을 때만 채운다 · R10 Notes 는 이름만 · R11 거절로 끝나도 Notes 를 채워 돌려준다 · R12 광고 불변 · R13 credential 은 파일에 안 나간다 · R14 거절이 전부 exec 앞이다.
+
+답 둘이 만나 규칙이 하나로 줄었다 — 4=A 의 「요청이 있을 때만 치명」이 1=A 아래서 조건문이 아니라 호출 자리로 보장된다. 요청이 0 이면 파일을 아예 안 열어 「요청 0 인데 깨진 파일」이 구조적으로 안 생긴다.
+
+business-logic-model 은 resolveComponents 의 걸음 여섯과 그 순서의 뜻을 적었다 (파일 오류가 이름 해결보다 앞 · type 채우기가 집기보다 뒤 · 거절이 맨 뒤). runHarness 의 ① ~ ⑨ 중 자라는 자리는 ② 하나이고 ②와 ③ 사이에 Notes 로그 한 줄이 는다. CA4 의 세 줄을 규칙으로 각각 매핑했고, U5 가 딛는 이음매 다섯(필터 · 집는 자리 · 나르는 꼴 · 여는 자리 · Notes)을 이름으로 적었다.
+
+한계 넷을 이름으로 졌다 — 워크스페이스 서버가 실제로 뜨는지는 안 본다 · 원격 선언만으로는 인증이 안 실려서 소유자가 headers 를 Extra 로 적어야 한다 · 저장소가 env 에 평문 값을 적으면 그대로 옮겨진다 · 저장소가 새 이름을 심는 것은 계약의 요청이 있어야만 열린다."
+**Context**: CONSTRUCTION · U4 sources · Functional Design Part 2 완료 · 단계 승인 대기
+
+## CONSTRUCTION — U4 sources · Functional Design 승인
+**Timestamp**: 2026-09-13T03:44:36Z
+**User Input**: "승인, 코드 써"
+**AI Response**: "Functional Design 을 닫고 담당 상태 파일에 U4 절을 더했다. 커밋 하나로 계획 · 산출물 셋 · 상태 · 감사를 함께 실었다 (CONVENTIONS 3.3 의 단계 승인마다 커밋). 다음은 Code Generation Part 1 — 계획을 내고 승인을 받는다."
+**Context**: CONSTRUCTION · U4 sources · Functional Design 승인 · Code Generation Part 1 착수
+
+## CONSTRUCTION — U4 sources · Code Generation Part 1 (계획)
+**Timestamp**: 2026-09-13T03:48:34Z
+**User Input**: "승인, 코드 써"
+**AI Response**: "Code Generation 계획을 냈다 — construction/plans/sources-code-generation-plan.md. 단계 열이고 체크박스 예순여섯이다.
+
+제품 파일은 행렬 그대로 셋이다 (mcp.go · runner.go · claim.go). claude.go 는 소스 diff 0 이다 — Instrument 가 c.Servers 를 그대로 넘기므로 타입이 바뀌어도 그 줄이 안 바뀐다.
+
+Step 6 을 실측으로 뒀다 — 우리 코드가 쓴 허용목록 파일을 claude 에 물려 init 줄의 mcp_servers 를 읽는다. 함대 없이 실물 하네스로 재는 자리이고, 이름이 목록에 안 나오면 R9 의 값이 틀린 것이므로 거기서 멈추고 묻는다.
+
+Step 7 이 배선을 명시로 잰다 — 스텁 하네스를 쓰는 워커 시험으로 「없는 이름을 요청한 단계가 하네스를 안 띄운다」를 파일 없음으로 잰다. U1 의 구멍(함수만 부르고 배선을 안 쟀다)이 여기서 안 생기게.
+
+FD 에 없던 자리 다섯을 이 계획이 정했다 — 워크스페이스 파일에 크기 상한을 안 둔다 · 항목을 얕은 복사 뒤에 고친다 · 종류를 채우는 자리는 공용 헬퍼다 · Notes 는 Info 이고 메시지가 고정이다 · R8 이 문자열 아닌 command 를 「없다」로 본다."
+**Context**: CONSTRUCTION · U4 sources · Code Generation Part 1 완료 · 계획 승인 대기
+
+## CONSTRUCTION — U4 sources · Code Generation Part 2 (실행)
+**Timestamp**: 2026-09-13T07:54:50Z
+**User Input**: "승인"
+**AI Response**: "계획 열 단계를 돌렸고 체크박스 예순여섯이 전부 [x] 다.
+
+제품 파일 셋이다 — mcp.go(Components.Servers 타입 · resolveComponents 의 걸음 여섯 · readWorkspaceMCP · ensureType · copyEntry · hasText · wantedMCP · entryNames · notAvailable) · runner.go(Job 의 필드 넷과 Notes 로그) · claim.go(읽는 조건 둘과 리터럴 네 줄). claude.go 는 계획의 예상대로 소스 diff 0 이다. 새 시험 파일 하나(resolve_test.go)와 worker_unix_test.go 의 배선 시험 둘, 그리고 타입 변경으로 확정 빨강이던 옛 시험 셋을 고쳤다.
+
+CA0 이 전부 초록이다 — go test ./... 18 패키지 · 커버리지 미달 0(전체 6961/7974 = 87.3% · internal/enode 1865/2158 = 86.4%, U3 뒤 86.0% 에서 올랐다) · 스킵 0 · vet · gofmt · U+2605 전수 grep 0 · glyphscan 104 파일 · 크로스 빌드 셋 · 심볼 상한(tls 1 · http 6) · 라우트 26 · node --test 75 · 워킹트리 청결. 커버리지 실행이 바꾼 cmd/enodectl/probe.lock 은 되돌렸다.
+
+Step 6 의 실측을 제품 코드가 낸 파일로 했다. resolveComponents 와 writeMCPAllowlist 가 쓴 mcp.json 을 claude 2.1.266 에 물리니 넷(probe · gerrit · probe3 · wsremote)이 전부 init 줄의 mcp_servers 에 섰다. R9(종류 채우기)를 안 넣었으면 gerrit — ADR-035 §4.4 의 예시 그대로 적은 원격 선언 — 이 빠진 채로 초록이었다. 워크스페이스 항목의 headers 도 한 글자도 안 바뀌고 살아 나갔다.
+
+CA4 의 셋째 줄은 코드로 닫혔다 — 스텁 하네스가 마커 파일을 안 남기는 것으로 「안 떴다」를 잰다. 앞 두 줄은 같은 배선 시험이 그 단계가 실제로 쓴 허용목록을 $OUT 으로 받아 읽지만, 실 함대의 init 줄은 집행자의 몫이다.
+
+변이 여섯을 돌려 다 빨개졌다. 구멍 0 이고 셋은 순수 시험과 배선 시험이 함께 빨개졌다.
+
+실측이 계획의 문장 둘을 고쳤다 — 「종류 오류 하나가 파일 전체를 죽인다」는 원문(map)으로 받는 지금 판에서 안 일어나고(답 2=A 가 덤으로 닫았다. R8 이 요청 시점에 문장으로 거절한다), features.md 3.2 에는 종류가 이미 있었다. FD 의 한 줄도 고쳤다 — 종류를 채우는 자리는 allowlistEntry 가 아니라 합친 뒤의 공용 자리다.
+
+회차 밖으로 낸 것은 decisions.md 6절의 실측 행 ㉓ 와 2절의 종류 줄, features.md 3.2 의 두 줄, 파일 행렬의 다섯 자리다. scene-gates.md 는 안 고쳤다.
+
+넘기는 것 다섯이다. 무거운 셋: 원격 노드 선언만으로는 인증이 안 실린다(credential 은 파일에 안 나가고 원격은 헤더로 인증한다 — 정본 개정 후보다) · 깨진 워크스페이스 파일이 MCP 를 쓰는 단계를 전부 죽인다(답 4=A 의 대가) · Notes 가 노드 로그에만 남아 봉인을 읽는 사람은 겹침과 빠짐을 못 본다."
+**Context**: CONSTRUCTION · U4 sources · Code Generation 완료 · CA0 초록 · CA4 사람 대기
+
+## CONSTRUCTION — U4 sources · CA4 실측 (합성 함대)
+**Timestamp**: 2026-09-13T08:23:30Z
+**User Input**: "ca4진행"
+**AI Response**: "scene-gates.md 3절의 CA4 명령을 합성 함대로 그대로 돌렸다. Mediator 를 시험 DB(enode_ca4) 위 127.0.0.1:18080 에 띄우고, 노드 하나를 mcp: probe · probe2 선언과 워크스페이스 .mcp.json(probe3)으로 세웠다. 하네스는 실물 claude 2.1.266 이다.
+
+광고부터 맞았다 — runctl capabilities 에 mcp.probe · mcp.probe2 · harness.claude 가 나오고 mcp.probe3 은 없다 (워크스페이스는 광고에 안 실린다).
+
+세 줄이 다 초록이다. ① agent.mcp: [probe] -> init 의 mcp_servers 가 probe 하나다 (probe2 도 probe3 도 없다). ② agent.mcp: [probe3] -> probe3 이 나타난다. 워크스페이스에서 옮겨 적혔고 광고에는 여전히 없다. ③ agent.mcp: [nope] -> 단계 FAILED 이고 result.error 가 'harness: harness_error mcp server nope is not available on this node' 이며 logs/01-work.log 이 0 바이트다 — 하네스가 안 떴다.
+
+노드 로그가 Notes 를 실물로 냈다 — ①과 ③ 에서 'workspace .mcp.json declares probe3, which this step did not request' 한 줄씩이고 ②에서는 안 난다.
+
+이 실측은 게이트의 서명이 아니다. scene-gates.md 2절 머리가 집행자를 이 유닛을 구현하지 않은 사람으로 못 박는다 — 한 것은 그 사람이 밟을 자리를 미리 밟아 위험을 던 것이다. 함대는 내렸고 임시 디렉터리만 남는다."
+**Context**: CONSTRUCTION · U4 sources · CA4 세 줄 실측 초록 · 집행자 서명과 병합 대기
+
+## CONSTRUCTION — U5 pack · Functional Design (Part 1 · 계획과 물음)
+**Timestamp**: 2026-09-13T13:40:00Z
+**User Input**: "u5 시작"
+**AI Response**: "회차의 마지막 유닛 U5 pack 을 착수했다. 브랜치 unit/pack 을 main 에서 땄다 — U1 ~ U4 가 PR #33 ~ #36 으로 전부 main 에 있어 U4 처럼 앞 유닛 브랜치에서 딸 이유가 없다.
+
+계획을 짓기 전에 만지는 자리를 코드로 읽고 실물 claude 2.1.270 으로 다섯을 쟀다. 무거운 것이 첫째다 — 오늘의 플래그(--setting-sources \"\")로는 가짜 홈의 skills/ 와 agents/ 를 하네스가 아예 안 읽는다. 파일은 생기는데 init 줄의 skills 에도 agents 에도 slash_commands 에도 안 나타난다. unit-of-work.md 5절의 'Instrument 가 <dir>/home/skills/ 를 편다' 가 펴기만 하고 안 읽히는 자리였고, 그 상태로는 CA5 가 확정 빨강이며 빨간 이유가 팩 코드가 아니라 플래그다.
+
+길 둘을 실측으로 세웠다. ① --setting-sources user 로 바꾸면 hello 와 helper 가 뜨고, 사람의 ~/.claude/skills 수십과 ~/.claude/agents 둘은 하나도 안 샌다 — CLAUDE_CONFIG_DIR 이 user 범위를 통째로 옮기기 때문이다. ② --plugin-dir <계장>/pack 은 --setting-sources \"\" 를 그대로 둔 채 실린다. .claude-plugin/plugin.json 없이도 실렸고 이름이 pack:hello 로 namespace 된다.
+
+셋을 더 쟀다. 워크스페이스 .claude/skills/ 는 어느 경우에도 안 읽힌다 — features.md 5절과 decisions.md 2절의 열린 미정이 '안 읽는다. 팩으로 나른다' 로 닫힌다. --plugin-dir 에 없는 경로를 주면 종료코드 0 에 stderr 도 없이 조용히 무시된다 — 빠짐을 우리가 잡아야 한다. 그리고 가짜 홈의 settings.json 이 user 설정과 --settings 로 두 번 실려도 Stop 훅은 한 번만 뛴다.
+
+계획 파일을 construction/plans/pack-functional-design-plan.md 에 냈다. 물음 여덟이고 권장은 전부 A 다 — 전달 경로(--plugin-dir 대 --setting-sources user) · 팩 mcp.json 의 어휘 · $IN 을 누가 여나 · PackLimits 의 값 · gzip 수용 · 노드 선언 충돌의 범위 · 기록을 채우는 시점 · 오케스트레이터가 agent.pack 을 붙이는 단계."
+**Context**: CONSTRUCTION · U5 pack · Functional Design Part 1 · 사용자 답 대기
+
+---
+
+## CONSTRUCTION — U5 pack · Functional Design (Part 2 · 산출물)
+**Timestamp**: 2026-09-14T00:20:00Z
+**User Input**: "4는 64mb 로 하고 1은 세팅소스 관련 언급이 이번 회차에서 수십개던데 이거 뭔데" / "B가 아닌 a가 권장인 이유는" / "64메가 이외 모두 a로 한다."
+**AI Response**: "물음 4 를 A 로 닫되 MaxBytes 를 64 MiB 로 올렸고, --setting-sources 가 이 회차에 왜 그렇게 자주 나오는지를 셌다 — 저장소에서 예순여덟 자리이고 이 회차 것이 쉰둘이다. 이 팩의 출발점이 그 플래그의 실측표(features.md 1.2 「오늘 코드가 거꾸로 막는다」)이고, U1 이 그것을 hook.go 의 반환에서 Instrument 의 무조건 플래그로 옮겼으며, U4 는 그 플래그가 워크스페이스 .mcp.json 을 끊기 때문에 존재한다. 물음 1 에서 A 를 권한 이유 넷을 적었다 — 닫는 방식이 값이냐 조건이냐 · CLAUDE_CONFIG_DIR 하나가 두 겹을 겸하게 되는 것 · 팩 없는 단계의 argv 가 안 바뀌어 CA1 의 서명이 사는 것 · 이 팩이 MCP 에서 이미 고른 규율(범위가 아니라 지목)과 같은 모양인 것.
+
+사용자가 「64메가 이외 모두 a로 한다」로 답 여덟을 닫았다. 계획 파일의 [Answer] 여덟을 채우고 산출물 셋을 냈다 — construction/pack/functional-design/ 의 domain-entities · business-rules · business-logic-model.
+
+형식에서 설계 원안 둘을 고쳤다. PackFile.Mode 를 뺐다 (규약 안이 전부 글자라 실행 비트가 할 일이 0 이고, tar 의 모드를 받으면 팩이 0777 파일을 계장에 남긴다 — 파일 0600 · 디렉터리 0700 으로 우리가 정한다). Pack.MCP 를 map[string]MCPServer 에서 원문 map 으로 올렸다 (답 2=A · U4 와 같은 판단).
+
+규칙 서른다섯을 번호로 적었고 오류 문구를 계약으로 못 박았다. 무거운 것 셋 — R2 는 agent.pack 이 이름을 적었는데 $IN 에 그 파일이 없으면 거절이다(ADR-058 의 「없는 입력은 값이다」의 예외를 이름으로 적었다). R16 은 실을 것이 0 인 팩을 거절한다(하네스가 없는 플러그인 디렉터리를 종료코드 0 으로 조용히 무시하므로 빠짐을 우리가 잡는다). R8 은 64 MiB 를 받은 바이트와 푼 바이트 둘 다에 건다.
+
+걸음의 순서에서 뜻을 가지는 자리 넷을 적었다 — 팩 오류 검사가 요청 조기 반환 앞이라 깨진 팩이 agent.mcp 가 비어도 단계를 죽이고, 팩 담기가 그 앞이라 요청 0 에도 스킬은 펴지며(CA5 의 둘째 줄), 출처 순회에서 팩을 가장 먼저 보는 것은 우선순위가 아니라 노드 선언 충돌을 놓치지 않기 위해서이고, readPack 은 종류를 이름보다 먼저 본다.
+
+상태 표의 낡은 값을 고쳤다 — U1 ~ U4 가 전부 병합됨(PR #33 ~ #36)이고, 병합됨이 게이트 서명이 아니라는 줄을 함께 달았다."
+**Context**: CONSTRUCTION · U5 pack · Functional Design 승인 · 다음은 Code Generation
+
+---
+
+## CONSTRUCTION — U5 pack · Code Generation (Part 1 · 계획)
+**Timestamp**: 2026-09-14T05:10:00Z
+**User Input**: "이제 코드 생성하자"
+**AI Response**: "Functional Design 셋과 만지는 자리 여섯을 코드로 읽고 Code Generation 계획을 냈다 — construction/plans/pack-code-generation-plan.md. 단계 열셋이고, 제품 파일 여섯에 새 제품 파일은 0 이며 새 시험 파일이 하나다(pack_test.go).
+
+이 계획이 FD 에 없던 자리 다섯을 정했다. ① readPack 이 팩 이름을 인자로 받는다 — R3 과 R16 의 문구가 팩 이름을 담는데 바깥에서 감싸면 게이트가 찾는 글자가 그대로 안 나온다. ② R4 의 종류 이름 다섯을 글자로 못 박는다(symlink · hard link · device · fifo · unknown entry type). ③ --plugin-dir 을 등호 형태로 붙인다 — Instrument 의 ③ 뒤에 --strict-mcp-config 가 따라붙는데 띄어 쓴 형태가 가변인자면 그것을 삼킨다. 실측 1.2 는 공백 형태로 쟀으므로 Step 9 가 등호 형태를 다시 잰다. ④ planPrompt 가 더하는 두 줄의 영어 글자를 못 박고 이름을 설정에서 끌어온다. ⑤ PackConfig.Name 의 글자를 LoadConfig 가 안 검증한다 — blob 이름의 정본은 contract.Validate 다.
+
+커버리지 기준선을 쟀다 — internal/enode 가 오늘 84.5% 다. 하한이 80% 이고 이 유닛이 새 코드가 가장 많아 pack_test.go 의 표가 그 하한을 지는 자리다.
+
+갈래를 안 나눈다 — resolveComponents 의 인자가 하나 늘어 runner.go 의 호출과 resolve_test.go 의 호출 전부가 같은 시점에 컴파일된다."
+**Context**: CONSTRUCTION · U5 pack · Code Generation Part 1 · 계획 승인 대기
+
+---
+
+## CONSTRUCTION — U5 pack · Code Generation (Part 1 승인)
+**Timestamp**: 2026-09-14T05:25:00Z
+**User Input**: "승인"
+**AI Response**: "계획을 승인받고 Part 2 로 간다. Step 1 부터 순서대로 짓고 각 단계를 마치는 즉시 계획의 체크박스를 [x] 로 바꾼다."
+**Context**: CONSTRUCTION · U5 pack · Code Generation Part 1 승인 · Part 2 착수
+
+---
+
+## CONSTRUCTION — U5 pack · Code Generation (Part 2 · 산출물)
+**Timestamp**: 2026-09-14T06:40:00Z
+**User Input**: "승인"
+**AI Response**: "계획의 단계 열셋을 그대로 돌렸다. 제품 파일 여섯 · 새 제품 파일 0 · 새 시험 파일 하나(pack_test.go)다. claim.go 는 소스 diff 가 0 이다 — 답 3=A 가 가장자리를 runner.go 로 정했기 때문이고, 계획 5절의 예상 그대로다.
+
+readPack 을 순수 함수로 지었다. 받은 바이트를 세면서 sha256 에 흘리고, 1f 8b 면 gzip 을 한 겹 벗기고, 항목마다 종류를 이름보다 먼저 보고, tar 가 끝난 뒤 남은 바이트를 끝까지 읽어 해시를 마친다. 마지막 걸음을 빠뜨리면 봉인에 남은 값으로 blob 을 대조할 수 없다 — 변이 ① 이 그것을 잰다.
+
+실측 하나를 더 했다. 우리 코드가 지은 <계장>/pack 을 claude 2.1.270 이 --plugin-dir= 로 읽는다 — skills 에 pack:hello · agents 에 pack:helper · slash_commands 에 pack:hello · plugins 에 {name: pack, source: pack@inline} · mcp_servers 에 probe4(failed). 이 단계가 새로 잰 것은 등호 형태다. FD 의 실측은 공백 형태였고, Instrument 의 ③ 자리 바로 뒤에 --strict-mcp-config 가 따라붙으므로 가변인자면 그것을 삼킨다 (ADR-034 §3 ② 의 함정). 안 삼켰다. 그리고 샌 것이 0 이다 — 이 기계의 ~/.claude/skills 수십과 agents 둘이 하나도 안 나타났다.
+
+변이 일곱을 넣어 전부 빨개지는 것을 봤다. 다섯 · 여섯 · 일곱은 순수 시험과 배선 시험이 함께 빨개졌다 — U1 에서 「함수만 부르고 배선을 안 쟀다」로 났던 구멍이 여기서도 안 생긴다.
+
+CA0 전부 초록이다. 표준 커버리지 명령으로 미달 0 이고 internal/enode 가 87.0% 다 (U4 뒤 86.4% 에서 올랐다). 라우트 26 그대로 · 스킵 0 · 크로스 빌드 셋 · 심볼 상한 crypto/tls=1 net/http=6 · node --test 75 통과 · 워킹트리 청결(probe.lock 되돌림).
+
+계획에 없던 것을 둘 더했고 그것을 계획과 요약에 이름으로 적었다. ① command 도 url 도 없는 팩 항목을 요청하면 거절한다 — U4 가 워크스페이스 출처에서 같은 실패를 이미 거절했고(6절 ㉓ ②), 종류를 못 정하는 항목을 하네스가 말없이 뺀다는 실측이 출처를 안 가린다. 안 더하면 이 유닛이 그 침묵을 팩 경로로 되살린다. ② Notes 복사를 걸음 0 의 오류보다 앞으로 옮겼다 — 거기서 곧바로 반환하면 규약 밖 항목의 이름이 거절과 함께 사라지고, 그것은 U4 의 R11 이 막은 자리다.
+
+글자 하나를 계획에서 바꿨다 — 모르는 tar 종류의 이름을 계획은 unknown entry type 으로 적었고 코드는 tar type '<글자>' 로 갔다. 문구가 pack entry %s is a %s 라 is a 뒤에 놓으면 영어가 안 된다. 계획 4절 ② 를 그 값으로 고쳤다.
+
+실측이 계획의 문장 하나를 고쳤다 — 0 바이트 blob 은 「tar 가 아니다」가 아니라 「실을 것이 0」이다. Go 의 tar 가 빈 스트림을 빈 아카이브로 읽기 때문이고, 둘 다 치명이며 이 문구가 curl 이 빈 파일을 남긴 경우를 더 곧게 가리킨다.
+
+회차 밖으로 여덟을 실었다 — decisions.md 6절 ㉔ 와 2절 두 행 · features.md 5절과 3.6 · unit-of-work.md 5절 · scene-gates.md CA5 의 표와 명령 · component-methods.md 2.1 · 파일 행렬 넷. component-methods.md 의 Components.Servers 는 U4 가 남긴 낡은 줄이었고 같은 코드 블록이라 함께 고쳤다.
+
+CA5 와 CA6 은 안 닫혔다. 이 단계가 잰 것은 우리 코드가 지은 디렉터리를 하네스가 읽나이고, CA5 는 노드와 Mediator 를 지나 그 팩이 실제로 실리나다. 집행자는 이 유닛을 구현하지 않은 사람이고 눈 검증을 보류로 안 넘긴다."
+**Context**: CONSTRUCTION · U5 pack · Code Generation 완료 · CA5 · CA6 대기
+
+---
+
+## GATE — CA1 실측 (합성 함대 · OAuth 절반)
+**Timestamp**: 2026-09-14T02:52:15Z
+**User Input**: "Ca1부터 진행해"
+**AI Response**: "scene-gates.md 3절의 CA1 명령을 합성 함대로 돌렸다. 시험 Postgres 위에 전용 DB enode_ca1 을 파고 Mediator 를 127.0.0.1:18080 에, 노드 하나를 그 위에 세웠다. 하네스는 실물 claude 2.1.270 이고 이 기계의 진짜 HOME 으로 돈다 — 그것이 CA1 이 요구하는 조건이다.
+
+전제를 먼저 봤다. claude mcp list 가 개인 서버 일곱을 낸다 — claude.ai 계정 커넥터 넷(Expedia · Google Drive · Gmail · Google Calendar)과 개인 stdio 셋(office · playwright · pencil)이고 전부 Connected 다. auth status 는 loggedIn: true · authMethod: claude.ai 다.
+
+runctl example agent 를 그대로 냈다 (agent.mcp 가 없는 예시다). run_id 를 ca1-oauth-1 로 바꿔 제출했고 SUCCEEDED 다. runctl record ca1-oauth-1 -o r.tar 로 푼 logs/01-summarize.log 의 첫 줄이 판정 재료다.
+
+init 줄의 mcp_servers 가 [] 다. 개인 서버 일곱이 전부 끊겼다. slash_commands 는 내장뿐이고 agents 도 내장 다섯뿐이다 — 사람의 ~/.claude/agents 둘(aidlc-verify · aidlc-xhigh)이 안 샜다.
+
+같은 단계가 Not logged in 없이 돌았다. reason ok · turns 4 · $0.1002545 · version 2.1.270 이고 로그에 Not logged in 도 /login 도 0 건이며 summary.json 이 실제 워크스페이스를 읽고 나왔다. 두 겹이 동시에 선 것이다 — 가짜 홈이 개인 설정을 끊었는데도 .credentials.json 복사가 로그인을 살렸다. 둘 중 하나만 되면 이 줄이 안 나온다.
+
+덤으로 U5 의 omitempty 가 실물에서 확인됐다 — steps/01-summarize.json 의 result.harness 에 mcp 키도 pack 키도 없다. 팩도 서버도 없는 단계의 봉인이 오늘과 한 글자도 안 달라진다는 값이 실제 Run Record 에서 선다.
+
+게이트웨이 절반은 안 돌렸다. 이 기계의 ~/.claude/settings.json 에 apiKeyHelper 도 env 도 없고 ANTHROPIC_BASE_URL 도 AUTH_TOKEN 도 API_KEY 도 안 잡혀 있다 — gatewayAuthFields() 가 옮길 필드가 0 이라 그 경로가 애초에 발동하지 않는다. 가짜 게이트웨이로 돌리면 API 호출에서 죽어서 「Not logged in 없이 돈다」를 못 잰다. 그건 초록이 아니라 다른 실패이므로 안 돌렸고, 사용자가 사내에서 확인하기로 했다.
+
+이 실측은 게이트의 서명이 아니다. scene-gates.md 2절 머리가 집행자를 이 유닛을 구현하지 않은 사람으로 못 박고 회차는 진행자로 닫았다 — 한 것은 그 사람이 밟을 자리를 미리 밟아 위험을 던 것이다. 함대는 내렸고 DB 와 임시 디렉터리만 남는다."
+**Context**: GATE · CA1 OAuth 절반 초록 · 게이트웨이 절반은 사내 확인 대기
+
+---
+
+## GATE — CA0 ~ CA6 집행 (진행자 서명)
+**Timestamp**: 2026-09-15T00:00:00Z
+**User Input**: "잠시 돌아가자. Ca 0 ~ ca6 까지 확인 필요하다고 했지? 회사에서 unit/pack 브랜치로 확인했다.
+
+ca0 초록.
+ca1 초록. Oauth 절반 + 게이트웨이 절반
+ca2 초록. 광고에 실림. 실행파일 없으면 빠지고 사유 남음. 놓으면 5분 뒤 복귀
+ca3 초록. 422(없는 키), 400(모르는 에이전트 키), 400(mcp 문자열), lint, dry-run
+ca4 초록. 셋 중 요청한 하나만 열림. 워크스페이스 것도 열림. 없는 이름은 하네스 안 뜨고 그 사유로 실패
+ca5 초록. pack:hello가 skills/slash_commands에. probe4 failed. 다이제스트 일치
+ca6 초록. omab(내가만든 사내 mcp) connected. 다이제스트 blob과 일치."
+**AI Response**: "진행자가 사내에서 unit/pack 브랜치로 일곱을 전부 초록으로 서명했다. 집행자는 진행자다 (unit-of-work-dependency.md 8.1). 이것이 서명이고, 그 앞의 합성 함대 실측들은 미리 밟은 자리였다.
+
+무거운 것 셋을 기록에 남긴다.
+
+CA1 의 게이트웨이 절반이 닫혔다. 이 기계에서는 ~/.claude/settings.json 에 apiKeyHelper 도 env 도 없어 gatewayAuthFields() 가 옮길 필드가 0 이라 못 쟀고, 사내 기계가 그 절반을 냈다. 가짜 홈으로 옮겨도 게이트웨이 인증이 사는 경로가 그 두 필드뿐이라는 설계가 실물에서 선다.
+
+CA6 이 실물 MCP 로 초록이다. 스크래치 게이트들은 가짜 서버(true)를 써서 mcp_servers 에 failed 로 나타나는 것이 판정 재료였는데, 사내에서는 omab 이 connected 다 — 뜨기만 하는 것이 아니라 MCP 로 답한다. 그리고 harness.pack 의 다이제스트가 같은 Run 의 blob 과 맞았다. U5 가 SHA256 을 받은 바이트의 것으로 정한 이유(봉인을 읽는 사람이 blob 을 받아 sha256sum 으로 맞출 수 있어야 한다)가 실물 대조로 확인된 것이다.
+
+CA2 에 값 하나가 더 붙었다 — 실행파일을 되돌리면 5분 뒤에 광고로 복귀한다. 그것이 -detect-every 의 기본값이다. 내가 합성 함대에서 잰 것은 15초로 줄인 값이었고, 사내 측정이 기본값의 실제 지연을 냈다.
+
+남은 것은 병합이다. CONVENTIONS.md 3.3 이 「그 유닛의 장면 게이트가 초록인 뒤」를 병합 지점으로 못 박았고 이제 그 조건이 섰다."
+**Context**: GATE · CA0 ~ CA6 전부 초록 · 진행자 서명 · unit/pack 병합 가능
+
+---
+
+## GATE — CA2 의 화면 검증 S1 (진행자 서명)
+**Timestamp**: 2026-09-15T00:20:00Z
+**User Input**: "Mediator 상세 패널에 mcp서버 omab 있음 으로 표시 확인. 노드 제어판에서는 탐지 능력 (읽기 전용) 칸에 mcp.omab=1 이라고 나타남."
+**AI Response**: "CA2 의 마지막 줄이 닫혔다. 표가 CA2 를 「(S1 포함)」으로 적고 2.1 절이 「노드 카드에 mcp.<이름> 칩이 있다. 제어판 탐지 능력 카드에도 있다」로 두 화면을 요구하는데, 진행자가 사내 함대에서 둘 다 봤다 — 현황판은 상세 패널에 「MCP 서버 · omab 있음」이고 제어판은 탐지 능력(읽기 전용) 칸에 mcp.omab=1 이다.
+
+칩이 사는 자리를 이름으로 적어 둔다. 현황판에서 그 칩은 **노드 상세 패널**에 있고 함대 격자의 카드 면에는 없다. 카드 면은 identity.mjs 의 nodeIdentity() 가 고정 키 목록으로 짓는데(owner · hostname · os · host_arch · device_type · sandbox · provider · harness · tts · device · board · instance) 그 목록에 mcp.* 가 없다. U3 의 답 7=B 가 만든 attributeName · attributeValue 는 view.mjs 의 상세 패널에서만 돈다. format.test.mjs 의 단언도 그 함수를 직접 부르므로 카드 면을 안 잰다.
+
+그래서 S1 은 **상세 패널로 초록**이다. 카드 면에 올리는 것은 identity.mjs 를 고치는 일이고 이 회차의 파일 행렬 밖이다 — 다음 회차가 정할 자리로 남긴다.
+
+이로써 CA0 ~ CA6 이 하위 줄까지 전부 닫혔다."
+**Context**: GATE · CA2 의 S1 초록 · 회차의 게이트가 전부 닫혔다
+
+---
+
+## GATE 이후 — 어휘 발견 가능성 관찰 (진행자 손기록)
+**Timestamp**: 2026-09-15T00:40:00Z
+**User Input**: "그전에 관찰한 문제점이 있어 손으로 타이핑 해 둔다. 속도를 위해 영어로 썼다.
+
+# Finding - runctl alone is not enough for an agent with no context
+
+# what was tested
+A fresh agent was given an empty directory containing only ./runctl, forbidden to read source, and told to make a Windows node install an MCP server named omab and then prove a later step sees it in its session.
+
+## result
+It succeeded. It reached the correct three-step contract (install -> mkpack -> prove) and found agent.pack, agent.mcp and in.from unaided, from unctl's own help, example and schema output.
+
+It took 26+ minutes and about 24 runs.
+
+## where the runs went
+1 to 2 : ligitimate   Is the node alive, does an agent step run
+18 to 19 : doc gaps    15 of them guessing the pack tar layout
+
+The layout guesses, each one a submitted run: mcp.json with a top-level server name, .mcp.json with an mcpServers key, mcp/omab.json, a pack with skills only, a pack with agents only. It also guessed device:\"led\" as a requires key, probed $OUT, CWD and USERPROFILE on the real machine to learn the run-step contract, and hunted through d:\\images\\.claude looking for where MCP config lives.
+
+Only aobut 2 mins of the 26+ was work that documentation could not have removed.
+
+## the refusals were not the problem
+R16 returned \"pack p.pack carries no skills, agents, or mcp servers\", which names the three convention slots. The other failure was \"mcp server omab is not available on this node\". the agent was reading error text and narrowing, not guessing blindly. THe messages are good.
+
+What is missing sits one layer below them: the file name mcp.json , and the fact that servers go under an mcpServers key inside it. The error says which three slot exist; it does not say what the mcp slot is called on disk.
+
+## what the gap costs
+20 failed runs sealed into the record, every one of them on the real board-attached windows machine, tokens spent on each harness start. The product currently teaches its own conventions by letting an agent measure them on live hardware.
+
+## Fixes, in order of value
+1. Add `runctl example pack`. One example shows the tar layout and both keys (agent.pack, in.from) at once. `example mcp` already exists and is precisely why CA6 verdict 1 was cheap to reach - the example was copied and edited. Thepack path had no such starting point.
+2. Put the pack tar layout in `runctl schema`: mcp.json carrying an mcpServers object, skills/<name>/SKILL.md, agents/<name>.md. Include the trap that `tar -cf x.tar -C dir .` is rejected with \"pack entry ./ has an unsafe name\" because of the ./ entry; use `tar -cf x.tar skills mcp.json`.
+3. Put the $OUT  convention in `runctl schema`: a run step's cwd is the workspace, and the harvest reads $OUT. This is stated in the plan prompt that orchestrators receive but not in schema, so a contract author writing by hand has to discover it by running a probe.
+4. Point at `runctl capabilities` as the source of requires attribute values.The help calls it \"attribute vocabulary of the fleet\", which does not make clear those are the values you write into requires.
+Items 1 and 2 alone remove the 15 layout runs.
+
+## what already works well
+`runctl lint` warned \"no condition judges step mkpack; it can fail and the run sitll succeeds\" and printed the JSON fragment to add . Both 400 refusals name the allowed fields and end with \"see: runctl lint <contract.json> / runctl example\""
+**AI Response**: "네 구멍이 오늘 코드에 실제로 있는지 먼저 셌다. 넷 다 있다.
+
+runctl example 의 목록이 여섯이고 pack 이 없다 (agent · command · demo-led-toggle · demo-welcome-audio · mcp · multi). runctl schema 의 네 섹션 전체에서 mcpServers 가 0 회이고 $OUT 도 0 회다. schema steps 는 agent 를 map[string]any 한 줄로만 찍으므로 agent.pack 도 안 보인다 — 6절 ㉑ 이 이미 적은 그 자리다.
+
+./ 함정도 실물로 재현했다. tar -cf x.tar -C dir . 이 첫 항목으로 ./ 를 낸다. U5 의 packEntryName 이 path.Clean(\"./\") == \".\" 을 R7 으로 거절하므로 문구가 정확히 pack entry ./ has an unsafe name 이다 — 관찰한 그대로다.
+
+이 관찰의 무게는 실패가 아니라 비용이다. 게이트는 전부 초록이고 거절 문구도 제 일을 했다 — 에이전트가 문구를 읽고 좁혀 갔다. 없는 것은 그 한 층 아래다: 슬롯 이름은 알려 주는데 그 슬롯이 디스크에서 무엇으로 불리는지를 안 알려 준다. 그래서 스무 번의 실패 Run 이 실물 보드가 달린 윈도우 기계에 봉인됐다.
+
+decisions.md 6절에 실측 행 ㉕ 로 적었다 — 회차가 어휘를 지었는데 그 어휘를 보이게 하는 면이 안 늘었다는 사실이 값이다. features.md 4절에 이월 넷을 이름으로 더했고, 1 과 2 만으로 열다섯 번이 사라진다는 관찰의 판정을 그대로 실었다.
+
+이 회차에서 안 고친다 — cmd/runctl 의 소스 diff 0 이 이 회차의 파일 행렬이 센 값이고(CA0 의 라우트 수와 같은 자리), 지금 고치면 서명이 끝난 게이트 아래의 코드를 건드리는 것이 된다. 다음 회차의 입력으로 넘긴다."
+**Context**: GATE 이후 · 어휘 발견 가능성 · decisions ㉕ 와 features 4절 이월로 넘긴다
+
+---
+
+## 회차 밖 — 어휘를 보이게 하는 넷 (㉕ 의 고침)
+**Timestamp**: 2026-09-15T02:00:00Z
+**User Input**: "맥락없는 에이전트 도움말 강화는 여기서 바로 수정해줘"
+**AI Response**: "브랜치 fix/runctl-shows-the-pack-vocabulary 에서 넷을 다 고쳤다. 회차는 PR #37 로 main 에 닫혔고 게이트가 서명된 뒤라 회차 브랜치에 안 실었다.
+
+1 runctl example pack — internal/contract/examples/pack.json. tar 를 짓는 명령 단계 하나와 두 키를 문 에이전트 단계 하나다. 명령이 mktemp 아래에 skills/hello/SKILL.md · agents/helper.md · mcp.json 을 짓고 tar -cf $OUT/pack -C $d skills agents mcp.json 으로 묶는다 — 배치가 argv 에 글자로 보이고 안전한 tar 꼴도 함께 보인다. 워크스페이스에 아무것도 안 남긴다. 팩의 서버 이름을 packed 로 지었다: probe 로 지으면 노드가 그 이름을 선언한 함대에서 R19(팩이 노드 선언을 덮는다)로 죽는다. 그리고 requires 에 mcp.<이름> 을 안 적었다 — 팩이 정의의 출처이므로 노드가 그 이름을 선언할 필요가 없다는 것이 이 예시가 가르치는 값이다.
+
+2 runctl schema pack — 슬롯 셋의 디스크 배치와 mcpServers 키, 두 키가 함께 있어야 한다는 것, tar -cf x.tar -C dir . 이 ./ 항목 때문에 pack entry ./ has an unsafe name 으로 거절된다는 함정, 팩의 스킬이 pack:<이름> 으로 namespace 된다는 것.
+
+3 runctl schema io — cwd · $OUT · $IN. schema steps 의 꼬리가 그것을 가리킨다. 한 자리에만 적고 나머지는 가리킨다 — 두 벌로 두면 갈린다.
+
+4 requires 값의 출처 — schema requires 의 꼬리와 help 의 capabilities 줄이 runctl capabilities 를 가리킨다. 옛 문구 attribute vocabulary of the fleet 가 그 값이 requires 에 적는 값이라는 것을 안 말했다.
+
+cmdSchema 를 글 절이 들어갈 수 있게 고쳤다 — typ 이 nil 이면 글이고, 필드 뒤에 붙는 꼬리를 따로 둔다. 구조체에서 뽑는 것만으로는 안 보이는 값이 있다는 것이 ㉕ 의 내용이다.
+
+시험이 그 글자를 센다. TestSchema_CarriesWhatTheErrorMessagesDoNotSay 가 mcp.json · mcpServers · skills/<name>/SKILL.md · agents/<name>.md · 두 키 · 함정 문구 · runctl example pack 을 이름으로 찾고, io 와 requires 와 steps 의 꼬리도 잰다. TestExamplePack_CarriesBothKeys 는 예시의 agent.pack 과 앞 단계의 out 과 in.from 이 같은 이름인지를 잰다 — 하나만 적으면 그 단계는 팩 없이 돌고 우리가 못 잡는다. 변이 둘을 넣어 빨개지는 것을 봤다 (mcpServers 를 지운다 · steps 의 꼬리를 걷는다).
+
+CA0 전부 초록이다. cmd/runctl 커버리지가 93.9% 에서 94.3% 로 올랐고 라우트 26 그대로다.
+
+features.md 4절의 이월 블록을 「닫혔다」로 고치고 원문을 아래에 남겼다. decisions.md ㉕ 의 근거 칸에도 고친 사실을 달았다."
+**Context**: 회차 밖 · ㉕ 의 넷을 고쳤다 · CA0 초록
+
+---

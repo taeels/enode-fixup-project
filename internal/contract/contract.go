@@ -899,7 +899,7 @@ func (c Condition) Want() (Require, int) {
 // 한쪽이 늘면 다른 쪽도 늘어야 하고, 그것을 잊으면 계약이 거절하거나
 // 어댑터가 버린다 — 둘 다 조용하지 않다.
 var (
-	agentKeys = []string{"model", "max_turns", "max_tokens", "ask", "harness"}
+	agentKeys = []string{"model", "max_turns", "max_tokens", "ask", "harness", "mcp", "pack"}
 	// diff 는 자리다 — run-contract §5 의 "@work.patch_rev 참조 해석" 이고
 	// 아직 런타임이 안 읽는다 (seal.go 가 같은 말을 적어뒀다).
 	// 시연 계약(testdata/demo.json)이 정본으로 그것을 쓰므로 허용한다.
@@ -927,6 +927,76 @@ func knownKeys(stepID, field string, m map[string]interface{}, allowed []string)
 			stepID, k, field, strings.Join(allowed, ", "), hint)
 	}
 	return nil
+}
+
+// agentValues 는 이 회차가 들여온 키 둘의 값을 본다 — 이름만으로는 모자라다.
+//
+// 왜 Mediator 에서 보나
+//
+// knownKeys 는 키 이름만 보므로 agent.mcp 를 문자열로 적은 계약이 400 을 안 받고
+// 노드까지 간다. 거기서 죽는 자리는 json.Unmarshal 이고 문구는 Go 의 기본값이다
+// (enode.parseAgentParams). 스토리 US-7 은 "타입을 틀리게 적으면 제출에서
+// 걸린다" 이고, 그것이 참이 되는 자리가 여기다.
+//
+// 계획이 지은 단계도 같은 검사를 받는다 — checkplan 의 빠른 훅과
+// store.applyExpands 가 둘 다 이 Validate 를 부른다. 그래서 검사 자리가 하나다.
+//
+// 새 키 둘만 본다. 나머지 다섯(model · max_turns · max_tokens · ask · harness)의
+// 타입 검사는 여전히 노드뿐이고 그 비대칭은 이 회차의 범위 밖이다 —
+// features.md 3.5 가 새 어휘를 범위로 적었다.
+func agentValues(stepID string, agent, in map[string]interface{}) error {
+	if v, ok := agent["mcp"]; ok {
+		names, ok := v.([]interface{})
+		if !ok {
+			return fmt.Errorf("step %q: agent.mcp must be an array of server names", stepID)
+		}
+		for i, n := range names {
+			// 빈 이름은 어느 출처에도 없다 — 노드에서 "없는 서버" 로 죽을 것을
+			// 제출에서 같은 답으로 준다.
+			if s, ok := n.(string); !ok || s == "" {
+				return fmt.Errorf("step %q: agent.mcp[%d] must be a non-empty server name", stepID, i)
+			}
+		}
+	}
+	pack, hasPack := agent["pack"]
+	var packName string
+	if hasPack {
+		s, ok := pack.(string)
+		if !ok || s == "" {
+			return fmt.Errorf("step %q: agent.pack must be a blob name (a non-empty string)", stepID)
+		}
+		packName = s
+	}
+	// in.from 의 타입을 먼저 세운다 — 그것이 서야 아래 대조를 할 수 있다.
+	from, hasFrom := in["from"]
+	var names []interface{}
+	if hasFrom {
+		ns, ok := from.([]interface{})
+		if !ok {
+			return fmt.Errorf("step %q: in.from must be an array of artifact names", stepID)
+		}
+		names = ns
+	}
+	if !hasPack {
+		return nil
+	}
+	// 팩은 $IN 에 깔린 파일이고, 그 파일은 in.from 이 적어야 깔린다 (ADR-034 §2.2).
+	//
+	// 위의 in.from 정적 검사가 이미 오타를 막는다 — 어느 단계도 안 내는 이름은
+	// 거기서 400 이다. 남아 있던 것은 아예 안 적은 경우이고, 그때 빠뜨림은
+	// 조용히 실패한다: 없는 입력은 값이고(ADR-058) 그 단계는 팩 없이 돌아
+	// 종료코드 0 으로 끝날 수 있다. 오타는 거절로 오고 빠뜨림은 성공으로 온다 —
+	// 그 침묵이 이 회차가 고치려는 종류다.
+	//
+	// 이름을 두 번 적는다 — 고칠 자리가 in.from 이라서다. "없다" 만 말하면
+	// agent.pack 을 지우는 것도 답으로 보이고, 그것은 다른 뜻이다.
+	for _, n := range names {
+		if s, ok := n.(string); ok && s == packName {
+			return nil
+		}
+	}
+	return fmt.Errorf("step %q: agent.pack names %q, but in.from does not carry it; "+
+		"add %q to in.from so the pack is placed in $IN", stepID, packName, packName)
 }
 
 func contains(ss []string, want string) bool {
@@ -1120,6 +1190,9 @@ func (c Contract) Validate() error {
 			return err
 		}
 		if err := knownKeys(st.ID, "in", st.In, inKeys); err != nil {
+			return err
+		}
+		if err := agentValues(st.ID, st.Agent, st.In); err != nil {
 			return err
 		}
 	}

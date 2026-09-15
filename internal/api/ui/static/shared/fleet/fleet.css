@@ -48,7 +48,7 @@ body.dashboard { margin:0; }
 .dashboard .scene-item { cursor:pointer; }
 .dashboard .scene-item:hover { filter:brightness(1.25); }
 .dashboard .scene-canvas :is(.run-flow,.fleet-identity) { font-family:inherit; }
-.dashboard .flow-context-link { stroke-dasharray:4 6; }
+.dashboard .flow-context-link { stroke-dasharray:4 6; stroke-linecap:round; }
 .dashboard .flow-link[data-active=true] { stroke-dasharray:7 7; animation:run-flow-travel 1.2s linear infinite; }
 .dashboard .flow-actor.is-active .flow-halo { animation:run-flow-pulse 2s ease-in-out infinite; }
 .dashboard .run-flow[data-paused=true] * { animation-play-state:paused; }

@@ -889,3 +889,109 @@ func TestDispatch_RejectsAnUnpromisedName(t *testing.T) {
 		t.Fatalf("rejected for a different reason: %v", err)
 	}
 }
+
+// agent.mcp · agent.pack 의 값 검사 (features.md 3.5 · US-7)
+//
+// 문법 대조가 없는 둘을 여기서 잰다 — R3(빈 이름)과 R6(in.from 의 타입)이다.
+// 문법에 별 문장을 안 만든 이유는 R2 · R5 의 문장이 값의 모양을 이미 말하고,
+// 쪼개면 계획이 읽는 비용만 늘기 때문이다.
+func TestValidate_agentComponents(t *testing.T) {
+	// 앞 단계가 팩 blob 을 낸다 — in.from 의 이름은 어느 단계가 내는 것이어야
+	// 한다는 정적 검사가 이미 있다 (ADR-023 §6.2.1).
+	step := func(agent map[string]interface{}, in map[string]interface{}) Contract {
+		return Contract{
+			RunID:    "r",
+			Requires: []Require{req("brain")},
+			Steps: []Step{
+				{ID: "fetch", Uses: "brain", Run: []string{"true"}, Out: []string{"kernel-review"}},
+				{ID: "a", Uses: "brain", Needs: []string{"fetch"},
+					Agent: agent, In: in, Out: []string{"x"}},
+			},
+			SuccessWhen: []Condition{
+				{Step: "fetch", ExitCode: zero()},
+				{Step: "a", Produced: []string{"x"}},
+			},
+		}
+	}
+
+	// 되는 것부터 — 둘을 제대로 적은 계약은 통과한다.
+	ok := step(
+		map[string]interface{}{"mcp": []interface{}{"probe"}, "pack": "kernel-review"},
+		map[string]interface{}{"prompt": "p", "from": []interface{}{"kernel-review"}},
+	)
+	if err := ok.Validate(); err != nil {
+		t.Fatalf("a valid contract was rejected: %v", err)
+	}
+
+	// 빈 배열과 부재가 같다 — 둘 다 허용목록이 빈다는 같은 뜻이다.
+	empty := step(map[string]interface{}{"mcp": []interface{}{}}, nil)
+	if err := empty.Validate(); err != nil {
+		t.Fatalf("an empty agent.mcp must be allowed; it means the allowlist is empty: %v", err)
+	}
+
+	cases := []struct {
+		name  string
+		agent map[string]interface{}
+		in    map[string]interface{}
+		want  string
+	}{
+		{
+			// 빈 이름은 어느 출처에도 없다 — 노드에서 "없는 서버" 로 죽을
+			// 것을 제출에서 같은 답으로 준다.
+			name:  "an empty server name",
+			agent: map[string]interface{}{"mcp": []interface{}{"probe", ""}},
+			want:  "agent.mcp[1]",
+		},
+		{
+			name:  "a server name that is not a string",
+			agent: map[string]interface{}{"mcp": []interface{}{1}},
+			want:  "agent.mcp[0]",
+		},
+		{
+			name:  "an empty pack name",
+			agent: map[string]interface{}{"pack": ""},
+			in:    map[string]interface{}{"prompt": "p"},
+			want:  "agent.pack must be a blob name",
+		},
+		{
+			// in.from 의 타입이 서야 팩 대조를 할 수 있다.
+			name:  "in.from is not an array",
+			agent: map[string]interface{}{"pack": "kernel-review"},
+			in:    map[string]interface{}{"from": "kernel-review"},
+			want:  "in.from must be an array of artifact names",
+		},
+		{
+			// 팩이 없어도 in.from 의 타입은 본다.
+			name:  "in.from is not an array, with no pack in play",
+			agent: map[string]interface{}{"ask": "never"},
+			in:    map[string]interface{}{"from": "kernel-review"},
+			want:  "in.from must be an array of artifact names",
+		},
+	}
+	// R5 가 실제로 닫는 구멍 — in.from 을 아예 빼면 오늘은 통과한다.
+	//
+	// 이름을 틀리게 적은 경우는 이미 in.from 의 정적 검사가 400 으로 막았다
+	// (위 step 의 주석). 남아 있던 것은 안 적은 경우이고, 그때 단계는 팩 없이
+	// 돌아 0 으로 끝날 수 있었다.
+	forgot := step(map[string]interface{}{"pack": "kernel-review"},
+		map[string]interface{}{"prompt": "p"})
+	err := forgot.Validate()
+	if err == nil {
+		t.Fatal("a pack with no in.from must be rejected; the step would run with no pack")
+	}
+	if !strings.Contains(err.Error(), "in.from does not carry it") {
+		t.Fatalf("err=%v, want it to name in.from as the place to fix", err)
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := step(tc.agent, tc.in).Validate()
+			if err == nil {
+				t.Fatalf("it passed")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err=%v, want it to mention %q", err, tc.want)
+			}
+		})
+	}
+}

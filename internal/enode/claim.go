@@ -762,10 +762,28 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		// 사람이 이 줄을 보고 화이트리스트를 의심할 수 있어야 한다.
 		log.Debug("environment variables not passed through", "names", d)
 	}
+	// 워크스페이스 선언을 여기서 읽는다 — 여는 것은 가장자리이고 고르는 것은
+	// resolveComponents 다 (U4).
+	//
+	// 조건이 둘이다. 요청이 없으면 허용목록이 어차피 비므로 파일을 아예 안
+	// 열고, 워크스페이스가 없으면 출처도 없다 — dir 은 그때 os.TempDir() 로
+	// 떨어지는데 거기의 .mcp.json 은 아무나 쓸 수 있다.
+	//
+	// 읽기 실패를 여기서 안 다룬다. 등급과 문구는 정책이고 정책은 한 자리에 있다.
+	var wsMCP map[string]map[string]any
+	var wsErr error
+	if len(p.MCP) > 0 && w.Local.Workspace != "" {
+		wsMCP, wsErr = readWorkspaceMCP(w.Local.Workspace)
+	}
 	logBytes, h := runHarness(runCtx, ha, bin, Job{
 		Params: p, Prompt: prompt,
-		IO:     IOPaths{Dir: dir, In: in, Out: out},
-		Expect: step.Out, // 훅이 짚을 이름 — 계약이 요구한 산출물
+		IO: IOPaths{Dir: dir, In: in, Out: out},
+		// 출처 둘. 합치는 것은 resolveComponents 다 (U4)
+		NodeMCP:         w.Local.MCP,
+		WorkspaceMCP:    wsMCP,
+		WorkspaceMCPErr: wsErr,
+		Log:             log,
+		Expect:          step.Out, // 훅이 짚을 이름 — 계약이 요구한 산출물
 		// 계획 단계면 훅이 모양까지 본다 (ADR-046).
 		// expands 단계는 산출물이 정확히 하나임을 계약 검증이 보장한다.
 		Plan:       planOutName(step),
