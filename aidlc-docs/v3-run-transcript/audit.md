@@ -92,3 +92,35 @@
 **Context**: INCEPTION — User Stories Part 2. 승인 대기
 
 ---
+
+## User Stories — 승인
+**Timestamp**: 2026-09-15T05:52:20Z
+**User Input**: "승인. 워크플로 플랜 하자"
+**AI Response**: User Stories 를 닫았다. 커밋 `94d28ed`. 페르소나 셋 · 스토리 열하나 · 새 완료 조건 여섯(NC-1 ~ NC-6). 다음은 Workflow Planning 이다 — ALWAYS 단계다.
+**Context**: INCEPTION — User Stories 승인. 단계 종료
+
+---
+
+## Workflow Planning — 착수
+**Timestamp**: 2026-09-15T05:52:20Z
+**User Input**: (없음 — 위 승인으로 자동 진행)
+**AI Response**: `workflow-planning.md` 의 Step 1 ~ 8 을 돌렸다. Step 2 의 영향 분석을 문서가 아니라 **코드에 대고** 다시 쟀다 — 라우트 셈 17 · 패키지 여섯의 크기 · `AppendLog` 시그니처와 O_APPEND · `sealRecord` 의 회수 경로 · 현황판 폴링 5초(`client.mjs:67`) · 제어판 폴링 셋(`page.go:306-308`). 산출물은 `inception/plans/execution-plan.md` 다.
+**Context**: INCEPTION — Workflow Planning 착수
+
+---
+
+## Security Compliance — Workflow Planning
+**Timestamp**: 2026-09-15T05:52:20Z
+**User Input**: (없음)
+**AI Response**: `security-baseline` 열다섯 규칙을 이 단계의 산출물에 댔다. **차단 findings 0.** 준수 셋(SECURITY-11 · 03 · 05) · N/A 열둘. 계획 문서는 코드 · 네트워크 · 로그 · 자격증명 표면을 안 만든다. SECURITY-11 은 새 보안 표면 넷(진행 파일 · 링 원문 · GET log · 파서)을 **어느 단계가 닫는지** 명시로 배정한 것으로 준수다 — 잔여 ① 의 노출 기간은 N2 로, 재시도 경계는 D7 로 갔다. SECURITY-03 은 잔여 셋을 없앤 척하지 않았고 위험도 High 의 근거로 이름을 적었다.
+**Context**: INCEPTION — Workflow Planning. 확장 규칙 준수 요약
+
+---
+
+## Workflow Planning — 완료
+**Timestamp**: 2026-09-15T05:52:20Z
+**User Input**: (없음)
+**AI Response**: `plans/execution-plan.md` 477줄을 냈다. **실행 일곱 · 스킵 하나**(Infrastructure Design). 짝 팩과 갈린 자리는 **NFR Requirements 를 돌리는 것** 하나다 — 짝 팩이 그 자리를 스킵했고 그 회차의 계획이 스스로 규칙 위반으로 적었으며, 이 회차는 Execute IF 넷 중 셋(성능 · 보안 · 확장)이 걸리고 `requirements.md` 가 안 닫은 값이 둘이다. 계획을 문서가 아니라 **코드에 대고** 세우면서 셋을 새로 찾았다 — D7(재시도가 진행 파일에서 안 갈린다. `AppendLog` 가 `O_APPEND` 이고 경로에 `attempt` 가 없다) · N1 N2(함대 규모와 진행 파일의 디스크 수명. 5.7 이 간격만 적는다) · 거짓이 되는 주석 넷(`requirements.md` 11절이 `record.go:86` 하나만 적었는데 `record.go:54` · `:56` · `claim.go:143` 이 더 있다). `aidlc-state.md` 를 Step 8 대로 갱신했다.
+**Context**: INCEPTION — Workflow Planning. 승인 대기
+
+---

@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-15T03:26:50Z
-- **Current Stage**: INCEPTION — User Stories 완료. 승인 대기
+- **Current Stage**: INCEPTION — Workflow Planning 완료. 승인 대기
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-transcript` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-transcript/` (CLAUDE.md 의 회차별 layering)
@@ -100,6 +100,24 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
 취급: `decisions.md` §3 이 SECURITY 규칙마다 처리를 미리 적었다 — 새 표면(GET
 라우트 · PUT 응답 · 현황판 카드 · 파서)에만 걸고 기존 코드의 사실은 기록만 한다.
 
+## Execution Plan Summary — Workflow Planning (2026-09-15T05:52:20Z)
+
+전문은 `inception/plans/execution-plan.md`. 위험도 **High** · 되돌리기 Moderate ·
+검사 복잡도 Complex.
+
+```text
+   실행    7   Application Design · Units Generation · Functional Design ·
+               NFR Requirements · NFR Design · Code Generation · Build and Test
+   스킵    1   Infrastructure Design — 새 실행파일 0 · 새 포트 0 · DB 스키마 0
+   경로    6   transcript (신규) · enode · record · api · panel · api/ui
+   게이트  7   CB0 ~ CB6.  기계 1 · 실패 주입 1 · 사람 눈 4 · 해당 없음 1 (CB5)
+```
+
+**짝 팩과 갈린 자리 하나 — NFR Requirements 를 돌린다.** 짝 팩이 그 자리를
+스킵했고 그 회차의 계획이 스스로 규칙 위반으로 적었다. 이 회차는 Execute IF
+넷 중 셋이 걸리고 (성능 · 보안 · 확장) `requirements.md` 가 안 닫은 값이
+둘이다 — N1 함대 규모 · N2 진행 파일의 디스크 수명.
+
 ## Stage Progress
 
 ### INCEPTION PHASE
@@ -107,15 +125,23 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
 - [x] Reverse Engineering — 전면 갱신 완료. 승인됨 2026-09-15T03:56:47Z
 - [x] Requirements Analysis — 승인됨 2026-09-15T04:10:00Z
       질문 셋 · 답 셋(B · A · B) · `requirements.md` 536줄 · 커밋 `b87ffc9`
-- [x] User Stories — 2026-09-15T04:18Z. 승인 대기
+- [x] User Stories — 승인됨 2026-09-15T05:52:20Z (사용자 「승인. 워크플로 플랜 하자」)
       평가(`plans/user-stories-assessment.md`) · 계획과 답 넷(전부 A) ·
-      페르소나 셋 · 스토리 열하나 · **새 완료 조건 여섯 (NC-1 ~ NC-6)**
-- [ ] Workflow Planning — ALWAYS
-- [ ] Application Design — 미정
-- [ ] Units Generation — 미정
+      페르소나 셋 · 스토리 열하나 · **새 완료 조건 여섯 (NC-1 ~ NC-6)** · 커밋 `94d28ed`
+- [x] Workflow Planning — 2026-09-15T05:52:20Z. 승인 대기
+      `plans/execution-plan.md` 477줄. 실행 7 · 스킵 1. 새로 찾은 것 셋(D7 · N1 N2 · 주석 넷)
+- [ ] Application Design — **EXECUTE**. 미결 일곱(D1 ~ D7)을 닫는다
+- [ ] Units Generation — **EXECUTE**. 파일 행렬이 필수다
 
 ### CONSTRUCTION PHASE
-- [ ] 미정 — Workflow Planning 이 정한다
+담당은 `taeels` 하나. 문서 루트 `aidlc-docs/taeels/` · 유닛마다 `unit/<유닛>`.
+
+- [ ] Functional Design — **EXECUTE** (유닛마다). 형식 다섯을 닫는다
+- [ ] NFR Requirements — **EXECUTE** (유닛마다 · 최소). 안 닫힌 값 둘(N1 · N2)
+- [ ] NFR Design — **EXECUTE** (유닛마다 · 최소). 패턴 다섯
+- [ ] Infrastructure Design — **SKIP**. 배포 모형이 안 바뀐다. 디스크 값은 N2 로 갔다
+- [ ] Code Generation — **EXECUTE** (ALWAYS · 유닛마다)
+- [ ] Build and Test — **EXECUTE** (ALWAYS). CB0 ~ CB6 이 곧 시험 계획이다
 
 ### OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
@@ -145,6 +171,11 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
    ②  그동안 GET log 를 부를 수 있는 사람이 그것을 읽는다.  주체별 권한 모델이 없다
    ③  링에 원문이 노드 디스크에 앉는다.  0600 · 루프백 · 단계마다 덮인다
 ```
+
+**① 에 상한이 없다 (Workflow Planning 이 찾았다).** 「봉인 때 지워진다」는 맞다 —
+종료 상태에 이르면 `reap.go` 의 `sealExpired` 가 잡는다. 그러나 **종료 안 된 채
+오래 도는 Run** 의 노출 기간에는 값이 한 줄도 없다. NFR Requirements 의 N2 가
+그 자리다 (`plans/execution-plan.md` 3절).
 
 ## 회차가 넓히는 자리 하나
 
