@@ -52,7 +52,7 @@ R1 ~ R15 는 그 `business-rules.md` 다. 값은 `nfr-requirements.md` 가,
 | `internal/transcript/line.go` | 신규 (옮김) | `SplitLines` · `ParseLine` · `String` · `Bool` · `Int` | R2 · R11.1 |
 | `internal/transcript/shell.go` | 신규 (옮김) | `Shell` · `logShell` · `ElidedMarker` · `elidedMark` · `usageTokens` | R13 · R10.3 |
 | `internal/transcript/parse.go` | 신규 (새 코드) | `Parse` 의 파이프라인 여덟 · 판정 사다리 넷 · 룬 경계 자르기 | R1 · R3 ~ R8 |
-| `internal/enode/runner.go` | 고침 | 일곱과 타입 둘을 덜어내고 `selectLogs` 의 다섯 자리를 다시 부른다 | R11.2 |
+| `internal/enode/runner.go` | 고침 | 여덟과 타입 둘을 덜어내고 `selectLogs` 의 다섯 자리를 다시 부른다 | R11.2 |
 | `internal/enode/logs_test.go` | 고침 | 픽스처를 파일로 · 한 줄 · 표 시험 하나 이사 | R15.3 |
 | `internal/enode/logs_events_test.go` | 신규 | FR-3 의 두 경로 시험 (`selectLogs` 가 비공개라 여기여야 한다) | 9절 |
 | `internal/panel/boundary_test.go` | 고침 | 금지 표로 바꾸고 다섯 줄을 더한다 | R9 · 5절 |
@@ -60,10 +60,10 @@ R1 ~ R15 는 그 `business-rules.md` 다. 값은 `nfr-requirements.md` 가,
 **행렬 밖 파일을 안 만진다.** `internal/store` · `internal/contract` ·
 `internal/api` · `cmd/` 다섯의 diff 가 0 이다 (`execution-plan.md` 6절 품질 게이트 2).
 
-### 1.2 덜어내는 것 — 실측으로 센 일곱과 타입 둘
+### 1.2 덜어내는 것 — 실측으로 센 여덟과 타입 둘
 
 `components.md` 1절과 `unit-of-work.md` U1 절이 **셋**으로 적었다. **코드에 대고
-다시 셌고 아홉이다** (함수 일곱 + 타입 둘). 줄 번호는 이 브랜치의 `runner.go` 다.
+다시 셌고 열이다** (함수 여덟 + 타입 둘). 줄 번호는 이 브랜치의 `runner.go` 다.
 
 | 오늘 자리 | 옮긴 뒤 | 공개 | 가는 파일 |
 |---|---|---|---|
@@ -85,18 +85,28 @@ R1 ~ R15 는 그 `business-rules.md` 다. 값은 `nfr-requirements.md` 가,
 **실측 — 그 구간은 문장 64 개이고 62 개가 덮여 있다** (2026-09-15 ·
 `go test ./internal/enode/ -count=1 -coverpkg=./internal/enode/`).
 
-### 1.3 실측이 앞 문서와 어긋난 자리 — 셋
+### 1.3 실측이 앞 문서와 어긋난 자리 — 넷
 
-**전부 이 계획이 다시 재서 찾은 것이고, 셋 다 값의 방향을 안 바꾼다.**
+**전부 코드에 다시 대서 찾은 것이고, 넷 다 값의 방향을 안 바꾼다.**
 
 | | 앞 문서 | 실측 | 무엇이 달라지나 |
 |---|---|---|---|
 | ① | `business-rules.md` 14절 「옮겨 가는 문장 **65** · 덮임 **63**」 · 「옮긴 뒤 1,908 / 2,249」 | **64 · 62** · 옮긴 뒤 **1,909 / 2,250 = 84.8%** | 비율(96.9% · 84.8%)이 안 바뀐다. 절대 수만 하나씩 어긋났다 |
 | ② | `tech-stack-decisions.md` 2.3 「커버리지 분모 — `FuzzParse` 의 몸통 문장이 몇 개 는다」 | **안 는다.** 커버리지 프로파일에 `_test.go` 블록이 **0** 개다 (실측) | 퍼즈와 벤치마크가 커버리지 예산을 한 문장도 안 먹는다. 8.2 가 그 예산을 다시 센다 |
 | ③ | `nfr-requirements.md` 2.2 · `business-rules.md` 8.2 「그 둘의 `Text` 는 JSON 을 거쳐 오므로 표준 라이브러리가 잘못된 UTF-8 을 이미 `U+FFFD` 로 바꾼다」 | **`tool_result` 만 참이고 `tool_use` 는 거짓이다** (7.2 의 실측) | **불변식 F2 의 글자를 고쳐야 한다.** 7.2 가 고친 글자를 든다 |
+| ④ | `domain-entities.md` 1절의 제목 「옮겨 오는 범위 — **함수 일곱**과 타입 둘」 · FD 계획 6절 ③ ⑦ 의 「함수 일곱 + 타입 둘」 | **함수 여덟과 타입 둘 — 합 열.** `sed -n '369,535p' \| grep -c '^func '` 가 **8**, `'^type '` 가 **2** | 1.2 의 표가 옮길 이름을 정한다. **구간도 문장 수도 안 바뀐다** — 셈 하나다 |
 
 **③ 이 이 계획에서 가장 무거운 발견이다.** 안 고치면 `FuzzParse` 가 첫 변이에서
 빨개지고, 그때 고칠 자리가 시험이 아니라 **불변식의 정의**라 Part 2 가 멈춘다.
+
+**④ 는 앞 문서 안에서 이미 어긋나 있었다.** `domain-entities.md` 1절은 제목이
+「일곱」인데 **그 절의 표가 열 행**이다 (실측 — `grep -c "^| \`runner.go"` 가 10).
+표가 옳고 제목이 하나 모자랐다. 회차 문서의 「셋」을 고치면서 한 번 고친 값인데
+**고친 값도 하나 모자랐고**, 이 계획이 그 제목을 그대로 옮기다가 **자기 표(여덟
+행)와 어긋났다.** 진행자의 표본 검증이 그것을 잡았다.
+
+**세는 자리를 하나로 줄여 적는다** — 옮기는 것의 개수를 글자로 세지 않고
+**1.2 의 표 행이 정본**이다. 글자는 그 표를 가리키기만 한다.
 
 ---
 
@@ -413,7 +423,7 @@ type Elided struct{ Events, Bytes int }
 
 ### Step 19 — 문서
 
-- [ ] `construction/transcript/code/code-summary.md` — 옮긴 아홉 · Step 2 의 실측
+- [ ] `construction/transcript/code/code-summary.md` — 옮긴 열 · Step 2 의 실측
       둘 · Step 17 의 수 · **Step 3 의 이음매를 맞댄 결과**(6절) · 못 잰 것
 - [ ] 12절의 표시를 진행자에게 넘긴다. **회차 문서와 팩을 이 유닛이 안 고친다**
 - [ ] 이 계획의 체크박스를 전부 `[x]` 로 (규칙 Step 12)
@@ -829,7 +839,7 @@ X) Other (please describe after [Answer]: tag below)
 ## 12. 진행자에게 넘기는 것
 
 앞 단계의 표시가 그대로 산다 (`nfr-requirements.md` 8절의 다섯). **이 계획이
-더하는 것은 ② 와 ⑥ 둘이고, 나머지는 자리만 다시 가리킨다.**
+더하는 것은 ② · ⑥ · ⑧ 셋과 ⑦ 의 뒤 절반이고, 나머지는 자리만 다시 가리킨다.**
 
 ```text
    ①  팩 requirements/transcript/decisions.md:50 의 「200자 · 500자」를
@@ -857,10 +867,28 @@ X) Other (please describe after [Answer]: tag below)
       글자와 bytes 의 뜻을 맞댄다.  **U1 은 그 절반을 못 닫는다** —
       착수 순서가 U1 을 먼저 세우고 U3 의 코드가 그때 없다 (6.2)
 
-   ⑦  회차 문서 셋의 「셋」 — application-design/components.md 1절과
-      unit-of-work.md U1 절이 옮겨 오는 것을 셋으로 적었다.
-      **실측은 함수 일곱과 타입 둘이다** (1.2).  FD 계획 6절이 이미 적은 자리이고
-      이 계획이 줄 번호까지 확인했다
+   ⑦  옮겨 오는 것의 개수 — **고칠 자리가 넷이고 값은 함수 여덟 + 타입 둘이다**
+      (1.2 의 표가 정본 · 1.3 ④).  회차 문서 둘은 「셋」이고 유닛 문서 둘은
+      「일곱」이라 **틀린 값이 두 벌로 있다**
+
+        application-design/components.md 1절     「셋」      -> 여덟 + 둘
+        application-design/unit-of-work.md U1 절  「셋」      -> 여덟 + 둘
+        construction/.../domain-entities.md 1절   제목 「일곱」 -> 여덟.
+                                                 **그 절의 표는 이미 열 행이다**
+        plans/transcript-functional-design-plan.md 6절 ③ ⑦ · 691행
+                                                 「일곱 + 타입 둘」 -> 여덟 + 둘
+
+      앞 둘은 FD 계획 6절이 이미 진행자에게 넘긴 자리이고, **뒤 둘이 이 단계가
+      새로 찾은 것이다** — 「셋」을 고치면서 쓴 값이 하나 모자랐다
+
+   ⑧  **새것.**  construction/.../business-rules.md 14절의 커버리지 수를
+      고친다 — 「문장 65 · 덮임 63」 -> **64 · 62**,
+      「옮긴 뒤 1,908 / 2,249」 -> **1,909 / 2,250**.  비율(96.9% · 84.8%)은
+      그대로다 (1.3 ① · 8.2).  같은 절의 「옮긴 뒤 그 가지를 어떻게 다룰지는
+      Code Generation 이 정한다」는 8.3 이 닫았다
 ```
+
+**⑦ 과 ⑧ 이 같은 결이다** — 둘 다 **글자로 센 수가 표와 어긋난 자리**이고,
+둘 다 값의 방향을 안 바꾼다. 고치는 사람이 같으므로 한 커밋에 묶어도 된다.
 
 **이 유닛이 회차 문서도 팩도 안 고친다** (`CONVENTIONS.md` 3.4 의 「안 싣는 것」).
