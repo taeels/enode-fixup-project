@@ -21,18 +21,28 @@
    임포트     표준 라이브러리만.  enode · api · store · panel 금지
 ```
 
-**들어오는 입력이 둘이다.**
+**들어오는 입력이 넷이다.** 앞 판이 둘로 적었고 U1 의 Functional Design 이
+코드를 읽어 둘을 더 찾았다 — **명령 단계는 JSON 을 한 줄도 안 낸다.**
 
 ```text
-   원문 스트림   진행 파일 · 링.  stream-json 사건 전문
-   선별본       봉인된 logs/NN-*.log.  init 전문 · result 전문 · 껍데기 줄 ·
-                enode.elided 한 줄 · stderr 꼬리
+   원문 스트림    진행 파일 · 링.  stream-json 사건 전문
+   선별본        봉인된 logs/NN-*.log.  init 전문 · result 전문 · 껍데기 줄 ·
+                 enode.elided 한 줄 · enode.capped 한 줄 · stderr 꼬리
+   명령 단계     평문이다.  claim.go 의 링과 로그에 오늘도 그대로 흐른다
+   stderr 꼬리    평문이다.  선별본 끝에 붙는다
 ```
+
+**뒤의 둘이 파싱 실패가 아니라 애초에 JSON 이 아니다.** 팩의 `raw` 정의
+(「파싱 실패 줄」)가 이 둘을 안 덮으므로 U1 의 규칙이 `text` 와 `raw` 를 갈랐다.
 
 **실패 등급**: 없다. 파서는 못 읽은 줄을 `raw` 로 넘기고 아무것도 안 버린다
 (`constraints.md` §4). 오류로 단계를 죽이는 경로가 이 패키지에 0 이다.
 
-**옮겨 오는 것 셋** (Q4 = A · 오늘 `internal/enode/runner.go` 에 있다).
+**옮겨 오는 것은 셋이 아니라 함수 일곱과 타입 둘이다** (Q4 = A · 오늘
+`internal/enode/runner.go` 에 있다). 아래 셋이 이름이 난 것이고, 그 셋은
+`usageTokens` · `eventString` · `eventBool` · `eventInt` 와 타입 `logShell` ·
+`elidedMark` 없이 안 선다. `splitLines` 는 `Parse` 와 `selectLogs` 가 둘 다
+필요하다. 전문은 U1 의 `domain-entities.md` 1절.
 
 ```text
    parseEventLine   줄 하나를 아는 키만 읽는다.  SECURITY-13 의 규율이 여기 있다

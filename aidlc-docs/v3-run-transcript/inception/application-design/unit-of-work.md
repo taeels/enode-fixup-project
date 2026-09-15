@@ -20,9 +20,15 @@
 ```text
    한다       새 패키지 internal/transcript.  사건을 읽는 Parse 와
               껍데기를 짓는 셋(ParseLine · Shell · ElidedMarker).
-              셋은 internal/enode/runner.go 에서 옮겨 온다 (D5 · Q4 = A)
+              **옮겨 오는 것은 셋이 아니라 함수 일곱과 타입 둘이다** —
+              이름난 셋은 usageTokens · eventString · eventBool · eventInt 와
+              타입 logShell · elidedMark 없이 안 서고, splitLines 는 Parse 와
+              selectLogs 가 둘 다 필요하다 (U1 의 Functional Design 이 고쳤다)
+              전부 internal/enode/runner.go 에서 옮겨 온다 (D5 · Q4 = A)
               selectLogs 가 그것을 임포트하게 고친다
-              경계 검사 표에 임포트 금지 두 줄을 더한다
+              **경계 검사 표에 금지 넷을 더한다** (앞 판의 「두 줄」이 아니다.
+              그리고 앞 팩의 넷 중 api/ui -> store 는 규칙으로만 있고
+              검사기에 없다 — unit-of-work-file-matrix.md 6절)
    안 한다     화면 · HTTP · 파일 · 시계.  사건을 고치거나 버리는 것
    경로       internal/transcript (신규) · internal/enode/runner.go ·
               internal/panel/boundary_test.go

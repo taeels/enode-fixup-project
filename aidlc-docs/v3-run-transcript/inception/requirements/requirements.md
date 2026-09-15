@@ -97,11 +97,16 @@ args := []string{"-p", "--output-format", "stream-json", "--verbose"}
 ## 2.4 `AppendLog` 의 상한이 청크 아래서 뜻을 잃는다
 
 ```go
-// internal/record/record.go:57
+// internal/record/record.go:64 ~ :73 (AppendLog 의 선언은 :57)
 n, err := io.Copy(f, io.LimitReader(r, limit))   // limit 이 호출마다다
 if n == limit { fmt.Fprintf(f, "\n... log truncated at %d bytes\n", limit) }
 return n, nil                                     // 이번 호출의 바이트 수다
 ```
+
+**`n == limit` 자체가 틀렸다** (U3 의 Functional Design 이 찾았다). 딱 맞았을
+때도 참이고 여러 번 부르면 여러 번 박힌다. **옳은 패턴이 같은 파일에 이미 있다** —
+`WriteBlob` 이 `limit+1` 을 읽고 `n > limit` 로 센다 (`record.go:287` · `:292`).
+이 회차는 진행 파일에 옳은 쪽을 쓰고 **`AppendLog` 의 오판은 코드의 잔여로 남긴다**.
 
 오늘은 단계마다 한 번 부르므로 `MaxBlobBytes`(기본 10 MiB)가 단계 상한이다.
 청크로 바꾸면 **청크마다 10 MiB** 가 되어 상한이 사실상 사라지고 잘림 표시가
@@ -281,7 +286,14 @@ return n, nil                                     // 이번 호출의 바이트 
 ```
 
 파서는 하네스 없이 도는 테스트로 채운다 — 실측한 stream-json 줄을 `testdata` 에
-둔다. **그것은 실제로 받았던 것의 기록이므로 고치지 않는다** (`CONVENTIONS.md` 2.2).
+둔다.
+
+**「고치지 않는다」를 뺐다** (U1 의 Functional Design). 그 문장은
+`CONVENTIONS.md` 2.2 의 「testdata 안의 기록」을 가리키는데, **오늘 저장소에
+그런 `testdata` 가 0 이다** — 픽스처는 `logs_test.go` 의 Go 상수 다섯이고
+손으로 지은 최소형이다. 그리고 짝 팩의 `decisions.md` ⑳ 이 **「원문은 저장소에
+안 싣는다」**로 정해 둔 것과 갈린다. 이 회차는 자리를 `testdata` 로 두되
+**손으로 지은 최소형임을 명시**하고, 실물 원문을 싣지 않는다.
 
 ## 5.2 임포트 금지 — 앞 팩의 넷에 둘을 더한다
 

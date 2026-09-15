@@ -19,10 +19,10 @@
 
 | | 미결 | 답 | 근거 |
 |---|---|---|---|
-| D1 | 진행 파일의 이름과 자리 | `<Root>/progress/run-<safe(id)>/NN-<safe(name)>.log`. **기록 디렉터리 밖이다** | Q2 = A. `seal(dir)` 이 `Walk` 로 0444 · 0555 로 굳히고 보관 정책이 없다 (`record.go:156` · `:196`). 안에 두면 지우기를 한 번 놓쳤을 때 원문이 영구가 된다 |
+| D1 | 진행 파일의 이름과 자리 | `<Root>/progress/run-<safe(id)>/NN-<safe(name)>.log`. **기록 디렉터리 밖이다** | Q2 = A. `seal(dir)` 이 `Walk` 로 0444 · 0555 로 굳히고 보관 정책이 없다 (`record.go:156` 의 `seal` · 0444 는 `:174` · 0555 는 `:180` · 보관 정책이 없다는 주석은 `:189-191`. **앞 판이 `:196` 으로 적었는데 그것은 `unseal` 안이다** — U3 의 Functional Design 이 고쳤다). 안에 두면 지우기를 한 번 놓쳤을 때 원문이 영구가 된다 |
 | D2 | PUT 을 어떻게 가르나 | 기존 라우트에 쿼리 둘 — `?progress=1&attempt=<n>`. 새 라우트 0 | CB0 의 셈이 17 -> 18 이고 는 것은 GET 하나뿐이다 |
 | D3 | 출처를 말하는 헤더 | `X-Enode-Log-Source: progress \| sealed` | `Sealed(runID)` 한 줄이 갈린다 (`record.go:76`). NC-5 가 이 헤더를 그린다 |
-| D4 | `AppendLog` 의 시그니처 | 그대로 둔다. **반환값의 뜻만 바뀐다** — 이번 호출 바이트에서 총 길이로. 상한도 총 길이로 건다 | `api.go:887` 이 값을 버린다 (`if _, err :=`). 시그니처가 같아 컴파일도 안 깨진다 |
+| D4 | `AppendLog` 의 시그니처 | 그대로 둔다. **반환값의 뜻만 바뀐다** — 이번 호출 바이트에서 총 길이로. 상한도 총 길이로 건다 | `api.go:887` 이 값을 버린다 (`if _, err :=`). 시그니처가 같아 컴파일도 안 깨진다. **근거 문장 하나가 낡았다** — `requirements.md` 2.4 의 「청크마다 10 MiB」는 청크가 `logs/` 로 간다는 전제인데 질문 1 = B 가 파일을 갈랐다. U3 의 Functional Design 이 상한을 `AppendProgress` 에만 걸었고 (물음 2 = A) `AppendLog` 의 `n == limit` 오판은 **코드의 잔여로 남긴다** |
 | D5 | `selectLogs` 가 파서를 쓰나 | **쓴다.** 껍데기를 짓는 셋을 `internal/transcript` 로 옮기고 `selectLogs` 가 임포트한다 | Q4 = A. `enode -> transcript` 는 허용이고 반대가 금지다. 옮기는 방향이 유일하게 금지를 안 건드린다 |
 | D6 | 유닛 분해와 파일 행렬 | **여기서 안 가른다.** Units Generation 의 몫이다 | `constraints.md` 의 구조 불변식. 팩이 유닛을 안 준다 |
 | D7 | 재시도가 어떻게 갈리나 | **시도가 바뀌면 진행 파일을 비운다.** 링과 같은 답이다 | Q1 = A. B · C 는 링이 비워진 뒤에도 진행 파일에 시도 1 이 남아 CB4 의 「같은 문장」이 깨진다 |

@@ -18,11 +18,12 @@
 | `internal/enode/claim.go` | | `transcript()` | | | | | **업로더 배선** | |
 | `internal/enode/upload.go` (신규) | | | | | | | 신규 | |
 | `internal/record/record.go` | | | 진행 파일 · `AppendLog` · `Seal` | | | | | |
+| `internal/store/seal.go` · `reap.go` | | | **수명 끊기 · 고아 쓸기** | | | | | |
 | `internal/api/log.go` (신규) | | | | 신규 | | | | |
 | `internal/api/api.go` | | | | 등록 줄 · `putLog` 갈림 | | | | |
 | `internal/panel/transcript.go` | | | | | **도는 것** | **지난 것** | | |
 | `internal/panel/page.go` | | | | | 카드 · 헤더 다섯 | | | |
-| 경계 검사 시험 (6절) | 금지 두 줄 | | | | | | | |
+| 경계 검사 시험 (6절) | **금지 넷 (+ 빈 넷째 줄)** | | | | | | | |
 | `internal/runctl/client.go` | | | | | | `StepLog` | | |
 | `internal/api/ui/static/shared/fleet/**` | | | | | | | | 단계 카드 |
 | `internal/api/ui/tests/**` | | | | | | | | 시험 |
@@ -85,15 +86,31 @@
 ## 5. 안 만지는 경로
 
 ```text
-   internal/store      코드 diff 0.  sealRecord 가 부르는 Seal 이 진행 트리를 지우지만
-                       그 코드는 internal/record 에 산다
    internal/contract   코드 diff 0.  계약 문법이 안 는다
    internal/match · proc · schema · config · build     코드 diff 0
    cmd/ 다섯           코드 diff 0.  새 실행파일도 새 하위명령도 0
    internal/api/ui/ui.go   Go diff 0.  U8 은 정적 파일과 시험만 만진다
 ```
 
-**`internal/store` 와 `internal/contract` 의 diff 가 0 인 것이 품질 게이트 2 다**
+### 5.1 `internal/store` 가 0 에서 빠졌다 — U3 의 Functional Design 이 고쳤다
+
+**앞 판이 「`internal/store` 코드 diff 0. 그 코드는 `internal/record` 에 산다」로
+적었고 그것이 거짓이 됐다.** U3 의 Functional Design 이 N2 를 지면서 진행 파일의
+수명을 끊는 자리를 셋으로 갈랐는데, **그중 둘이 Run 상태를 알아야 하고
+`internal/record` 는 `internal/store` 를 임포트하지 않는다.**
+
+```text
+   종료 상태로 끊기    internal/store/seal.go 의 sealRecord
+   고아 쓸기          internal/store/reap.go
+   봉인으로 끊기       internal/record.  DropProgress.  여기는 그대로다
+```
+
+**이것은 게이트가 빨개진 것이 아니라 기준선이 바뀐 것이다.** 사용자가 대가를
+보고 골랐다 (U3 의 물음 5 = A · 2026-09-15). `internal/contract` 와 `cmd/` 다섯은
+**0 그대로다** — U3 의 물음 10 = B 가 `ReadProgress` 의 겉면을 안 바꿔
+`record.New` 도 `cmd/mediator/main.go` 도 안 바뀐다.
+
+**`internal/contract` 의 diff 가 0 인 것이 품질 게이트 2 로 남는다**
 (`execution-plan.md` 6절).
 
 ---
@@ -138,3 +155,20 @@ panel_test` 가 남의 패키지 경계를 검사하게 된다.
 `go list -deps` 가 **전이 의존**을 보므로 `internal/transcript` 가 표준
 라이브러리만 쓰면 넷이 자동으로 초록이다. 값은 **나중에 누가 임포트를 더했을 때**
 빨개지는 데 있다.
+
+### 6.4 그 명령이 시험을 안 본다 — U1 의 Functional Design 이 실측했다
+
+**`go list -deps` 와 `go list -test -deps` 를 떼어 돌린 값이다.** 앞의 것은
+시험 임포트를 세지 않는다.
+
+```text
+   go list -deps         제품 코드의 전이 의존만
+   go list -test -deps   _test.go 의 임포트까지
+```
+
+**그래서 금지를 `go list -deps` 로만 세우면 `internal/transcript/*_test.go` 가
+`internal/enode` 를 임포트해도 초록이다.** 6.3 이 「나중에 누가 임포트를 더했을 때
+빨개지는 데 값이 있다」고 적었는데, **그 「나중」의 절반이 오늘 안 걸린다.**
+
+이 회차가 만든 결함은 아니다 — 오늘 검사기도 같다. **U1 의 Code Generation 이
+어느 명령으로 세울지를 정하고 그 판단을 `code-summary.md` 에 적는다.**

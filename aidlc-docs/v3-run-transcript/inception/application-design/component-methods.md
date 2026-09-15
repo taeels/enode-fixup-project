@@ -37,15 +37,29 @@ func Parse(b []byte, truncated bool) Result
 **시계를 안 받는다** (Q3 = A). `Parse` 는 같은 입력에 언제나 같은 값을 낸다 —
 커버리지 80% 를 하네스 없이 채우는 시험이 그래서 싸다.
 
-### 1.2 짓는 쪽 — `internal/enode` 에서 옮겨 온 셋 (Q4 = A)
+### 1.2 짓는 쪽 — `internal/enode` 에서 옮겨 오는 것 (Q4 = A)
+
+**앞 판이 「셋」으로 적었고 U1 의 Functional Design 이 코드를 읽어 고쳤다 —
+실제로는 함수 일곱과 타입 둘이다.** 아래 셋은 `usageTokens` · `eventString` ·
+`eventBool` · `eventInt` 와 타입 `logShell` · `elidedMark` 없이 안 선다.
+`splitLines` 는 `Parse` 와 `selectLogs` 가 둘 다 필요해서 자리를 따로 정한다.
+전문은 U1 의 `domain-entities.md` 1절.
 
 ```go
+// Fields 는 줄 하나를 키별 원문으로 든 것이다.
+//
+// map[string]any 가 아니다 — 오늘 코드가 map[string]json.RawMessage 이고
+// (runner.go:386 · :434) 그 선택이 SECURITY-13 의 규율 자체다.  any 로 펴면
+// 「아는 키만 읽는다」가 「전부 읽고 아는 것만 쓴다」가 되고, 도구 결과 본문이
+// 파싱 시점에 통째로 메모리로 올라온다.
+type Fields = map[string]json.RawMessage
+
 // ParseLine 은 줄 하나에서 아는 키만 읽는다. 옛 parseEventLine.
 // 파서의 입력은 신뢰할 수 없다 (SECURITY-13).
-func ParseLine(line []byte) (obj map[string]any, typ string, ok bool)
+func ParseLine(line []byte) (obj Fields, typ string, ok bool)
 
 // Shell 은 본문을 걷은 껍데기를 짓는다. 옛 eventShell. selectLogs 가 쓴다.
-func Shell(obj map[string]any, typ string) []byte
+func Shell(obj Fields, typ string) []byte
 
 // ElidedMarker 는 「N 개 · B 바이트를 걷었다」한 줄이다. 옛 elidedMarker.
 func ElidedMarker(events, bytes int) []byte

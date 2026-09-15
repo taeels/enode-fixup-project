@@ -31,8 +31,9 @@
                  하나를 잇고, 그 사건을 그리는 파서 하나를 공용으로 둔다
    관련 경로     여섯.  internal/transcript (신규) · internal/enode · internal/record ·
                  internal/api · internal/panel · internal/api/ui
-   안 만지는 곳   internal/store · internal/contract · internal/match · internal/proc ·
+   안 만지는 곳   internal/contract · internal/match · internal/proc ·
                  internal/schema · internal/config · internal/build · cmd/ 다섯 전부
+                 **internal/store 가 여기서 빠졌다** — 아래 「영향만 받는 곳」
    배포 모형     새 실행파일 0 · 새 포트 0 · 새 전송 0 · DB 스키마 0.
                  **새 라우트 하나** (GET .../log).  짝 팩과 갈리는 자리다
 ```
@@ -67,8 +68,11 @@
    소비 컴포넌트   internal/panel        카드가 파서를 쓴다 · 지난 것의 출처 전환 ·
                                          보안 헤더 다섯
                   internal/api/ui       Run 상세 단계 카드.  정적 파일
-   영향만 받는 곳  internal/store        코드 변경 0.  sealRecord 가 부르는 Seal 이
-                                         진행 파일을 지우게 되지만 그 코드는 record 에 산다
+   만지는 곳(추가)  internal/store        **코드 변경이 0 이 아니다.**  앞 판이 0 으로
+                                         적었고 U3 의 Functional Design 이 고쳤다 —
+                                         수명을 끊는 자리 셋 중 둘이 Run 상태를 알아야
+                                         하고 record 는 store 를 임포트하지 않는다.
+                                         seal.go 의 sealRecord 와 reap.go 다
 ```
 
 변경 종류와 우선순위.
@@ -411,8 +415,14 @@ flowchart TD
    50 이하 · 패키지별 커버리지 80% 이상 · 허용목록 밖의 스킵 0 · U+2605 을 담은
    파일 0
 2. Mediator 라우트 수가 하나만 는다 — `grep -c 'mux.HandleFunc' internal/api/api.go`
-   가 17 에서 18 이다 (CB0). `internal/store` · `internal/contract` 의 diff 가 0 이다
-3. 임포트 금지 여섯의 경계 검사 테스트가 돈다 — 넷은 그대로이고 두 줄이 는다
+   가 17 에서 18 이다 (CB0). **`internal/contract` 의 diff 가 0 이다** —
+   `internal/store` 는 이 목록에서 빠졌다. **게이트가 빨개진 것이 아니라 기준선이
+   바뀐 것**이고, 사용자가 대가를 보고 골랐다 (U3 의 물음 5 = A · 2026-09-15).
+   근거와 자리는 `unit-of-work-file-matrix.md` 5.1
+3. 임포트 금지의 경계 검사 테스트가 돈다 — **두 줄이 아니라 넷이 늘고, 앞 팩의
+   넷 중 하나(`api/ui -> store`)는 규칙으로만 있고 검사기에 없다.**
+   `unit-of-work-file-matrix.md` 6절이 실측했다. 그리고 **`go list -deps` 는 시험
+   임포트를 안 보므로** 그 명령으로만 세우면 `_test.go` 의 위반이 안 걸린다 (6.4)
 4. CB1 · CB2 · CB4 · CB6 이 사람의 눈으로 한 번은 초록이다. 보류로 안 남는다
 5. CB3 이 실패를 한 번 주입하고도 두 벌을 안 만든다
 6. 새 로그가 본문을 안 싣는다 — `Emit` 이 종류만 적는 오늘의 규율 그대로
