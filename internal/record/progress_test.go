@@ -503,14 +503,30 @@ func TestTheMarkIsPrecededByANewline(t *testing.T) {
 func TestTheFourGapsConverge(t *testing.T) {
 	const limit = 20
 	full := string(cappedMarker(limit))
+	// 틈마다 청크가 다르다. 수렴하려면 그 호출이 상한을 넘겨야 하고, 넘기는
+	// 자리는 씨앗의 크기가 정한다 — 첫째 틈만 씨앗이 상한 아래라 청크가
+	// 크로싱을 만들어야 한다. 나머지 셋은 씨앗이 이미 상한 위다.
 	cases := []struct {
-		gap  string
-		seed string
+		gap   string
+		seed  string
+		chunk string
+		want  string
 	}{
-		{"before the cut write", "aaaa\n"},
-		{"between the cut write and the newline guard", "aaaaaaaaa\nbbbbbbbbb\n"},
-		{"inside the mark write", "aaaa\n" + `{"type":"enode.cap`},
-		{"after the mark write", "aaaa\n" + full},
+		// ③ 앞에서 죽었다 — 파일은 상한 아래이고 표시 줄이 없다. 다음 호출이
+		// 같은 판정을 다시 해서 ③ ~ ⑤ 를 돈다. 그래서 이 청크는 상한을
+		// 넘겨야 하고, 예산 안에 개행이 있어 ③ 이 실제로 자른다 — want 가
+		// x 를 하나도 안 담는 것이 그 자름이다 (R11).
+		{"before the cut write", "aaaa\n", "bbbb\n" + strings.Repeat("x", 20),
+			"aaaa\nbbbb\n" + full},
+		// ③ 과 ④ 사이 — 예산이 0 이라 ③ 이 0 바이트고 ④ ⑤ 만 돈다.
+		{"between the cut write and the newline guard", "aaaaaaaaa\nbbbbbbbbb\n", "zzzz\n",
+			"aaaaaaaaa\nbbbbbbbbb\n" + full},
+		// ⑤ 중간 — 표시 줄이 반쪽으로 남았다. ④ 가 그 조각을 개행으로 닫는다.
+		{"inside the mark write", "aaaa\n" + `{"type":"enode.cap`, "zzzz\n",
+			"aaaa\n" + `{"type":"enode.cap` + "\n" + full},
+		// ⑤ 뒤 — 이미 온전하다. R15 로 더 안 쓴다.
+		{"after the mark write", "aaaa\n" + full, "zzzz\n",
+			"aaaa\n" + full},
 	}
 	for _, c := range cases {
 		t.Run(c.gap, func(t *testing.T) {
@@ -523,7 +539,7 @@ func TestTheFourGapsConverge(t *testing.T) {
 				[]byte(c.seed), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			p := putLimit(t, s, "r", 1, "build", 1, "zzzz\n", limit)
+			p := putLimit(t, s, "r", 1, "build", 1, c.chunk, limit)
 			_, body := get(t, s, "r", 1, "build", 0)
 			if !p.Capped {
 				t.Fatalf("the gap did not converge: capped=false body=%q", body)
@@ -533,6 +549,9 @@ func TestTheFourGapsConverge(t *testing.T) {
 			}
 			if lastLine(body) != strings.TrimSuffix(full, "\n") {
 				t.Fatalf("the last line is not a whole mark: %q", body)
+			}
+			if body != c.want {
+				t.Fatalf("the file did not converge to the expected bytes:\n got %q\nwant %q", body, c.want)
 			}
 			if p.Total != int64(len(body)) {
 				t.Fatalf("Total drifted from the file: got %d, want %d", p.Total, len(body))
