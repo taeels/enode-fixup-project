@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-15T03:26:50Z
-- **Current Stage**: INCEPTION — Workflow Planning 완료. 승인 대기
+- **Current Stage**: INCEPTION — Application Design 완료. 승인 대기
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v3-run-transcript` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v3-run-transcript/` (CLAUDE.md 의 회차별 layering)
@@ -118,6 +118,35 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
 넷 중 셋이 걸리고 (성능 · 보안 · 확장) `requirements.md` 가 안 닫은 값이
 둘이다 — N1 함대 규모 · N2 진행 파일의 디스크 수명.
 
+## Application Design — 닫힌 미결 일곱 (2026-09-15T06:20:00Z)
+
+전문은 `inception/application-design/application-design.md` 1절.
+
+```text
+   D1  진행 파일의 자리    <Root>/progress/run-<id>/NN-<name>.log.  **기록 디렉터리 밖**
+   D2  PUT 의 갈림        기존 라우트에 ?progress=1&attempt=<n>.  새 라우트 0
+   D3  출처 헤더          X-Enode-Log-Source: progress | sealed
+   D4  AppendLog          시그니처 그대로.  반환값의 뜻만 총 길이로
+   D5  selectLogs 와 파서  껍데기를 짓는 셋을 transcript 로 옮긴다
+   D6  유닛 분해          Units Generation 의 몫.  여기서 안 가른다
+   D7  재시도             시도가 바뀌면 진행 파일을 비운다.  링과 같은 답
+```
+
+**D1 의 근거가 실측이다** — `seal(dir)` 이 `Walk` 로 0444 · 0555 로 굳히고
+보관 정책이 없다 (`record.go:156` · `:196`). 기록 디렉터리 안에 두고 지우기를
+한 번 놓치면 그 Run 의 원문이 **아무도 못 지우는 상태로 영구가 된다.**
+
+**D7 이 파생 결정 하나를 낳았다** — 비우면 총 길이가 뒤로 간다. 링이 `gen` 으로
+이미 푼 자리라 같은 답을 쓴다: 응답이 `X-Enode-Log-Attempt` 를 싣고 화면이 그
+값이 바뀐 것으로 카드를 비운다.
+
+## 이 단계가 찾은 일곱째 경로
+
+`requirements.md` 7.3 이 여섯을 적었는데 **일곱이다.** 제어판은 Mediator 를
+`runctl.Client` 로만 부르므로 (`panel.go` 패키지 주석) FR-4 의 출처 전환에
+`internal/runctl` 의 클라이언트 메서드 하나가 는다. `enodectl.exe` 의 차단
+게이트에는 안 걸린다 — `cmd/enodectl` 이 `internal/runctl` 을 임포트하지 않는다.
+
 ## Stage Progress
 
 ### INCEPTION PHASE
@@ -128,9 +157,11 @@ Requirements Analysis 가 이것을 입력으로 받았다. **그중 둘이 값�
 - [x] User Stories — 승인됨 2026-09-15T05:52:20Z (사용자 「승인. 워크플로 플랜 하자」)
       평가(`plans/user-stories-assessment.md`) · 계획과 답 넷(전부 A) ·
       페르소나 셋 · 스토리 열하나 · **새 완료 조건 여섯 (NC-1 ~ NC-6)** · 커밋 `94d28ed`
-- [x] Workflow Planning — 2026-09-15T05:52:20Z. 승인 대기
-      `plans/execution-plan.md` 477줄. 실행 7 · 스킵 1. 새로 찾은 것 셋(D7 · N1 N2 · 주석 넷)
-- [ ] Application Design — **EXECUTE**. 미결 일곱(D1 ~ D7)을 닫는다
+- [x] Workflow Planning — 승인됨 2026-09-15T06:05:00Z (사용자 「승인」)
+      `plans/execution-plan.md` 477줄. 실행 7 · 스킵 1. 새로 찾은 것 셋(D7 · N1 N2 · 주석 넷) · 커밋 `2b0d6f2`
+- [x] Application Design — 2026-09-15T06:20:00Z. 승인 대기
+      계획과 답 넷(전부 A) · 산출물 다섯 931줄. **D1 ~ D7 이 전부 닫혔다** ·
+      일곱째 경로 하나(`internal/runctl`)
 - [ ] Units Generation — **EXECUTE**. 파일 행렬이 필수다
 
 ### CONSTRUCTION PHASE

@@ -104,28 +104,28 @@ NC-1 (경과) 과 NC-6 (마지막 갱신) 은 **사건 바이트에서 안 나�
 
 규칙이 요구하는 필수 산출물 다섯이다. **4절 질문의 답이 들어온 뒤 생성한다.**
 
-- [ ] `application-design/components.md` — 컴포넌트 정의와 책임
-  - [ ] 새 컴포넌트 하나 — `internal/transcript`. 무엇을 알고 무엇을 모르나
-  - [ ] 기존 컴포넌트 다섯의 는 책임 — `enode` (Decode · tee · 업로더) ·
+- [x] `application-design/components.md` — 컴포넌트 정의와 책임
+  - [x] 새 컴포넌트 하나 — `internal/transcript`. 무엇을 알고 무엇을 모르나
+  - [x] 기존 컴포넌트 다섯의 는 책임 — `enode` (Decode · tee · 업로더) ·
         `record` (진행 파일) · `api` (GET · PUT 갈림) · `panel` · `api/ui`
-  - [ ] 컴포넌트마다의 **실패 등급** — 무엇이 단계를 죽이고 무엇이 보조로 남나
-- [ ] `application-design/component-methods.md` — 메서드 시그니처 (비즈 규칙은 FD)
-  - [ ] `internal/transcript` 의 겉면 — 입력 둘(원문 · 선별본)과 출력 사건 열
-  - [ ] `record.AppendLog` 의 최종 시그니처와 진행 파일 겉면 셋
+  - [x] 컴포넌트마다의 **실패 등급** — 무엇이 단계를 죽이고 무엇이 보조로 남나
+- [x] `application-design/component-methods.md` — 메서드 시그니처 (비즈 규칙은 FD)
+  - [x] `internal/transcript` 의 겉면 — 입력 둘(원문 · 선별본)과 출력 사건 열
+  - [x] `record.AppendLog` 의 최종 시그니처와 진행 파일 겉면 셋
         (쓰기 · 총 길이 · 지우기). **기존 호출자 `api.go:887` 이 안 깨진다**
-  - [ ] `enode` 의 업로더 겉면 — 입출력 타입과 오류 타입
-  - [ ] `api` 의 핸들러 둘 — GET 의 질의 인자 셋과 응답 헤더, PUT 의 갈림
-- [ ] `application-design/services.md` — 오케스트레이션
-  - [ ] 한 단계의 순서 — 링 Reset · tee 갈래 둘 · 청크 PUT · 단계 끝 업로드.
+  - [x] `enode` 의 업로더 겉면 — 입출력 타입과 오류 타입
+  - [x] `api` 의 핸들러 둘 — GET 의 질의 인자 셋과 응답 헤더, PUT 의 갈림
+- [x] `application-design/services.md` — 오케스트레이션
+  - [x] 한 단계의 순서 — 링 Reset · tee 갈래 둘 · 청크 PUT · 단계 끝 업로드.
         **어디서 죽을 수 있나를 함께 적는다**
-  - [ ] 봉인의 순서 — 진행 파일을 지우는 것이 `seal(dir)` 의 chmod 보다 앞이다
-  - [ ] 읽는 쪽의 순서 — 제어판(링 · GET) 과 현황판(GET) 의 폴링 타이머
-- [ ] `application-design/component-dependency.md` — 의존과 통신
-  - [ ] 여섯 경로의 호출 방향 그림과 텍스트 대안
-  - [ ] **임포트 금지 여섯이 안 깨짐을 표로 확인** (넷은 그대로 · 두 줄이 는다)
-  - [ ] 자료 흐름 — 하네스 stdout 에서 화면 둘까지의 경로와 그 위의 갈림 셋
-- [ ] `application-design/application-design.md` — 위 넷의 통합본
-- [ ] 검증 — D1 ~ D7 에 답이 다 붙었나 · 임포트 금지 · 팩의 「안 하는 것」
+  - [x] 봉인의 순서 — 진행 파일을 지우는 것이 `seal(dir)` 의 chmod 보다 앞이다
+  - [x] 읽는 쪽의 순서 — 제어판(링 · GET) 과 현황판(GET) 의 폴링 타이머
+- [x] `application-design/component-dependency.md` — 의존과 통신
+  - [x] 여섯 경로의 호출 방향 그림과 텍스트 대안
+  - [x] **임포트 금지 여섯이 안 깨짐을 표로 확인** (넷은 그대로 · 두 줄이 는다)
+  - [x] 자료 흐름 — 하네스 stdout 에서 화면 둘까지의 경로와 그 위의 갈림 셋
+- [x] `application-design/application-design.md` — 위 넷의 통합본
+- [x] 검증 — D1 ~ D7 에 답이 다 붙었나 · 임포트 금지 · 팩의 「안 하는 것」
       일곱 범주와 대조 · 표기(`emphasis-check.py`)
 
 ---
@@ -166,7 +166,7 @@ D) Other (please describe after [Answer]: tag below)
                            노출 기간이 Run 전체가 아니라 시도 하나로 줄어든다
 ```
 
-**[Answer]:**
+**[Answer]:** A
 
 ---
 
@@ -200,7 +200,7 @@ C) Other (please describe after [Answer]: tag below)
 A 의 대가 하나 — Run 디렉터리를 지울 때 형제 트리가 남을 수 있다. **그 값이
 N2 다** (NFR Requirements). 대가를 안 보이게 두지 않는다.
 
-**[Answer]:**
+**[Answer]:** A
 
 ---
 
@@ -229,7 +229,7 @@ D) Other (please describe after [Answer]: tag below)
                             규칙이 아니라 산수라 둘이 갈릴 자리가 없다
 ```
 
-**[Answer]:**
+**[Answer]:** A
 
 ---
 
@@ -261,7 +261,7 @@ C) Other (please describe after [Answer]: tag below)
 B 의 값 하나 — 옮기는 diff 가 `runner.go` 에서 는다. 짝 팩이 `main` 에 이미
 들어왔으므로 **그 파일의 동시 접점은 0 이다** (`execution-plan.md` 4절).
 
-**[Answer]:**
+**[Answer]:** A
 
 ---
 
@@ -275,3 +275,42 @@ B 의 값 하나 — 옮기는 diff 가 `runner.go` 에서 는다. 짝 팩이 `m
    4   확장 준수 요약을 붙인다 (security-baseline)
    5   승인을 받고 커밋한다.  다음은 Units Generation 이다
 ```
+
+---
+
+## 6. 답 (2026-09-15T06:20:00Z)
+
+사용자 「권장으로」. **넷 다 A 로 닫았다.**
+
+```text
+   Q1 = A   시도가 바뀌면 진행 파일을 비운다.  링과 같은 답이다
+   Q2 = A   진행 파일은 기록 디렉터리 밖의 형제 트리에 산다
+   Q3 = A   파서는 바이트만 낸다.  시각은 출처가 내고 화면이 뺄셈만 한다
+   Q4 = A   껍데기를 짓는 셋을 internal/transcript 로 옮긴다
+```
+
+### 모순·모호 분석 (Step 8 · MANDATORY)
+
+**추가 질문 0.** 넷이 서로를 안 깨뜨린다.
+
+```text
+   Q1 x Q2   비우는 대상이 형제 트리의 파일이다.  봉인 경로와 안 겹친다
+   Q1 x Q3   비움을 화면이 알아야 한다 -> 응답이 attempt 를 싣고 화면이 그것으로
+             카드를 비운다.  시계가 필요 없다 (Q3 = A 를 안 건드린다)
+   Q4 x 임포트 금지   enode -> transcript 는 허용.  옮기는 방향이 금지를 안 건드린다
+```
+
+### Q1 = A 가 낳은 파생 결정 하나
+
+**비우면 총 길이가 뒤로 간다.** 읽는 쪽이 그것을 「응답이 깨졌다」로 읽으면 안 된다.
+링이 같은 자리를 `gen` 으로 이미 풀었으므로(`transcript.go:148`) 같은 답을 쓴다 —
+**응답이 `attempt` 를 싣고 그 값이 바뀌면 화면이 카드를 비운다.** 설계가 답한
+것이고 새로 묻지 않는다.
+
+### 이 단계가 찾은 일곱째 경로
+
+`internal/panel` 은 Mediator 를 `runctl.Client` 로만 부른다 (`panel.go` 의 패키지
+주석). FR-4 가 「지난 것의 출처를 GET 라우트로 바꾼다」고 했으므로 **`internal/runctl`
+에 클라이언트 메서드 하나가 는다.** `requirements.md` 7.3 의 여섯에 없던 경로다 —
+`components.md` 가 그 값을 적는다. `enodectl.exe` 의 차단 게이트에는 안 걸린다
+(`cmd/enodectl` 이 `internal/runctl` 을 임포트하지 않는다).

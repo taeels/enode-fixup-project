@@ -140,3 +140,19 @@
 **Context**: INCEPTION — Application Design Part 1. 답 대기
 
 ---
+
+## Application Design Part 2 — 답과 생성
+**Timestamp**: 2026-09-15T06:20:00Z
+**User Input**: "권장으로"
+**AI Response**: 질문 넷을 권장값 **A · A · A · A** 로 닫았다 — 시도가 바뀌면 진행 파일을 비운다 · 진행 파일은 기록 디렉터리 밖의 형제 트리 · 파서는 시계를 안 받는다 · 껍데기를 짓는 셋을 `internal/transcript` 로 옮긴다. 모순·모호 분석 결과 **추가 질문 0** (넷이 서로를 안 깨뜨린다). 3절 체크박스를 그 자리에서 `[x]` 로 바꾸고 산출물 다섯 931줄을 냈다 — `components.md` · `component-methods.md` · `services.md` · `component-dependency.md` · `application-design.md`. **D1 ~ D7 이 전부 닫혔고 빈 칸이 0 이다.** Q1 = A 가 파생 결정 하나를 낳았고 (비우면 총 길이가 뒤로 가므로 응답이 `X-Enode-Log-Attempt` 를 싣는다 — 링이 `gen` 으로 이미 푼 자리라 같은 답이다) 설계가 답한 것이라 새로 묻지 않았다. **일곱째 경로 하나를 찾았다** — `internal/runctl`. `requirements.md` 7.3 의 여섯에 없는데, 제어판이 Mediator 를 부르는 유일한 길이 `runctl.Client` 이므로 FR-4 의 출처 전환에 메서드 하나가 는다.
+**Context**: INCEPTION — Application Design Part 2. 승인 대기
+
+---
+
+## Security Compliance — Application Design
+**Timestamp**: 2026-09-15T06:20:00Z
+**User Input**: (없음)
+**AI Response**: `security-baseline` 열다섯 규칙을 이 단계의 산출물에 댔다. **차단 findings 0.** 준수 넷(SECURITY-03 · 05 · 11 · 13) · N/A 열하나. SECURITY-03 은 원문이 앉는 자리 둘을 자료 흐름 그림에 표시하고 이름으로 적은 것이 근거다 — **Q2 = A 가 잔여 ① 의 최악(영구화)을 구조로 막고** Q1 = A 가 노출 기간을 Run 전체에서 시도 하나로 줄인다. SECURITY-13 은 아는 키만 읽는 규율(`ParseLine`)을 `internal/transcript` 로 옮겨 짓는 쪽과 읽는 쪽이 같은 규율을 쓰게 한 것이 근거다.
+**Context**: INCEPTION — Application Design. 확장 규칙 준수 요약
+
+---
