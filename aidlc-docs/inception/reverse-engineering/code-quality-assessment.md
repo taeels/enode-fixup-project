@@ -1,172 +1,208 @@
 # 코드 품질 평가 — 오늘의 코드
 
-이 문서는 **지금 저장소에 있는 코드**의 품질 장치와 부채를 적는다. 게이트는 전부
-`.github/workflows/ci.yml` 이 진다. 커버리지 스냅샷은 `.coverage-contract.yml`, 린트
-설정은 `.golangci.yml` 이다.
+**2026-09-15 전면 재측정.** 커버리지와 스킵은 이 기계에서 실제로 돌려 잰 값이다 —
+2026-09-08 판이 계약 파일의 기준선을 인용한 것과 다르다.
+
+```text
+   측정 명령    go test ./... -count=1 -coverpkg=./... -coverprofile=... -json
+   환경         ENODE_TEST_DATABASE_URL 을 세우고 (scripts/testdb.sh)
+                .github/ci-stubs 를 PATH 앞에 둔다
+   결과         exit 0 · 패키지 18 · 스킵 0 · 전체 7,122/8,146 = 87.4%
+```
+
+이것은 `.coverage-contract.yml` 이 못 박은 바로 그 명령이다. 그 명령이 아닌
+측정치는 게이트 입력으로 안 쓴다.
 
 ---
 
 ## Test Coverage
 
-### 게이트는 per-package 80% 바닥이다
+### 게이트는 패키지별 80% 바닥이다
 
-커버리지 게이트는 **패키지마다 80% 바닥**이다. `ci.yml:269` 의 `awk -v floor=80` 이
-세고 (스텝 이름 `ci.yml:265`), 바닥 밑으로 떨어지는 패키지가 하나라도 있으면 `exit 1`
-로 CI 를 붉힌다 (`ci.yml:294-298`). 전체 합산이 아니라 **패키지 단위**라, 한 패키지의
-여유가 다른 패키지의 부족을 못 가린다.
+저장소 전체 합계가 아니라 **패키지마다 개별로** 넘어야 한다. 합계로 보면 0% 인
+패키지가 높은 패키지에 가려지고, 이 저장소가 실제로 그 모양이었다. 차단이다 —
+한 패키지라도 미달이면 CI 가 exit 1 이다.
 
-전체는 대략 87% 다. `.coverage-contract.yml:33` 이 `measured_total_pct: 87.5` 로
-선언하고, 그 파일의 `packages:` 블록을 더하면 5,979 statements / 5,231 covered =
-87.49% 로 맞는다.
+### 오늘의 측정값 — 열여덟 전부 통과
 
-### `.coverage-contract.yml` 은 게이트가 아니라 baseline 스냅샷이다 — 그리고 낡았다
+| 패키지 | 덮은 것/문장 | 비율 |
+|---|---|---|
+| `internal/build` | 16/20 | 80.0% |
+| `internal/api` | 781/951 | 82.1% |
+| `internal/record` | 131/159 | 82.4% |
+| `internal/store` | 1455/1762 | 82.6% |
+| `cmd/enodectl` | 172/206 | 83.5% |
+| `internal/panel` | 191/225 | 84.9% |
+| `internal/config` | 103/121 | 85.1% |
+| `internal/enode` | 2013/2314 | 87.0% |
+| `internal/contract` | 526/589 | 89.3% |
+| `cmd/runctl` | 332/352 | 94.3% |
+| `cmd/iapadapter` | 701/728 | 96.3% |
+| `cmd/mediator` | 240/249 | 96.4% |
+| `internal/runctl` | 100/103 | 97.1% |
+| `cmd/enode` | 138/142 | 97.2% |
+| `internal/match` | 39/40 | 97.5% |
+| `internal/api/ui` | 61/62 | 98.4% |
+| `internal/proc` | 16/16 | 100.0% |
+| `internal/schema` | 107/107 | 100.0% |
 
-이 파일은 스스로 「게이트가 아니라 **측정 조건**(명령·환경·플래그·플랫폼)을 고정한다」
-고 밝힌다 (`.coverage-contract.yml:3-7`). 실제 게이트는 위의 `ci.yml` 커버리지 스텝이다.
+**`internal/build` 가 정확히 80.0% 다.** 남은 넷은 이 프로젝트의 표준 명령
+(`-buildvcs` 미지정)에서 도달 불가라 산술 상한이고, 그 패키지에 문장 하나만 늘어도
+게이트가 빨개진다. 그때 할 일은 하한을 낮추는 것이 아니라 그 문장을 덮는 것이다.
 
-문제는 **스냅샷이 낡았다**는 점이다.
+### 기준선 표가 낡았다 — 이것이 부채다
+
+`.coverage-contract.yml` 의 `packages:` 표는 **열다섯 줄**이다. 오늘 `go list ./...`
+는 열여덟을 낸다.
 
 ```text
-   앵커 커밋      measured_at_commit: fa444f2b9c411970e9885a29c08cca54d4383d48
-                 (.coverage-contract.yml:47)
-   검증          git cat-file -t fa444f2  ->  fatal: Not a valid object name
-                 그 커밋은 지금 히스토리에 없다
-   결과          스냅샷이 자기 앵커에서 재측정될 수 없다.  87.5% 라는 숫자가
-                 어느 트리에서 났는지 저장소가 답하지 못한다
+   표에 없는 것    internal/panel · internal/proc · internal/api/ui
+   그래도 걸리나   걸린다.  CI 의 awk 가 프로파일에서 직접 세므로 표와 무관하다
+   무엇이 낡았나   measured_total_pct: 87.5 와 measured_at_commit: fa444f2b.
+                   오늘 같은 명령이 내는 값은 87.4% 다
 ```
 
-앵커 커밋이 사라졌으므로 스냅샷(5,979 statements · 87.5%)과 현재 HEAD 사이의 **드리프트
-는 측정되지 않은 채로 있다**. 라이브가 ~6,200 statements / ~87.4% 쪽으로 밀렸다는
-관측이 있으나, 이 값은 이 스캔에서 **재현하지 못했다** — 재현하려면 전체 커버리지
-게이트(Postgres 서비스 + claude stub)를 돌려야 한다. baseline 을 신뢰 지점으로 쓰기
-전에 살아 있는 커밋에서 다시 재는 것이 먼저다.
+표가 게이트의 입력이 아니라서 빨개지지 않는다 — **조용히 낡는다.** 파일 자신이
+「브랜치가 main 으로 들어갈 때 이 값을 갱신한다」고 적었고 그 갱신이 안 됐다.
 
-### 재는 값이 흔들리는 자리들
+### 스킵은 0 이 정본이다
+
+이 실행에서 스킵이 **0 건**이었다. `.ci-allowed-skips` 에 예순여덟 줄의 면제 목록이
+있지만 오늘은 하나도 안 쓰였다. 스킵 감시 스텝은 패키지 수까지 함께 세서
+「볼 것이 없었다」를 「스킵이 없다」로 읽지 않는다 — 감시 장치의 유일한 실패 양식이
+항진명제가 되는 것이라 그것을 막는다.
+
+### 재는 값이 흔들리는 자리
 
 ```text
-   internal/build     정확히 80.0% (16/20).  산술로 바닥에 붙어 있어 statement
-                      하나만 더 늘어도 바닥이 붉어진다 (.coverage-contract.yml:56-59)
-   internal/enode     claude stub 유무로 covered 가 1294 vs 1293 로 갈린다
-                      (.coverage-contract.yml:42-43).  stub 스텝(ci.yml:63-70)이
-                      이 흔들림을 재우려고 있다
-   플랫폼 파일        //go:build windows 파일은 linux 프로파일에 안 잡혀 분모를
-                      바꾼다.  그래서 contract 가 platform: linux/amd64 로 못 박는다
-                      (.coverage-contract.yml:27-31)
-   packaging/         커버리지에서 제외된다
+   DB 가 없으면           internal/api 의 통합 테스트 일흔여덟이 스킵된다.
+                          그래도 go test 는 exit 0 이다
+   -coverpkg 가 없으면    다른 패키지의 테스트가 덮은 문장이 빠진다
+   하네스 스텁이 없으면    internal/enode 가 한 문장 낮게 읽힌다.  스킵 둘이 생긴다
+   플랫폼이 다르면        windows 빌드 태그 파일 셋이 리눅스 프로파일에 안 나온다
 ```
 
-측정 자체도 두 번 돈다 — `go test ./...` 를 테스트 게이트용으로 한 번(`ci.yml:216`),
-커버리지 계측용으로 또 한 번(`ci.yml:267`). 그리고 커버리지 awk 는 중복 coverpkg 블록을
-**max count 로 병합**한다(`ci.yml:264,272`) — 순진하게 더하면 58.6% 를 6.5% 로 잘못
-읽는 footgun 이라 편집할 때 주의해야 한다.
+넷 다 종료코드로는 구별되지 않는다. 그래서 명령과 환경과 플랫폼을 계약이 고정한다.
 
-### skip 은 0 이 정본이다
+### 테스트의 모양
 
-skip-watch 스텝(`ci.yml:341-343`)이 allowlist 밖의 `t.Skip` 을 하나라도 발견하면
-`exit 1` 한다. allowlist `.ci-allowed-skips` 는 **의도적으로 비어 있다**(주석만, 0 항목)
-— 어떤 skip 도 용인하지 않는다는 뜻이다. 형식은 5개 파이프 컬럼
-(`test_name | file | condition | why_unprovisionable | requested_by`)으로 문서화돼 있다.
+```text
+   Go 테스트 함수    917
+   테스트 파일       101 (전체 198 중)
+   별도 테스트 패키지  없다 — 전부 같은 패키지 안의 *_test.go
+   브라우저 테스트    internal/api/ui/tests/*.test.mjs 열넷
+   단언 라이브러리    없다.  표준 testing 만 쓴다
+```
 
 ---
 
 ## Code Quality Indicators
 
+### 빌드와 vet
+
+`go build ./...` 와 `go vet ./...` 가 이 기계에서 둘 다 exit 0 이다 (2026-09-15).
+
 ### 차단되는 것과 경고만인 것이 갈린다
 
 ```text
-   차단 (실패하면 exit 1)
-      stub 체크            ci.yml:63
-      U+2605 glyph grep    ci.yml:74-82   (매치 파일 수가 0 이어야 통과)
-      glyphscan.go AST     ci.yml:92      (문자열/문자 리터럴의 장식 문자)
-      gofmt                ci.yml:95
-      go vet               ci.yml:97
-      govulncheck          ci.yml:182     (DB 불가 -> warn + exit 0 의 tri-state)
-      go test              ci.yml:215
-      per-package 커버리지 ci.yml:265
-      skip-watch           ci.yml:341
-      cross-build          ci.yml:454
-      enodectl 심볼 캡     ci.yml:479-485
-
-   경고만 (continue-on-error)
-      golangci-lint        ci.yml:117     저장소에서 continue-on-error: true 는 이 하나뿐
+   차단    포맷 · vet · 테스트 · 커버리지 80% · 스킵 0 · U+2605 0 ·
+           출력 문자열의 장식 문자 0 · govulncheck · enodectl.exe 심볼 상한
+   경고    golangci-lint 하나.  CI 의 유일한 continue-on-error
 ```
 
-`gofmt` 와 `go vet` 은 **차단**이다 — 포맷·vet 위반은 merge 를 막는다. 반면
-`golangci-lint` 는 **경고 전용**이다 (스텝 이름 `ci.yml:116`, `continue-on-error: true`
-는 `ci.yml:117` 뿐). 린트가 무엇을 말하든 게이트를 붉히지 않는다.
+린트 설정은 재현성에 맞춰져 있다 — `default: none` 으로 시작해 다섯을 이름으로
+켠다(`errcheck` · `govet` · `ineffassign` · `staticcheck` · `unused`)고
+`.golangci.yml` 이 적고, 보고를 안 자른다(`max-same-issues: 0`). 경고 전용이라
+새 findings 가 조용히 쌓일 수 있다는 것이 이 정책의 약한 자리다. **이번 측정에서
+린트를 못 돌렸다** — 이 기계에 `golangci-lint` 가 없다. 그 값은 CI 에서만 읽힌다.
 
-### 린트 설정은 재현성에 맞춰져 있다
+### 표기 규약이 기계 검사다
 
-`.golangci.yml` 은 golangci-lint v2 에서 `default: none` 으로 시작해 다섯을 이름으로
-켠다 — `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused` (`.golangci.yml:16-22`).
-`max-same-issues: 0` · `max-issues-per-linter: 0` (`.golangci.yml:69-70`)으로 **보고를
-자르지 않는다** — 기본값(3·50)은 무엇을 잘랐는지 말하지 않고 보고를 잘라내므로 껐다.
+```text
+   U+2605 한 글자          grep -rlIP.  파일 수 상한 0.  이진 파일은 건너뛴다
+   출력 문자열의 장식 문자   별도 스텝.  위 한 글자 검사의 구멍을 메운다
+   emphasis-check.py       밀도와 뭉침.  enode-design/scripts/ 에 한 벌만 둔다
+```
 
-경고 전용 정책은 현재 **약 20건 규모의 baseline findings** 를 안고 간다. 이 수는
-어느 contract 파일에도 못 박혀 있지 않고 린트의 라이브 출력이라, 코드가 바뀌면 흔들린다.
-차단이 아니므로 새 findings 가 조용히 쌓일 수 있다는 점이 이 정책의 약한 자리다.
+세 검사가 한 규약의 세 면이다. 첫 스텝은 한 글자만 보므로 「집행하는 것처럼
+보이면서 아무것도 집행하지 않는」 구멍이 있었고, 둘째가 그것을 메웠다. 그 사실이
+CI 파일 주석에 적혀 있다.
+
+### 주석이 설계 논거를 진다
+
+이 저장소의 주석은 무엇을 하는지가 아니라 **왜 그렇게 골랐는지**를 적는다. 실측
+일자와 뒤집힌 결정이 그대로 남아 있다 (`claude.go` 의 권한 모드 1차 · 2차 · 3차,
+`transcript.go` 의 「윈도우가 이 설계를 정했다」). 한국어인 것이 규약이다 —
+`CONVENTIONS.md` 2.2 가 되먹임 경로에 안 실리는 것만 한국어로 남긴다.
 
 ---
 
 ## Technical Debt
 
-### 하네스 whole-buffer 캡처가 라이브 트랜스크립트를 막는다
+### 진행 중 하네스 출력을 읽을 표면이 없다
 
-`internal/enode/runner.go` 는 하네스 stdout/stderr 를 통째로 `bytes.Buffer` 에 담고
-(`runner.go:94-96`), 프로세스가 끝난 **뒤에야** `Decode` 한다 (`runner.go:106`).
-`io.MultiWriter` 나 라이브 tee 가 없다. `emit` 콜백은 있지만 `EventFinal` 하나만
-나므로(`harness.go:213`) 사후 배치 디코드에서 한 번 튈 뿐이다. 명령 스텝도 같은 모양이라
-버퍼를 완료 후 업로드한다 (`claim.go:563-576`). 결과적으로 **오래 도는 스텝은 완료
-전까지 증분 로그를 하나도 내지 못한다** — 대시보드/라이브 트랜스크립트를 붙이려면
-이 whole-buffer 지점을 먼저 걷어내야 한다.
+2026-09-08 판이 「whole-buffer 캡처가 라이브 트랜스크립트를 막는다」로 적은 자리가
+**반만 풀렸고 다른 쪽이 새로 닫혔다.**
+
+```text
+   풀린 것    Argv 가 이미 -p --output-format stream-json --verbose 다 (짝 팩 ⑮).
+              하네스가 도는 동안 사건 줄이 실제로 흐른다
+   안 풀린 것  Decode 가 아직 io.ReadAll 로 EOF 까지 읽고 final 사건 하나만 낸다
+   새로 닫힌 것 하네스 단계의 링 tee 를 껐다 (짝 팩 ⑲).  그래서 제어판 카드가
+              에이전트 단계 내내 비어 있다 — 옛 판의 「끝에 한 줄」보다 더 비었다
+   중앙        올리는 PUT 만 있고 내려받는 GET 이 없다.  PUT 도 단계 끝 한 번이다
+```
+
+이것이 `requirements/transcript/` 팩이 여는 자리다.
+
+### 봉인 로그가 원문이 아니게 됐다
+
+`selectLogs` 가 `logs/` 를 허용목록으로 거른다 (짝 팩 ⑱). 근거는 자격증명 누출이고
+사용자 결정이다 (⑰). 대가가 둘이다.
+
+```text
+   ADR-005 의 「원문 그대로」    코드가 더는 그렇지 않다.  정본에 되돌려 올릴 자리다
+   사람이 읽을 것이 줄었다       도구 입력도 도구 결과도 assistant 의 text 도 안 남는다
+```
+
+### `AppendLog` 의 상한이 호출마다 걸린다
+
+`record.AppendLog` 는 `io.LimitReader(r, limit)` 로 **그 호출**을 자른다. 오늘은
+단계당 한 번만 부르므로 파일 상한과 같은 뜻이지만, 나눠 올리기 시작하면 파일
+전체는 상한을 넘는다. 반환값도 총 길이가 아니라 이번 호출이 쓴 바이트 수다.
+
+### 커버리지 기준선 표가 패키지 셋을 놓쳤다
+
+위 「기준선 표가 낡았다」. 게이트는 안 뚫리지만 표가 진실이 아니다.
 
 ### `cmd/enodectl/probe.lock` 을 테스트가 건드린다
 
-`cmd/enodectl/probe.lock` 은 체크인된 테스트 픽스처(8 bytes)인데, 테스트가 이것을
-변형한다. 저장소에 든 파일을 테스트가 만지므로 dirty-tree·테스트 순서 취약성의 씨앗이
-된다 — 픽스처를 임시 디렉터리로 복사해 쓰는 것이 정석이지만 지금은 제자리에서 쓰인다.
+체크인된 8 바이트 픽스처인데 테스트가 제자리에서 변형한다 (이번 측정에서도
+mtime 이 갱신됐다). dirty-tree 와 테스트 순서 취약성의 씨앗이다 — 임시 디렉터리로
+복사해 쓰는 것이 정석이다.
 
 ### 심볼 캡의 취약함 — avprobe 사건의 흉터
 
 Windows 크로스빌드 `enodectl.exe` 에 링커 도달 가능 `T` 심볼 상한이 걸려 있다 —
-`crypto/tls` T <= 10, `net/http` T <= 50 (`ci.yml:479-485`, 실측 카운트 `grep -c` 는
-`ci.yml:482-483`). rc14 실측은 1 · 6 이다 (`ci.yml:476`).
+`crypto/tls` 10 이하, `net/http` 50 이하.
 
 ```text
-   왜 있나    rc13 의 enodectl.exe 가 AhnLab V3 에 Trojan/Win.Generic.C5874069 로
-              삭제됐다 (avprobe/README.md:3-4,22-24).  setup 이 internal/enode 전체를
-              링크하며 net/http·crypto/tls 스택을 끌어와, 프로세스-kill 코드 옆에
-              TLS-네트워킹 코드가 놓이자 generic AV 규칙이 반응했다
-   고침        enodectl setup 을 enode setup 으로 exec 위임 (setup.go:10-27),
-              crypto/tls 심볼을 24 로 되돌림
-   취약함      캡은 import 그래프가 아니라 링커 심볼을 센다 (go list -deps 는 DCE 를
-              놓치므로, ci.yml:469-471).  재-링크는 잡지만 다른 AV 휴리스틱은 못 잡는다.
-              실제로 이후 rc15 에서 Defender 가 Trojan:Win32/Wacatac.C!ml 로 잡았고
-              (avprobe/README.md:244-249) 이건 캡이 커버하지 않는다
+   왜 있나    rc13 의 enodectl.exe 가 AhnLab 에, rc15 가 Defender 에 삭제됐다.
+              setup 이 internal/enode 전체를 링크하며 네트워크 스택을 끌어왔다
+   고침       enodectl setup 을 enode setup 으로 exec 위임.
+              enodectl serve 도 같은 규율로 enode panel 을 exec 한다
+   취약함     실수로 한 줄 임포트하면 상한이 깨진다.  CI 가 그것만 막는다
 ```
 
-캡은 좁은 가드다 — 한 가지 회귀(재-링크)만 막고, AV 판정이 다른 축으로 오면 다시 뚫린다.
-
-### 그 밖의 부채
+### 큰 파일 둘
 
 ```text
-   버전 없는 마이그레이션   Migrate 가 schema.sql 을 통째로 exec.  ALTER ... ADD COLUMN
-                            IF NOT EXISTS 를 쌓는다 (store.go:79-84).  마이그레이션 도구 없음
-   steps.state CHECK 없음   어휘가 늘 때 강제 마이그레이션을 피하려 일부러 뺐다.
-                            새 상태는 reap/verify 열거를 다시 감사해야 한다 (verdict.go:26-28)
-   죽은 상수                RESOLVING · ALLOCATING 상태 상수가 정의만 되고
-                            (store.go:157-158) 어디에도 쓰이지 않는다
-   unix 에서 죽은 코드      processAlive 가 정의돼도 (proc_unix.go:24) unix 경로에서
-                            아무도 안 부른다.  windows ownsConfig 만 쓴다
-   fire-and-forget 알림     ask 푸시는 goroutine 에서 재시도 없이 나간다 (ask.go:115-129).
-                            인박스(PendingAsks)가 정본이라 손실을 견딘다
-   claim tx 밖 stamping     stampRoleAttrs 등이 claim 트랜잭션 밖에서 best-effort 로 돈다
-                            (claim.go:422-423).  재전달 claim 이 다른 프롬프트를 낼 수 있다
-   삼켜진 에러              fail/write 가 JSON 인코드 에러를 버리고, getBlob/getRecord 는
-                            헤더 전송 후 copy/tar 에러를 로그만 하고 클라이언트에 안 알린다
-                            (api.go:797,830)
-   blob 10 MiB 상한         데모 범위에 묶인 값.  풀 이미지 flash 는 곧 넘긴다
+   internal/contract/contract.go   1,797 줄.  계약 문법 전부가 한 파일이다
+   internal/api/api.go             1,200 줄.  라우팅 + 핸들러 열일곱
 ```
+
+둘 다 「한 곳에 두어 갈리지 않게 한다」가 근거이고 그 근거가 주석에 있다. 나누면
+규칙이 두 벌이 될 자리라 지금은 부채로만 적는다.
 
 ---
 
@@ -175,39 +211,24 @@ Windows 크로스빌드 `enodectl.exe` 에 링커 도달 가능 `T` 심볼 상�
 ### 지킬 만한 패턴
 
 ```text
-   순수 매처          internal/match 는 부작용 없는 결정론 정렬(attrCount·NodeID,
-                      match.go:81-87).  제출과 dry-run 이 동일 함수를 쓴다
-   단일 정본 문자열   answerRoute 상수(api.go:84)가 mux 등록과 알림 딥링크 둘의 원천.
-                      CheckPlan 은 두 번째 검증기 대신 Contract.Validate 를 재사용한다
-   계층 분리          핸들러는 SQL 을 안 쓴다.  영속은 store 로 위임하고, DB 의미는
-                      store 안에 산다.  state 층은 HTTP 라우트를 만들지 않는다
-                      (NotifyURL/AnswerPath 는 주입, store.go:38-46)
-   단일 exec 초크포인트 runHarness(runner.go:88)가 하네스 실행의 유일 지점 — env
-                      화이트리스트를 한 번만 강제한다.  os.Environ() 은 상속 안 한다
-   pull-only 노드     안으로 포트를 안 연다 (advertise.go:16).  임대 권한은 시간 기반
-                      (not_after)이라 일시적 하트비트 실패를 견딘다
-   상수시간 토큰 비교  subtle.ConstantTimeCompare (api.go:116)
-   savepoint 격리     tryGrab 이 lease INSERT 를 savepoint 로 감싸 unique 위반이
-                      바깥 tx 를 무너뜨리지 않게 한다 (acquire.go:171-188)
-   재현 가능한 게이트  린트 max-same-issues:0, schema 에러 키 정렬,
-                      glyphscan 이 scanned-count 를 내 empty-input tautology 를 피함
+   허용목록으로 막는다      env · MCP 서버 · logs/ 사건.  지우는 쪽은 열리는 쪽으로 틀린다
+   결정을 순수 함수로       match · Argv · Validate.  시험이 싸고 dry-run 이 공짜다
+   가장자리를 한 자리로     exec 은 runHarness 하나.  SQL 은 internal/store 하나
+   실패를 앞으로 당긴다     계장 치명 검사가 전부 exec 앞이다.  자격증명 복사 실패도 치명
+   없음과 비어 있음을 가른다  lease 는 null, nodes 는 [].  화면이 「못 읽음」을 안다
+   두 벌로 안 둔다          answerRoute 하나가 등록과 알림 링크를 함께 낸다.
+                            emphasis-check 는 enode-design 에 한 벌
+   빌드 태그를 안 늘린다     링 파일이 회전을 포기해 윈도우와 유닉스가 같은 코드로 돈다
 ```
 
-### 냄새·안티패턴
+### 냄새 · 안티패턴
 
 ```text
-   whole-buffer 캡처   스트리밍 없음.  위 Technical Debt 참조 (runner.go)
-   취약한 순서 제약    main.go defer LIFO — reaper stop 이 pool close 앞에 와야 한다
-                      (main.go:89-101).  ReportStep/AnswerStep 의 rollback-before-effects
-                      (claim.go:789-798)는 버그를 고치며 얻은 순서 규칙
-   attrCount 휴리스틱  희소성 대리 지표라, 장식(비-capability) attr 이 광고되면 깨진다
-                      (match.go:28-33).  두 번째 정렬 기준을 더하면 금지된 Rank 가 된다
-   free-text 매칭      runctl nextStep 이 Mediator 의 자유 텍스트 reason 을 패턴 매칭
-                      (main.go:402).  구조화된 에러 코드가 없어 문구가 바뀌면 깨진다.
-                      verdictRe 는 RE2 \b 가 ASCII 전용이라 한국어를 위해 \b 를 피한다
-                      (main.go:425-428)
-   커버리지 awk 병합   중복 coverpkg 를 max count 로 병합 — 더하면 오독 (ci.yml:264,272)
-   바닥에 붙은 패키지  internal/build 가 80.0% 에 산술로 붙어 있다
-   probe.lock 변형     체크인 픽스처를 테스트가 제자리에서 건드린다
-   삼켜진 에러         fail/write · 스트림 중간 copy/tar 에러 무시
+   경고 전용 린트           새 findings 가 조용히 쌓인다.  이 기계에서는 아예 못 잰다
+   기준선 표의 수동 갱신     게이트 입력이 아니라 낡아도 안 빨개진다.  실제로 낡았다
+   체크인된 픽스처를 테스트가 쓴다   cmd/enodectl/probe.lock
+   한 파일에 몰린 문법       contract.go 1,797 줄
+   쓰이지 않는 상태 상수     RESOLVING · ALLOCATING 을 쓰는 코드가 없다.
+                            갤러리가 비교값으로 읽기만 하고 아무도 그 값을 안 쓴다
+   CI 주석의 낡은 수         「np=15 want=15」가 주석에 남아 있다.  오늘은 18 이다
 ```

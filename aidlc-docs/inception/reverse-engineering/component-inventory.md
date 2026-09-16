@@ -1,105 +1,75 @@
-# 컴포넌트 목록
+# 컴포넌트 목록 — 오늘의 트리
 
-이 문서는 **오늘의 코드가 담은 패키지**를 센다. 모듈은
-`github.com/taeels/enode` 하나이고 (`go.mod`), 그 아래 `package main` 실행파일
-다섯과 `internal/*` 공유 패키지 열이 있다. 계획 팩이 더할 것 —
-`GET /v1/nodes` · `QUEUED` · `WakeQueued` · `enodectl serve` — 은 아직 없다.
-없는 자리는 해당 패키지 줄에서 짚는다.
-
-`scripts/glyphscan.go` 와 `scripts/avprobe/` 는 이 셈에서 뺀다. 앞엣것은 빌드
-태그 `ignore || glyphscan` 이라 `./...` 에 안 잡히고, 뒤엣것은 자기 `go.mod`
-를 따로 가져 본 모듈 밖이다.
+**2026-09-15 전면 재측정.** 2026-09-08 판(패키지 열둘)과 2026-09-11 부분
+갱신판을 대체한다. 오늘 `go list ./...` 는 **열여덟**을 낸다.
 
 ---
 
-## 부분 재측정 (2026-09-11 · v3-run-harness-components)
+## Application Packages (바이너리 다섯)
 
-본문은 **2026-09-08T07:17:58Z** 스캔이다. `harness-components` 회차가 자기가
-딛는 네 경로만 다시 쟀다 (그 회차 Requirements 질문 1 의 답 B).
+| 패키지 | 비테스트 파일 · 줄 | 목적 |
+|---|---|---|
+| `cmd/mediator` | 2 · 576 | HTTP API 서버. 유일하게 포트를 여는 서버 프로세스. `setup` 이 DB 를 프로비저닝한다 |
+| `cmd/enode` | 4 · 386 | 실행 노드 데몬. 하위명령 셋 — `hook` · `setup` · `panel` |
+| `cmd/enodectl` | 7 · 557 | 노드 로컬 제어 CLI. `list·setup·id·start·stop·logs·serve·status·version` |
+| `cmd/runctl` | 2 · 797 | 무상태 클라이언트 CLI. 열한 하위명령. **`mcp` 는 없다** |
+| `cmd/iapadapter` | 7 · 2,078 | 이슈 추적기 브리지. 저장소에서 유일하게 바깥을 향한다 |
+
+## Shared Packages (`internal/` 열셋)
+
+| 패키지 | 비테스트 파일 · 줄 | 유형 | 목적 |
+|---|---|---|---|
+| `internal/api` | 7 · 2,056 | HTTP 층 | Mediator 라우트 26. 데모 모드와 갤러리를 포함한다 |
+| `internal/api/ui` | 1 · 135 + 정적 | 정적 자산 | `GET /ui/` 아래 번들 넷. 보안 헤더 다섯 |
+| `internal/store` | 13 · 5,093 | 상태 층 | PostgreSQL. SQL 이 전부 여기 있다. QUEUED 를 포함한다 |
+| `internal/enode` | 33 · 7,769 | 노드 로직 | 데몬 전부. 가장 큰 패키지 |
+| `internal/contract` | 6 · 2,402 | 도메인 모델 | 계약 문법의 단일 원천 + 문법 교재 |
+| `internal/panel` | 5 · 909 | 노드 로컬 서버 | 제어판. 라우트 열 |
+| `internal/record` | 1 · 410 | 파일시스템 | Run Record 짓기 · 봉인 · tar |
+| `internal/config` | 2 · 408 | 설정 | Mediator 의 YAML 과 토큰 쓰기 |
+| `internal/runctl` | 1 · 344 | HTTP 클라이언트 | runctl 과 제어판이 함께 쓴다 |
+| `internal/schema` | 1 · 238 | 검증 | 일부러 불구가 된 form-only JSON Schema |
+| `internal/match` | 1 · 150 | 순수 함수 | 결정 코어. 부작용 0 |
+| `internal/proc` | 3 · 151 | 프로세스 | 잠금 파일 pid · 멈춤 신호 · 자식 떼기 |
+| `internal/build` | 1 · 75 | 빌드 정보 | 버전 한 줄 |
+
+## Infrastructure Packages
+
+**없다.** CDK · Terraform · CloudFormation · Kubernetes 매니페스트가 트리에 0 개다.
+배포라 부를 것은 `packaging/` 의 OS 설치본 셋과 GitHub Actions 워크플로다.
 
 ```text
-   internal/enode      비테스트 소스 파일 셋이 늘었다 — policy.go · status.go ·
-                       transcript.go.  테스트 파일 28 -> 31
-   internal/contract    비테스트 소스 파일 수 그대로.  advert.go 에 Policy 가 늘었다.
-                       테스트 파일 4 그대로.  examples/ 에 시연 계약 둘이 늘었다
-   cmd/iapadapter       비테스트 소스 · 테스트 둘 다 그대로 (각각 7 · 9)
-   cmd/runctl           비테스트 소스 · 테스트 둘 다 그대로 (각각 2 · 3)
+   packaging/linux     nfpm 으로 .deb/.rpm.  서비스 유닛은 일부러 안 싣는다
+   packaging/macos     install.sh 가 ~/.local/bin 에 복사.  ad-hoc 코드 서명
+   packaging/windows   wixl 로 MSI.  ServiceInstall 도 PATH 수정도 없다
 ```
-
-**안 잰 자리의 알려진 낡음** — 아래 Shared Packages 표와 Total Count 는
-2026-09-08 판이다. 2026-09-11 실측으로 `internal/` 은 **12 벌**이고 (`panel` ·
-`proc` 이 늘었다) `internal/api` 의 라우트는 **17** 이다. 이 회차는 그 자리를
-안 만지므로 표를 고치지 않고 관측값만 여기 적는다.
-
----
-
-## Application Packages
-
-`cmd/` 아래 다섯 개가 각각 `package main` 이고 바이너리 하나로 빌드된다.
-
-| 패키지 | 역할 | 파일 |
-|---|---|---|
-| `cmd/mediator` | Mediator 서버 프로세스. 설정 로드 · 토큰 부트스트랩 · `store`/`record` 열기 · 스키마 마이그레이션 · 임대 회수 고루틴을 엮고 `api.New(...).Handler()` 를 유일한 HTTP 핸들러로 올린다 | `main.go` · `setup.go` |
-| `cmd/enode` | 실행 노드 데몬. detect · advertise · worker 세 고루틴을 띄우고 전부 Mediator 로 바깥 방향 HTTP 를 건다. 인바운드 포트를 열지 않는다 (ADR-014) | `main.go` · `hook.go` · `setup.go` |
-| `cmd/enodectl` | 노드-로컬 제어 CLI. 서브커맨드는 `setup` · `list` · `id` · `start` · `stop` · `logs` · `status` · `version` 이다. **`serve` 는 오늘 없다** | `main.go` · `setup.go` · `proc_unix.go` · `proc_windows.go` · `caffeinate_darwin.go` · `caffeinate_other.go` |
-| `cmd/runctl` | 무상태 클라이언트 CLI. 서브커맨드 열하나 — `submit` · `status` · `record` · `cancel` · `example` · `lint` · `schema` · `capabilities` · `dry-run` · `asks` · `answer` | `main.go` · `shape.go` |
-| `cmd/iapadapter` | "It's a Plan" 트래커를 enode 함대에 잇는 유일한 바깥-대면 바이너리. DB 를 안 쥐고 run-ID 를 이슈 키에서 파생해 재기동에 안전하다 | `main.go` · `itsaplan.go` · `mediator.go` · `config.go` · `contract.go` · `comment.go` · `orchestrator.go` |
-
-## Shared Packages
-
-`internal/` 아래 열 개. 실행파일들이 이것들을 링크해서 쓴다.
-
-| 패키지 | 한 줄 역할 |
-|---|---|
-| `internal/api` | Mediator 의 HTTP 표면. `http.ServeMux` 라우트 표 · Bearer 인증 미들웨어 · 핸들러들. `mux.HandleFunc` 로 15 개 라우트를 직접 등록한다 (`GET /v1/nodes` 는 없다 — `POST /v1/nodes` 만) |
-| `internal/store` | PostgreSQL 상태 계층. `nodes`/`runs`/`leases`/`steps` 를 담고 시퀀싱 · `Verify` · 봉인 · `Reap` 을 한다. run 상태로 `QUEUED` 를 쓰지 않고 `WakeQueued` 도 없다 |
-| `internal/match` | 순수 매처. `requires` 를 광고 노드에 얹어 배정(`[]Assignment`) 또는 타입 있는 거부(`*Reject`, 422/409)를 낸다. 부수효과 없음 |
-| `internal/contract` | run 계약 문법 모델(`Contract`/`Step`/`Require`/`Condition` 등)과 `Grammar` · `PlanShape` · `CheckPlan` · 내장 `Example` |
-| `internal/schema` | 폼 검사로만 좁힌 JSON Schema. `CheckBoundary`(경계 게이트) · `Validate`(문서 검사). 품질 판정 키워드는 하드 거부 |
-| `internal/record` | 파일시스템 Run Record 를 짓고 로그 · blob 을 붙이고 `Seal`(chmod)로 봉인 · `Tar` 로 내보낸다 |
-| `internal/enode` | 실행 노드 데몬 로직. `Detector` · `Advertiser` · `Worker` · `Harness`(claude 어댑터) · `workspace` 준비. 2026-09-11 재측정 — 소유자 정책(`policy.go`) · 상태 파일(`status.go`) · 하네스 트랜스크립트 링(`transcript.go`) 이 늘었다 |
-| `internal/runctl` | runctl CLI 의 HTTP 클라이언트. `Submit` · `Status` · `Cancel` · `Record` · `Asks` · `Answer` · `Capabilities` 와 DTO |
-| `internal/config` | Mediator 설정 로드 · 기록 (ADR-015 §4). `Lease` 기본값(`RenewSeconds`/`NotAfterFactor`) 등 |
-| `internal/build` | 실행파일의 신원(커밋 · 판 · 날짜)을 담고 `<cmd> --version` 이 찍는 `Version` 을 낸다. 광고에는 안 싣는다 |
 
 ## Test Packages
 
-별도의 테스트 패키지 트리는 없다. 테스트는 **각 패키지 안에 콜로케이트된
-`*_test.go`** 로 산다 (`_unix_test.go`/`_windows_test.go` 는 플랫폼별). 예로
-`Worker` 는 `internal/enode/claim.go` 에 있고 `worker.go` 라는 파일은 없지만
-`worker_test.go`/`worker_unix_test.go` 는 이름을 쓴다.
-
-| 패키지 | `*_test.go` 개수 |
-|---|---|
-| `cmd/enode` | 2 |
-| `cmd/enodectl` | 4 |
-| `cmd/iapadapter` | 9 |
-| `cmd/mediator` | 3 |
-| `cmd/runctl` | 3 |
-| `internal/api` | 4 |
-| `internal/build` | 1 |
-| `internal/config` | 2 |
-| `internal/contract` | 4 |
-| `internal/enode` | 31 (2026-09-11 재측정) |
-| `internal/match` | 1 |
-| `internal/record` | 1 |
-| `internal/runctl` | 1 |
-| `internal/schema` | 2 |
-| `internal/store` | 3 |
-
-**DB 의존 테스트는 Postgres 가 없으면 스킵된다.** `ENODE_TEST_DATABASE_URL`
-이 비어 있으면 테스트 헬퍼가 `t.Skip("ENODE_TEST_DATABASE_URL is unset ...")`
-로 빠진다 (`internal/api/api_test.go:33`). `internal/api` 는 테스트 함수 103 개
-가운데 **약 102 개가 스킵**되어 Postgres 없이는 사실상 아무 것도 검증하지
-못한다. CI 는 이래서 `postgres:17` 서비스 컨테이너를 붙이고
-(`.github/workflows/ci.yml`), 로컬은 `scripts/testdb.sh` 가 같은 컨테이너를
-띄운다.
+별도 테스트 패키지가 없다 — 테스트는 전부 같은 패키지 안의 `*_test.go` 다
+(비테스트 97 · 전체 198 파일). 브라우저 쪽은 예외로
+`internal/api/ui/tests/*.test.mjs` 열넷이 있고 Go 테스트가 그것을 돌린다.
 
 ## Total Count
 
-- **Application packages (`cmd/*`)**: 5
-- **Shared packages (`internal/*`)**: 10
-- **합계**: **15 패키지** (본 모듈에서 빌드/테스트되는 것 기준)
+```text
+   Go 패키지          18   (go list ./...)
+   바이너리            5   (cmd/*)
+   공용 패키지        13   (internal/* — api/ui 를 따로 센다)
+   인프라 패키지       0
+   비테스트 소스      97 파일 · 24,534 줄
+   전체 Go 소스      198 파일
+```
 
-`scripts/glyphscan.go`(빌드 태그로 제외)와 `scripts/avprobe/`(별도 모듈)는
-이 15 에 들어가지 않는다.
+## 2026-09-08 판과 달라진 것
+
+```text
+   늘어난 패키지 셋    internal/panel · internal/proc · internal/api/ui
+   늘어난 파일         비테스트 75 -> 97 · 전체 143 -> 198
+   늘어난 라우트       15 -> 26
+   늘어난 하위명령     enode panel · enodectl serve
+   구현된 것           QUEUED · WakeQueued (ADR-064).  옛 판은 「코드가 안 쓴다」로 적었다
+   꺼진 것             하네스 단계의 트랜스크립트 링 tee (짝 팩 decisions 6절 ⑲)
+   바뀐 것             logs/ 가 원문에서 허용목록 선별로 (짝 팩 decisions 6절 ⑱)
+                       Argv 가 --output-format stream-json --verbose 로 (⑮)
+```

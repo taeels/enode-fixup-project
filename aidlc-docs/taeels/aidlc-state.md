@@ -4,8 +4,9 @@
 그래서 회차가 바뀌어도 주소가 안 바뀌고, 여기 회차 둘의 Construction 이 쌓인다.
 
 ```text
-   v1-run-dhseo                obs · mcp        아래 「회차 v1」
-   v3-run-harness-components   isolation 외 넷   아래 「회차 v3」
+   v1-run-dhseo                obs · mcp         아래 「회차 v1」
+   v3-run-harness-components   isolation 외 넷    아래 「회차 v3 — harness-components」
+   v3-run-transcript           transcript 외 일곱  아래 「회차 v3 — transcript」
 ```
 
 자기 브랜치에서 작업하고 PR 로 main 에 병합한다(게이트 초록 뒤). 산출물은 이
@@ -698,3 +699,275 @@ blob 과 맞는 것을 냈다.
 실물 대조로 확인됐다.
 
 `unit/pack` 을 PR 로 `main` 에 올린다 (`CONVENTIONS.md` 3.3).
+
+
+---
+
+# 회차 v3 — v3-run-transcript
+
+담당은 taeels 하나다 (회차 질문 3 = B). 유닛 **여덟**을 **웨이브 다섯**으로 돈다.
+회차 정본은 `aidlc-docs/v3-run-transcript/` 이고 요구 팩은
+`requirements/transcript/` 다. Inception 이 2026-09-15T08:32:42Z 에 닫혔다.
+
+## 착수 배치 — 여덟 직렬을 다섯 웨이브로
+
+회차의 `unit-of-work-dependency.md` 3절은 착수 순서를 **여덟 직렬**로 적었다.
+그 문서가 근거로 댄 것은 의존이 아니라 **한 손**이다 — 「한 손이므로 웨이브는
+병렬 기회가 아니라 순서의 하한이다」. 사용자가 병렬을 지시해
+(2026-09-15T08:33:10Z 「병렬로 돌릴 수 있으면 돌려」) 그 전제를 걷고 의존 행렬과
+파일 행렬에 다시 댔다.
+
+**가르는 기준이 둘이다** — 코드 의존과 **같은 파일**. 둘째가 없으면 의존 0 인
+U1 과 U2 를 같은 웨이브에 넣게 되는데 둘 다 `runner.go` 를 만진다.
+
+```text
+   W-a   U1 transcript   병렬  U3 progress-store    의존 0 · 파일 겹침 0
+   W-b   U2 node-stream  병렬  U4 log-api           enode 대 api.  **CB0**
+   W-c   U5 panel-live   단독                       **CB1**
+   W-d   U6 panel-past   병렬  U7 chunk-push        panel·runctl 대 enode
+   W-e   U8 fleet-card   단독                       **CB4 · CB6**
+```
+
+**U5 를 단독으로 두는 것이 이 배치의 값이다.** CB1 은 뒤의 셋(U6 · U7 · U8)이
+전부 딛는 게이트다. 그것을 보기 전에 셋을 지으면 빨갰을 때 되돌릴 것이 셋이 되고,
+그것이 앞 팩의 CP6 이 눈을 늦게 떠서 이 팩이 생긴 바로 그 실패다. **병렬은
+되돌릴 것이 안 느는 자리에서만 쓴다.**
+
+**W-a 가 U1 · U2 가 아니라 U1 · U3 인 이유**가 파일 행렬 2절이다 — U1 이
+`runner.go` 에서 셋을 덜어내고 U2 가 그 뒤에 tee 를 잇는다. 같은 웨이브에 넣으면
+U2 가 U1 의 변경 위에서 재작업한다.
+
+## 유닛
+
+| | 유닛 | 맡는 기능 | 지는 게이트 | 선행 | 웨이브 | 상태 |
+|---|---|---|---|---|---|---|
+| U1 | `transcript` | FR-3 | (코드만) | 없음 | W-a | **병합됨 (PR #40)** |
+| U2 | `node-stream` | FR-1 · FR-2 | (코드만) | U1 (파일) | W-b | 대기 |
+| U3 | `progress-store` | FR-5 (med) | (코드만) | 없음 | W-a | **병합됨 (PR #41)** |
+| U4 | `log-api` | FR-6 · FR-5 (api) | **CB0** | U1 · U3 | W-b | 대기 |
+| U5 | `panel-live` | FR-4 (절반) | **CB1** | U1 · U2 | W-c | 대기 |
+| U6 | `panel-past` | FR-4 (나머지) | **CB2** | U4 · CB1 | W-d | 대기 |
+| U7 | `chunk-push` | FR-5 (노드) | **CB3** | U2 · U4 · CB1 | W-d | 대기 |
+| U8 | `fleet-card` | FR-7 | **CB4** · **CB6** | U4 · CB3 | W-e | 대기 |
+
+**NFR Requirements 를 도는 유닛이 여섯이고 스킵이 둘이다** (U2 · U6). 회차 계획이
+「새 표면을 만드는 유닛만 돈다」로 걸었다. **N1 은 U4 가 · N2 는 U3 가 진다.**
+
+## 선행 · 공용
+
+- 유닛 정본 `aidlc-docs/v3-run-transcript/inception/application-design/unit-of-work.md`
+- 의존 `.../unit-of-work-dependency.md` · 파일 행렬 `.../unit-of-work-file-matrix.md`
+- 게이트 사상 `.../unit-of-work-story-map.md` · 요구 `.../requirements/requirements.md`
+- 팩 `requirements/transcript/` · RE `aidlc-docs/inception/reverse-engineering/`
+
+## 단계 진행 — W-a (U1 `transcript` · U3 `progress-store` 병렬)
+
+브랜치 `unit/transcript` · `unit/progress-store`. 둘 다 회차 브랜치에서 땄고
+**worktree 를 갈라 동시에 돌렸다** (`/home/sunny/enode-wt/`). 앞선 회차가
+브랜치를 앞 유닛 위에 쌓은 것과 다르다 — W-a 는 파일 교집합이 0 이라 쌓을
+이유가 없다.
+
+```text
+   Functional Design      승인 2026-09-15T10:45:00Z (사용자 「승인」)
+                          계획 둘 · 산출물 여섯.  커밋 edda804 · ac3acac (Part 1) ·
+                          d20c26c (U3) · adc93d0 (U1)
+                          물음 스물하나 + 막힌 뒤 낸 둘 = **스물셋.  전부 닫혔다**
+                          답 — 스물하나가 A (사용자 「권장대로」) · 둘이 B
+
+                          **둘 다 계획을 짓기 전에 코드를 읽었고 문서가 코드와
+                          갈린 자리를 여덟씩 찾았다.** 진행자가 표본 일곱을 코드에
+                          대고 확인했고 일곱 다 맞았다
+
+                          무거운 셋 — ① U1 이 옮길 범위가 문서의 셋이 아니라
+                          **일곱 + 타입 둘**이다 (components.md 와 unit-of-work.md
+                          가 함께 틀렸다) ② `go list -deps` 가 시험 임포트를 안
+                          보므로 경계 검사를 그 명령으로만 세우면 시험이 금지된
+                          패키지를 임포트해도 초록이다 ③ N2 의 오늘 값이
+                          「상한이 없다」가 아니라 **「지우는 코드가 0」**이다
+
+                          **U3 의 모순 검사가 막는 것 하나를 찾아 멈췄다** —
+                          Q3 = A 와 Q4 = A 를 합치면 진행 파일 안에 상한 도달의
+                          흔적이 0 이라 GET 이 못 가른다.  NC-4 와 US-7 이 그
+                          자리에서 죽는다.  사용자가 상한 값(10 MiB)을 묻고
+                          표시 줄을 골랐다 (물음 10 = B · 11 = B)
+
+                          같은 검사가 앞서 적은 구멍 하나를 **지웠다** —
+                          `Records` 가 nil 이면 `needRecords` 가 503 을 내므로
+                          진행 트리가 애초에 안 생긴다.  N2 의 구멍은 **둘**이다
+
+                          **교차 검사가 하나 더 잡았다** — 같은 필드를 U3 은
+                          상한으로 U1 은 총 길이로 정의했다.  상한이 맞고 취향이
+                          아니라 기계로 갈린다: 표시 줄이 총 길이에 드는 이상
+                          **자기가 든 총 길이를 담을 수 없다.**  U1 을 고쳤다
+
+   NFR Requirements       승인 2026-09-15T12:45:00Z (사용자 「승인」).  둘 다 돌았다
+                          계획 둘 · 산출물 넷.  커밋 ab819f5 · bd8cc0f (Part 1) ·
+                          5e9219b (U3) · 8fc8886 (U1) · b58906f (회차와 팩)
+                          물음 일곱 전부 A (사용자 「권장대로」) · 모순 0 ·
+                          **SECURITY 미준수 0 · 빈 칸 0**
+
+                          **N2 가 값을 얻었다** — 진행 파일의 **마지막 쓰기**로부터
+                          6시간.  상수다.  집행은 Reap() 안이고 새 타이머가 0 이다.
+                          회차의 미결 「① 에 상한이 없다」가 여기서 닫혔다
+
+                          **봉투를 다시 계산했더니 기대와 달랐다** — 6시간이 자르는
+                          것은 노출 시간이고 디스크가 아니다.  Run 이 그보다 짧게
+                          돌면 최악 10 GiB 가 그대로 선다.  없앤 것이 아니라
+                          받아들인 것이라 규칙으로 적었다
+
+                          **U3 가 자기 판정을 교정했다** — SECURITY-14 의 넷 중
+                          디스크 용량을 말하는 줄이 0 이다.  01 은 준수로 안 굳혔다:
+                          6시간이 닫은 것은 「기간에 값이 없다」이고 「평문이다」는
+                          그대로다
+
+                          **U1 이 자기가 FD 에서 만든 갈림을 찾아 기록했다** —
+                          팩은 「200자」인데 FD 가 「200 바이트」로 적고 「값은 팩의
+                          것」이라 달았다.  한글은 3바이트라 3배 다르고, 바이트로
+                          자르면 룬이 쪼개져 encoding/json 이 U+FFFD 로 바꾼다.
+                          숫자는 팩 · 단위는 U1 로 갈라 적었다
+
+                          **교차 검사 0** — U3 의 NFR 이 파서 표면을 안 건드린다
+   NFR Design             승인 2026-09-15T13:35:00Z (사용자 「승인한다. 코드 쓰자」)
+                          **물음 0** 으로 둘 다 산출물까지
+                          커밋 5cf1571 (U1) · ef4d766 (U3)
+                          패턴 다섯 중 W-a 가 셋을 진다 — U1 이 ④ · U3 가 ①의
+                          찍는 쪽과 ⑤.  ② ③ 은 U7 · U8 의 것이고 **안 지는 것도
+                          이름으로 적었다**
+
+                          U1 — 규율이 깨지는 길 일곱 중 **여섯을 기계가 막고
+                          하나는 사람이 막는다**.  이음매 하나를 박았다:
+                          enode.capped 는 짓는 쪽이 U3 이라 왕복 시험이 못 잡는다
+                          U3 — 설계가 순서 하나를 새로 더했다 (**개행 보장**).
+                          없으면 표시 줄이 반쪽에 붙어 Capped 가 영영 참이 안 되고
+                          표시 줄이 무한히 쌓인다
+                          U3 의 실측이 회차 계획을 고쳤다 — Seal 은 tar 를 안 짓는다
+   Infrastructure Design  SKIP (회차 계획)
+   Code Generation        Part 1 (계획) 승인 2026-09-15T14:20:00Z (사용자 「넘어가지」)
+                          Part 2 (생성) 2026-09-16.  승인 2026-09-16T01:08:12Z
+                          (사용자 「병합하고 w-b 가자」).  **코드가 섰다**
+                          U1 커밋 넷 c95d5bf · 583ebf6 · 0510edb · 864d5e0
+                          U3 커밋 다섯 bdb13a3 · 26bf7b4 · efc0042 · ebb7d7a · 73fdeb3
+                          체크박스 U1 97 중 94 · U3 122 중 121 (남긴 것은
+                          채우면 거짓 초록인 자리들이다)
+
+                          **구독 만료로 한 번 끊겼다** — 재개 지점을 에이전트의
+                          말이 아니라 저장소 상태로 쟀다.  커밋 안 된 것을 안
+                          버렸고 U1 790 줄 · U3 1,507 줄이 그대로 살았다
+
+                          진행자가 게이트를 다시 쟀다 — 전체 시험 초록 ·
+                          커버리지 미달 **0** (U1 87.5% · transcript 94.4%.
+                          U3 87.4% · record 84.4%) · 라우트 17 · gofmt 빔 ·
+                          diff 0 경로 전부 0 · 파일 교집합 0
+
+                          **이음매를 진행자가 실제로 왕복시켰다** — W-a 가 병렬의
+                          대가로 남긴 자리다.  U3 의 cappedMark 41 바이트를 U1 의
+                          Parse 에 먹였고 KindCapped 와 Bytes 10485760 이 섰다
+
+                          실측이 계획을 뒤집은 것 셋 — 물음 1 의 답(content 가
+                          배열로 온다.  A 로 지었고 실측이 받친다) · U3 의 빨간
+                          시험은 시험이 틀렸다(제품 0 줄) · 최악 봉투가 112 MB 가
+                          아니라 **2.3 GB** 다 (개행만 든 1 바이트 줄도 사건이다)
+
+                          진행자가 고친 것 둘 — U1 주석의 장식 문자 하나(규약 1.2.
+                          에이전트는 0 이라 보고했다) · probe.lock 되돌리기
+                          커밋 9d907da · c4e6eec (U1) · f962d26 · 53ef404 (U3)
+                          Step 열아홉씩 · 체크박스 아흔여섯(U1) · 백스물둘(U3)
+
+                          **U1 이 불변식 F2 가 거짓인 것을 찾았다** — tool_use 의
+                          Text 는 RawMessage 를 다시 마샬한 것이라 compact 만
+                          지난다.  json.Marshal(json.RawMessage) 가 잘못된 UTF-8 을
+                          그대로 낸다 (진행자가 go1.26.6 으로 재현).  F2 에 조건을
+                          달아야 Part 2 가 첫 변이에서 안 멈춘다.  값은 안 바뀐다
+
+                          진행자 표본 검증이 유닛마다 하나씩 되돌렸다 —
+                          U1 의 셈(표는 여덟인데 글자가 일곱.  앞 문서에 틀린 값이
+                          두 벌) · U3 의 게이트 7(스물한 자리 중 여섯은 렌더링되는
+                          자리라 위반이 아니다.  위반은 열다섯 · 파일 여덟)
+
+                          **U3 가 진행자의 셈을 되돌렸다** — 「여덟 중 일곱이 행렬
+                          밖」이 아니라 여덟 전부가 밖이다.  짐작으로 안 따랐다
+
+                          기준선 실측 — go build · vet · test 전부 초록.  단 postgres
+                          가 서야 한다 (셋이 URL 없이 실패).  scripts/testdb.sh
+```
+
+## 이 웨이브가 회차 밖으로 낼 것 — 진행자의 몫
+
+**U3 의 Code Generation 전에 서야 하는 둘이 있다.** 기준선인 채로 병합하면
+그 자리에서 빨개진다.
+
+```text
+   때가 박힌 것   unit-of-work-file-matrix.md 5절   internal/store diff 0 이 거짓이 된다
+                 execution-plan.md 6절 품질 게이트 2  같은 이유.  contract 는 0 그대로
+                 unit-of-work-file-matrix.md 1절   U1 의 「경계 검사 두 줄」이 넷이다
+                 component-methods.md 1.2          map[string]any -> Fields
+
+   그 밖          components.md 1절 · application-design.md D1 의 줄 번호와 D4 의 근거
+                 requirements.md 5.1 (testdata) · FR-3 의 사건 종류 · 2.4 의 낡은 인용
+                 user-stories.md US-4 의 확인 글자
+                 팩 transcript/decisions.md 2절 — raw 정의와 사건 종류
+                 unit-of-work.md U1 절의 「셋」
+                 GLOSSARY.md 의 CB · N1 · N2 — **푼 말을 아무도 안 짐작했다**
+```
+
+## 이 웨이브가 배운 것 — 병렬의 대가 하나
+
+**유닛 경계를 넘는 답의 조합은 어느 한 유닛의 모순 검사도 못 본다.** AI-DLC 의
+Functional Design Step 5 는 그 유닛의 답끼리만 댄다. 같은 날 두 번 났고 **두 번
+다 두 유닛이 각자 모순 0 이었다.** 병렬로 돌리면 **웨이브를 닫는 자리에 유닛
+사이를 대 보는 검사가 따로 있어야 한다** — 이 회차는 진행자가 그것을 졌다.
+
+**한 벌로 못 만드는 값은 맞대는 절차가 따로 있어야 한다.** `enode.elided` 는
+짓는 함수가 같은 패키지라 왕복 시험이 잡지만 `enode.capped` 는 찍는 쪽이 U3 ·
+읽는 쪽이 U1 이라 한 패키지 시험으로 안 잡힌다. Code Generation 이 맞댈 것을
+값 이름까지 적어 뒀다 (`business-rules.md` 16.1).
+
+## W-a 가 닫혔다 — 병합 2026-09-16
+
+승인 뒤 **합친 나무에서 게이트를 다시 쟀다.** 유닛 둘의 값은 각자의 브랜치에서 잰
+것이고, 합치면 같은 값이라는 보장이 없다 — 그 보장을 안 믿고 쟀다.
+
+```text
+   합본        origin/main + v3-run-transcript + unit/transcript + unit/progress-store
+               충돌 0 · 세 갈래의 파일 교집합 0
+
+   초록인 것    build · vet · gofmt · glyphscan(109 파일) ·
+               시험 19 패키지 전부 · **스킵 0**
+               커버리지 정본 명령으로 19 패키지 **미달 0** — 전체 87.5%
+               transcript 94.4% · record 84.4% · store 82.5% · enode 86.7%
+               라우트 17 그대로 (18 은 U4 의 몫 · CB0)
+               windows/amd64 크로스 빌드 · net/http T 6 · crypto/tls T 1
+
+   PR 셋       #39 회차 브랜치 -> #40 U1 -> #41 U3.  이 순서로 올렸다
+               회차가 먼저다 — 유닛 정의와 파일 행렬이 거기 있다
+```
+
+**앞 단계가 「못 갈랐다」고 적은 자리를 다시 쟀다** — `internal/api` 의 deadlock
+(40P01). 합본에서 **일곱 번 다 초록이고 재현 0 이다.** 재현이 0 인 것은 없어진 것과
+다르므로 사라졌다고 안 적는다. 다음 웨이브가 `internal/api` 를 만지므로 (U4) 거기서
+다시 본다.
+
+**`cmd/enodectl/probe.lock` 이 시험을 돌 때마다 바뀐다** — CP0 의 「시험이 추적 파일을
+안 고친다」를 그대로 깬다. 이 유닛들이 만든 것이 아니고 (둘 다 `cmd/enodectl` 을 안
+만진다) 앞선 회차들도 겪었다. 되돌리고 **기준선의 성질로 적는다** — 고치는 것은 이
+회차의 파일 행렬 밖이다.
+
+## 다음 — W-b (U2 `node-stream` · U4 `log-api` 병렬)
+
+```text
+   U2 node-stream   FR-1 · FR-2   게이트 (코드만)   선행 U1 (파일)
+   U4 log-api       FR-6 · FR-5   **CB0**          선행 U1 · U3
+```
+
+**둘 다 W-a 의 코드를 딛는다** — U2 는 U1 이 `runner.go` 에서 덜어낸 자리에 tee 를
+잇고, U4 는 U1 의 파서와 U3 의 진행 파일을 둘 다 읽는다. 그래서 브랜치를 회차
+브랜치가 아니라 **병합된 `main` 에서 딴다** — 회차 브랜치는 코드를 0 줄 싣는다.
+
+**가르는 축은 enode 대 api 다** — U2 가 `internal/enode`, U4 가 `internal/api`.
+파일 행렬이 교집합을 0 으로 뒀는지가 착수 전에 볼 첫 자리다.
+
+**NFR Requirements 는 U4 만 돈다** (U2 는 회차 계획 SKIP — 새 표면을 안 만든다).
+**N1 을 U4 가 진다.**
+
+**CB0 이 이 웨이브에서 처음 값을 얻는다** — `grep -c 'mux.HandleFunc' internal/api/api.go`
+가 17 에서 **18** 이 된다. 오늘 17 인 것을 합본에서 쟀다.
