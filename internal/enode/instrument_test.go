@@ -497,12 +497,16 @@ func TestRunHarness_AnInstrumentationDirectoryThatCannotBeMadeKillsTheStep(t *te
 	}
 }
 
-// 하네스 단계의 링 tee 가 꺼진다 (decisions.md 6절 ⑲).
+// 하네스 단계의 링 tee 가 켜진다 (FR-2 · 이 회차의 질문 2 = A).
 //
-// 한 바이트도 안 받는 것으로 잰다 — 「도구 사건이 안 쌓인다」로 재면 링에도
-// 선별을 거는 구현이 통과한다. 그 구현은 실시간 필터라 구조가 다르고,
-// 이 팩이 고른 것은 끄는 쪽이다.
-func TestRunHarness_TheRingGetsNothingWhileTheStreamIsRaw(t *testing.T) {
+// 앞 팩은 같은 자리를 반대로 쟀다 - "한 바이트도 안 받는다" 였다. 그 결정이
+// 뒤집힌 것이지 이 시험이 느슨해진 것이 아니다: 그때의 근거(원문이 노드
+// 디스크에 앉는다)는 지금도 참이고, 바뀐 것은 그 노출을 값으로 샀다는 것이다.
+// 대가는 requirements.md 5.4 의 잔여 ③ 에 이름으로 적혀 있다.
+//
+// 본문까지 확인한다 - "무언가 받았다" 로 재면 링에도 선별을 거는 구현이
+// 통과하고, 그 구현은 화면이 읽을 문장을 0 으로 만든다.
+func TestRunHarness_TheRingGetsTheRawStream(t *testing.T) {
 	dir := t.TempDir()
 	bin := writeScript(t, dir,
 		`printf '{"type":"assistant","message":{"content":[{"type":"text","text":"secret"}]}}\n'`+"\n"+
@@ -515,8 +519,11 @@ func TestRunHarness_TheRingGetsNothingWhileTheStreamIsRaw(t *testing.T) {
 	if h.Reason != ReasonOK {
 		t.Fatalf("the stub harness did not complete: %+v", h)
 	}
-	if ring.Len() != 0 {
-		t.Fatalf("the raw stream reached the ring, which lives on the node disk: %q", ring.String())
+	if !strings.Contains(ring.String(), "secret") {
+		t.Fatalf("the ring did not get the body the panel has to draw: %q", ring.String())
+	}
+	if !strings.Contains(ring.String(), `"type":"result"`) {
+		t.Fatalf("the ring lost the envelope line: %q", ring.String())
 	}
 }
 

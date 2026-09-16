@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"strings"
+
+	"github.com/taeels/enode/internal/transcript"
 )
 
 // Reason 은 정규화된 하네스 종료 사유다 (ADR-020 결정 2).
@@ -277,17 +279,27 @@ type Harness interface {
 // 워크스페이스 diff 다 (hook.go 머리). 그래서 이것만 보조다.
 var errAux = errors.New("auxiliary instrumentation failure")
 
-// EventKind 는 스트림 사건의 종류다.
+// EventKind 는 스트림 사건의 종류다. internal/transcript 의 Kind 를 그대로 쓴다.
 //
-// 지금은 final 하나만 난다 — 배치 봉투에는 중간 사건이 없기 때문이다.
-// 미리 여러 종류를 만들지 않는다. 시그니처가 사건을 나를 수 있다는 것이
-// 요점이고, 종류는 stream-json 을 켤 때 실물을 보고 늘린다.
-type EventKind string
+// 앞 판은 여기서 final 하나만 쓰고 "종류는 stream-json 을 켤 때 실물을 보고
+// 늘린다" 고 적었다. 지금이 그때이고, 늘리는 대신 이미 있는 어휘를 가리킨다 —
+// 화면이 그리는 일곱과 노드가 찍는 종류가 같은 글자여야 한다. 두 벌로 두면
+// 같은 줄을 화면과 노드가 다른 이름으로 부른다.
+//
+// 정의 타입이 아니라 별칭이다. 별칭이면 경계마다의 변환이 0 이다 —
+// transcript.Fields 가 같은 이유로 별칭이다.
+type EventKind = transcript.Kind
 
-const (
-	EventFinal EventKind = "final"
-)
+// EventFinal 은 하네스가 내는 것이 아니라 Decode 가 봉투를 읽고 찍는 것이다.
+// 그래서 transcript 의 일곱에 없고 여기 남는다. 값이 그 일곱과 겹치면 화면이
+// 봉투를 하네스 사건으로 읽으므로 시험이 안 겹치는 것을 고정한다.
+const EventFinal EventKind = "final"
 
+// Event 는 노드가 흘리는 사건 하나다.
+//
+// Text 를 채우는 것은 Decode 의 final 하나뿐이다. 줄마다 나는 사건은 종류만
+// 나른다 (emit.go) — 노드 로그에 본문을 안 싣는 것이 요구이고, 소비자가
+// 안 찍는 것에 기대면 다음 소비자가 찍는다. 담기지 않으면 찍힐 수 없다.
 type Event struct {
 	Kind EventKind
 	Text string

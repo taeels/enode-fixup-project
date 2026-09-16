@@ -75,82 +75,82 @@ func (e *lineEmitter) Close() error
 ## 3. 단계 — 열둘
 
 ### Step 1 — 겉면을 못 박는다
-- [ ] `harness.go` 에 `EventKind = transcript.Kind` 별칭
-- [ ] `EventFinal` 상수를 남긴다
-- [ ] `emit.go` 에 `lineEmitter` 의 필드와 넷의 시그니처만 (몸통은 다음 Step)
-- [ ] `go build ./...` 가 선다
+- [x] `harness.go` 에 `EventKind = transcript.Kind` 별칭
+- [x] `EventFinal` 상수를 남긴다
+- [x] `emit.go` 에 `lineEmitter` 의 필드와 넷의 시그니처만 (몸통은 다음 Step)
+- [x] `go build ./...` 가 선다
 
 ### Step 2 — `emit.go` 의 쓰기 경로
-- [ ] `Write` 가 미완성 꼬리를 이어 붙이고 개행마다 줄을 만든다
-- [ ] 줄을 채널에 민다. 차면 `dropped++` 하고 버린다 (R7)
-- [ ] **언제나 `(len(p), nil)`** (R6). `recover` 로 패닉까지 삼킨다
-- [ ] 빈 `p` 는 아무것도 안 한다
+- [x] `Write` 가 미완성 꼬리를 이어 붙이고 개행마다 줄을 만든다
+- [x] 줄을 채널에 민다. 차면 `dropped++` 하고 버린다 (R7)
+- [x] **언제나 `(len(p), nil)`** (R6). `recover` 로 패닉까지 삼킨다
+- [x] 빈 `p` 는 아무것도 안 한다
 
 ### Step 3 — `emit.go` 의 고루틴
-- [ ] 채널에서 줄을 꺼내 `transcript.Parse(line, false)` 를 부른다
-- [ ] 나온 사건마다 `emit(Event{Kind: e.Kind})` — **`Text` 를 안 채운다** (R5)
-- [ ] 채널이 닫히면 돌아간다
-- [ ] `Close` 가 미완성 꼬리를 마지막 줄로 밀고 · 채널을 닫고 · 기다린다 (R8)
-- [ ] `Close` 가 `dropped` 를 돌려준다. 부르는 쪽이 로그로 낸다
+- [x] 채널에서 줄을 꺼내 `transcript.Parse(line, false)` 를 부른다
+- [x] 나온 사건마다 `emit(Event{Kind: e.Kind})` — **`Text` 를 안 채운다** (R5)
+- [x] 채널이 닫히면 돌아간다
+- [x] `Close` 가 미완성 꼬리를 마지막 줄로 밀고 · 채널을 닫고 · 기다린다 (R8)
+- [x] `Close` 가 `dropped` 를 돌려준다. 부르는 쪽이 로그로 낸다
 
 ### Step 4 — `runner.go` 의 tee 갈래 셋
-- [ ] `cmd.Stdout = io.MultiWriter(...)` — `&stdout` · `j.Transcript` · 배출기 (R1 · R2)
-- [ ] `j.Transcript` 가 nil 이면 그 갈래만 뺀다
-- [ ] `runner.go:187` 의 ⑥ 주석을 **되살린 이유로 다시 쓴다** (지우지 않는다)
+- [x] `cmd.Stdout = io.MultiWriter(...)` — `&stdout` · `j.Transcript` · 배출기 (R1 · R2)
+- [x] `j.Transcript` 가 nil 이면 그 갈래만 뺀다
+- [x] `runner.go:187` 의 ⑥ 주석을 **되살린 이유로 다시 쓴다** (지우지 않는다)
 
 ### Step 5 — `runner.go` 의 순서
-- [ ] 배출기를 `cmd.Run` 앞에 만든다. `emit` 은 `j.Emit`
-- [ ] `cmd.Run` 뒤에 `Close` 를 부른다 — **`Decode` 앞이다** (R9)
-- [ ] 버린 줄이 0 이 아니면 `j.Log.Warn` 으로 수를 낸다
-- [ ] `h.Decode(..., code, noop)` — no-op 을 넘긴다 (R4)
+- [x] 배출기를 `cmd.Run` 앞에 만든다. `emit` 은 `j.Emit`
+- [x] `cmd.Run` 뒤에 `Close` 를 부른다 — **`Decode` 앞이다** (R9)
+- [x] 버린 줄이 0 이 아니면 `j.Log.Warn` 으로 수를 낸다
+- [x] `h.Decode(..., code, noop)` — no-op 을 넘긴다 (R4)
 
 ### Step 6 — `claude.go` 의 `Decode`
-- [ ] `io.ReadAll` 을 걷고 `bufio` 로 줄 단위로 읽으며 바이트를 이어 담는다
-- [ ] 줄마다 `transcript.Parse` 로 읽고 사건마다 `emit`
-- [ ] 다 읽은 **전체** 바이트로 `ParseClaude(b, exitCode)` (R3)
-- [ ] `emit(Event{Kind: EventFinal, Text: h.Message})` — 오늘 그대로
-- [ ] 줄이 매우 길어도 안 깨진다 (`bufio.Scanner` 의 기본 상한을 안 쓴다)
+- [x] `io.ReadAll` 을 걷고 `bufio` 로 줄 단위로 읽으며 바이트를 이어 담는다
+- [x] 줄마다 `transcript.Parse` 로 읽고 사건마다 `emit`
+- [x] 다 읽은 **전체** 바이트로 `ParseClaude(b, exitCode)` (R3)
+- [x] `emit(Event{Kind: EventFinal, Text: h.Message})` — 오늘 그대로
+- [x] 줄이 매우 길어도 안 깨진다 (`bufio.Scanner` 의 기본 상한을 안 쓴다)
 
 ### Step 7 — 시험: 배출기의 규칙
-- [ ] `Write` 가 오류를 안 낸다 — `emit` 이 패닉을 내도 (R6)
-- [ ] 채널이 차면 버리고 세고 단계는 안 죽는다 (R7)
-- [ ] `Close` 뒤에 나는 사건이 0 이다 (R8)
-- [ ] 개행 없이 끝난 꼬리가 `Close` 에서 마지막 줄이 된다
-- [ ] 사건의 `Text` 가 언제나 빈 문자열이다 (R5)
+- [x] `Write` 가 오류를 안 낸다 — `emit` 이 패닉을 내도 (R6)
+- [x] 채널이 차면 버리고 세고 단계는 안 죽는다 (R7)
+- [x] `Close` 뒤에 나는 사건이 0 이다 (R8)
+- [x] 개행 없이 끝난 꼬리가 `Close` 에서 마지막 줄이 된다
+- [x] 사건의 `Text` 가 언제나 빈 문자열이다 (R5)
 
 ### Step 8 — 시험: 배출이 한 번이다 (R4)
-- [ ] `runHarness` 를 가짜 하네스로 돌려 **사건 수를 센다**
-- [ ] 줄 N 개를 흘리면 사건이 N 계열 + `final` 하나다. **두 배가 아니다**
-- [ ] `Decode` 를 직접 부르면 그때는 사건이 난다 (경로가 죽지 않았다)
+- [x] `runHarness` 를 가짜 하네스로 돌려 **사건 수를 센다**
+- [x] 줄 N 개를 흘리면 사건이 N 계열 + `final` 하나다. **두 배가 아니다**
+- [x] `Decode` 를 직접 부르면 그때는 사건이 난다 (경로가 죽지 않았다)
 
 ### Step 9 — 시험: 어휘 (R10 · R11)
-- [ ] `EventKind` 가 `transcript.Kind` 와 같은 타입이다 (대입으로 고정)
-- [ ] `EventFinal` 의 값이 일곱 중 어느 것과도 안 같다 — 표로 돈다
+- [x] `EventKind` 가 `transcript.Kind` 와 같은 타입이다 (대입으로 고정)
+- [x] `EventFinal` 의 값이 일곱 중 어느 것과도 안 같다 — 표로 돈다
 
 ### Step 10 — 시험: 왕복 (R12) — **이 유닛이 지는 이음매**
-- [ ] 링에 `DefaultTranscriptCapacity` 를 넘겨 쓴다 (감긴다)
-- [ ] `ReadRing` 으로 읽는다
-- [ ] `truncated = Snapshot.Total > uint64(len(Snapshot.Data))` 로 유도한다
-- [ ] `transcript.Parse(data, truncated)` 가 `Head > 0` 이고 `len(Events) > 0`
-- [ ] 안 감긴 경우도 함께 돈다 — `Head == 0`
+- [x] 링에 `DefaultTranscriptCapacity` 를 넘겨 쓴다 (감긴다)
+- [x] `ReadRing` 으로 읽는다
+- [x] `truncated = Snapshot.Total > uint64(len(Snapshot.Data))` 로 유도한다
+- [x] `transcript.Parse(data, truncated)` 가 `Head > 0` 이고 `len(Events) > 0`
+- [x] 안 감긴 경우도 함께 돈다 — `Head == 0`
 
 ### Step 11 — 변이: 시험이 실제로 재는지
-- [ ] `Close` 를 `Decode` 뒤로 옮긴다 -> Step 8 이 빨개져야 한다
-- [ ] no-op 대신 `j.Emit` 을 넘긴다 -> Step 8 이 빨개져야 한다
-- [ ] 배출기가 `Text` 를 채운다 -> Step 7 이 빨개져야 한다
-- [ ] `truncated` 를 언제나 false 로 -> Step 10 이 빨개져야 한다
-- [ ] 다섯째로 `Write` 가 오류를 내게 한다 -> Step 7 이 빨개져야 한다
+- [x] `Close` 를 `Decode` 뒤로 옮긴다 -> Step 8 이 빨개져야 한다
+- [x] no-op 대신 `j.Emit` 을 넘긴다 -> Step 8 이 빨개져야 한다
+- [x] 배출기가 `Text` 를 채운다 -> Step 7 이 빨개져야 한다
+- [x] `truncated` 를 언제나 false 로 -> Step 10 이 빨개져야 한다
+- [x] 다섯째로 `Write` 가 오류를 내게 한다 -> Step 7 이 빨개져야 한다
 
 ### Step 12 — 게이트와 문서
-- [ ] `go build ./... && go vet ./... && gofmt -l .` 가 빈다
-- [ ] `go run ./scripts/glyphscan.go` 가 0 이다
-- [ ] 전체 시험이 초록이고 **스킵 0**
-- [ ] 커버리지 정본 명령으로 **미달 0**. `internal/enode` 가 80% 위다
-- [ ] 라우트가 **17 그대로** (R17)
-- [ ] `internal/transcript` 와 `claim.go` 의 diff 가 **0** (R14 · R15)
-- [ ] `git status --porcelain` — `probe.lock` 만 나오면 되돌린다
-- [ ] `construction/node-stream/code/code-summary.md` 를 쓴다. **잰 것만 적는다**
-- [ ] 이 계획의 체크박스를 **끝낸 그 자리에서** 채운다
+- [x] `go build ./... && go vet ./... && gofmt -l .` 가 빈다
+- [x] `go run ./scripts/glyphscan.go` 가 0 이다
+- [x] 전체 시험이 초록이고 **스킵 0**
+- [x] 커버리지 정본 명령으로 **미달 0**. `internal/enode` 가 80% 위다
+- [x] 라우트가 **17 그대로** (R17)
+- [x] `internal/transcript` 와 `claim.go` 의 diff 가 **0** (R14 · R15)
+- [x] `git status --porcelain` — `probe.lock` 만 나오면 되돌린다
+- [x] `construction/node-stream/code/code-summary.md` 를 쓴다. **잰 것만 적는다**
+- [x] 이 계획의 체크박스를 **끝낸 그 자리에서** 채운다
 
 ---
 

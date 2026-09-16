@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/taeels/enode/internal/transcript"
 )
 
 // Argv 가 순수 함수라 프로세스 없이 시험된다 — 그게 exec 을 뺀 이유다.
@@ -142,12 +144,56 @@ func TestAdapter_TheVersionRidesTheResult(t *testing.T) {
 	}
 }
 
-// 사건이 흘러나온다 — 배치는 스트리밍의 퇴화형이라 지금은 final 하나다.
+// 사건이 줄마다 흘러나오고 마지막에 봉투 하나가 붙는다.
+//
+// 앞 판은 final 하나만 기대했다 - Decode 가 EOF 까지 읽고 사건 하나를 냈기
+// 때문이다. 이제는 줄마다 종류가 나므로 result 줄 하나가 사건 둘이다.
 func TestAdapter_EmitsEvents(t *testing.T) {
 	var kinds []EventKind
 	claudeHarness{}.Decode(strings.NewReader(
 		`{"type":"result","subtype":"success"}`), 0, func(e Event) { kinds = append(kinds, e.Kind) })
-	if len(kinds) != 1 || kinds[0] != EventFinal {
-		t.Fatalf("no events came: %v", kinds)
+	if len(kinds) != 2 || kinds[0] != transcript.KindResult || kinds[1] != EventFinal {
+		t.Fatalf("the events did not come in order: %v", kinds)
+	}
+}
+
+// 줄마다 나는 사건은 본문을 안 싣는다 - 이것을 받는 것이 노드 로그다.
+func TestAdapter_EventsCarryNoBody(t *testing.T) {
+	in := `{"type":"assistant","message":{"content":[{"type":"text","text":"a secret"}]}}` + "\n" +
+		`{"type":"result","subtype":"success","result":"done"}`
+	var bodies []string
+	claudeHarness{}.Decode(strings.NewReader(in), 0, func(e Event) {
+		if e.Kind != EventFinal {
+			bodies = append(bodies, e.Text)
+		}
+	})
+	if len(bodies) == 0 {
+		t.Fatal("no per-line event came")
+	}
+	for i, b := range bodies {
+		if b != "" {
+			t.Fatalf("event %d carried a body: %q", i, b)
+		}
+	}
+}
+
+// 줄이 64 KiB 보다 길어도 안 끊긴다 - bufio.Scanner 의 기본 상한을 안 쓴다.
+func TestAdapter_LongLineIsNotCut(t *testing.T) {
+	long := strings.Repeat("x", 300*1024)
+	in := `{"type":"assistant","message":{"content":[{"type":"text","text":"` + long + `"}]}}` + "\n" +
+		`{"type":"result","subtype":"success"}`
+	var kinds []EventKind
+	h := claudeHarness{}.Decode(strings.NewReader(in), 0, func(e Event) { kinds = append(kinds, e.Kind) })
+	if h.Reason != ReasonOK {
+		t.Fatalf("the envelope was not read: %+v", h)
+	}
+	var text int
+	for _, k := range kinds {
+		if k == transcript.KindText {
+			text++
+		}
+	}
+	if text != 1 {
+		t.Fatalf("the long line did not become one text event: %v", kinds)
 	}
 }

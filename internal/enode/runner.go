@@ -184,29 +184,69 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
-	// ⑥ 하네스 단계의 링 tee 를 안 건다 (decisions.md 6절 ⑲)
+	// ⑥ 하네스 단계의 tee 를 되살린다 (FR-2 · 이 회차의 질문 2 = A)
 	//
-	// 예전에는 여기서 j.Transcript 로 원문을 흘렸다. stream-json 아래서는 그
-	// 원문에 도구 입력과 도구 결과가 통째로 실리고, 이 tee 는 아래 선별보다
-	// 앞이라 걸러야 할 것이 그대로 링으로 나간다. 링은 노드 디스크에 파일로
-	// 남으므로 logs/ 만 걸러서는 안 닫힌다.
+	// 앞 팩이 이 자리를 끊어 두었다. 이유는 "이 tee 가 아래 선별보다 앞이라
+	// 걸러야 할 것이 그대로 링으로 나간다" 였고 그 사실은 지금도 참이다.
+	// 바뀐 것은 값이다 — 선별을 링에 걸면 본문이 안 남고, 본문이 없으면
+	// 단계가 도는 동안 사람이 읽을 문장이 하나도 없다. 그 노출을 값으로 사고
+	// 대가를 이름으로 적었다 (requirements.md 5.4 의 잔여 ③).
 	//
-	// Job.Transcript 필드는 남긴다 — 명령 단계의 tee 가 지금도 그것을 쓰고,
-	// 짝 팩이 사건 스트림과 함께 노출 정책을 정해 이 자리를 되살린다.
-	cmd.Stdout = &stdout
+	// 갈래가 셋이고 순서가 값이다. 싼 것이 앞이다 — 링은 화면이 1초로 읽으므로
+	// 늦으면 그만큼 늦게 보이고, 배출기는 셋 중 가장 느리다.
+	//
+	//	&stdout        봉투 파서가 읽을 바이트.  전체를 든다
+	//	j.Transcript   링.  제어판이 읽는다.  nil 이면 이 갈래가 없다
+	//	emitter        사건.  노드 로그가 종류만 읽는다
+	//
+	// stderr 는 안 섞는다 — 링의 내용은 NDJSON 이고 stderr 는 JSON 이 아니며,
+	// 두 파이프를 한 곳에 모으면 줄의 순서를 쓰는 쪽이 정한다.
+	emit := j.Emit
+	if emit == nil {
+		emit = func(Event) {}
+	}
+	emitter := newLineEmitter(emit)
+	sinks := []io.Writer{&stdout}
+	if j.Transcript != nil {
+		sinks = append(sinks, j.Transcript)
+	}
+	sinks = append(sinks, emitter)
+	cmd.Stdout = io.MultiWriter(sinks...)
 	cmd.Stderr = &stderr
 	err = cmd.Run()
+
+	// 배출기를 Decode 앞에서 닫는다.
+	//
+	// 뒤에 두면 고루틴이 아직 줄을 들고 있는 채로 판정이 끝나고, 단계가 끝난
+	// 뒤에 사건이 나는 창이 생긴다. 화면에서 그 창은 "끝났는데 아직 흐른다" 로
+	// 보이고, 그것은 이 회차가 없애려는 오독과 같은 모양이다.
+	if dropped := emitter.Close(); dropped > 0 && j.Log != nil {
+		j.Log.Warn("harness events dropped", "lines", dropped)
+	}
 
 	code := -1
 	if cmd.ProcessState != nil {
 		code = cmd.ProcessState.ExitCode()
 	}
-	emit := j.Emit
-	if emit == nil {
-		emit = func(Event) {}
+	// ⑦ 판정한다. Decode 가 내는 사건 중 봉투 하나만 통과시킨다.
+	//
+	// Decode 도 줄마다 사건을 낸다. 그대로 j.Emit 에 이으면 한 단계의 줄
+	// 사건이 정확히 두 번 난다 — 배출기가 도는 중에 한 번, 여기서 또 한 번.
+	// 오늘은 로그가 두 줄이 되는 것으로 보이지만 이 자리에 업로더가 붙는 날
+	// 같은 바이트가 두 번 올라간다.
+	//
+	// 그렇다고 통째로 버리지도 않는다 — final 은 줄에서 나는 사건이 아니라
+	// 봉투를 읽고 나는 판정이라 배출기가 낼 수 없다. 버리면 단계마다 한 번씩
+	// 찍히던 그 사건이 조용히 사라진다.
+	//
+	// Decode 의 배출 경로를 죽이는 것이 아니다 — 시그니처도 안이 하는 일도
+	// 그대로이고, 다른 호출자와 시험은 그 경로로 줄 사건을 받는다.
+	onlyFinal := func(e Event) {
+		if e.Kind == EventFinal {
+			emit(e)
+		}
 	}
-	// ⑦
-	res := h.Decode(bytes.NewReader(stdout.Bytes()), code, emit)
+	res := h.Decode(bytes.NewReader(stdout.Bytes()), code, onlyFinal)
 	// 버전은 runner 가 채운다 — 어댑터마다 잊을 수 있는 일을 한 곳에 둔다.
 	// Version 이 실패해도 실행은 이미 됐으므로 결과를 버리지 않는다.
 	//

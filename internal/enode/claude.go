@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -12,6 +13,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/taeels/enode/internal/transcript"
 )
 
 // claudeHarness 는 MVP 의 유일한 하네스다.
@@ -410,11 +413,55 @@ func (claudeHarness) Argv(p AgentParams, io IOPaths) []string {
 // 배치는 스트리밍의 퇴화형이다 — 지금은 EOF 까지 읽고 사건 하나를 낸다.
 // R4 를 열 때 stream-json 으로 바꿔도 이 시그니처는 안 바뀐다.
 func (claudeHarness) Decode(r io.Reader, exitCode int, emit func(Event)) HarnessResult {
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return HarnessResult{Reason: ReasonError, Message: "cannot read output: " + err.Error()}
+	if emit == nil {
+		emit = func(Event) {}
 	}
-	h := ParseClaude(b, exitCode)
+	// 읽으면서 배출하되 바이트는 통째로 모은다.
+	//
+	// 모으는 것을 안 줄인다 — lastJSONObject 가 뒤에서부터 출력 전체를 훑기
+	// 때문이다. 봉투가 여러 줄로 예쁘게 찍혀 올 수 있어서 그렇게 지어졌고
+	// (harness.go 의 주석), 꼬리만 들면 그 경우를 못 집는다. 즉 io.ReadAll 을
+	// 걷은 것은 "덜 든다" 가 아니라 "끝나기를 안 기다린다" 다.
+	//
+	// bufio.Scanner 를 안 쓴다 — 기본 상한(64 KiB)이 있고, 도구 결과 한 줄이
+	// 그보다 길면 조용히 끊긴다. ReadBytes 는 줄 길이에 상한이 없다.
+	var all bytes.Buffer
+	br := bufio.NewReader(r)
+	for {
+		line, err := br.ReadBytes('\n')
+		if len(line) > 0 {
+			all.Write(line)
+			emitLine(emit, line)
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return HarnessResult{Reason: ReasonError, Message: "cannot read output: " + err.Error()}
+		}
+	}
+	h := ParseClaude(all.Bytes(), exitCode)
 	emit(Event{Kind: EventFinal, Text: h.Message})
 	return h
+}
+
+// emitLine 은 줄 하나를 사건으로 읽어 종류만 흘린다.
+//
+// 본문을 안 싣는다 — 노드 로그가 이것을 받는다. 한 줄이 사건 여럿이 될 수
+// 있으므로(assistant 한 줄에 thinking 과 text 와 tool_use 가 함께 오면 셋이다)
+// 그 여럿을 다 낸다.
+//
+// 개행을 붙여서 넘긴다. transcript.Parse 는 개행으로 안 끝나는 꼬리를 읽지
+// 않고 Partial 에 세는데(parse.go 의 2번), 그것은 쓰는 중에 읽히는 링과 진행
+// 파일을 위한 규율이다. 여기 오는 줄은 이미 완결된 줄이라 그 규율의 대상이
+// 아니다 — 안 붙이면 사건이 0 이다.
+func emitLine(emit func(Event), line []byte) {
+	if n := len(line); n == 0 {
+		return
+	} else if line[n-1] != '\n' {
+		line = append(append(make([]byte, 0, n+1), line...), '\n')
+	}
+	for _, ev := range transcript.Parse(line, false).Events {
+		emit(Event{Kind: ev.Kind})
+	}
 }
