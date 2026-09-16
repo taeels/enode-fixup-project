@@ -1406,3 +1406,11 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: CONSTRUCTION — U5 의 장면 게이트 측정 · 회차 밖으로 낼 것
 
 ---
+
+## CB1 서명 — U5 `panel-live`
+**Timestamp**: 2026-09-17T07:45:00Z
+**User Input**: "서명한다"
+**AI Response**: CB1 을 초록으로 닫는다. 사람이 실 하네스의 화면을 보고 서명한 것이고 코드 게이트로 대신하지 않았다 (`scene-gates.md` §4). 이 서명이 병합 지점이라 `unit/panel-live` 를 PR 로 `main` 에 올린다. 서명 앞에 고친 것 하나가 R30 (raw 한 줄 접기)이고, 그 규칙의 자동 검사는 U8 이 렌더러를 한 벌로 만들며 선다.
+**Context**: CONSTRUCTION — U5 의 장면 게이트 서명 · 병합
+
+---
