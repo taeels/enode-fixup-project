@@ -1406,3 +1406,11 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: CONSTRUCTION — U5 의 장면 게이트 측정 · 회차 밖으로 낼 것
 
 ---
+
+## U8 설계 변경 — It's a Plan 과의 비교에서 둘을 들였다
+**Timestamp**: 2026-09-17T07:30:00Z
+**User Input**: "Its a plan의 실시간 트랜스크립트 기능과 비교해라" / "U8 에 들ㅇㅣㄹ것을 activeTool 에 더해 “그리는 것이 한 벌” 을 추가하자. raw접기 추가하고, u8 설계를 변경하고 넘어간다."
+**AI Response**: `/home/sunny/itsaplan` 의 코드를 읽어 여덟 축으로 비교했다 — 어휘 · 번역하는 자리 · 나르는 법(SSE 대 폴링) · 쌓는 자리(Postgres 행 대 링 512 KiB) · 이어받기 · 상한 · 잘림을 말하는 법 · 그리는 자리. **enode 가 나은 둘** — 잘림이 값이다(truncated · head · NC-2 · capped), 원문이 남는다. **IAP 가 나은 둘** — 프로토콜 어휘라 장부 줄이 화면에 안 온다, 컴포넌트가 한 벌이다. 사용자가 뒤의 둘 중 하나(한 벌)와 `activeTool` 을 U8 에 들였고, raw 는 버리지 않고 접는 쪽(R30)으로 U5 에 넣었다. 회차 문서 셋(`unit-of-work.md` · 파일 행렬 · 의존 행렬)을 그 값에 맞췄고 `unit/fleet-card` 를 `unit/panel-live` 에서 땄다.
+**Context**: CONSTRUCTION — W-e 착수 앞의 설계 변경
+
+---
