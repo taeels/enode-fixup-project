@@ -1254,3 +1254,30 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+## W-c 착수 — U5 panel-live Functional Design Part 1
+**Timestamp**: 2026-09-16T07:20:00Z
+**User Input**: (없음 — 「w-c 진행」의 실행)
+**AI Response**: W-b 를 PR #42 · #43 · #44 로 `main` 에 병합했다 (`main` 은 05ee710 · 라우트 18). 브랜치 `unit/panel-live` 를 병합된 `main` 에서 땄다.
+
+**계획을 짓기 전에 코드를 읽었고 문서가 코드와 갈린 자리를 여섯 찾았다.** W-a 가 셋, W-b 가 다섯이었고 이번이 여섯이다. **그중 하나가 이 유닛의 범위를 정면으로 바꾼다.**
+
+```text
+   무겁다   5.5 의 「같은 다섯 줄」   page.go 가 통짜 인라인이라 default-src 'self'
+                                  한 줄이 제어판을 죽인다.  /ui/ 가 그 헤더로 사는
+                                  이유는 static 파일을 따로 내기 때문이다
+           「밀렸다는 표시」 앞 팩    앞 팩에 0 이다.  CB1 의 화면 검증이 그것을 본다
+           Snapshot 의 용량        ReadRing 이 읽고 버린다.  Parse 의 truncated 가
+                                  그 값이고 NC-2 와 CB1 이 둘 다 쓴다
+
+   그 밖    handleTranscript 가 파싱을 0 한다 (오늘 보이는 것은 JSON 원문이다)
+           세대 비우기가 사실상 없다 (통째로 갈아치우는 덕에 안 틀렸다)
+           5.7 의 파서 줄이 매초 반복을 안 적었다
+```
+
+**물음 여덟을 냈다** — 보안 헤더를 이 페이지에 어떻게 거나 · 사건을 어디서 만드나 · NC-1 의 경과를 무엇으로 재나 · NC-2 의 잘림을 무엇으로 아나 · 「밀렸다」가 NC-1 과 같은가 · 원문 토글의 바이트 출처 · NC-3 의 한 줄 · 세대가 바뀔 때 무엇을 비우나. 계획은 `construction/plans/panel-live-functional-design-plan.md`.
+
+**NFR 단계의 실행 여부가 미정이다** — 회차 계획의 9절 표는 U5 를 EXECUTE 로, 같은 문서의 U5 절은 SKIP 으로 적고 그 SKIP 의 근거가 U6 의 문장이다. W-b 의 「nfr 단계를 모두 스킵」이 회차에 이어지는지가 안 정해졌다. 단계 앞에서 묻는다.
+**Context**: CONSTRUCTION — W-c Functional Design Part 1. 승인 대기
+
+---
+

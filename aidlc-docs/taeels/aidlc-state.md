@@ -1154,3 +1154,47 @@ U2 의 tee 와 U1 의 파서를 딛는다. 브랜치는 **병합된 `main` 에�
 같은 문서 9절의 표는 U5 를 **돈다**로 적는다. 한 문서 안에서 두 값이다.
 회차 밖으로 낼 것에 더한다. 실무로는 사용자가 W-b 에서 NFR 단계를 전부 스킵으로
 지시했으므로 **W-c 에도 그 지시가 이어지는지를 단계 앞에서 묻는다.**
+
+## 단계 진행 — W-c (U5 `panel-live` 단독)
+
+브랜치 `unit/panel-live`. **병합된 `main` 에서 땄다** (05ee710 · 라우트 18).
+worktree 를 안 가른다 — 유닛이 하나다.
+
+```text
+   Functional Design      Part 1 (계획) 2026-09-16.  계획 construction/plans/
+                          panel-live-functional-design-plan.md · 물음 여덟
+                          **승인 대기**
+
+                          계획을 짓기 전에 코드를 읽었고 **문서가 코드와 갈린
+                          자리를 여섯 찾았다** — W-a 셋 · W-b 다섯에 이어서다
+
+                          무거운 셋 — ① `requirements.md` 5.5 의 「`ui.go:64-71`
+                          과 같은 다섯 줄」이 `page.go` 의 모양을 안 보고 쓰였다.
+                          그 페이지는 통짜 인라인이라 (`<style>` 한 벌 ·
+                          `<script>` 한 벌 · `onclick=` 아홉) `default-src 'self'`
+                          한 줄이 제어판을 죽인다.  `/ui/` 가 그 헤더로 사는
+                          이유는 static 파일을 따로 내기 때문이다
+                          ② 「밀렸다는 표시는 앞 팩 그대로」가 거짓이다 — 앞 팩에
+                          0 이고 CB1 의 화면 검증이 그것을 본다.  이 유닛이 짓는다
+                          ③ `enode.Snapshot` 이 용량을 안 낸다.  `Parse` 의
+                          `truncated` 가 `Total > capacity` 인데 `ReadRing` 이
+                          그 값을 읽고 버린다.  NC-2 와 CB1 이 둘 다 그것을 쓴다
+
+                          그 밖 셋 — `handleTranscript` 가 파싱을 0 한다 (오늘
+                          제어판에 보이는 것은 JSON 원문이다) · 세대가 바뀔 때
+                          비우는 코드가 사실상 없다 (통째로 갈아치우는 덕에
+                          안 틀렸을 뿐이다) · 5.7 의 파서 줄이 한 번 읽는 비용만
+                          적고 **매초 반복**을 안 적었다
+   NFR Requirements       **미정.** 회차 계획(`unit-of-work.md` 9절 표)은 EXECUTE 이고
+                          같은 문서의 U5 절은 SKIP 이다 — 한 문서 안에서 두 값이고
+                          SKIP 의 근거로 댄 문장이 U6 의 것이다.  W-b 에서 사용자가
+                          「nfr 단계를 모두 스킵」을 지시했는데 그 지시가 회차에
+                          이어지는지가 안 정해졌다.  **단계 앞에서 묻는다**
+   NFR Design             위와 같다
+   Infrastructure Design  SKIP (회차 계획 · 배포 변경 0)
+   Code Generation        대기
+```
+
+**이 웨이브가 하나인 것이 배치의 값이다** — CB1 을 뒤의 셋이 전부 딛으므로 그것을
+눈으로 보기 전에 셋을 짓지 않는다. **CB1 은 사람이 실제 하네스로 보는 게이트다**
+(`scene-gates.md` §4 — 눈 검증을 보류로 안 넘긴다).
