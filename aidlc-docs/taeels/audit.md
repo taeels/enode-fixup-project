@@ -1437,3 +1437,17 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: Construction · U8 Functional Design · Part 1 의 답 수집(Step 5)과 산출물 생성(Step 6). 승인 대기.
 
 ---
+
+## Construction · U8 `fleet-card` · Functional Design 승인 · NFR 스킵
+**Timestamp**: 2026-09-16T23:20:11Z
+**User Input**: "승인하고 nfr 건너뛴다"
+**AI Response**: Functional Design 을 승인으로 닫고 **NFR Requirements 와 NFR Design 을 둘 다 SKIP** 으로 기록했다 (NFR Design 은 실행 조건이 「NFR Requirements 가 돌았을 때」라 함께 닫힌다). Infrastructure Design 도 SKIP 이다 — 새 인프라가 0 이다 (새 포트 · 새 저장소 · 배포 자원 0).
+
+**어긋남으로 적는다** — `unit-of-work.md` 의 U8 절과 같은 문서 9절의 표가 둘 다 「NFR 요구 **돈다**. 카드가 새 표면이다」로 적었고, 사용자가 그것을 건너뛰기로 정했다. 규칙이 틀린 것이 아니라 사용자가 값을 치르기로 한 것이므로 **숨기지 않고 상태 파일과 계획 0절에 적는다.**
+
+**스킵이 넘긴 값 셋을 Code Generation 계획이 진다** (U5 · U4 와 같은 모양) — ① R43 의 전체 재수신이 N1 에 더하는 양 ② 사건이 수천일 때 매 2초 DOM 비용과 카드 수 ③ 데모 모드에서 카드가 하네스 원문을 무인증으로 보이는 자리 (business-rules 잔여 ③).
+
+다음 단계는 **Code Generation Part 1** 이다.
+**Context**: Construction · U8 · Functional Design 승인(Step 8·9) · NFR Requirements/NFR Design/Infrastructure Design SKIP 기록.
+
+---
