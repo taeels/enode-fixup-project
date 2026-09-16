@@ -1254,3 +1254,25 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+## W-d(순서 변경) U7 chunk-push — Functional Design Part 1
+**Timestamp**: 2026-09-16T10:05:00Z
+**User Input**: "그래. 7번 가자"
+**AI Response**: 브랜치 `unit/chunk-push` 를 병합된 `main` (05ee710) 에서 땄다. 계획은 `construction/plans/chunk-push-functional-design-plan.md` · **물음 여덟.**
+
+**실측이 이 유닛을 통째로 막는 것 하나를 찾았고 탐침으로 쟀다.**
+
+```text
+   노드의 첫 시도    store/claim.go:156   Attempt int  // 0 부터. 재시도면 1 이상
+   Mediator 의 검증  api.go putProgress   attempt <= 0 -> 400 invalid attempt
+
+   탐침   attempt=0  ->  400  {"error":{"code":400,"reason":"invalid attempt"}}
+         attempt=1  ->  200  X-Enode-Log-Bytes: 93
+```
+
+**첫 시도가 대부분이므로 이대로 지으면 한 바이트도 안 올라가고 CB3 이 통째로 빨갛다.** U4 가 못 본 이유는 `internal/api/getlog_test.go` 의 진행 청크 시험 **다섯이 전부 `attempt=1`** 이라 그 갈래를 한 번도 안 밟기 때문이다 — **W-b 의 U4 변이 넷째와 같은 모양이다.** `record` 계층은 0 을 정상으로 다루므로 막는 것은 **API 검증 한 줄뿐**이다.
+
+그 밖 둘 — `unit-of-work.md` 의 U7 절이 「tee 의 갈래 하나」로 적었는데 **실제로는 둘이다** (에이전트 `claim.go:794` · 명령 `claim.go:632`) · 「`Client.PutLogChunk` 하나」로 적었는데 **`transcript()` 의 시그니처도 함께 넓어진다** (인자가 0 개인데 업로더는 넷을 알아야 한다).
+**Context**: CONSTRUCTION — U7 Functional Design Part 1. 승인 대기
+
+---
+
