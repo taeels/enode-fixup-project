@@ -1281,3 +1281,40 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+## W-c Functional Design Part 1 — 답 여덟
+**Timestamp**: 2026-09-16T07:45:00Z
+**User Input**: "권장대로. 여기서도 nfr skip"
+**AI Response**: 물음 여덟을 전부 권장으로 닫는다 — 1=A · 2=A · 3=A · 4=A · **5=C** · 6=A · 7=A · 8=A. 다섯째만 권장이 C 였고 나머지 일곱이 A 다. **갈린 답 0.**
+
+NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9절 표의 EXECUTE 와 갈리므로 **어긋남으로 적는다** — W-b 와 같은 모양이고 이번에는 사용자가 이 회차를 콕 집어 지시했다 (「여기서도」). `unit-of-work.md` 의 U5 절은 원래 SKIP 이라 그쪽과는 안 갈린다.
+**Context**: CONSTRUCTION — W-c Functional Design Part 1 승인 · NFR 스킵 지시
+
+---
+
+## W-c Functional Design Part 2 — 산출
+**Timestamp**: 2026-09-16T08:05:00Z
+**User Input**: (없음 — 「권장대로」의 실행)
+**AI Response**: 산출물 셋을 냈다 — `construction/panel-live/functional-design/` (domain-entities · business-logic-model · business-rules).
+
+**모순 검사가 둘을 막았다.**
+
+```text
+   ①  2 = A 의 캐시가 3 = A 의 경과를 얼린다.  제어판이 초 단위 수를 실으면
+      침묵에서 그 수가 얼어붙는다 — 침묵이 바로 NC-1 이 있는 구간이다.
+      시각만 싣고 브라우저가 뺀다.  응답이 바이트의 순수 함수가 되어 캐시가
+      성립하고 표시가 폴링 사이에도 흐른다.  캐시 열쇠에 mtime 을 넣는다
+   ②  8 = A 의 통째 갈아 그리기가 CB1 의 「접힌 결과」를 못 펴게 한다.
+      오늘 안 아픈 이유는 접을 것이 없어서다 — 이 유닛이 접기를 들여오면서
+      같이 들어오는 모순이다.  Event.ID (tool_use_id) 로 펼침을 든다.
+      Line 은 못 쓴다 — Parse 가 창 안에서 1 부터 세므로 링이 감기면 밀린다
+```
+
+**교차 검사가 하나 더 잡았다** — U4 는 메타를 헤더 넷에 싣고 몸통이 `transcript.Result` 통째인데, 제어판의 응답은 객체라 메타를 헤더로 못 옮긴다. U6 이 그 둘을 잇는다. **U5 가 봉투를 정했다** — `transcript` 키에 `Result` 통째, 메타는 형제 키. 안 정했으면 U6 이 둘째 봉투를 짓고 화면 함수가 두 벌이 된다.
+
+**오늘의 동작 하나를 뒤집는다** — `page.go:267` 이 매 폴링마다 무조건 바닥으로 간다. 도는 동안 위로 올려 읽는 것이 지금 불가능하다. 바닥에 있을 때만 따라가고 그 판정을 그리기 전에 한다.
+
+**회차 밖으로 낼 것이 넷이다** — 5.5 의 「같은 다섯 줄」 · 「밀렸다는 표시는 앞 팩 그대로」 · `unit-of-work.md` U5 절의 NFR 두 값 · 파일 행렬에 없는 `internal/enode/transcript.go`.
+**Context**: CONSTRUCTION — W-c Functional Design Part 2 완료
+
+---
+
