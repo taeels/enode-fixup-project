@@ -1419,3 +1419,11 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: CONSTRUCTION — U5 의 장면 게이트 서명 · 병합
 
 ---
+
+## U5 병합 · U8 Functional Design Part 1
+**Timestamp**: 2026-09-17T08:05:00Z
+**User Input**: "서명한다"
+**AI Response**: CB1 서명을 받아 PR #46 을 열고 CI 셋(test · cross · bounded-demo)이 초록인 뒤 `main` 에 병합했다 (`3a04b67`). 이어서 U8 의 Functional Design Part 1 을 열었다 — 코드를 먼저 읽어 실측 여덟을 찾았고 물음 여덟을 냈다. 무거운 셋은 별개 타이머가 구조로 안 서는 것 · 데모의 무인증 한도 · 창을 잘라 받으면 경계의 줄이 조용히 사라지는 것이다.
+**Context**: CONSTRUCTION — U5 병합 · W-e 착수
+
+---

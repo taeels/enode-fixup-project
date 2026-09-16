@@ -745,7 +745,7 @@ U2 가 U1 의 변경 위에서 재작업한다.
 | U2 | `node-stream` | FR-1 · FR-2 | (코드만) | U1 (파일) | W-b | **병합됨 (PR #43)** |
 | U3 | `progress-store` | FR-5 (med) | (코드만) | 없음 | W-a | **병합됨 (PR #41)** |
 | U4 | `log-api` | FR-6 · FR-5 (api) | **CB0** | U1 · U3 | W-b | **병합됨 (PR #44) · CB0 초록** |
-| U5 | `panel-live` | FR-4 (절반) | **CB1** | U1 · U2 | W-c | **CB1 다섯 줄 초록 (실 하네스) · R30 반영 · 병합 대기** |
+| U5 | `panel-live` | FR-4 (절반) | **CB1** | U1 · U2 | W-c | **병합됨 (PR #46) · CB1 초록 · 서명받음** |
 | U6 | `panel-past` | FR-4 (나머지) | **CB2** | U4 · CB1 | W-d | 대기 |
 | U7 | `chunk-push` | FR-5 (노드) | **CB3** | U2 · U4 · CB1 | W-d | 대기 |
 | U8 | `fleet-card` | FR-7 | **CB4** · **CB6** | U4 · **U5 (코드)** · CB3 | W-e | **설계 변경됨 · 착수 대기** |
@@ -1414,5 +1414,29 @@ activeTool 에 더해 그리는 것이 한 벌을 추가하자」).
 **게이트가 하나 늘었다** — U8 이 렌더러를 옮기고 나서 **CB1 의 카드 줄을 한 번
 다시 본다.** 옮기다 깨지면 이미 서명한 게이트가 뒤에서 빨개지기 때문이다.
 
-**다음** — U5 를 `main` 에 병합하고 (CB1 서명이 사람의 것이다) 그 위에서 U8 의
-Functional Design Part 1 을 연다.
+**U5 가 병합됐다** (PR #46 · `main` 은 `3a04b67`). 게이트 셋이 CI 에서도 초록이다
+(test · cross · bounded-demo). `unit/fleet-card` 에 `main` 을 합쳐 U8 이 그
+`page.go` 위에 선다.
+
+## 단계 진행 — U8 `fleet-card`
+
+```text
+   Functional Design      Part 1 (계획) 2026-09-17.  계획 construction/plans/
+                          fleet-card-functional-design-plan.md
+                          **실측 여덟 · 물음 여덟 · 답 대기**
+
+                          계획을 짓기 전에 코드를 읽었다 (W-a 셋 · W-b 다섯 ·
+                          W-c 여섯 · W-d 둘에 이어 **여덟**).  무거운 셋 —
+                          ① `ObservationClient` 가 타이머 하나라 CB4 의 「별개
+                          타이머」가 구조로 안 선다 ② `GET log` 가 데모에서
+                          무인증 + 한도라 폴러가 429 · 제한시간 · 중단의 규율을
+                          다시 져야 한다 (`requirements.md` SECURITY-08 은 실 함대
+                          쪽만 적었다) ③ **창을 잘라 받으면 경계를 가로지르는 줄이
+                          양쪽에서 다 빠진다** — 앞 창에서는 partial, 뒤 창에서는
+                          head 로 파서가 둘 다 버린다.  잘림을 값으로 내는 이 팩의
+                          성질을 정확히 어기는 자리라 물음 8 이 그것을 고른다
+
+                          그 밖 — 사건 배열에 계약 검사가 0 이다 (`parseObservation`
+                          의 표에 없다) · 현황판에 펼침 보존 장치가 이미 있어
+                          (`view.mjs:33-35`) 한 벌로 만들 때 열쇠를 하나 골라야 한다
+```
