@@ -1148,3 +1148,35 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 **Context**: CONSTRUCTION — W-b NFR Requirements · NFR Design 스킵
 
 ---
+
+## W-b Code Generation Part 1 — 계획 둘
+**Timestamp**: 2026-09-16T02:40:00Z
+**User Input**: (없음 — "nfr 단계를 모두 스킵하고 다음으로 간다" 의 뒷절 실행)
+**AI Response**: 계획 둘을 냈다. 커밋 ec8d7c5 (U2 · Step 열둘 · 체크박스 54) · 24b531f (U4 · Step 열셋 · 체크박스 58). **물음 0 이다** — 갈래는 답 열다섯이 다 닫았다.
+
+**NFR 스킵이 남긴 값 둘을 U4 의 계획 0절이 졌다.**
+
+```text
+   1 MiB   한 응답의 본문 상한.  internal/api/log.go 의 **상수**다.
+           설정 키를 안 만든다 — 조절 손잡이가 아니라 보호이고, 값을 올릴 수
+           있는 것 자체가 보호를 무르는 길이다
+
+   N1     안 닫는다.  대신 **봉투를 산수로 남겼다** — 미는 쪽 S/2 req/s ·
+          당기는 쪽 V x C / 2 req/s · 천장은 데모의 전역 한도 120 req/s
+```
+
+**N1 이 실제로 아픈 자리를 찾았다** — `ratelimit.go:19-20` 의 전역 한도(초당 120 · 버스트 240)를 **이 폴링 라우트가 `GET /v1/nodes` · `GET /v1/runs` 와 한 바구니에서 나눠 쓴다.** v1 의 `obs` 가 이미 「전역 한도의 대가로 한 클라이언트가 나머지를 굶길 수 있다」로 적은 자리이고, 이 회차가 거기에 폴링을 더한다. **한도는 안 바꾼다** — v1 이 값을 보고 고른 자리를 이 유닛이 되돌리는 것이 된다. 대신 U8 에 규칙 하나를 넘긴다: **보이는 카드만 2초로 폴링한다.**
+
+**계획이 실측으로 찾은 것 둘.**
+
+```text
+   U2   internal/enode/harness.go 가 파일 행렬에 없다 — EventKind 와 Event 가
+        거기 산다 (:285 · :291).  행렬은 U2 에 runner.go · claude.go · claim.go 만 줬다
+   U4   internal/api/log_test.go 가 이미 있다 (PUT 과 tar).  GET 의 시험을
+        거기 섞으면 두 시험이 같은 헬퍼를 두고 서로를 고친다 — getlog_test.go 로 가른다
+```
+
+**파일 교집합이 여전히 0 이다** — U2 는 `internal/enode` 넷 · U4 는 `internal/api` 둘 + `record.go` + `transcript.go`.
+**Context**: CONSTRUCTION — W-b Code Generation Part 1. 승인 대기
+
+---

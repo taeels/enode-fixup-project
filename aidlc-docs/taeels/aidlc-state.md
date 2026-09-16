@@ -1018,12 +1018,24 @@ worktree 를 갈라 동시에 돌린다 (`/home/sunny/enode-wt/`).
                           어긋남으로 적는다.  U2 는 원래 SKIP 이었다
    NFR Design             **SKIP** (같은 지시)
    Infrastructure Design  SKIP (회차 계획)
-   Code Generation        Part 1 을 연다.  CB0 의 앞 값을 합본에서 쟀다 — 라우트 17.
-                          U4 가 18 로 만든다
-                          **NFR 스킵이 남긴 값 둘을 이 계획이 진다** — N1 (함대
-                          규모의 청크 PUT 과 폴링 부하)과 한 응답 상한 1 MiB.
-                          v1 의 obs 가 같은 모양이었다 (NFR Design SKIP 뒤
-                          「어떻게」를 Code Generation 계획 5절이 졌다)
+   Code Generation        Part 1 (계획) 2026-09-16.  **승인 대기**
+                          커밋 ec8d7c5 (U2 · Step 열둘 · 체크박스 54) ·
+                          24b531f (U4 · Step 열셋 · 체크박스 58).  **물음 0**
+                          CB0 의 앞 값을 합본에서 쟀다 — 라우트 17.  U4 가 18 로 만든다
+                          **NFR 스킵이 남긴 값 둘을 이 계획이 졌다** (U4 계획 0절).
+                          1 MiB 는 internal/api/log.go 의 상수다 — 조절 손잡이가
+                          아니라 보호라 설정 키를 안 만든다.
+                          **N1 은 안 닫고 봉투를 산수로 남겼다** — 미는 쪽 S/2 ·
+                          당기는 쪽 V x C / 2 · 천장은 데모의 전역 한도 120 req/s.
+                          아픈 자리가 그 천장이다: 이 폴링 라우트가 GET /v1/nodes ·
+                          GET /v1/runs 와 한 바구니를 나눠 쓴다 (ratelimit.go:19-20).
+                          v1 의 obs 가 이미 적은 잔여에 이 회차가 폴링을 더한다.
+                          한도는 안 바꾸고 **U8 에 「보이는 카드만 폴링한다」를 넘긴다**
+
+                          계획이 실측으로 찾은 것 둘 — harness.go 가 파일 행렬에
+                          없다 (EventKind 와 Event 가 거기 산다) ·
+                          internal/api/log_test.go 가 이미 쓰여 GET 의 시험을
+                          getlog_test.go 로 가른다
 ```
 
 ## 이 웨이브가 회차 밖으로 낼 것 — 여섯
