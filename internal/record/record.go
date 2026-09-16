@@ -25,7 +25,12 @@ import (
 	"time"
 )
 
-type Store struct{ Root string }
+type Store struct {
+	Root string
+	// progress 는 진행 파일의 잠금 묶음이다 (R28 ~ R31). 게으르게 난다 —
+	// New 의 서명도 Open 이 만드는 자리도 안 바뀐다 (progress.go).
+	progress progressLocks
+}
 
 func New(root string) *Store { return &Store{Root: root} }
 
@@ -61,15 +66,25 @@ func (s *Store) AppendLog(runID string, seq int, name string, r io.Reader, limit
 		return 0, err
 	}
 	defer f.Close()
-	n, err := io.Copy(f, io.LimitReader(r, limit))
-	if err != nil {
-		return n, err
-	}
+	// 판정은 이번 호출이 쓴 바이트로 한다 (R27). 총 길이로 하면 재시도가
+	// 깨진다 — logs/NN-*.log 는 이름에 시도가 없어 시도마다 같은 파일에
+	// 이어 붙고, 절반씩 두 번 온 온전한 로그가 잘린 것으로 표시된다.
+	written, err := io.Copy(f, io.LimitReader(r, limit))
 	// 상한을 넘으면 잘라 저장하고 잘렸음을 표시한다 (ADR-015 §5)
-	if n == limit {
+	//
+	// 잔여 — n == limit 은 「정확히 상한만큼 보낸 로그」도 잘린 것으로 본다.
+	// 이 회차가 안 산 변경이라 그대로 둔다 (FD 6.3).
+	if err == nil && written == limit {
 		_, _ = fmt.Fprintf(f, "\n... log truncated at %d bytes\n", limit)
 	}
-	return n, nil
+	// 붙인 뒤의 총 길이를 낸다 (D4). 이번 호출의 바이트가 아니다 — 폴링하는
+	// 쪽이 다음 from 으로 쓸 값은 파일의 크기이고, 이 함수 말고는 그것을 아는
+	// 자리가 없다. 표시 줄까지 든 크기다.
+	total := written
+	if fi, serr := f.Stat(); serr == nil {
+		total = fi.Size()
+	}
+	return total, err
 }
 
 // Sealed 는 이미 봉인됐는지다. 봉인은 한 번뿐이다 (I4).
@@ -90,6 +105,22 @@ func (s *Store) Sealed(runID string) bool {
 // 계약 전문이 manifest 에 들어가는 것이 성질 4(자기충족)의 핵심이다 —
 // ADR-020 이 스키마를 인라인으로 둔 덕에 무엇으로 검증했는지까지 함께 남는다.
 func (s *Store) Seal(runID string, manifest, verdict any, steps []StepFile) error {
+	// 진행 트리를 먼저 지운다 (R22 · R47). 막아야 할 것은 아래 seal(d) 의
+	// chmod 다 — 파일을 0444, 디렉터리를 0555 로 내린다 (record.go 의 seal).
+	// 진행 트리는 그 Walk 밖이라 잠기지는 않지만, 봉인 뒤에 남은 트리는
+	// 아무도 안 지우는 고아가 된다.
+	//
+	// 왜 조기 반환보다 앞인가 — 늦은 청크 때문이다. 이미 봉인된 Run 에
+	// 뒤늦게 도착한 PUT 이 트리를 다시 만들 수 있고, 그 경로의 410 판정은
+	// DB 의 상태로 하지 Sealed() 로 하지 않는다. 조기 반환 뒤에 두면 그
+	// 트리를 지우는 호출이 영영 안 온다.
+	//
+	// 걷기를 봉인보다 앞에 두는 것은 이 함수의 기존 결이기도 하다 —
+	// .tmp-* 를 걷는 줄이 seal(d) 바로 앞에 있다.
+	//
+	// 실패를 삼킨다 (R48). 진행 트리를 못 지웠다고 봉인을 막으면, 못 지운
+	// 디스크 하나가 기록을 영영 안 굳힌다.
+	_ = s.DropProgress(runID)
 	if s.Sealed(runID) {
 		return nil // 봉인은 멱등이다. 다시 쓰지 않는다.
 	}

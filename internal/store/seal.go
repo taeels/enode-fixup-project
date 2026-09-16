@@ -176,6 +176,15 @@ func (s *Store) sealRecord(ctx context.Context, runID string, v Verdict) error {
 	if s.Records == nil {
 		return nil
 	}
+	// 진행 트리를 먼저 걷는다 (R23). GetRun 과 StepFiles 보다 앞이다 —
+	// 그 둘 중 하나가 실패하면 아래 Seal 이 아예 안 불리고, 그러면 R22 가
+	// 거는 자리를 못 지나 트리가 고아로 남는다. 봉인의 성공과 무관하게 부른다.
+	//
+	// 실패는 삼키고 로그로 낸다 (R25 · R48). 회수기의 쓸기가 다음 주기에
+	// 같은 트리를 다시 만난다 — 여기가 마지막 기회가 아니다.
+	if err := s.Records.DropProgress(runID); err != nil {
+		s.log().Error("cannot drop the progress tree", "run", runID, "err", err)
+	}
 	run, err := s.GetRun(ctx, runID)
 	if err != nil {
 		return err
