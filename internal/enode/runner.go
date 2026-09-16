@@ -3,7 +3,6 @@ package enode
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/taeels/enode/internal/transcript"
 )
 
 // R3 — 프로세스를 띄우는 코드는 여기 하나다
@@ -313,7 +314,7 @@ func openPack(j Job) packInput {
 // claude 와이어 포맷 지식이 runner.go 에 처음 올라오는 자리이고, 두 번째
 // 하네스가 오는 날 이 줄이 인터페이스로 올라간다.
 func selectLogs(stdout, stderr []byte) []byte {
-	lines := splitLines(stdout)
+	lines := transcript.SplitLines(stdout)
 
 	// 두 자리를 먼저 찾는다 — 마지막 result 를 고르려면 끝까지 봐야 하고
 	// 조립은 순서대로 해야 한다. 한 번에 못 한다.
@@ -323,11 +324,11 @@ func selectLogs(stdout, stderr []byte) []byte {
 	// 규칙이 다르다 (ParseClaude 는 줄 단위가 아니다).
 	initAt, resultAt := -1, -1
 	for i, ln := range lines {
-		obj, typ, ok := parseEventLine(ln)
+		obj, typ, ok := transcript.ParseLine(ln)
 		if !ok {
 			continue
 		}
-		if initAt < 0 && typ == "system" && eventString(obj, "subtype") == "init" {
+		if initAt < 0 && typ == "system" && transcript.String(obj, "subtype") == "init" {
 			initAt = i
 		}
 		if typ == "result" {
@@ -345,11 +346,11 @@ func selectLogs(stdout, stderr []byte) []byte {
 		}
 		events++
 		elided += len(ln) + 1 // 개행을 포함한다
-		obj, typ, ok := parseEventLine(ln)
+		obj, typ, ok := transcript.ParseLine(ln)
 		if !ok {
 			continue // 모르는 줄은 세기만 한다
 		}
-		out.Write(eventShell(obj, typ))
+		out.Write(transcript.Shell(obj, typ))
 		out.WriteByte('\n')
 	}
 	// 걷었음을 한 줄로 남긴다. 걷은 것이 0 이어도 쓴다 — 그래야 읽는 사람이
@@ -358,180 +359,12 @@ func selectLogs(stdout, stderr []byte) []byte {
 	// stdout 이 통째로 비면 안 쓴다. 그때 이 줄을 쓰면 그것이 첫 줄이 되어
 	// 「init 이 없으면 stderr 가 첫 줄」이 깨진다.
 	if len(lines) > 0 {
-		out.Write(elidedMarker(events, elided))
+		out.Write(transcript.ElidedMarker(events, elided))
 		out.WriteByte('\n')
 	}
 	// stderr 는 원문 그대로 뒤에 붙는다 — 오늘과 같다.
 	out.Write(stderr)
 	return out.Bytes()
-}
-
-// splitLines 는 stdout 을 줄로 가른다. 마지막 빈 조각은 버린다.
-func splitLines(b []byte) [][]byte {
-	if len(b) == 0 {
-		return nil
-	}
-	lines := bytes.Split(b, []byte("\n"))
-	if n := len(lines); n > 0 && len(lines[n-1]) == 0 {
-		lines = lines[:n-1]
-	}
-	return lines
-}
-
-// parseEventLine 은 줄 하나를 사건으로 읽는다.
-//
-// 구조체로 한 번에 안 받는다 — 모르는 필드의 모양 하나가 줄 전체를
-// 떨어뜨리기 때문이다. type 을 먼저 집고 아는 키만 따로 읽으면 모르는 것은
-// 안 실리고 아는 것은 남는다. 허용목록의 규율이 여기서도 같다.
-func parseEventLine(ln []byte) (map[string]json.RawMessage, string, bool) {
-	var obj map[string]json.RawMessage
-	if json.Unmarshal(ln, &obj) != nil {
-		return nil, "", false
-	}
-	typ := eventString(obj, "type")
-	if typ == "" {
-		// type 이 없거나 문자열이 아니다 — 무엇인지 모르므로 안 싣는다.
-		return nil, "", false
-	}
-	return obj, typ, true
-}
-
-// logShell 은 사건 하나가 logs/ 에 남기는 전부다.
-//
-// 필드를 짓는 쪽이 허용목록이다 — 원본에서 지우는 것이 아니라 새 객체를
-// 지으므로 하네스가 필드를 늘려도 안 샌다. 본문은 어느 사건에서도 안 남는다:
-// assistant 의 text 도 thinking 도 도구 결과도 같다.
-//
-// 시각을 안 넣는다 — exec 이 끝난 뒤 한 번에 선별하므로 사건마다의 시각을
-// 못 찍고, 넣으면 모든 줄이 같은 값이라 정보량이 0 이다.
-type logShell struct {
-	Type    string         `json:"type"`
-	Subtype string         `json:"subtype,omitempty"`
-	Tools   []string       `json:"tools,omitempty"`
-	OK      *bool          `json:"ok,omitempty"`
-	Tokens  map[string]int `json:"tokens,omitempty"`
-}
-
-// elidedMark 는 걷었음을 표시하는 줄이다.
-//
-// type 에 점을 넣는다 — 실측한 하네스의 type 은 전부 홑단어라
-// (system · assistant · user · result · rate_limit_event) 부딪칠 수 없다.
-type elidedMark struct {
-	Type   string `json:"type"`
-	Events int    `json:"events"`
-	Bytes  int    `json:"bytes"`
-}
-
-func elidedMarker(events, size int) []byte {
-	b, err := json.Marshal(elidedMark{Type: "enode.elided", Events: events, Bytes: size})
-	if err != nil {
-		return nil
-	}
-	return b
-}
-
-// eventShell 은 사건 하나를 껍데기 한 줄로 짓는다.
-func eventShell(obj map[string]json.RawMessage, typ string) []byte {
-	sh := logShell{Type: typ}
-	if typ == "system" {
-		sh.Subtype = eventString(obj, "subtype")
-	}
-	var msg struct {
-		Content []map[string]json.RawMessage `json:"content"`
-		Usage   map[string]json.RawMessage   `json:"usage"`
-	}
-	if json.Unmarshal(obj["message"], &msg) == nil {
-		ok, sawResult := true, false
-		for _, blk := range msg.Content {
-			switch eventString(blk, "type") {
-			case "tool_use":
-				// 배열로 둔다 — 실측은 사건마다 블록 하나였지만 그것이
-				// 보증은 아니다. 하나일 때도 배열이면 뒤에 모양이 안 갈린다.
-				sh.Tools = append(sh.Tools, eventString(blk, "name"))
-			case "tool_result":
-				sawResult = true
-				// 성공하면 is_error 키가 아예 없다 (실측).
-				if v, has := eventBool(blk, "is_error"); has && v {
-					ok = false
-				}
-			}
-		}
-		if sawResult {
-			// 있을 때만 쓴다 — 도구를 안 부른 사건에 ok: true 를 박으면
-			// 「성공한 도구가 있었다」로 읽힌다. 없음과 참을 가른다.
-			sh.OK = &ok
-		}
-		sh.Tokens = usageTokens(msg.Usage)
-	}
-	// system/thinking_tokens 의 estimated_tokens — usage 밖의 정수 하나다.
-	// 같은 종류의 값이라(본문이 없는 정수 하나) 싣는 쪽으로 정했고,
-	// 범위를 넓힌 자리라 이름으로 적는다. 빼려면 이 블록을 지운다.
-	if n, has := eventInt(obj, "estimated_tokens"); has {
-		if sh.Tokens == nil {
-			sh.Tokens = map[string]int{}
-		}
-		sh.Tokens["thinking"] = n
-	}
-	b, err := json.Marshal(sh)
-	if err != nil {
-		return nil
-	}
-	return b
-}
-
-// usageTokens 는 usage 에서 정수 넷만 집는다 (답 2 = C).
-//
-// 통째로 못 옮긴다 — 실측이 usage 안에 문자열 둘(service_tier ·
-// inference_geo)과 객체 하나(cache_creation)를 보였다. 그래서 이름으로 집고,
-// 정수가 아니면 그 키를 건너뛴다. 모르는 것은 안 싣는다.
-func usageTokens(usage map[string]json.RawMessage) map[string]int {
-	if len(usage) == 0 {
-		return nil
-	}
-	names := [...]struct{ out, in string }{
-		{"in", "input_tokens"},
-		{"out", "output_tokens"},
-		{"cache_write", "cache_creation_input_tokens"},
-		{"cache_read", "cache_read_input_tokens"},
-	}
-	var tk map[string]int
-	for _, n := range names {
-		v, has := eventInt(usage, n.in)
-		if !has {
-			continue
-		}
-		if tk == nil {
-			tk = map[string]int{}
-		}
-		tk[n.out] = v
-	}
-	return tk
-}
-
-// eventString · eventBool · eventInt 는 아는 키 하나를 아는 모양으로만 읽는다.
-// 모양이 다르면 없는 것으로 본다 — 판정을 짐작으로 메우지 않는다.
-func eventString(obj map[string]json.RawMessage, key string) string {
-	var s string
-	if json.Unmarshal(obj[key], &s) != nil {
-		return ""
-	}
-	return s
-}
-
-func eventBool(obj map[string]json.RawMessage, key string) (bool, bool) {
-	var v bool
-	if json.Unmarshal(obj[key], &v) != nil {
-		return false, false
-	}
-	return v, true
-}
-
-func eventInt(obj map[string]json.RawMessage, key string) (int, bool) {
-	var n int
-	if json.Unmarshal(obj[key], &n) != nil {
-		return 0, false
-	}
-	return n, true
 }
 
 // readCannot 은 $OUT 의 자백 파일을 읽는다 (ADR-038).
