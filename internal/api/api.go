@@ -104,6 +104,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/runs/{id}/record", s.auth(s.getRecord))
 	mux.HandleFunc("POST /v1/runs/{id}/cancel", s.auth(s.postCancel))
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/log", s.auth(s.putLog))
+	mux.HandleFunc("GET /v1/runs/{run}/steps/{seq}/log", read(s.getLog))
 	mux.HandleFunc("PUT /v1/runs/{run}/steps/{seq}/blob/{name}", s.auth(s.putBlob))
 	mux.HandleFunc("GET /v1/runs/{run}/blob/{name}", s.auth(s.getBlob))
 	// GET /ui/ 는 무인증이다 — enode-features.md §3.4.1(온보딩 카드뉴스 +
@@ -884,12 +885,53 @@ func (s *Server) putLog(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = "step"
 	}
-	if _, err := s.records.AppendLog(runID, seq, name, r.Body, s.cfg.Artifacts.MaxBlobBytes); err != nil {
+	// 갈래는 쿼리 하나가 정한다 (D2). 새 라우트를 안 만든다 — 라우트가 느는
+	// 것은 GET 하나뿐이고 그것을 CB0 이 센다.
+	//
+	//	없다        logs/ 에 붙인다.  단계 끝의 선별본이다
+	//	progress=1  진행 파일에 붙인다.  도는 동안의 원문이다
+	//
+	// 두 파일이 다르므로 두 벌이 안 생긴다. 하나는 봉인에 들어가고 하나는
+	// 봉인 때 지워진다.
+	if r.URL.Query().Get("progress") == "1" {
+		s.putProgress(w, r, runID, seq, name)
+		return
+	}
+	total, err := s.records.AppendLog(runID, seq, name, r.Body, s.cfg.Artifacts.MaxBlobBytes)
+	if err != nil {
 		s.log.Error("cannot store log", "run", runID, "seq", seq, "err", err)
 		fail(w, 503, "store failed")
 		return
 	}
-	w.WriteHeader(204)
+	// 204 가 200 이 됐다. AppendLog 가 내는 값의 뜻이 총 길이로 바뀌었는데
+	// (D4) 그것을 여기서 버리면 그 변경이 코드에만 있고 표면에는 없다.
+	w.Header().Set(headerBytes, strconv.FormatInt(total, 10))
+	w.WriteHeader(200)
+}
+
+// putProgress 는 도는 동안의 원문 청크를 진행 파일에 붙인다 (FR-5).
+//
+// attempt 를 요구한다. 모르는 채로 붙이면 안 되기 때문이다 — 진행 파일은
+// 시도가 바뀌면 앞 시도를 걷고(record 의 R9), 틀린 값이 그 걷기를 부른다.
+func (s *Server) putProgress(w http.ResponseWriter, r *http.Request, runID string, seq int, name string) {
+	attempt, err := strconv.Atoi(r.URL.Query().Get("attempt"))
+	if err != nil || attempt <= 0 {
+		fail(w, 400, "invalid attempt")
+		return
+	}
+	p, err := s.records.AppendProgress(runID, seq, name, attempt, r.Body, s.cfg.Artifacts.MaxBlobBytes)
+	if err != nil {
+		s.log.Error("cannot store progress", "run", runID, "seq", seq, "err", err)
+		fail(w, 503, "store failed")
+		return
+	}
+	// 노드가 이 값으로 자기 오프셋을 맞춘다 — 서버가 진실이다.
+	w.Header().Set(headerBytes, strconv.FormatInt(p.Total, 10))
+	w.Header().Set(headerAttempt, strconv.Itoa(p.Attempt))
+	if p.Capped {
+		w.Header().Set(headerCapped, "1")
+	}
+	w.WriteHeader(200)
 }
 
 // ── blob — 단계 사이를 오가는 산출물 (run-contract §4 별 모양) ────────────

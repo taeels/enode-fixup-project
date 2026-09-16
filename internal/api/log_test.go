@@ -75,15 +75,16 @@ func TestLog_WhatTheStepSaidEndsUpInTheSealedRecord(t *testing.T) {
 
 	// 1단계 — 이름을 준다.
 	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
-	if code, _ := do(t, srv, "PUT", "/v1/runs/logrun/steps/1/log?name=build", first, nil); code != 204 {
-		t.Fatalf("PUT log code=%d, want 204", code)
+	// 204 가 200 이 됐다 - 응답이 이제 총 길이를 싣는다 (D4).
+	if code, _ := do(t, srv, "PUT", "/v1/runs/logrun/steps/1/log?name=build", first, nil); code != 200 {
+		t.Fatalf("PUT log code=%d, want 200", code)
 	}
 	do(t, srv, "POST", "/v1/runs/logrun/steps/1/result", `{"node":"n1","exit_code":0,"produced":["s1"]}`, nil)
 
 	// 2단계 — 이름을 안 준다. 이름 없는 로그도 사라지면 안 된다.
 	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
-	if code, _ := do(t, srv, "PUT", "/v1/runs/logrun/steps/2/log", second, nil); code != 204 {
-		t.Fatalf("PUT log without a name: code=%d, want 204", code)
+	if code, _ := do(t, srv, "PUT", "/v1/runs/logrun/steps/2/log", second, nil); code != 200 {
+		t.Fatalf("PUT log without a name: code=%d, want 200", code)
 	}
 	do(t, srv, "POST", "/v1/runs/logrun/steps/2/result", `{"node":"n1","exit_code":0,"produced":["s2"]}`, nil)
 
@@ -199,7 +200,7 @@ func TestLog_OversizeIsTruncatedAndMarkedNotRefused(t *testing.T) {
 	do(t, srv, "POST", "/v1/nodes/n1/claim", "", nil)
 
 	if code, _ := do(t, srv, "PUT", "/v1/runs/bigl/steps/1/log?name=noisy",
-		strings.Repeat("x", limit*4), nil); code != 204 {
+		strings.Repeat("x", limit*4), nil); code != 200 {
 		t.Fatalf("an oversize log was refused: %d — logs truncate, they do not 413", code)
 	}
 

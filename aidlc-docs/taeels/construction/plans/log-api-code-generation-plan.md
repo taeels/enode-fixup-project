@@ -106,88 +106,88 @@ func (s *Server) getLog(w http.ResponseWriter, r *http.Request)
 ## 3. 단계 — 열셋
 
 ### Step 1 — 겉면을 못 박는다
-- [ ] `record.OpenLog` 의 시그니처 (몸통은 Step 2)
-- [ ] `log.go` 에 상수와 핸들러 시그니처
-- [ ] `go build ./...` 가 선다
+- [x] `record.OpenLog` 의 시그니처 (몸통은 Step 2)
+- [x] `log.go` 에 상수와 핸들러 시그니처
+- [x] `go build ./...` 가 선다
 
 ### Step 2 — `record.OpenLog`
-- [ ] `OpenBlob` 과 같은 모양으로 연다 — 경로는 `dir()` 과 `safe()` 를 쓴다
-- [ ] 없는 파일은 `os.ErrNotExist` 를 그대로 싼다 (부르는 쪽이 200/0 으로 가른다)
-- [ ] 총 길이를 `Stat` 으로 낸다
-- [ ] 시험 — 있는 것 · 없는 것 · 이름에 경로 탈출이 든 것
+- [x] `OpenBlob` 과 같은 모양으로 연다 — 경로는 `dir()` 과 `safe()` 를 쓴다
+- [x] 없는 파일은 `os.ErrNotExist` 를 그대로 싼다 (부르는 쪽이 200/0 으로 가른다)
+- [x] 총 길이를 `Stat` 으로 낸다
+- [x] 시험 — 있는 것 · 없는 것 · 이름에 경로 탈출이 든 것
 
 ### Step 3 — `transcript.Event` 의 json 태그
-- [ ] 필드마다 `snake_case` 태그. `OK` 는 `ok,omitempty` (R19)
-- [ ] **동작이 안 바뀐다** — U1 의 왕복 시험이 그대로 초록이어야 한다
-- [ ] 마샬 결과를 고정하는 시험 하나 (키 이름의 정본이 여기다)
+- [x] 필드마다 `snake_case` 태그. `OK` 는 `ok,omitempty` (R19)
+- [x] **동작이 안 바뀐다** — U1 의 왕복 시험이 그대로 초록이어야 한다
+- [x] 마샬 결과를 고정하는 시험 하나 (키 이름의 정본이 여기다)
 
 ### Step 4 — `log.go` 의 검증
-- [ ] `seq` 양의 정수 아니면 400 (R4)
-- [ ] `from` 음이 아닌 정수 아니면 400. 없으면 0 (R5)
-- [ ] `as` 가 `raw` · `events` 아니면 400. 없으면 `raw` (R6)
-- [ ] `name` 없으면 `step` (R6.1)
+- [x] `seq` 양의 정수 아니면 400 (R4)
+- [x] `from` 음이 아닌 정수 아니면 400. 없으면 0 (R5)
+- [x] `as` 가 `raw` · `events` 아니면 400. 없으면 `raw` (R6)
+- [x] `name` 없으면 `step` (R6.1)
 
 ### Step 5 — `log.go` 의 갈림과 본문
-- [ ] `needRecords` -> `GetRun` (404 는 여기 하나)
-- [ ] `records.Sealed(runID)` 로 출처를 가른다 (R10)
-- [ ] `progress` 면 `ReadProgress(run, seq, name, from)`
-- [ ] `sealed` 면 `OpenLog` 뒤 `from` 만큼 `Seek`
-- [ ] 파일이 없으면 200 에 `Bytes: 0` · 빈 본문 (R13)
+- [x] `needRecords` -> `GetRun` (404 는 여기 하나)
+- [x] `records.Sealed(runID)` 로 출처를 가른다 (R10)
+- [x] `progress` 면 `ReadProgress(run, seq, name, from)`
+- [x] `sealed` 면 `OpenLog` 뒤 `from` 만큼 `Seek`
+- [x] 파일이 없으면 200 에 `Bytes: 0` · 빈 본문 (R13)
 
 ### Step 6 — `log.go` 의 상한과 개행 (R7 · R8)
-- [ ] 조각을 `maxLogSliceBytes` 로 자른다
-- [ ] 잘렸으면 **마지막 개행에서 끊는다**
-- [ ] 조각에 개행이 0 이면 상한 그대로 끊는다 (한 줄이 상한보다 길다)
-- [ ] `X-Enode-Log-Bytes` 는 **총 길이** — 조각 길이가 아니다
+- [x] 조각을 `maxLogSliceBytes` 로 자른다
+- [x] 잘렸으면 **마지막 개행에서 끊는다**
+- [x] 조각에 개행이 0 이면 상한 그대로 끊는다 (한 줄이 상한보다 길다)
+- [x] `X-Enode-Log-Bytes` 는 **총 길이** — 조각 길이가 아니다
 
 ### Step 7 — `log.go` 의 `as=events` (R9 · R18 · R20)
-- [ ] `truncated` 를 정한다 — `from == 0` 이면 false, 아니면 `from-1` 이 개행인가
-- [ ] `transcript.Parse(조각, truncated)` 의 `Result` 를 그대로 JSON 으로
-- [ ] 헤더 넷을 **본문보다 먼저** 쓴다
+- [x] `truncated` 를 정한다 — `from == 0` 이면 false, 아니면 `from-1` 이 개행인가
+- [x] `transcript.Parse(조각, truncated)` 의 `Result` 를 그대로 JSON 으로
+- [x] 헤더 넷을 **본문보다 먼저** 쓴다
 
 ### Step 8 — `api.go` 의 등록 줄과 PUT 의 갈림
-- [ ] `mux.HandleFunc("GET /v1/runs/{run}/steps/{seq}/log", read(s.getLog))` — **한 줄**
-- [ ] `putLog` 에 `progress` 쿼리 갈림. `attempt` 가 규칙 밖이면 400 (R6.2)
-- [ ] 종료 상태는 두 갈래 다 410 (R15) — 오늘 자리 그대로
-- [ ] 두 갈래 다 `X-Enode-Log-Bytes` 를 달고 200 (R16). 204 를 걷는다
-- [ ] 진행 갈래만 `Attempt` · `Capped` 를 더 단다
+- [x] `mux.HandleFunc("GET /v1/runs/{run}/steps/{seq}/log", read(s.getLog))` — **한 줄**
+- [x] `putLog` 에 `progress` 쿼리 갈림. `attempt` 가 규칙 밖이면 400 (R6.2)
+- [x] 종료 상태는 두 갈래 다 410 (R15) — 오늘 자리 그대로
+- [x] 두 갈래 다 `X-Enode-Log-Bytes` 를 달고 200 (R16). 204 를 걷는다
+- [x] 진행 갈래만 `Attempt` · `Capped` 를 더 단다
 
 ### Step 9 — 시험: GET 의 갈래
-- [ ] 400 넷 (`seq` · `from` · `as` · 음수)
-- [ ] 404 는 없는 Run 하나. 없는 `seq` 는 **200 에 0** (R13 · 답 7 = A)
-- [ ] 봉인 전 `Source: progress` · 봉인 뒤 `Source: sealed`
-- [ ] `Bytes` 가 총 길이이고 조각 길이가 아니다
-- [ ] `from` 을 이어 보내면 같은 바이트가 두 번 안 온다
+- [x] 400 넷 (`seq` · `from` · `as` · 음수)
+- [x] 404 는 없는 Run 하나. 없는 `seq` 는 **200 에 0** (R13 · 답 7 = A)
+- [x] 봉인 전 `Source: progress` · 봉인 뒤 `Source: sealed`
+- [x] `Bytes` 가 총 길이이고 조각 길이가 아니다
+- [x] `from` 을 이어 보내면 같은 바이트가 두 번 안 온다
 
 ### Step 10 — 시험: 상한과 개행 (R7 · R8 이 이 유닛의 축이다)
-- [ ] 상한보다 긴 파일에서 본문이 **개행으로 끝난다**
-- [ ] `from + len(본문)` 을 다음 `from` 으로 써서 **끝까지 이어 읽으면 원본과 같다**
-- [ ] 한 줄이 상한보다 길면 개행 없이 끊기고 `partial` 이 0 이 아니다
-- [ ] `as=events` 로 같은 왕복을 돌아도 줄이 안 쪼개진다
+- [x] 상한보다 긴 파일에서 본문이 **개행으로 끝난다**
+- [x] `from + len(본문)` 을 다음 `from` 으로 써서 **끝까지 이어 읽으면 원본과 같다**
+- [x] 한 줄이 상한보다 길면 개행 없이 끊기고 `partial` 이 0 이 아니다
+- [x] `as=events` 로 같은 왕복을 돌아도 줄이 안 쪼개진다
 
 ### Step 11 — 시험: PUT 의 갈림
-- [ ] `progress=1` 이 진행 파일로 · 없으면 `logs/` 로 간다
-- [ ] 두 갈래 다 `Bytes` 헤더가 온다
-- [ ] 봉인된 Run 은 두 갈래 다 410
-- [ ] `attempt` 가 없거나 0 이하면 400
+- [x] `progress=1` 이 진행 파일로 · 없으면 `logs/` 로 간다
+- [x] 두 갈래 다 `Bytes` 헤더가 온다
+- [x] 봉인된 Run 은 두 갈래 다 410
+- [x] `attempt` 가 없거나 0 이하면 400
 
 ### Step 12 — 변이
-- [ ] 개행 끊기를 지운다 -> Step 10 이 빨개져야 한다
-- [ ] `Sealed` 대신 `run.State` 로 가른다 -> Step 9 가 빨개져야 한다
-- [ ] `Bytes` 에 조각 길이를 싣는다 -> Step 9 가 빨개져야 한다
-- [ ] `truncated` 를 언제나 false -> Step 10 이 빨개져야 한다
-- [ ] `OK` 의 `omitempty` 를 뗀다 -> Step 3 이 빨개져야 한다
+- [x] 개행 끊기를 지운다 -> Step 10 이 빨개져야 한다
+- [x] `Sealed` 대신 `run.State` 로 가른다 -> Step 9 가 빨개져야 한다
+- [x] `Bytes` 에 조각 길이를 싣는다 -> Step 9 가 빨개져야 한다
+- [x] `truncated` 를 언제나 false -> Step 10 이 빨개져야 한다
+- [x] `OK` 의 `omitempty` 를 뗀다 -> Step 3 이 빨개져야 한다
 
 ### Step 13 — 게이트와 문서
-- [ ] **CB0 — `grep -c 'mux.HandleFunc' internal/api/api.go` 가 18 이다**
-- [ ] `go build ./... && go vet ./... && gofmt -l .` 가 빈다
-- [ ] `go run ./scripts/glyphscan.go` 가 0 이다
-- [ ] 전체 시험 초록 · **스킵 0**
-- [ ] 커버리지 정본 명령으로 **미달 0**. `internal/api` 가 80% 위다
-- [ ] `internal/store` diff 0
-- [ ] `git status --porcelain` — `probe.lock` 만 나오면 되돌린다
-- [ ] `construction/log-api/code/code-summary.md`. **잰 것만 적는다**
-- [ ] 이 계획의 체크박스를 **끝낸 그 자리에서** 채운다
+- [x] **CB0 — `grep -c 'mux.HandleFunc' internal/api/api.go` 가 18 이다**
+- [x] `go build ./... && go vet ./... && gofmt -l .` 가 빈다
+- [x] `go run ./scripts/glyphscan.go` 가 0 이다
+- [x] 전체 시험 초록 · **스킵 0**
+- [x] 커버리지 정본 명령으로 **미달 0**. `internal/api` 가 80% 위다
+- [x] `internal/store` diff 0
+- [x] `git status --porcelain` — `probe.lock` 만 나오면 되돌린다
+- [x] `construction/log-api/code/code-summary.md`. **잰 것만 적는다**
+- [x] 이 계획의 체크박스를 **끝낸 그 자리에서** 채운다
 
 ---
 

@@ -87,6 +87,31 @@ func (s *Store) AppendLog(runID string, seq int, name string, r io.Reader, limit
 	return total, err
 }
 
+// OpenLog 는 그 단계의 로그를 연다. OpenBlob 과 대칭이다.
+//
+// 왜 여기 있나 — 봉인 뒤의 GET log 가 읽는 것이 logs/NN-*.log 이고, 그 이름을
+// 짓는 규칙(dir · safe · %02d-%s.log)이 이 파일에만 있다. 부르는 쪽이 경로를
+// 조립하면 safe() 가 두 벌이 되고, 이름 규칙이 바뀌는 날 그쪽이 조용히 빈
+// 본문을 낸다 — 오류가 아니라 "아직 아무것도 안 왔다" 로 보인다.
+//
+// 봉인 여부를 안 본다. 이 함수는 파일 하나를 여는 일만 하고, 봉인 전후를
+// 가르는 것은 그 갈림을 아는 층(HTTP 표면)의 일이다.
+//
+// 없는 파일은 오류로 낸다. "빈 본문" 으로 접지 않는다 — 없는 것과 비어 있는
+// 것을 여기서 합치면 부르는 쪽이 다시 가를 수 없다.
+func (s *Store) OpenLog(runID string, seq int, name string) (io.ReadCloser, int64, error) {
+	p := filepath.Join(s.dir(runID), "logs", fmt.Sprintf("%02d-%s.log", seq, safe(name)))
+	fi, err := os.Stat(p)
+	if err != nil {
+		return nil, 0, err
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, 0, err
+	}
+	return f, fi.Size(), nil
+}
+
 // Sealed 는 이미 봉인됐는지다. 봉인은 한 번뿐이다 (I4).
 func (s *Store) Sealed(runID string) bool {
 	fi, err := os.Stat(filepath.Join(s.dir(runID), "verdict.json"))

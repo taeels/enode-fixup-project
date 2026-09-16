@@ -397,3 +397,75 @@ func TestBlobRecencyBeatsSequence(t *testing.T) {
 		}
 	}
 }
+
+// OpenLog 는 AppendLog 가 쓴 그 파일을 연다.
+//
+// 이 시험이 실제로 재는 것은 이름 규칙이 한 벌이라는 것이다. 부르는 쪽이
+// 경로를 조립하면 safe() 가 두 벌이 되고, 이름이 바뀌는 날 그쪽이 오류가
+// 아니라 "빈 로그" 를 낸다 — 아무도 안 본다.
+func TestOpenLogReadsWhatAppendLogWrote(t *testing.T) {
+	s := newStore(t)
+	if err := s.Open("r"); err != nil {
+		t.Fatal(err)
+	}
+	const body = "  CC foo.o\n  CC bar.o\n"
+	if _, err := s.AppendLog("r", 3, "build me", strings.NewReader(body), 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	f, n, err := s.OpenLog("r", 3, "build me")
+	if err != nil {
+		t.Fatalf("the log that was just written could not be opened: %v", err)
+	}
+	defer f.Close()
+	if n != int64(len(body)) {
+		t.Fatalf("size is %d, want %d", n, len(body))
+	}
+	got, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != body {
+		t.Fatalf("got %q, want %q", got, body)
+	}
+}
+
+// 없는 것은 오류다. "빈 본문" 으로 접지 않는다 — 없는 것과 비어 있는 것을
+// 여기서 합치면 부르는 쪽이 다시 가를 수 없다.
+func TestOpenLogSaysWhenThereIsNone(t *testing.T) {
+	s := newStore(t)
+	if err := s.Open("r"); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.OpenLog("r", 9, "never"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a missing log gave %v, want ErrNotExist", err)
+	}
+	if _, _, err := s.OpenLog("nosuchrun", 1, "step"); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a missing run gave %v, want ErrNotExist", err)
+	}
+}
+
+// 이름으로 경로를 탈출할 수 없다. 쓰는 쪽과 읽는 쪽이 같은 safe() 를 탄다.
+func TestOpenLogCannotEscapeWithAName(t *testing.T) {
+	s := newStore(t)
+	if err := s.Open("r"); err != nil {
+		t.Fatal(err)
+	}
+	const body = "escaped\n"
+	if _, err := s.AppendLog("r", 1, "../../evil", strings.NewReader(body), 1<<20); err != nil {
+		t.Fatal(err)
+	}
+	// 쓴 자리가 기록 디렉터리 안이다.
+	if _, err := os.Stat(filepath.Join(s.Root, "..", "..", "evil")); err == nil {
+		t.Fatal("AppendLog escaped the record directory")
+	}
+	// 같은 이름으로 읽으면 그 파일이 나온다 — 두 쪽이 같은 규칙을 쓴다.
+	f, _, err := s.OpenLog("r", 1, "../../evil")
+	if err != nil {
+		t.Fatalf("the two sides disagree about the name: %v", err)
+	}
+	defer f.Close()
+	got, _ := io.ReadAll(f)
+	if string(got) != body {
+		t.Fatalf("got %q, want %q", got, body)
+	}
+}
