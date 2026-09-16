@@ -1,0 +1,1 @@
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_01Fixture","name":"Read","input":{"file_path":"/etc/shadow"}}]},"wire_tool_inputs":[{"file_path":"/etc/shadow"}]}

@@ -3,9 +3,29 @@ package enode
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/taeels/enode/internal/transcript"
 )
+
+// line 은 픽스처 줄 하나를 읽고 꼬리 개행을 뗀다.
+//
+// 파일이 한 벌이다 — internal/transcript 의 같은 도우미가 같은 디렉터리를
+// 읽는다. 두 벌로 두면 한쪽만 고쳐도 둘 다 초록이라 갈린 것을 아무도 못 본다.
+//
+// 상대 경로의 대가를 이름으로 적는다 — 파일 이름이 바뀌면 컴파일이 아니라
+// 실행 때 깨진다. go list 가 못 보는 결합이라 실패 메시지가 경로를 싣는다.
+func line(name string) string {
+	path := filepath.Join("..", "transcript", "testdata", "lines", name)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		panic("fixture is missing: " + path + ": " + err.Error())
+	}
+	return strings.TrimRight(string(b), "\n")
+}
 
 // logs/ 는 허용목록이다 (decisions.md 6절 ⑱)
 //
@@ -15,22 +35,15 @@ import (
 // (통째로 버리는 구현을 잡는 줄).
 
 // 실측이 본 모양을 그대로 쓴다 — 본문이 블록 안에도 최상위에도 있다.
-const (
-	initLine = `{"type":"system","subtype":"init","cwd":"/ws","mcp_servers":[],` +
-		`"slash_commands":["plan"],"tools":["Read","Bash"]}`
-	assistantToolLine = `{"type":"assistant","message":{"content":[` +
-		`{"type":"tool_use","name":"Read","input":{"file_path":"/etc/shadow"}}],` +
-		`"usage":{"input_tokens":10,"output_tokens":3,"cache_read_input_tokens":13551,` +
-		`"service_tier":"standard","cache_creation":{"ephemeral_1h_input_tokens":0}}},` +
-		`"wire_tool_inputs":[{"file_path":"/etc/shadow"}]}`
-	assistantTextLine = `{"type":"assistant","message":{"content":[` +
-		`{"type":"thinking","thinking":"the token is sk-ant-secret"},` +
-		`{"type":"text","text":"I read the credentials file and it says sk-ant-secret"}]}}`
-	userResultLine = `{"type":"user","message":{"content":[` +
-		`{"type":"tool_result","is_error":true,"content":"root:x:0:0 and sk-ant-secret"}]},` +
-		`"tool_use_result":{"stdout":"root:x:0:0 and sk-ant-secret"}}`
-	resultLine = `{"type":"result","subtype":"success","num_turns":4,` +
-		`"total_cost_usd":0.5,"result":"done","session_id":"s1"}`
+//
+// 상수가 아니라 파일이다. internal/transcript 의 시험이 같은 줄을 읽으므로
+// 글자가 두 자리에 있으면 갈린다 — 갈려도 양쪽이 초록이라 아무도 못 본다.
+var (
+	initLine          = line("init.json")
+	assistantToolLine = line("assistant-tool.json")
+	assistantTextLine = line("assistant-text.json")
+	userResultLine    = line("user-result.json")
+	resultLine        = line("result.json")
 )
 
 // 이 글자들이 logs/ 에 남으면 봉인이 그것을 진다 — 삭제도 막힌다.
@@ -131,7 +144,7 @@ func TestLogs_TheMarkerSaysWhatWasTaken(t *testing.T) {
 	got := string(selectLogs([]byte(stdout), []byte("stderr line\n")))
 
 	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
-	var mark elidedMark
+	var mark transcript.Elided
 	for _, ln := range lines {
 		if strings.Contains(ln, "enode.elided") {
 			if err := json.Unmarshal([]byte(ln), &mark); err != nil {
@@ -168,67 +181,6 @@ func TestLogs_AnEmptyStdoutLeavesStderrFirst(t *testing.T) {
 	got := string(selectLogs(nil, []byte("claude: unknown flag --strict-mcp-config\n")))
 	if got != "claude: unknown flag --strict-mcp-config\n" {
 		t.Fatalf("something was written in front of stderr: %q", got)
-	}
-}
-
-// 껍데기가 담는 것 — 사건 종류 · 도구 이름 · 성공 여부 · 토큰 수 (답 2 = C).
-func TestLogs_TheShellCarriesOnlyWhatWasAllowed(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		line string
-		want string
-	}{
-		{
-			"a tool call with usage",
-			assistantToolLine,
-			`{"type":"assistant","tools":["Read"],"tokens":{"cache_read":13551,"in":10,"out":3}}`,
-		},
-		{
-			// 성공하면 is_error 키가 아예 없다 — 없음과 참을 가른다.
-			"a tool result that worked",
-			`{"type":"user","message":{"content":[{"type":"tool_result","content":"ok"}]}}`,
-			`{"type":"user","ok":true}`,
-		},
-		{
-			// 도구를 안 부른 사건에는 ok 를 안 쓴다.
-			"an assistant that only talked",
-			assistantTextLine,
-			`{"type":"assistant"}`,
-		},
-		{
-			"a system event keeps its subtype",
-			`{"type":"system","subtype":"hook_response","stdout":"sk-ant-secret"}`,
-			`{"type":"system","subtype":"hook_response"}`,
-		},
-		{
-			// usage 밖의 정수 하나 — 범위를 넓힌 자리다.
-			"thinking tokens",
-			`{"type":"system","subtype":"thinking_tokens","estimated_tokens":50}`,
-			`{"type":"system","subtype":"thinking_tokens","tokens":{"thinking":50}}`,
-		},
-		{
-			// 정수가 아니면 그 키를 건너뛴다 — usage 를 통째로 못 옮긴다.
-			"usage with values that are not integers",
-			`{"type":"assistant","message":{"usage":{"input_tokens":"many",` +
-				`"output_tokens":7,"cache_creation":{"a":1}}}}`,
-			`{"type":"assistant","tokens":{"out":7}}`,
-		},
-		{
-			// 사건 종류가 새로 생겨도 규칙이 안 바뀐다.
-			"an event kind we have never seen",
-			`{"type":"rate_limit_event","rate_limit_info":{"resets_at":"2026-09-12"}}`,
-			`{"type":"rate_limit_event"}`,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			obj, typ, ok := parseEventLine([]byte(tc.line))
-			if !ok {
-				t.Fatalf("the line was not read as an event: %s", tc.line)
-			}
-			if got := string(eventShell(obj, typ)); got != tc.want {
-				t.Fatalf("\ngot:  %s\nwant: %s", got, tc.want)
-			}
-		})
 	}
 }
 
