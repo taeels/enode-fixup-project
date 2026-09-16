@@ -1224,3 +1224,33 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 **Context**: CONSTRUCTION — W-b Code Generation Part 2. 승인 대기
 
 ---
+## W-b 병합 지시 · W-c 착수 지시
+**Timestamp**: 2026-09-16T05:40:00Z
+**User Input**: "w-b pr둘고 메인에 올리고 w-c 진행"
+**AI Response**: W-b 의 Code Generation Part 2 승인으로 받는다. 병합 전에 합본에서 게이트를 다시 잰다 (W-a 와 같은 규율 — 각 브랜치의 값이 합쳐진 나무에서도 같다는 보장을 안 믿는다). 초록이면 PR 셋을 올린다 — 회차 브랜치 `v3-run-transcript` 먼저, 그 뒤 `unit/node-stream` · `unit/log-api`. 병합 뒤 W-c (U5 `panel-live` · 단독 · CB1) 를 연다.
+**Context**: CONSTRUCTION — W-b Code Generation Part 2 승인 · 병합 · W-c 착수
+
+---
+
+## W-b 를 닫는다 — 합본 재측정
+**Timestamp**: 2026-09-16T05:52:00Z
+**User Input**: (없음 — 위 지시의 실행)
+**AI Response**: 합본 `origin/main` + `v3-run-transcript` + `unit/node-stream` + `unit/log-api` 에서 다시 쟀다. **충돌 0 · 파일 교집합 0.**
+
+```text
+   build · vet · gofmt 빔 · glyphscan 111 파일 0
+   시험 19 패키지 초록 · 스킵 0
+   커버리지 정본 awk — 미달 0 · 전체 7722/8824 = 87.5%
+   크로스 빌드 windows/amd64 · net/http T 6 · crypto/tls T 1
+   CB0 — grep -c 'mux.HandleFunc' internal/api/api.go = 18 (앞 값 17)
+```
+
+**패키지 하나가 내려갔다** — `internal/api` 82.9% -> **82.3%**. U4 가 `log.go` 238줄을 들였고 그 갈래 몇이 폴링의 규칙적인 경로에서 안 밟힌다. 하한에서 2.3 포인트 위라 안 막으나 U6 이 같은 패키지를 만지므로 거기서 다시 본다.
+
+**`probe.lock` 이 두 웨이브 연속 같은 자리다** — 기준선의 성질로 확인됐다. **`internal/api` 의 deadlock 은 U4 가 405줄을 더한 뒤에도 재현 0** 이고, 그래도 사라졌다고 안 적는다.
+
+**정본에 갈린 자리 하나를 찾았다** — `unit-of-work.md` 의 U5 절이 NFR 요구를 **스킵**이라 적고 그 근거로 U6 의 문장(「출처만 바뀐다 · 기존 `do()` 를 탄다」)을 댔다. 같은 문서 9절의 표는 U5 를 **돈다**로 적는다. 한 문서 안에서 두 값이다.
+**Context**: CONSTRUCTION — W-b 병합 전 합본 측정
+
+---
+
