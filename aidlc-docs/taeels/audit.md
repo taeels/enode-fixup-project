@@ -1052,3 +1052,35 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 **Context**: CONSTRUCTION — W-a Code Generation Part 2 승인 · 병합 전 합본 게이트 측정
 
 ---
+
+## W-b 착수 — Functional Design Part 1 (U2 · U4)
+**Timestamp**: 2026-09-16T01:35:00Z
+**User Input**: (없음 — "병합하고 w-b 가자" 의 뒷절 실행)
+**AI Response**: 브랜치 둘을 **병합된 `main` 에서** 땄다 (`unit/node-stream` · `unit/log-api` · worktree `/home/sunny/enode-wt/`). 회차 브랜치가 아니라 `main` 인 이유는 둘 다 W-a 의 코드를 딛기 때문이다 — U2 는 U1 이 `runner.go` 에서 덜어낸 자리에 tee 를 잇고, U4 는 U1 의 파서와 U3 의 진행 파일을 둘 다 부른다.
+
+**둘 다 계획을 짓기 전에 코드를 읽었다** (W-a 가 배운 것). 문서가 코드와 갈린 자리를 **다섯** 찾았다.
+
+```text
+   U2   ①  component-methods 3절의 「Decode 안에서 io.ReadAll 을 걷는다」만으로는
+           사건이 흐르는 시점이 안 바뀐다.  부르는 자리가 cmd.Run 뒤다 (runner.go:209)
+       ②  유닛 정의의 「Decode 도 파서를 안 쓴다」가 거짓이다 — U1 이 selectLogs 를
+           옮기면서 internal/enode 가 transcript 를 임포트한다 (runner.go:331)
+       ③  lastJSONObject 가 뒤에서부터 전체를 훑는다.  줄 단위로 읽어도 바이트를
+           통째로 들어야 한다.  requirements 5.7 의 「전체를 메모리에 다시 담지
+           않는다」는 internal/transcript 를 가리키지 Decode 가 아니다
+
+   U4   ④  봉인된 logs/NN-*.log 를 여는 공개 겉면이 internal/record 에 0 이다.
+           경로 조립에 필요한 safe() 는 비공개다.  파일 행렬은 record.go 를 U3 에만 줬다
+       ⑤  데모 모드의 read 래퍼가 무인증이다 (api.go:82).  requirements 5.4 의
+           잔여 ② 는 「토큰 하나라 주체를 못 가른다」로 토큰이 있다는 전제로 쓰였다
+```
+
+**CB0 의 앞 값을 합본에서 쟀다** — `grep -c 'mux.HandleFunc' internal/api/api.go` 가 **17**. U4 가 18 로 만든다.
+
+**U3 가 U4 의 물음을 미리 닫아 둔 자리가 넷이다** — R17 · R18 · R19 · R32. 맞춰 보니 `Progress{Total, Attempt, Capped}` 가 헤더 넷 중 셋과 1 대 1 이고 빈 칸이 0 이다. 그 넷은 이 유닛이 다시 안 묻는다.
+
+**물음 열다섯을 냈다** — U2 일곱 · U4 여덟. 계획 커밋 77eb3d2 (U2) · f8c7b74 (U4).
+**4.2 에 웨이브를 닫는 교차 검사 자리를 미리 이름으로 적었다** — 사건 종류의 어휘 · 총 길이의 뜻 · 시도 · 상한의 단위. W-a 가 「유닛 경계를 넘는 조합은 어느 한 유닛의 모순 검사도 못 본다」를 배웠고 그것을 계획에 박았다.
+**Context**: CONSTRUCTION — W-b Functional Design Part 1. 답 대기
+
+---
