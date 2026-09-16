@@ -1,6 +1,7 @@
 package store
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -423,5 +424,64 @@ func TestAChosenStepThatNeverRanIsGoalUnmet(t *testing.T) {
 	if got.State != StateFailed {
 		t.Fatalf("passed even though the chosen destination never ran: %s — "+
 			"this is how third-run-1 got sealed as SUCCEEDED", got.State)
+	}
+}
+
+// checks 는 선 위에서 언제나 배열이다.
+//
+// 조건이 0 개인 계약이 실제로 있고, 그때 Checks 가 nil 로 남는다. Go 의 기본은
+// nil 슬라이스를 null 로 마샬하는 것이라, 그대로 두면 화면이 그 자리에 요구하는
+// 배열을 못 받는다. 관측 응답을 통째로 검사하는 구조라 Run 하나의 null 이
+// 목록 전체를 못 뜨게 한다 — 실측으로 밟았다 (mac-shot-20260901).
+func TestVerdict_ChecksIsAlwaysAnArrayOnTheWire(t *testing.T) {
+	// 조건이 0 개인 계약 — Verify 가 Checks 를 한 번도 안 채운다.
+	v := Verify(contract.Contract{Steps: []contract.Step{{ID: "only"}}},
+		map[string]StepResult{"only": {}}, nil)
+	if v.Checks != nil {
+		t.Fatalf("this test needs a verdict whose Checks stayed nil, got %+v", v.Checks)
+	}
+
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"checks":[]`) {
+		t.Errorf("checks must marshal as an empty array, got %s", b)
+	}
+	if strings.Contains(string(b), `"checks":null`) {
+		t.Errorf("checks must never be null on the wire, got %s", b)
+	}
+
+	// 포인터로도 같다 - 목록 응답이 *Verdict 를 싣는다.
+	pb, err := json.Marshal(&v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(pb), `"checks":[]`) {
+		t.Errorf("a *Verdict must marshal the same way, got %s", pb)
+	}
+
+	// 저장된 null 을 다시 읽어 내보내는 길도 고쳐진다 - 목록은 jsonb 를
+	// Verdict 로 풀었다 다시 마샬한다 (observe.go).
+	var stored Verdict
+	if err := json.Unmarshal([]byte(`{"state":"SUCCEEDED","checks":null}`), &stored); err != nil {
+		t.Fatal(err)
+	}
+	rb, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rb), `"checks":[]`) {
+		t.Errorf("a stored null must come back out as an array, got %s", rb)
+	}
+
+	// 값이 있으면 그대로 나간다 - 정규화가 내용을 안 바꾼다.
+	full := Verdict{State: StateSucceeded, Checks: []Check{{Step: "s", What: "exit_code", OK: true}}}
+	fb, err := json.Marshal(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(fb), `"step":"s"`) {
+		t.Errorf("normalising must not drop real checks, got %s", fb)
 	}
 }

@@ -20,12 +20,18 @@ function assigned(v) {
     for (const n of array(role.nodes, 'assigned.nodes')) { object(n, 'assigned.node'); string(n.node, 'assigned.node'); string(n.label, 'assigned.label', true); }
   }
 }
-function verdict(v) {
+// where 는 틀린 자리를 가리키는 꼬리표다.
+//
+// 관측은 통째로 검사하므로 Run 하나가 틀리면 목록 전체가 안 뜬다. 그때
+// 어느 Run 인지를 안 적으면 보는 사람이 화면으로는 못 좁히고 서버의 응답을
+// 직접 떠서 뒤져야 한다 - 실제로 그랬다.
+const where = (field, id) => (id ? `${field} (run ${id})` : field);
+function verdict(v, id) {
   if (v == null) return;
-  object(v, 'verdict'); string(v.state, 'verdict.state');
-  for (const c of array(v.checks, 'verdict.checks')) {
-    object(c, 'verdict.check'); check(typeof c.ok === 'boolean', 'verdict.check.ok');
-    if (c.note !== undefined) string(c.note, 'verdict.check.note', true);
+  object(v, where('verdict', id)); string(v.state, where('verdict.state', id));
+  for (const c of array(v.checks, where('verdict.checks', id))) {
+    object(c, where('verdict.check', id)); check(typeof c.ok === 'boolean', where('verdict.check.ok', id));
+    if (c.note !== undefined) string(c.note, where('verdict.check.note', id), true);
   }
 }
 export function parseObservation(kind, input, expectedID) {
@@ -53,7 +59,7 @@ export function parseObservation(kind, input, expectedID) {
       string(r.submitter, 'submitter', true); date(r.created_at, 'created_at');
       check(Object.hasOwn(r, 'ended_at') && Object.hasOwn(r, 'verdict'), 'run terminal fields');
       if (r.ended_at !== null) date(r.ended_at, 'ended_at');
-      assigned(r.assigned); verdict(r.verdict);
+      assigned(r.assigned); verdict(r.verdict, r.run_id);
     }
     unique(v.runs, r => r.run_id, 'duplicate run_id');
   } else if (kind === 'detail') {
@@ -82,7 +88,7 @@ export function parseObservation(kind, input, expectedID) {
       }
       try { graphLayout(v.steps); } catch (e) { v.graphError = e.message; }
     }
-    verdict(v.verdict);
+    verdict(v.verdict, v.run_id);
   } else if (kind === 'asks') {
     for (const a of array(v.asks, 'asks')) {
       object(a, 'ask'); string(a.run_id, 'ask.run_id'); check(Number.isInteger(a.seq) && a.seq > 0, 'ask.seq');
