@@ -62,3 +62,34 @@ test('related clocks stay frozen while an unrelated observation continues refres
   assert.equal(dependentClock(nodes, [detail], 22000), base + 15000);
   assert.equal(dependentClock(nodes, [{ data: null }], 22000), null);
 });
+
+// 관측은 통째로 검사하므로 Run 하나가 틀리면 목록 전체가 안 뜬다.
+// 그때 어느 Run 인지를 말해야 한다 - 안 말하면 보는 사람이 화면으로 못 좁히고
+// 서버 응답을 직접 떠서 뒤져야 한다. 실제로 그랬다 (mac-shot-20260901 의
+// verdict.checks 가 null 이었고, 화면은 "Invalid observation: verdict.checks"
+// 한 줄만 냈다).
+test('a bad verdict names the run it came from', () => {
+  const runs = {
+    observed_at: '2026-09-16T12:00:00Z',
+    runs: [
+      { run_id: 'good-1', state: 'SUCCEEDED', work_id: '', submitter: '',
+        created_at: '2026-09-16T11:00:00Z', ended_at: '2026-09-16T11:30:00Z',
+        assigned: [], verdict: { state: 'SUCCEEDED', checks: [] } },
+      { run_id: 'mac-shot-20260901', state: 'SUCCEEDED', work_id: '', submitter: '',
+        created_at: '2026-09-16T11:00:00Z', ended_at: '2026-09-16T11:30:00Z',
+        assigned: [], verdict: { state: 'SUCCEEDED', checks: null } },
+    ],
+  };
+  assert.throws(() => parseObservation('runs', runs), /verdict\.checks \(run mac-shot-20260901\)/);
+});
+
+// 빈 배열은 틀린 것이 아니다 - 판정 조건이 0 개인 계약이 그 모양이다.
+test('an empty checks array is valid', () => {
+  const runs = {
+    observed_at: '2026-09-16T12:00:00Z',
+    runs: [{ run_id: 'r1', state: 'SUCCEEDED', work_id: '', submitter: '',
+      created_at: '2026-09-16T11:00:00Z', ended_at: '2026-09-16T11:30:00Z',
+      assigned: [], verdict: { state: 'SUCCEEDED', checks: [] } }],
+  };
+  assert.equal(parseObservation('runs', runs).runs.length, 1);
+});
