@@ -741,9 +741,9 @@ U2 가 U1 의 변경 위에서 재작업한다.
 
 | | 유닛 | 맡는 기능 | 지는 게이트 | 선행 | 웨이브 | 상태 |
 |---|---|---|---|---|---|---|
-| U1 | `transcript` | FR-3 | (코드만) | 없음 | W-a | **코드 섬** |
+| U1 | `transcript` | FR-3 | (코드만) | 없음 | W-a | **병합됨 (PR #40)** |
 | U2 | `node-stream` | FR-1 · FR-2 | (코드만) | U1 (파일) | W-b | 대기 |
-| U3 | `progress-store` | FR-5 (med) | (코드만) | 없음 | W-a | **코드 섬** |
+| U3 | `progress-store` | FR-5 (med) | (코드만) | 없음 | W-a | **병합됨 (PR #41)** |
 | U4 | `log-api` | FR-6 · FR-5 (api) | **CB0** | U1 · U3 | W-b | 대기 |
 | U5 | `panel-live` | FR-4 (절반) | **CB1** | U1 · U2 | W-c | 대기 |
 | U6 | `panel-past` | FR-4 (나머지) | **CB2** | U4 · CB1 | W-d | 대기 |
@@ -843,7 +843,8 @@ U2 가 U1 의 변경 위에서 재작업한다.
                           U3 의 실측이 회차 계획을 고쳤다 — Seal 은 tar 를 안 짓는다
    Infrastructure Design  SKIP (회차 계획)
    Code Generation        Part 1 (계획) 승인 2026-09-15T14:20:00Z (사용자 「넘어가지」)
-                          Part 2 (생성) 2026-09-16.  승인 대기.  **코드가 섰다**
+                          Part 2 (생성) 2026-09-16.  승인 2026-09-16T01:08:12Z
+                          (사용자 「병합하고 w-b 가자」).  **코드가 섰다**
                           U1 커밋 넷 c95d5bf · 583ebf6 · 0510edb · 864d5e0
                           U3 커밋 다섯 bdb13a3 · 26bf7b4 · efc0042 · ebb7d7a · 73fdeb3
                           체크박스 U1 97 중 94 · U3 122 중 121 (남긴 것은
@@ -920,3 +921,53 @@ Functional Design Step 5 는 그 유닛의 답끼리만 댄다. 같은 날 두 �
 짓는 함수가 같은 패키지라 왕복 시험이 잡지만 `enode.capped` 는 찍는 쪽이 U3 ·
 읽는 쪽이 U1 이라 한 패키지 시험으로 안 잡힌다. Code Generation 이 맞댈 것을
 값 이름까지 적어 뒀다 (`business-rules.md` 16.1).
+
+## W-a 가 닫혔다 — 병합 2026-09-16
+
+승인 뒤 **합친 나무에서 게이트를 다시 쟀다.** 유닛 둘의 값은 각자의 브랜치에서 잰
+것이고, 합치면 같은 값이라는 보장이 없다 — 그 보장을 안 믿고 쟀다.
+
+```text
+   합본        origin/main + v3-run-transcript + unit/transcript + unit/progress-store
+               충돌 0 · 세 갈래의 파일 교집합 0
+
+   초록인 것    build · vet · gofmt · glyphscan(109 파일) ·
+               시험 19 패키지 전부 · **스킵 0**
+               커버리지 정본 명령으로 19 패키지 **미달 0** — 전체 87.5%
+               transcript 94.4% · record 84.4% · store 82.5% · enode 86.7%
+               라우트 17 그대로 (18 은 U4 의 몫 · CB0)
+               windows/amd64 크로스 빌드 · net/http T 6 · crypto/tls T 1
+
+   PR 셋       #39 회차 브랜치 -> #40 U1 -> #41 U3.  이 순서로 올렸다
+               회차가 먼저다 — 유닛 정의와 파일 행렬이 거기 있다
+```
+
+**앞 단계가 「못 갈랐다」고 적은 자리를 다시 쟀다** — `internal/api` 의 deadlock
+(40P01). 합본에서 **일곱 번 다 초록이고 재현 0 이다.** 재현이 0 인 것은 없어진 것과
+다르므로 사라졌다고 안 적는다. 다음 웨이브가 `internal/api` 를 만지므로 (U4) 거기서
+다시 본다.
+
+**`cmd/enodectl/probe.lock` 이 시험을 돌 때마다 바뀐다** — CP0 의 「시험이 추적 파일을
+안 고친다」를 그대로 깬다. 이 유닛들이 만든 것이 아니고 (둘 다 `cmd/enodectl` 을 안
+만진다) 앞선 회차들도 겪었다. 되돌리고 **기준선의 성질로 적는다** — 고치는 것은 이
+회차의 파일 행렬 밖이다.
+
+## 다음 — W-b (U2 `node-stream` · U4 `log-api` 병렬)
+
+```text
+   U2 node-stream   FR-1 · FR-2   게이트 (코드만)   선행 U1 (파일)
+   U4 log-api       FR-6 · FR-5   **CB0**          선행 U1 · U3
+```
+
+**둘 다 W-a 의 코드를 딛는다** — U2 는 U1 이 `runner.go` 에서 덜어낸 자리에 tee 를
+잇고, U4 는 U1 의 파서와 U3 의 진행 파일을 둘 다 읽는다. 그래서 브랜치를 회차
+브랜치가 아니라 **병합된 `main` 에서 딴다** — 회차 브랜치는 코드를 0 줄 싣는다.
+
+**가르는 축은 enode 대 api 다** — U2 가 `internal/enode`, U4 가 `internal/api`.
+파일 행렬이 교집합을 0 으로 뒀는지가 착수 전에 볼 첫 자리다.
+
+**NFR Requirements 는 U4 만 돈다** (U2 는 회차 계획 SKIP — 새 표면을 안 만든다).
+**N1 을 U4 가 진다.**
+
+**CB0 이 이 웨이브에서 처음 값을 얻는다** — `grep -c 'mux.HandleFunc' internal/api/api.go`
+가 17 에서 **18** 이 된다. 오늘 17 인 것을 합본에서 쟀다.

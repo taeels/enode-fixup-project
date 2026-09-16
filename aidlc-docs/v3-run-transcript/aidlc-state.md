@@ -229,6 +229,15 @@ CB5 와 FR-8 은 이월이라 유닛이 0 이다.
 - [ ] Code Generation — **EXECUTE** (ALWAYS · 유닛마다)
 - [ ] Build and Test — **EXECUTE** (ALWAYS). CB0 ~ CB6 이 곧 시험 계획이다
 
+**W-a 가 닫혔다 (2026-09-16T01:08:12Z · 사용자 「병합하고 w-b 가자」).** 유닛 둘의
+단계 다섯이 다 돌았고 PR 셋으로 `main` 에 갔다 — #39 회차 · #40 U1 · #41 U3.
+병합 전에 **합친 나무에서** 게이트를 다시 쟀다 (시험 19 패키지 초록 · 스킵 0 ·
+커버리지 미달 0 · 라우트 17 그대로). 값과 남긴 것은 담당 루트
+`aidlc-docs/taeels/aidlc-state.md` 의 「W-a 가 닫혔다」.
+
+**남은 유닛 여섯 중 둘이 W-b 다** — U2 `node-stream` · U4 `log-api`. 둘 다 W-a 의
+코드를 딛으므로 브랜치를 병합된 `main` 에서 딴다.
+
 ### OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
 

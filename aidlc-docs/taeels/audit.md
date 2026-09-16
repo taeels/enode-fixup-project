@@ -1024,3 +1024,31 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+
+## W-a Code Generation Part 2 승인 — 그리고 병합
+**Timestamp**: 2026-09-16T01:08:12Z
+**User Input**: "병합하고 w-b 가자"
+**AI Response**: 승인으로 받았다 (Continue to Next Stage). **병합 전에 합친 나무에서 게이트를 다시 쟀다** — 유닛 둘의 값은 각자의 브랜치에서 잰 것이고, 합치면 같은 값이라는 보장이 없다.
+
+```text
+   합친 나무   origin/main + v3-run-transcript + unit/transcript + unit/progress-store
+               충돌 0.  세 갈래가 만지는 파일의 교집합이 0 이다
+
+   build       초록        vet 초록        gofmt 빔
+   test        19 패키지 전부 초록 · **스킵 0**
+   커버리지     정본 명령(-coverpkg=./... -count=1)으로 19 패키지 · **미달 0**
+               전체 87.5% · transcript 94.4% · record 84.4% · store 82.5% ·
+               enode 86.7% · 가장 얇은 자리는 build 16/20 = 80.0% 그대로
+   라우트       17 그대로.  W-a 는 라우트를 안 늘린다 (18 은 U4 의 몫 · CB0)
+   크로스 빌드   windows/amd64 초록 · net/http T 6 · crypto/tls T 1 (상한 50 · 10)
+   glyphscan   109 파일 · 장식 문자 0
+```
+
+**앞 항목이 「못 갈랐다」고 적은 자리를 다시 쟀다** — `internal/api` 의 deadlock(40P01). 합친 나무에서 전체 스위트 두 번 + `api`·`store`·`record` 다섯 번, **일곱 번 다 초록이고 재현 0 이다.** 재현이 0 인 것은 없어진 것과 다르므로 사라졌다고 안 적는다. 병합을 막지는 않는다.
+
+**`cmd/enodectl/probe.lock` 이 또 바뀐다** — 시험이 추적 파일을 고치므로 `git status --porcelain` 이 빈다는 CP0 조건을 그대로 두면 깨진다. 이 유닛들이 만든 것이 아니다 (둘 다 `cmd/enodectl` 을 안 만진다). 되돌렸고 기준선의 성질로 적는다.
+
+**PR 셋으로 `main` 에 올린다** (`CONVENTIONS.md` 3.1 · 3.3). 회차 브랜치를 먼저 올린다 — 유닛 정의와 파일 행렬이 거기 있고 유닛 PR 둘이 그것을 딛는다.
+**Context**: CONSTRUCTION — W-a Code Generation Part 2 승인 · 병합 전 합본 게이트 측정
+
+---
