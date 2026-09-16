@@ -1254,3 +1254,163 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+## W-c 착수 — U5 panel-live Functional Design Part 1
+**Timestamp**: 2026-09-16T07:20:00Z
+**User Input**: (없음 — 「w-c 진행」의 실행)
+**AI Response**: W-b 를 PR #42 · #43 · #44 로 `main` 에 병합했다 (`main` 은 05ee710 · 라우트 18). 브랜치 `unit/panel-live` 를 병합된 `main` 에서 땄다.
+
+**계획을 짓기 전에 코드를 읽었고 문서가 코드와 갈린 자리를 여섯 찾았다.** W-a 가 셋, W-b 가 다섯이었고 이번이 여섯이다. **그중 하나가 이 유닛의 범위를 정면으로 바꾼다.**
+
+```text
+   무겁다   5.5 의 「같은 다섯 줄」   page.go 가 통짜 인라인이라 default-src 'self'
+                                  한 줄이 제어판을 죽인다.  /ui/ 가 그 헤더로 사는
+                                  이유는 static 파일을 따로 내기 때문이다
+           「밀렸다는 표시」 앞 팩    앞 팩에 0 이다.  CB1 의 화면 검증이 그것을 본다
+           Snapshot 의 용량        ReadRing 이 읽고 버린다.  Parse 의 truncated 가
+                                  그 값이고 NC-2 와 CB1 이 둘 다 쓴다
+
+   그 밖    handleTranscript 가 파싱을 0 한다 (오늘 보이는 것은 JSON 원문이다)
+           세대 비우기가 사실상 없다 (통째로 갈아치우는 덕에 안 틀렸다)
+           5.7 의 파서 줄이 매초 반복을 안 적었다
+```
+
+**물음 여덟을 냈다** — 보안 헤더를 이 페이지에 어떻게 거나 · 사건을 어디서 만드나 · NC-1 의 경과를 무엇으로 재나 · NC-2 의 잘림을 무엇으로 아나 · 「밀렸다」가 NC-1 과 같은가 · 원문 토글의 바이트 출처 · NC-3 의 한 줄 · 세대가 바뀔 때 무엇을 비우나. 계획은 `construction/plans/panel-live-functional-design-plan.md`.
+
+**NFR 단계의 실행 여부가 미정이다** — 회차 계획의 9절 표는 U5 를 EXECUTE 로, 같은 문서의 U5 절은 SKIP 으로 적고 그 SKIP 의 근거가 U6 의 문장이다. W-b 의 「nfr 단계를 모두 스킵」이 회차에 이어지는지가 안 정해졌다. 단계 앞에서 묻는다.
+**Context**: CONSTRUCTION — W-c Functional Design Part 1. 승인 대기
+
+---
+
+## W-c Functional Design Part 1 — 답 여덟
+**Timestamp**: 2026-09-16T07:45:00Z
+**User Input**: "권장대로. 여기서도 nfr skip"
+**AI Response**: 물음 여덟을 전부 권장으로 닫는다 — 1=A · 2=A · 3=A · 4=A · **5=C** · 6=A · 7=A · 8=A. 다섯째만 권장이 C 였고 나머지 일곱이 A 다. **갈린 답 0.**
+
+NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9절 표의 EXECUTE 와 갈리므로 **어긋남으로 적는다** — W-b 와 같은 모양이고 이번에는 사용자가 이 회차를 콕 집어 지시했다 (「여기서도」). `unit-of-work.md` 의 U5 절은 원래 SKIP 이라 그쪽과는 안 갈린다.
+**Context**: CONSTRUCTION — W-c Functional Design Part 1 승인 · NFR 스킵 지시
+
+---
+
+## W-c Functional Design Part 2 — 산출
+**Timestamp**: 2026-09-16T08:05:00Z
+**User Input**: (없음 — 「권장대로」의 실행)
+**AI Response**: 산출물 셋을 냈다 — `construction/panel-live/functional-design/` (domain-entities · business-logic-model · business-rules).
+
+**모순 검사가 둘을 막았다.**
+
+```text
+   ①  2 = A 의 캐시가 3 = A 의 경과를 얼린다.  제어판이 초 단위 수를 실으면
+      침묵에서 그 수가 얼어붙는다 — 침묵이 바로 NC-1 이 있는 구간이다.
+      시각만 싣고 브라우저가 뺀다.  응답이 바이트의 순수 함수가 되어 캐시가
+      성립하고 표시가 폴링 사이에도 흐른다.  캐시 열쇠에 mtime 을 넣는다
+   ②  8 = A 의 통째 갈아 그리기가 CB1 의 「접힌 결과」를 못 펴게 한다.
+      오늘 안 아픈 이유는 접을 것이 없어서다 — 이 유닛이 접기를 들여오면서
+      같이 들어오는 모순이다.  Event.ID (tool_use_id) 로 펼침을 든다.
+      Line 은 못 쓴다 — Parse 가 창 안에서 1 부터 세므로 링이 감기면 밀린다
+```
+
+**교차 검사가 하나 더 잡았다** — U4 는 메타를 헤더 넷에 싣고 몸통이 `transcript.Result` 통째인데, 제어판의 응답은 객체라 메타를 헤더로 못 옮긴다. U6 이 그 둘을 잇는다. **U5 가 봉투를 정했다** — `transcript` 키에 `Result` 통째, 메타는 형제 키. 안 정했으면 U6 이 둘째 봉투를 짓고 화면 함수가 두 벌이 된다.
+
+**오늘의 동작 하나를 뒤집는다** — `page.go:267` 이 매 폴링마다 무조건 바닥으로 간다. 도는 동안 위로 올려 읽는 것이 지금 불가능하다. 바닥에 있을 때만 따라가고 그 판정을 그리기 전에 한다.
+
+**회차 밖으로 낼 것이 넷이다** — 5.5 의 「같은 다섯 줄」 · 「밀렸다는 표시는 앞 팩 그대로」 · `unit-of-work.md` U5 절의 NFR 두 값 · 파일 행렬에 없는 `internal/enode/transcript.go`.
+**Context**: CONSTRUCTION — W-c Functional Design Part 2 완료
+
+---
+
+## W-c Code Generation Part 1 — 계획
+**Timestamp**: 2026-09-16T08:30:00Z
+**User Input**: "진행"
+**AI Response**: Code Generation 계획을 냈다 — `construction/plans/panel-live-code-generation-plan.md`. **Step 열하나 · 체크박스 쉰하나 · 물음 0.** 설계 단계의 답 여덟이 값을 다 정했고 NFR 스킵이 남긴 둘을 계획 0절이 졌다.
+
+**계획이 실측으로 찾은 것 넷. 무거운 것 하나.**
+
+```text
+   제어판의 JS 를 재는 시험이 이 저장소에 0 이다.  .mjs 하네스는
+   internal/api/ui 의 것이고 (gallery-demo.yml:22 의 node --test) 제어판의 JS 는
+   page.go 의 문자열 상수 안이라 임포트가 안 된다.  DOM 규칙 넷 —
+   R19 펼침 열쇠 · R20 세대 비우기 · R21 바닥 따라가기 · R14 별개 타이머 —
+   의 유일한 검사가 CB1 이다.  변이를 못 건다
+```
+
+**답 1 = B 를 골랐으면 CSP 와 함께 이것도 닫혔다.** A 를 고른 대가이므로 숨기지 않고 6절에 적었다. 줄이는 법은 판정을 Go 로 옮기는 것이고 실제로 그렇게 짰다 — `truncated` · 봉투 · 캐시가 전부 Go 이고 브라우저에 남는 것은 그리기뿐이다.
+
+그 밖 셋 — `internal/panel` 이 `ui.securityHeaders` 를 **못 쓴다** (경계가 `panel -> api` 를 막는다. 값이 애초에 갈려 두 벌이 아니다) · 기존 픽스처가 개행이 없어 **사건을 0 개 낸다** (W-b 의 U2 가 같은 자리를 밟았다) · `internal/panel` 커버리지 84.9% 인데 `page.go` 증가분은 문자열 상수라 문장 수에 0 을 더한다.
+
+**설계 문서 한 줄을 계획 단계에서 고쳤다** — R28 이 「`/api/*` 에는 안 건다」였다. `nosniff` 가 정확히 그 전제를 안 믿는 헤더다. 다섯을 모든 응답에 건다. R29 를 더해 경계가 재사용을 막는 것을 적었다.
+**Context**: CONSTRUCTION — W-c Code Generation Part 1. 승인 대기
+
+---
+
+## W-c Code Generation Part 2 — 생성
+**Timestamp**: 2026-09-16T09:10:00Z
+**User Input**: "코드 생성 진행"
+**AI Response**: Step 열하나를 다 돌았다. **체크박스 51 중 51.** 요약은 `construction/panel-live/code/code-summary.md`.
+
+```text
+   시험 19 패키지 초록 · 스킵 0
+   커버리지 미달 0 · 전체 7746/8854 = 87.5%
+   internal/panel  84.9% -> 85.9%   (계획 1.4 가 걱정한 자리가 올라갔다)
+   라우트  api.go 18 그대로 (CB0 안 건드림) · panel.go 10 (R1)
+   gofmt 0 줄 · glyphscan 112 파일 0 · 크로스 빌드 OK · net/http T 6
+   diff 0 이어야 할 곳 전부 0 — api · transcript · record · go.mod · boundary_test.go
+```
+
+**변이 여섯 전부 빨강. 셋이 처음에 살아남았다.**
+
+**③ 응답에 기간을 싣는다** — 방금 쓴 링은 경과가 0 이라 `omitempty` 가 변이가 더한 키를 지웠고 시험이 없는 키를 못 찾았다. `os.Chtimes` 로 90초 늙히고, 금지어 목록 대신 **봉투가 인정한 키 밖의 수를 전부** 막았다. 한 번 헛디뎠다 — 「60 ~ 120 사이의 수」로 걸렀더니 `total` 이 76 바이트라 걸렸다. **바이트 수와 초가 같은 자리에 온다.**
+
+**④ 캐시 열쇠에서 mtime 을 뺀다** — 시험이 링을 다시 만든 뒤 한 줄을 써서 `total` 이 캐시의 `(0,0)` 과 애초에 안 부딪혔다. **길이가 같고 내용이 다른 두 줄**로 고쳤다. 시험이 그 전제를 스스로 단언한다.
+
+**⑥ 은 시험으로 끝내 못 잡았다 — 구조로 닫았다.** 조용한 링에서는 두 읽기가 같은 바이트다. 경합으로 재니 열에 셋, `len(Data) == Total` 산수로 좁혀도 열에 일곱이었다. **열에 셋을 놓치는 시험은 게이트가 아니다.** 시험을 버리고 `liveBody(snap, mtime, path)` 로 갈라 **스냅샷 하나만 받게** 했다 — 나눠 볼 둘이 없어 그 갈래가 아예 없다. **W-b 의 U2 가 배운 것과 같은 모양이다** (「`Write` 의 패닉 방어는 `recover` 가 아니라 구조다」). 부작용으로 그 함수가 순수해져 결정적으로 시험된다.
+
+**DOM 규칙 넷(R14 · R19 · R20 · R21)은 끝내 변이를 못 걸었다.** 계획 1.1 이 예고한 그대로이고 **넷 다 CB1 이 진다.**
+**Context**: CONSTRUCTION — W-c Code Generation Part 2. 승인 대기
+
+---
+
+## 웨이브 순서를 바꾼다 — U7 을 먼저 간다
+**Timestamp**: 2026-09-16T09:40:00Z
+**User Input**: "그리고 나는 mediator 에 보여지는 실시간 트랜스크립트 만들으라고 했는데?" / "그래. 7번 가자"
+**AI Response**: 지적이 맞다. **U5 는 노드 자기 기계의 제어판이고 Mediator 를 안 탄다** (FR-4). Mediator 에 실시간으로 보이게 하는 것은 셋이고 그중 하나만 서 있다 — FR-6 `GET .../log` 는 U4 가 병합했고, **FR-5 의 올리는 쪽(U7)과 FR-7 의 그리는 쪽(U8)이 없다.** Mediator 는 받을 준비도 낼 준비도 끝났는데 **보내는 쪽이 없다.**
+
+**의존 행렬을 확인했다 — U7 의 U5 의존은 게이트뿐이고 코드가 아니다.**
+
+```text
+   U7 chunk-push   코드로는 U2 · U4     둘 다 병합됨
+                   게이트로는 U5 (CB1)
+   U8 fleet-card   코드로는 U4          병합됨
+                   게이트로는 U7 (CB3)
+```
+
+**어긋남으로 적는다** — 회차 계획의 W-d 는 U6 · U7 병렬이고 W-c 의 CB1 이 그 앞에 있었다. 사용자가 순서를 바꿨다. **U7 을 단독으로 먼저 돌리고 CB1 은 U8 착수 앞에서 CB3 와 함께 잰다** — 둘 다 로그인된 노드에서 계약을 돌려야 하는 게이트라 한 자리에서 보는 것이 싸고, U7 은 U5 의 화면 결정을 하나도 안 물려받는다.
+
+**남는 위험을 이름으로 적는다** — U8 이 「제어판과 같은 모양으로 그린다」라 U5 의 그리는 규칙을 물려받는다. **그 분기점이 U8 착수 자리이고 거기서 CB1 을 본다.** U5 는 코드가 섰고 `unit/panel-live` 에 푸시돼 있다 (커밋 2456ded · 미병합).
+**Context**: CONSTRUCTION — 웨이브 순서 변경 · U7 착수
+
+---
+
+
+## CB1 측정 — U5 `panel-live`
+**Timestamp**: 2026-09-16T13:54:11Z
+**User Input**: "U5, u8 하자 뭐부터 할지는 알아서."
+**AI Response**: U5 를 먼저 골랐다. 근거 셋 — CB1 을 U6 · U7 · U8 이 전부 딛는다 · U5 는 코드가 이미 서 있어 남은 것이 측정과 병합뿐이다 · U8 이 「제어판과 같은 모양」을 베끼므로 그 모양이 초록이기 전에 지으면 틀린 모양이 두 자리에 박힌다. 합본 나무(`measure/u5-cb1` = `unit/chunk-push` + `unit/panel-live`)에서 코드 게이트를 다시 돌렸고 (커버리지 87.6% · 미달 0 · glyphscan 0 · 라우트 18/10) 제어판만 새 빌드로 띄워 계약 둘을 실제로 돌렸다. **CB1 의 다섯 줄이 전부 초록이다** — 도는 동안 문장이 흐르고 · 도구 이름과 접힌 결과가 보이고 · 링이 감겨도 (784128 / 524288 · truncated true · head 7820) 안 깨지고 · 단계 경계에서 카드가 갈리고 · 원문 토글이 JSON 줄을 낸다. 서명은 사람의 것이라 화면 셋을 냈다.
+**Context**: CONSTRUCTION — U5 의 장면 게이트 측정
+
+---
+
+## CB1 이 드러낸 것 둘
+**Timestamp**: 2026-09-16T13:54:11Z
+**User Input**: (없음 — 측정에서 나왔다)
+**AI Response**: ① **raw 가 카드의 절반을 넘는다** — 도는 동안 사건 29 중 16 이 raw 였다 (`system/thinking_tokens` 가 토큰 델타마다 한 줄씩 온다). 규칙 R22 는 지켜졌고 파서도 화면도 안 틀렸다. **그리는 규칙이 이 자리를 안 정한 것이고, 그 값이 곧 U8 의 입력이다.** ② **wrap 단계가 하네스 계정의 다섯 시간 창을 태웠다** — base64 스물넷 중 열셋째에서 세션 한도에 닿았고 그 단계 하나가 $1.69 다. 링 감김은 한 번만 재면 되므로 다시 안 돌린다.
+**Context**: CONSTRUCTION — U5 의 장면 게이트 측정 · 회차 밖으로 낼 것
+
+---
+
+## CB1 서명 — U5 `panel-live`
+**Timestamp**: 2026-09-17T07:45:00Z
+**User Input**: "서명한다"
+**AI Response**: CB1 을 초록으로 닫는다. 사람이 실 하네스의 화면을 보고 서명한 것이고 코드 게이트로 대신하지 않았다 (`scene-gates.md` §4). 이 서명이 병합 지점이라 `unit/panel-live` 를 PR 로 `main` 에 올린다. 서명 앞에 고친 것 하나가 R30 (raw 한 줄 접기)이고, 그 규칙의 자동 검사는 U8 이 렌더러를 한 벌로 만들며 선다.
+**Context**: CONSTRUCTION — U5 의 장면 게이트 서명 · 병합
+
+---

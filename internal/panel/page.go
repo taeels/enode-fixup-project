@@ -60,8 +60,22 @@ const indexHTML = `<!doctype html>
   .actions{ display:flex; gap:8px; }
 
   .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-top:16px; }
-  .card h2{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ts); margin:0 0 14px; font-weight:600; }
+  .card h2{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ts); margin:0 0 14px; font-weight:600;
+            display:flex; align-items:center; gap:8px; }
   .muted{ color:var(--td); }
+
+  /* 트랜스크립트 카드. 값이 낡았으면 카드 전체가 흐려진다 - 마지막 값을
+     지우지 않으면서 그것을 믿으면 안 된다고 말하는 자리다. */
+  #tx-card.stale{ opacity:.55; }
+  #tx-events{ max-height:22rem; overflow:auto; }
+  .ev{ border-top:1px solid var(--border); padding:7px 0; font-size:13px; }
+  .ev:first-child{ border-top:0; }
+  .ev .k{ font-family:var(--mono); font-size:11px; color:var(--td); margin-right:8px; }
+  .ev .body{ white-space:pre-wrap; word-break:break-word; }
+  .ev .tool{ font-family:var(--mono); color:var(--drain); }
+  .ev .fold{ cursor:pointer; color:var(--ts); font-size:12px; }
+  .ev .cut{ color:var(--queued); font-size:11px; margin-left:8px; }
+  .ev.raw .body{ font-family:var(--mono); font-size:12px; color:var(--td); }
 
   .runid{ font-family:var(--mono); font-size:22px; }
   .lease{ font-family:var(--mono); font-size:20px; color:var(--leased); }
@@ -119,10 +133,18 @@ const indexHTML = `<!doctype html>
     <div id="caps"></div>
   </div>
 
-  <div class="card">
-    <h2>하네스 트랜스크립트 <span class="muted">(지금 도는 것)</span></h2>
+  <div class="card" id="tx-card">
+    <h2>하네스 트랜스크립트 <span class="muted">(지금 도는 것)</span>
+      <span class="grow"></span>
+      <span class="badge" id="tx-age"></span>
+      <button id="tx-toggle" onclick="toggleRaw()">원문</button>
+    </h2>
+    <div id="tx-stale" class="muted" style="display:none">값이 낡았다 — 제어판에 못 닿았다. 아래는 마지막으로 받은 것이다</div>
+    <div id="tx-cut" class="muted" style="display:none"></div>
     <div id="transcript-empty" class="muted">아직 없음 — 도는 단계가 없거나 아직 첫 글자 전이다</div>
+    <div id="tx-events" style="display:none"></div>
     <pre id="transcript" style="display:none"></pre>
+    <div class="subline" id="tx-ring"></div>
   </div>
 
   <div class="card">
@@ -255,17 +277,183 @@ function showLogs(){
 }
 
 // 하네스 트랜스크립트 — 로컬 링 파일을 1초로 읽는다(데몬 로그와 별개 타이머).
-// generation 이 바뀌면(새 단계) 화면을 비운다.
+//
+// 상태가 셋이고 절대로 안 합쳐진다.
+//
+//   링이 없다        "아직 없음". 도는 단계가 없거나 첫 글자 전이다
+//   읽었다           사건 열과 경과와 잘림을 그린다. 카드가 정상색
+//   폴링이 실패했다   마지막 값을 지우지 않고 카드를 흐리게 둔다
+//
+// 둘째와 셋째를 합치면 화면이 마지막 값을 정상색으로 들고 있어 멈춘 것을 도는
+// 것으로 읽는다. 앞 판이 정확히 그 모양이었다 - 빈 catch 가 실패를 삼켰다.
 var lastTxGen = -1;
+var txOpen = {};   // 펼친 도구 결과. 열쇠는 tool_use_id 다
+var txRaw = false; // 원문 토글
+var txLastWrite = null;
+
+function toggleRaw(){
+  txRaw = !txRaw;
+  el("tx-toggle").textContent = txRaw ? "사건" : "원문";
+  drawTranscript();
+}
+
+// 경과는 폴링과 별개 타이머로 흐른다. 폴링이 죽어도 시계가 멈추면 안 된다 -
+// 그 둘이 같은 타이머를 타면 "조용하다" 와 "못 닿는다" 가 한 모양이 된다.
+function drawAge(){
+  var box = el("tx-age");
+  if(txLastWrite === null){ box.textContent = ""; return; }
+  var sec = Math.max(0, Math.round((Date.now() - txLastWrite) / 1000));
+  box.textContent = "마지막 사건 " + sec + "초 전";
+}
+
+// 그리는 종류는 파서의 일곱뿐이다. 모르는 type 은 파서가 raw 로 준다.
+function evLabel(e){
+  if(e.kind === "text") return e.sub === "thinking" ? "생각" : "말";
+  if(e.kind === "tool_use") return "도구";
+  if(e.kind === "tool_result") return e.ok === false ? "결과(실패)" : "결과";
+  if(e.kind === "init") return "시작";
+  if(e.kind === "result") return "끝";
+  if(e.kind === "capped") return "상한";
+  return "raw";
+}
+
+function evSummary(e){
+  if(e.kind === "init"){
+    var i = e.info || {};
+    return [i.model, i.version, i.tools ? ("도구 " + i.tools) : ""].filter(Boolean).join(" · ");
+  }
+  if(e.kind === "result"){
+    var r = e.info || {};
+    return [r.reason, r.turns ? ("턴 " + r.turns) : "", r.cost_usd ? ("$" + r.cost_usd) : ""].filter(Boolean).join(" · ");
+  }
+  if(e.kind === "capped"){
+    return "진행 파일이 상한에 닿았다 (" + ((e.info||{}).bytes || 0) + " 바이트)";
+  }
+  // raw 는 한 줄이다. 본문 JSON 을 여기 그리면 카드가 장부가 된다 - CB1 에서
+  // 도는 동안 사건 29 중 16 이 raw 였다 (system/thinking_tokens 가 토큰
+  // 델타마다 한 줄씩 온다). 버리지는 않는다. 줄 전체는 원문 토글이 낸다.
+  if(e.kind === "raw"){
+    var n = (e.text || "").length;
+    return [e.sub, n + " 바이트"].filter(Boolean).join(" · ");
+  }
+  return e.text || "";
+}
+
+// 본문은 textContent 로만 들어간다. innerHTML 에 하네스 바이트가 0 번 닿는다 -
+// CSP 에 'unsafe-inline' 이 붙어 있으므로 이 줄이 유일한 방어다.
+function drawEvent(e){
+  var row = document.createElement("div");
+  row.className = "ev" + (e.kind === "raw" ? " raw" : "");
+
+  var k = document.createElement("span");
+  k.className = "k";
+  k.textContent = evLabel(e);
+  row.appendChild(k);
+
+  if(e.name){
+    var n = document.createElement("span");
+    n.className = "tool";
+    n.textContent = e.name;
+    row.appendChild(n);
+  }
+
+  // 도구 결과는 접어 둔다. 펼침 상태의 열쇠가 tool_use_id 인 것이 값이다 -
+  // line 번호는 파서가 창 안에서 1 부터 세므로 링이 감기면 전부 밀린다.
+  var folded = e.kind === "tool_result" && e.id;
+  if(folded && !txOpen[e.id]){
+    var f = document.createElement("span");
+    f.className = "fold";
+    f.textContent = " [펼치기]";
+    f.onclick = function(){ txOpen[e.id] = true; drawTranscript(); };
+    row.appendChild(f);
+    return row;
+  }
+  if(folded){
+    var g = document.createElement("span");
+    g.className = "fold";
+    g.textContent = " [접기]";
+    g.onclick = function(){ delete txOpen[e.id]; drawTranscript(); };
+    row.appendChild(g);
+  }
+
+  var body = document.createElement("div");
+  body.className = "body";
+  body.textContent = evSummary(e);
+  row.appendChild(body);
+
+  if(e.cut){
+    var c = document.createElement("span");
+    c.className = "cut";
+    c.textContent = e.cut + " 바이트가 잘렸다";
+    row.appendChild(c);
+  }
+  return row;
+}
+
+var txLast = null;
+function drawTranscript(){
+  var pre=el("transcript"), box=el("tx-events"), empty=el("transcript-empty");
+  var t = txLast;
+  if(!t || !t.available){
+    pre.style.display="none"; box.style.display="none"; empty.style.display="block";
+    el("tx-cut").style.display="none"; el("tx-ring").textContent="";
+    return;
+  }
+  empty.style.display="none";
+
+  // 바닥에 있었는지를 그리기 전에 잰다. 갈고 나서 재면 언제나 바닥이 아니다.
+  // 위로 올려 읽는 중이면 따라가지 않는다 - 앞 판은 무조건 따라가서 도는
+  // 동안 스크롤백을 읽을 수 없었다.
+  var view = txRaw ? pre : box;
+  var stuck = view.scrollHeight - view.scrollTop - view.clientHeight < 24;
+
+  if(txRaw){
+    box.style.display="none"; pre.style.display="block";
+    pre.textContent = t.data || "";
+  } else {
+    pre.style.display="none"; box.style.display="block";
+    box.textContent = "";
+    var evs = (t.transcript && t.transcript.events) || [];
+    for(var i=0;i<evs.length;i++){ box.appendChild(drawEvent(evs[i])); }
+    if(!evs.length){
+      var none = document.createElement("div");
+      none.className = "muted";
+      none.textContent = "아직 읽을 사건이 없다";
+      box.appendChild(none);
+    }
+  }
+  if(stuck){ view.scrollTop = view.scrollHeight; }
+
+  var cut = el("tx-cut");
+  if(t.truncated){
+    cut.style.display="block";
+    cut.textContent = "앞 " + (t.total - t.capacity) + " 바이트가 링에서 감겨 나갔다 — 이 단계의 처음이 아니다";
+  } else { cut.style.display="none"; }
+
+  el("tx-ring").textContent = "하네스 원문이 이 기계의 " + t.ring_path + " 에 남는다 — 단계마다 덮인다";
+}
+
 function loadTranscript(){
   fetch("/api/transcript").then(function(r){return r.json();}).then(function(t){
-    var pre=el("transcript"), empty=el("transcript-empty");
-    if(!t.available || !t.data){ pre.style.display="none"; empty.style.display="block"; return; }
-    empty.style.display="none"; pre.style.display="block";
-    if(t.generation !== lastTxGen){ lastTxGen = t.generation; }
-    pre.textContent = t.data;
-    pre.scrollTop = pre.scrollHeight;
-  }).catch(function(){});
+    el("tx-card").classList.remove("stale");
+    el("tx-stale").style.display="none";
+    // 세대가 바뀌면(새 단계) 펼침과 토글을 비운다. 앞 단계의 tool_use_id 로
+    // 이번 단계의 사건이 펴지면 안 된다.
+    if(t.generation !== lastTxGen){
+      lastTxGen = t.generation; txOpen = {}; txRaw = false;
+      el("tx-toggle").textContent = "원문";
+      el("tx-events").scrollTop = 0; el("transcript").scrollTop = 0;
+    }
+    txLastWrite = t.last_write ? new Date(t.last_write).getTime() : null;
+    txLast = t;
+    drawTranscript();
+    drawAge();
+  }).catch(function(){
+    // 마지막 값을 지우지 않는다. 빈 화면으로 떨어뜨리면 "단계가 끝났다" 로
+    // 읽힌다 - 실제로는 제어판에 못 닿은 것이다.
+    el("tx-card").classList.add("stale");
+    el("tx-stale").style.display="block";
+  });
 }
 
 // 지난 작업 — Mediator 가 가진 것을 읽어 이 노드 것만 (decisions §6.5).
@@ -305,6 +493,8 @@ function loadRecord(runId){
 load(); loadTranscript(); loadRuns();
 setInterval(load, 5000);
 setInterval(loadTranscript, 1000);
+// 경과는 폴링과 별개 타이머다 — 폴링이 죽어도 시계가 흐른다.
+setInterval(drawAge, 1000);
 setInterval(loadRuns, 5000);
 </script>
 </body>

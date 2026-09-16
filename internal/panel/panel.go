@@ -47,6 +47,10 @@ type Server struct {
 	// 제어판 자신이 enode(enode panel)이므로 자기를 --config 로 다시 띄운다.
 	// 시험이 무해한 실행파일로 갈아끼우는 이음매다.
 	startBin string
+
+	// live 는 도는 트랜스크립트의 한 칸 캐시다. 1초 폴링이 매번 512 KiB 를
+	// 다시 파싱하지 않게 한다 — 침묵 구간에서 비용이 0 이 된다.
+	live liveCache
 }
 
 // New 는 제어판 서버를 만든다.
@@ -86,10 +90,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/transcript", s.handleTranscript)
 	mux.HandleFunc("GET /api/runs", s.handleRuns)
 	mux.HandleFunc("GET /api/record", s.handleRecord)
+	// 보안 헤더가 가장 바깥이다 — requireToken 이 내는 401 도 브라우저가
+	// 그리는 문서라 같은 헤더가 붙어야 한다.
 	if s.cfg.PanelToken != "" {
-		return s.requireToken(mux)
+		return securityHeaders(s.requireToken(mux))
 	}
-	return mux
+	return securityHeaders(mux)
 }
 
 // requireToken 은 Authorization: Bearer <panel_token> 을 요구한다 (LAN 노출 시).
