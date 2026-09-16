@@ -185,9 +185,9 @@ type Elided struct{ Events, Bytes int }
 
 ### Step 1 — 겉면을 못 박는다
 
-- [ ] 3절의 글자를 `internal/transcript/transcript.go` 의 선언으로 먼저 놓는다.
+- [x] 3절의 글자를 `internal/transcript/transcript.go` 의 선언으로 먼저 놓는다.
       몸통은 비어도 된다 — **세 갈래가 같은 시점에 같은 이름을 본다**
-- [ ] 패키지 주석에 적는 것 넷 — 파서가 아래를 모른다는 방향(R9) ·
+- [x] 패키지 주석에 적는 것 넷 — 파서가 아래를 모른다는 방향(R9) ·
       짓는 쪽과 읽는 쪽이 한 패키지인 이유(NFR Design 2.1) ·
       `Kind` 가 닫힌 어휘라는 것(R3.3) · 금지 넷의 검사기가 어디 있는지(5.4)
 
@@ -195,20 +195,20 @@ type Elided struct{ Events, Bytes int }
 
 **환경에 `claude 2.1.271` 이 있다** (실측 · 표 ⑳ 의 `2.1.266` 보다 나중이다).
 
-- [ ] `-p --output-format stream-json --verbose` 로 도구를 부르는 한 턴을 돌린다
-- [ ] ① `user` 의 `tool_result` 블록에 **`tool_use_id` 키가 있는가** (R12 · 물음 밖)
-- [ ] ② 그 블록의 **`content` 가 문자열인가 배열인가** (물음 1 — 11절)
-- [ ] 결과를 `code-summary.md` 에 적는다. **원문은 저장소에 안 싣는다** (⑳ 의 규율)
-- [ ] 실측한 모양을 손으로 지어 `testdata/lines/` 에 넣는다 (R15.2)
-- [ ] **못 돌리면 멈추지 않는다** — ① 은 R12.2 로 떨어지고(규칙이 키의 존재에
+- [x] `-p --output-format stream-json --verbose` 로 도구를 부르는 한 턴을 돌린다
+- [x] ① `user` 의 `tool_result` 블록에 **`tool_use_id` 키가 있는가** (R12 · 물음 밖)
+- [x] ② 그 블록의 **`content` 가 문자열인가 배열인가** (물음 1 — 11절)
+- [x] 결과를 `code-summary.md` 에 적는다. **원문은 저장소에 안 싣는다** (⑳ 의 규율)
+- [x] 실측한 모양을 손으로 지어 `testdata/lines/` 에 넣는다 (R15.2)
+- [x] **못 돌리면 멈추지 않는다** — ① 은 R12.2 로 떨어지고(규칙이 키의 존재에
       안 기댄다) ② 는 물음 1 의 A 로 간다. **못 쟀다는 것을 `code-summary.md` 에
       그대로 적는다** — 잰 것이 없는 것이지 초록이 아니다
 
 ### Step 3 — 이음매의 글자를 못 박는다 (6절)
 
-- [ ] `shell.go` 에 `const capped = "enode.capped"` 하나. **글자가 한 자리다**
-- [ ] `testdata/lines/capped.json` 에 `{"type":"enode.capped","bytes":10485760}`
-- [ ] `transcript.go` 의 `Info.Bytes` 주석에 **닿은 상한**임을 적고 U3 을 가리킨다
+- [x] `shell.go` 에 `const capped = "enode.capped"` 하나. **글자가 한 자리다**
+- [x] `testdata/lines/capped.json` 에 `{"type":"enode.capped","bytes":10485760}`
+- [x] `transcript.go` 의 `Info.Bytes` 주석에 **닿은 상한**임을 적고 U3 을 가리킨다
       (R3.8 — 찍는 조건을 이 유닛이 안 적는다)
 
 ---
@@ -217,110 +217,110 @@ type Elided struct{ Events, Bytes int }
 
 ### Step 4 — `transcript.go` — 형식
 
-- [ ] `Kind` 일곱과 상수. **닫힌 어휘임을 주석이 적는다** (R3.3)
-- [ ] `Event` 의 필드 열하나. `OK *bool` 의 삼상태 · `Cut` 이 잘린 바이트 수이지
+- [x] `Kind` 일곱과 상수. **닫힌 어휘임을 주석이 적는다** (R3.3)
+- [x] `Event` 의 필드 열하나. `OK *bool` 의 삼상태 · `Cut` 이 잘린 바이트 수이지
       원래 길이가 아님 · `Shell` 이 US-6 을 세운다는 것을 주석이 적는다
-- [ ] `Info` · `Server` · `Result` · `Elided` · `Fields`
-- [ ] `Fields` 가 **별칭**인 이유를 적는다 — 정의 타입이면 경계마다 변환이 생기고
+- [x] `Info` · `Server` · `Result` · `Elided` · `Fields`
+- [x] `Fields` 가 **별칭**인 이유를 적는다 — 정의 타입이면 경계마다 변환이 생기고
       그 변환이 하는 일이 0 이다 (`domain-entities.md` 2절)
-- [ ] `map[string]any` 를 안 쓰는 이유를 적는다 (R2.1 · SECURITY-13)
+- [x] `map[string]any` 를 안 쓰는 이유를 적는다 (R2.1 · SECURITY-13)
 
 ### Step 5 — `line.go` — 읽는 통로 (옮기기)
 
-- [ ] 다섯을 `runner.go` 에서 그대로 옮긴다. **몸통을 한 줄도 안 바꾼다**
-- [ ] 이름만 바꾼다 — 1.2 의 표 그대로. `map[string]json.RawMessage` 를
+- [x] 다섯을 `runner.go` 에서 그대로 옮긴다. **몸통을 한 줄도 안 바꾼다**
+- [x] 이름만 바꾼다 — 1.2 의 표 그대로. `map[string]json.RawMessage` 를
       `Fields` 로 적는다 (별칭이라 뜻이 같다)
-- [ ] `runner.go:381-385` 의 근거 주석(구조체로 한 번에 안 받는 이유)과
+- [x] `runner.go:381-385` 의 근거 주석(구조체로 한 번에 안 받는 이유)과
       `runner.go:511-512` 의 주석(모양이 다르면 없는 것으로 본다)을 **함께 옮긴다**
 
 ### Step 6 — `shell.go` — 짓는 통로 (옮기기)
 
-- [ ] 다섯을 그대로 옮긴다. `logShell` 의 필드 다섯과 JSON 태그를 안 바꾼다 (R13)
-- [ ] `elidedMark` 의 `"enode.elided"` 도 안 바꾼다 (R13)
-- [ ] `runner.go:399-406` 의 근거 주석(지우는 쪽이 아니라 짓는 쪽) ·
+- [x] 다섯을 그대로 옮긴다. `logShell` 의 필드 다섯과 JSON 태그를 안 바꾼다 (R13)
+- [x] `elidedMark` 의 `"enode.elided"` 도 안 바꾼다 (R13)
+- [x] `runner.go:399-406` 의 근거 주석(지우는 쪽이 아니라 짓는 쪽) ·
       `runner.go:415-418`(점 있는 `type` 은 우리 것) · `runner.go:466-468`
       (`estimated_tokens` — 범위를 넓힌 자리)을 **함께 옮긴다**
-- [ ] Step 3 의 `capped` 상수를 여기 둔다 — `enode.` 표시 줄의 글자가 한 파일이다
+- [x] Step 3 의 `capped` 상수를 여기 둔다 — `enode.` 표시 줄의 글자가 한 파일이다
 
 ### Step 7 — `parse.go` — `Parse` 의 파이프라인 여덟
 
 `business-logic-model.md` 1절의 순서 그대로다. **순서가 값이다.**
 
-- [ ] ① 머리 자르기 — `truncated` 면 첫 개행 뒤부터. 버린 수를 `Head` 에 (R7.1).
+- [x] ① 머리 자르기 — `truncated` 면 첫 개행 뒤부터. 버린 수를 `Head` 에 (R7.1).
       개행이 하나도 없으면 빈 `Result`
-- [ ] ② 꼬리 자르기 — 개행으로 안 끝나면 떼고 `Partial` 에 (R7.2)
-- [ ] ③ `SplitLines`. **`selectLogs` 와 같은 함수다** (R11.1)
-- [ ] ④ 판정 사다리 넷 — 2절의 순서. **②가 ③ · ④보다 위다** (R3.5 · 2.3)
-- [ ] ⑤ 사건 짓기 — 원문 줄기와 껍데기 줄기 (3.1 · 3.2). 블록 0 도 사건 하나 (R5)
-- [ ] ⑥ 표시 줄 가르기 — `enode.elided` 는 `Result.Elided`, `enode.capped` 는
+- [x] ② 꼬리 자르기 — 개행으로 안 끝나면 떼고 `Partial` 에 (R7.2)
+- [x] ③ `SplitLines`. **`selectLogs` 와 같은 함수다** (R11.1)
+- [x] ④ 판정 사다리 넷 — 2절의 순서. **②가 ③ · ④보다 위다** (R3.5 · 2.3)
+- [x] ⑤ 사건 짓기 — 원문 줄기와 껍데기 줄기 (3.1 · 3.2). 블록 0 도 사건 하나 (R5)
+- [x] ⑥ 표시 줄 가르기 — `enode.elided` 는 `Result.Elided`, `enode.capped` 는
       사건 하나, 모르는 `enode.*` 는 `raw` (R3.6 · R3.7). **둘 다 `Lines` 에 센다**
-- [ ] ⑦ 붙이기 — 같은 `ID` 의 `tool_use` 에서 `Name` 을 채운다. 짝이 없으면
+- [x] ⑦ 붙이기 — 같은 `ID` 의 `tool_use` 에서 `Name` 을 채운다. 짝이 없으면
       빈 채로 선다 (R12.2). **껍데기 줄기에서는 안 붙인다** (R12.3)
-- [ ] ⑧ 세기 — `Lines` · `Raw`
-- [ ] `Tokens` 는 그 줄이 낸 **첫 사건**에만 (R6)
-- [ ] 시계를 안 받는다 · `error` 를 안 돌려준다 (R10.1) · 로거를 안 받는다 (SECURITY-03)
+- [x] ⑧ 세기 — `Lines` · `Raw`
+- [x] `Tokens` 는 그 줄이 낸 **첫 사건**에만 (R6)
+- [x] 시계를 안 받는다 · `error` 를 안 돌려준다 (R10.1) · 로거를 안 받는다 (SECURITY-03)
 
 ### Step 8 — `parse.go` — 룬 경계 자르기 (7절)
 
-- [ ] 자르는 함수 하나. `tool_use` 200 · `tool_result` 500 바이트 (R8.1)
-- [ ] 상한 자리에서 시작해 `utf8.RuneStart` 가 거짓인 동안 뒤로 물린다. **최대 셋**
-- [ ] 못 물리면 빈 문자열이고 `Cut` 이 전체 길이다. **멈추지 않는 경로가 0 이다**
-- [ ] `len(Text) + Cut == 원래 길이` 가 언제나 참이다 (R8.2)
-- [ ] `text` · `thinking` · `plain` · `raw` 는 안 자른다 (R8.3)
-- [ ] **안 고친다** — 원래 깨진 바이트는 깨진 채다. 치환도 마스킹도 없다 (R8.4)
+- [x] 자르는 함수 하나. `tool_use` 200 · `tool_result` 500 바이트 (R8.1)
+- [x] 상한 자리에서 시작해 `utf8.RuneStart` 가 거짓인 동안 뒤로 물린다. **최대 셋**
+- [x] 못 물리면 빈 문자열이고 `Cut` 이 전체 길이다. **멈추지 않는 경로가 0 이다**
+- [x] `len(Text) + Cut == 원래 길이` 가 언제나 참이다 (R8.2)
+- [x] `text` · `thinking` · `plain` · `raw` 는 안 자른다 (R8.3)
+- [x] **안 고친다** — 원래 깨진 바이트는 깨진 채다. 치환도 마스킹도 없다 (R8.4)
 
 ### Step 9 — `testdata/` — 픽스처와 README
 
-- [ ] `testdata/lines/` 에 줄 하나씩 파일로 (R15.1). 다섯은 `logs_test.go` 의
+- [x] `testdata/lines/` 에 줄 하나씩 파일로 (R15.1). 다섯은 `logs_test.go` 의
       오늘 상수 그대로 — `init` · `assistant-tool` · `assistant-text` ·
       `user-result` · `result`
-- [ ] 이 유닛만 쓰는 것 — `elided` · `capped` · `unknown-enode` · `rate-limit` ·
+- [x] 이 유닛만 쓰는 것 — `elided` · `capped` · `unknown-enode` · `rate-limit` ·
       `hook-response` · `type-not-string` · `plain` · `shell-assistant`
-- [ ] `testdata/README.md` — **실측 원문이 아니라 실측한 모양을 손으로 지은
+- [x] `testdata/README.md` — **실측 원문이 아니라 실측한 모양을 손으로 지은
       것**임을 적는다 (R15.2). 고치면 실측과 갈린다는 경고도 같이
-- [ ] 읽는 도우미는 `internal/transcript` 와 `internal/enode` **양쪽**에 한 줄씩.
+- [x] 읽는 도우미는 `internal/transcript` 와 `internal/enode` **양쪽**에 한 줄씩.
       **파일이 한 벌이다** (R15.3). 꼬리 개행을 떼는 자리가 그 도우미다
 
 ### Step 10 — 시험 — 규칙마다 하나
 
-- [ ] `shell_test.go` — `logs_test.go` 의 표 시험 일곱 갈래를 그대로 옮긴다
+- [x] `shell_test.go` — `logs_test.go` 의 표 시험 일곱 갈래를 그대로 옮긴다
       (`TestShell_CarriesOnlyWhatWasAllowed`). **기대 문자열을 한 글자도 안 바꾼다** (R13)
-- [ ] `shell_test.go` — 누출 시험. 고정 문자열 셋 `/etc/shadow` ·
+- [x] `shell_test.go` — 누출 시험. 고정 문자열 셋 `/etc/shadow` ·
       `sk-ant-secret` · `root:x:0:0` 이 따라온다 (NFR Design B5)
-- [ ] `parse_test.go` R1 — `Lines == 집계 줄 수 + 사건을 낸 줄 수` · 줄 하나를
+- [x] `parse_test.go` R1 — `Lines == 집계 줄 수 + 사건을 낸 줄 수` · 줄 하나를
       지우면 `Lines` 가 하나 준다
-- [ ] `parse_test.go` R2 — `usage` 에 문자열과 객체를 섞고 `Tokens` 에 정수 넷만
-- [ ] `parse_test.go` R3 — 줄 여섯 (비JSON · `type` 이 숫자 · `rate_limit_event` ·
+- [x] `parse_test.go` R2 — `usage` 에 문자열과 객체를 섞고 `Tokens` 에 정수 넷만
+- [x] `parse_test.go` R3 — 줄 여섯 (비JSON · `type` 이 숫자 · `rate_limit_event` ·
       `system/hook_response` · `enode.capped` · `enode.wibble`). **`capped` 의
       `Info.Bytes` 가 줄의 `bytes` 그대로**임을 잰다 (R3.9 — 총 길이로 안 고친다)
-- [ ] `parse_test.go` R4 — 같은 `assistant` 를 원문과 `Shell()` 결과로 넣어
+- [x] `parse_test.go` R4 — 같은 `assistant` 를 원문과 `Shell()` 결과로 넣어
       `Shell` 이 거짓/참으로 갈리는지
-- [ ] `parse_test.go` R5 — `{"type":"assistant"}` 하나에 `len(Events) == 1`
-- [ ] `parse_test.go` R6 — `tool_use` 블록 둘인 줄에서 `Tokens` 가 첫 사건에만
-- [ ] `parse_test.go` R7 — 같은 바이트를 개행 있이/없이. `len(Events)` 가 하나
+- [x] `parse_test.go` R5 — `{"type":"assistant"}` 하나에 `len(Events) == 1`
+- [x] `parse_test.go` R6 — `tool_use` 블록 둘인 줄에서 `Tokens` 가 첫 사건에만
+- [x] `parse_test.go` R7 — 같은 바이트를 개행 있이/없이. `len(Events)` 가 하나
       차이나고 `Partial` 이 그 줄의 길이
-- [ ] `parse_test.go` R8 — ① 600 바이트 도구 결과에 `len(Text)==500` · `Cut==100`
+- [x] `parse_test.go` R8 — ① 600 바이트 도구 결과에 `len(Text)==500` · `Cut==100`
       ② 같은 길이의 `text` 블록은 **안 잘린다** ③ 500 번째가 한글 룬 가운데면
       `len(Text)` 가 498 로 물러나고 `len(Text)+Cut` 이 원래 길이와 같다
-- [ ] `parse_test.go` R10.2 — 입력 다섯(빈 바이트 · 개행만 · 잘린 JSON ·
+- [x] `parse_test.go` R10.2 — 입력 다섯(빈 바이트 · 개행만 · 잘린 JSON ·
       거대한 한 줄 · 이어바이트로만 시작하는 줄)에 패닉 0
-- [ ] `parse_test.go` R12 — 붙는 경로 하나와 못 붙는 경로 셋 (5.1 의 ①②③)
-- [ ] `roundtrip_test.go` — **왕복** (NFR Design B4). `Shell` 이 지은 바이트를
+- [x] `parse_test.go` R12 — 붙는 경로 하나와 못 붙는 경로 셋 (5.1 의 ①②③)
+- [x] `roundtrip_test.go` — **왕복** (NFR Design B4). `Shell` 이 지은 바이트를
       `Parse` 에 먹여 `Kind` · `Name` · `OK` · `Tokens` 가 서고 `Shell` 이 참인지.
       **`Shell` 의 JSON 태그를 바꾸면 이 시험이 같은 패키지 안에서 빨개진다**
 
 ### Step 11 — `FuzzParse` 와 불변식 넷
 
-- [ ] `fuzz_test.go` 에 대상 하나. `FuzzParseLine` · `FuzzShell` 을 **안 만든다**
+- [x] `fuzz_test.go` 에 대상 하나. `FuzzParseLine` · `FuzzShell` 을 **안 만든다**
       (코퍼스가 두 벌이 된다 · `nfr-requirements.md` 4.1)
-- [ ] 시드는 Step 9 의 픽스처 그대로 `f.Add` (4.3). **두 벌이 0 이다**
-- [ ] F1 — 어떤 입력에도 패닉하지 않는다
-- [ ] F2 — **입력이 올바른 UTF-8 일 때만** `Cut > 0` 인 `Text` 가 올바른
+- [x] 시드는 Step 9 의 픽스처 그대로 `f.Add` (4.3). **두 벌이 0 이다**
+- [x] F1 — 어떤 입력에도 패닉하지 않는다
+- [x] F2 — **입력이 올바른 UTF-8 일 때만** `Cut > 0` 인 `Text` 가 올바른
       UTF-8 이다. **조건이 붙는 이유는 7.2 다** — 이 글자가 고친 값이다
-- [ ] F3 — 줄을 안 버린다. 집계 줄 수는 `Elided != nil` 이면 1, 사건을 낸 줄 수는
+- [x] F3 — 줄을 안 버린다. 집계 줄 수는 `Elided != nil` 이면 1, 사건을 낸 줄 수는
       `Event.Line` 의 서로 다른 값의 수
-- [ ] F4 — `Head` · `Partial` 이 음수가 아니고 입력 길이를 안 넘는다
-- [ ] 추가로 언제나 참인 것 하나 — `len(Text) + Cut` 이 음수가 아니다.
+- [x] F4 — `Head` · `Partial` 이 음수가 아니고 입력 길이를 안 넘는다
+- [x] 추가로 언제나 참인 것 하나 — `len(Text) + Cut` 이 음수가 아니다.
       **입력의 유효성과 무관한 유일한 자르기 불변식이다** (7.2)
 
 ---
@@ -329,8 +329,8 @@ type Elided struct{ Events, Bytes int }
 
 ### Step 12 — `runner.go` — 덜어내고 다시 부른다
 
-- [ ] `runner.go:369` ~ `:535` 를 지운다. **한 덩어리라 사이에 남는 것이 없다**
-- [ ] `selectLogs` 의 다섯 자리를 바꾼다. **로직은 한 줄도 안 바뀐다** (R11.2)
+- [x] `runner.go:369` ~ `:535` 를 지운다. **한 덩어리라 사이에 남는 것이 없다**
+- [x] `selectLogs` 의 다섯 자리를 바꾼다. **로직은 한 줄도 안 바뀐다** (R11.2)
 
 ```text
    runner.go:316   splitLines(stdout)              -> transcript.SplitLines
@@ -341,24 +341,24 @@ type Elided struct{ Events, Bytes int }
    runner.go:361   elidedMarker(events, elided)    -> transcript.ElidedMarker
 ```
 
-- [ ] 임포트를 더한다. **방향이 하나다** — `enode -> transcript` 만 (R9.1 · 7.2)
-- [ ] `encoding/json` 이 `runner.go` 에서 아직 쓰이는지 확인하고, 안 쓰이면 뺀다
-- [ ] `selectLogs` 머리 주석의 「어댑터가 아니라 여기서 한다」를 **안 지운다** —
+- [x] 임포트를 더한다. **방향이 하나다** — `enode -> transcript` 만 (R9.1 · 7.2)
+- [x] `encoding/json` 이 `runner.go` 에서 아직 쓰이는지 확인하고, 안 쓰이면 뺀다
+- [x] `selectLogs` 머리 주석의 「어댑터가 아니라 여기서 한다」를 **안 지운다** —
       옮기면 그 근거가 갈 곳을 잃는다 (`business-logic-model.md` 7.1)
 
 ### Step 13 — `logs_test.go` — 세 자리
 
 **실측 — 이 파일에 시험 함수가 열이고 그중 아홉이 `selectLogs` 를 부른다.**
 
-- [ ] 상수 다섯을 `testdata/lines/` 읽기로 바꾼다 (R15.3). **시험 함수 아홉의
+- [x] 상수 다섯을 `testdata/lines/` 읽기로 바꾼다 (R15.3). **시험 함수 아홉의
       몸통은 한 줄도 안 바뀐다** — 이름이 그대로이기 때문이다
-- [ ] `logs_test.go:134` 의 `var mark elidedMark` 를 `var mark transcript.Elided`
+- [x] `logs_test.go:134` 의 `var mark elidedMark` 를 `var mark transcript.Elided`
       로 **한 줄** 바꾼다. `Elided` 에 태그가 없어도 `encoding/json` 이 키를
       대소문자 무시로 맞춰 `Events` · `Bytes` 가 그대로 찬다 (3절)
-- [ ] `TestLogs_TheShellCarriesOnlyWhatWasAllowed`(`:175-234`)를 **통째로 옮긴다**
+- [x] `TestLogs_TheShellCarriesOnlyWhatWasAllowed`(`:175-234`)를 **통째로 옮긴다**
       — `parseEventLine` 과 `eventShell` 을 직접 부르므로 이 패키지에 못 남는다.
       간 자리는 Step 10 의 `shell_test.go`
-- [ ] **R11.2 의 「한 줄도 안 고친 채」가 그대로는 거짓이다** — 아홉 중 하나가
+- [x] **R11.2 의 「한 줄도 안 고친 채」가 그대로는 거짓이다** — 아홉 중 하나가
       `elidedMark` 타입을 쓴다. 고치는 것이 **정확히 한 줄**이고 나머지 여덟은
       손대지 않는다. 그 사실을 `code-summary.md` 에 적는다
 
@@ -371,9 +371,9 @@ type Elided struct{ Events, Bytes int }
 **`selectLogs` 가 비공개라 이 시험은 `internal/enode` 에만 설 수 있다.**
 `internal/transcript` 는 `internal/enode` 를 임포트할 수 없다 (R9.1).
 
-- [ ] 같은 stdout 을 ① 원문 그대로 `transcript.Parse` ② `selectLogs` 를 지나
+- [x] 같은 stdout 을 ① 원문 그대로 `transcript.Parse` ② `selectLogs` 를 지나
       `transcript.Parse`
-- [ ] **재는 범위를 좁혀 적는다** (`business-logic-model.md` 9절) —
+- [x] **재는 범위를 좁혀 적는다** (`business-logic-model.md` 9절) —
       `Kind` 의 열 · 순서 · `Name` · `OK` 가 **같고** `Text` 와 `Shell` 과 `ID` 는
       **다르다**. 「전부 같다」로 적으면 쓸 수 없는 수용 기준이 된다
 
@@ -383,10 +383,10 @@ type Elided struct{ Events, Bytes int }
 
 ### Step 15 — `boundary_test.go` — 표로 바꾸고 다섯 줄을 더한다 (5절)
 
-- [ ] 금지 쌍을 **표 하나**로 바꾼다. 오늘은 슬라이스 하나와 `if` 둘이다 (행렬 6.2)
-- [ ] 여덟 줄 — 기존 셋 + `api/ui -> store`(빈자리 · 6.3) + `transcript` 의 넷
-- [ ] `internal/transcript` 가 **표준 라이브러리만** 쓰는지 한 줄로 잰다 (R9.4)
-- [ ] `cmd/enode -> internal/panel` 의 **있어야 한다** 검사는 표 밖에 그대로 둔다 —
+- [x] 금지 쌍을 **표 하나**로 바꾼다. 오늘은 슬라이스 하나와 `if` 둘이다 (행렬 6.2)
+- [x] 여덟 줄 — 기존 셋 + `api/ui -> store`(빈자리 · 6.3) + `transcript` 의 넷
+- [x] `internal/transcript` 가 **표준 라이브러리만** 쓰는지 한 줄로 잰다 (R9.4)
+- [x] `cmd/enode -> internal/panel` 의 **있어야 한다** 검사는 표 밖에 그대로 둔다 —
       금지 표가 못 담는 모양이다
 
 ---
@@ -397,38 +397,93 @@ type Elided struct{ Events, Bytes int }
 
 넣고 **빨개지는지** 본다. 안 빨개지면 그 규칙을 재는 시험이 없는 것이다.
 
-- [ ] ① 사다리에서 ②(`enode.` 갈래)를 걷는다 -> `capped` 가 `raw` 로 떨어져야 빨강
-- [ ] ② 껍데기 판정을 `assistant` · `user` 밖으로 넓힌다 -> R4.3 이 빨강
-- [ ] ③ `Tokens` 를 사건마다 복사한다 -> R6 이 빨강
-- [ ] ④ 룬 경계 물리기를 걷고 바이트로 그냥 자른다 -> R8 ③ 과 F2 가 빨강
-- [ ] ⑤ 블록 0 인 줄을 사건 0 으로 넘긴다 -> R1 · R5 가 빨강
+- [x] ① 사다리에서 ②(`enode.` 갈래)를 걷는다 -> `capped` 가 `raw` 로 떨어져야 빨강
+- [x] ② 껍데기 판정을 `assistant` · `user` 밖으로 넓힌다 -> R4.3 이 빨강
+- [x] ③ `Tokens` 를 사건마다 복사한다 -> R6 이 빨강
+- [x] ④ 룬 경계 물리기를 걷고 바이트로 그냥 자른다 -> R8 ③ 과 F2 가 빨강
+- [x] ⑤ 블록 0 인 줄을 사건 0 으로 넘긴다 -> R1 · R5 가 빨강
+
+**④ 와 ⑤ 의 기대가 실측과 갈렸다** (2026-09-16 · Part 2).
+
+```text
+   ④  적힌 것   R8 ③ 과 F2 가 빨강
+      실측      R8 ③ 만 빨강.  **F2 는 초록이었다** — 시드 열여섯 중 Cut > 0 을
+                내는 것이 0 이라 그 불변식의 전제가 한 번도 안 섰다.
+                -fuzz 45 초로도 안 잡혔다
+      한 것      testdata/lines/long-tool-result.json 을 더했다 (498 바이트 뒤 한글).
+                이제 -fuzz 없이 go test 만으로 F2 가 ④ 를 잡는다
+
+   ⑤  적힌 것   R1 · R5 가 빨강
+      실측      **전부 초록이었다.**  되돌림이 줄기 둘에 하나씩인데 R5 시험이
+                껍데기 줄기만 밟았다 — {"type":"assistant"} 는 message 키가
+                없어 shellEvents 로 간다.  원문 줄기의 되돌림은 아무 시험도
+                안 밟아 지워도 초록이었다
+      한 것      R5 를 줄기 넷의 표로 넓히고 assistant-no-blocks.json 을
+                R1 입력에 넣었다.  이제 R1 · R5 · F3 셋이 빨개진다
+```
+
+**둘 다 시험만 고쳤고 제품 코드는 한 줄도 안 바뀌었다.** 변이가 찾으라고 있는
+것이 정확히 이 둘이다.
 
 ### Step 17 — 벤치마크 — 증폭의 수를 잰다
 
 `nfr-requirements.md` 7절이 「벤치마크가 아직 없다. Code Generation 이 잰다」로
 넘긴 자리다. **커버리지 분모를 안 먹는다** (1.3 ②).
 
-- [ ] 자리는 `internal/transcript/bench_test.go` 하나다. **시험 파일 다섯째다**
-- [ ] `unsafe.Sizeof(Event{})` 를 시험 하나로 못 박는다. **실측 224 바이트**
+- [x] 자리는 `internal/transcript/bench_test.go` 하나다. **시험 파일 다섯째다**
+- [x] `unsafe.Sizeof(Event{})` 를 시험 하나로 못 박는다. **실측 224 바이트**
       (amd64 · 2026-09-15). `nfr-requirements.md` 5.1 의 계산값과 같다
-- [ ] `BenchmarkParse` — 파싱 비용이 입력의 약 2배인지 (`-benchmem` 의 `B/op`)
-- [ ] 최악의 사건 배열 약 112 MB 는 **곱셈으로 적고 안 돌린다** —
+- [x] `BenchmarkParse` — 파싱 비용이 입력의 약 2배인지 (`-benchmem` 의 `B/op`)
+- [x] 최악의 사건 배열 약 112 MB 는 **곱셈으로 적고 안 돌린다** —
       10 MiB 입력을 벤치마크로 돌리면 CI 가 아니라 사람의 기계가 멈춘다
-- [ ] 잰 값을 `code-summary.md` 에 적고 **U4 에 넘긴다** (`nfr-requirements.md` 5절)
+- [x] 잰 값을 `code-summary.md` 에 적고 **U4 에 넘긴다** (`nfr-requirements.md` 5절)
+
+**이 절의 수 둘이 실측과 갈렸다** (2026-09-16 · Part 2 · `code-summary.md` 7절).
+
+```text
+   「약 2배」를 B/op 로 재라   재는 값이 둘이고 B/op 는 그 둘 중 다른 쪽이다
+                            붙든 것 (사건 배열)   입력의 **1.67 배**  -> 「약 2배」가 맞다
+                            B/op (총 할당)        입력의 **24.8 배**  -> GC 부담이다
+                            둘 다 참이고 U4 가 둘 다 알아야 한다
+
+   「최악 약 112 MB」        **21 배 적다.**  그 곱셈은 가장 짧은 JSON 줄
+                            (21 바이트)을 가정한다.  개행만 든 줄은 1 바이트이고
+                            그것도 사건 하나다 (plain 으로 떨어진다)
+                              21 바이트/줄   10.7x  ->    112 MB   적힌 값
+                               2 바이트/줄  112.0x  ->  1,174 MB
+                               1 바이트/줄  224.0x  ->  **2,349 MB**
+```
+
+**U1 이 상한을 안 건다** — 10절이 그것을 짓지 않는 것에 넣었고 `as=events` 를
+지는 것은 U4 다. 12절 ⑦ 이 그 수를 넘긴다.
 
 ### Step 18 — 게이트 (8절)
 
-- [ ] 8.1 의 순서대로 열둘을 돌린다
-- [ ] 미달이 하나라도 있으면 **그 자리에서 멈춘다.** 하한을 낮추지 않는다
+- [x] 8.1 의 순서대로 열둘을 돌린다
+- [x] 미달이 하나라도 있으면 **그 자리에서 멈춘다.** 하한을 낮추지 않는다
 
 ### Step 19 — 문서
 
-- [ ] `construction/transcript/code/code-summary.md` — 옮긴 열 · Step 2 의 실측
+- [x] `construction/transcript/code/code-summary.md` — 옮긴 열 · Step 2 의 실측
       둘 · Step 17 의 수 · **Step 3 의 이음매를 맞댄 결과**(6절) · 못 잰 것
-- [ ] 12절의 표시를 진행자에게 넘긴다. **회차 문서와 팩을 이 유닛이 안 고친다**
+- [x] 12절의 표시를 진행자에게 넘긴다. **회차 문서와 팩을 이 유닛이 안 고친다**
 - [ ] 이 계획의 체크박스를 전부 `[x]` 로 (규칙 Step 12)
 - [ ] `aidlc-docs/taeels/aidlc-state.md` 와 `audit.md` — **진행자의 것이 아니라
       이 담당의 것이다** (`CONVENTIONS.md` 3.4). Part 2 가 싣는다
+
+**열린 셋을 이름으로 적는다** (2026-09-16 · Part 2 가 닫으며).
+
+**아흔일곱 중 아흔넷이 `[x]` 이고 남은 셋은 이 단계가 못 채우는 것이다.**
+빠뜨린 것이 아니므로 채우면 그것이 거짓 초록이다.
+
+```text
+   429  「전부 [x] 로」   아래 둘이 열려 있는 동안은 거짓이다.  둘이 닫히면 함께 닫힌다
+   430  상태와 감사       **진행자가 안 건드리라고 했다** — 회차 브랜치에서 자기가 쓴다.
+                        계획이 「Part 2 가 싣는다」로 적은 것과 갈렸고,
+                        갈림의 이긴 쪽은 진행자의 지시다
+   582  U3 과 맞대기      U3 의 코드가 이 브랜치에 없다.  착수 순서가 U1 을 먼저 세운다.
+                        진행자가 U3 병합 뒤에 돌린다 (6.4 ③ · code-summary 4.2)
+```
 
 ---
 
@@ -574,10 +629,10 @@ U3 은 아직 `main` 에 없고, 착수 순서가 ①U1 ... ④U3 이라 **U1 �
 
 ### 6.4 맞대는 절차 — 셋
 
-- [ ] ① **U1 안에서** — 글자가 `shell.go` 의 상수 하나이고
+- [x] ① **U1 안에서** — 글자가 `shell.go` 의 상수 하나이고
       `testdata/lines/capped.json` 이 그 바이트를 든다. 시험이 그 파일을 읽어
       `Kind == KindCapped` 이며 `Info.Bytes == 10485760` 임을 잰다 (Step 10 R3)
-- [ ] ② **`code-summary.md` 에** — 맞댈 것 둘(`type` 의 글자 · `bytes` 의 뜻)과
+- [x] ② **`code-summary.md` 에** — 맞댈 것 둘(`type` 의 글자 · `bytes` 의 뜻)과
       U1 이 든 값을 그대로 적는다. **U3 이 읽을 자리가 그것이다**
 - [ ] ③ **U3 이 병합된 뒤 진행자가** — 아래 한 줄을 돌려 두 자리의 글자를 맞댄다
 
@@ -890,5 +945,32 @@ X) Other (please describe after [Answer]: tag below)
 
 **⑦ 과 ⑧ 이 같은 결이다** — 둘 다 **글자로 센 수가 표와 어긋난 자리**이고,
 둘 다 값의 방향을 안 바꾼다. 고치는 사람이 같으므로 한 커밋에 묶어도 된다.
+
+**Part 2 가 넷을 더 찾았다** (2026-09-16). 근거는 전부 `code-summary.md` 다.
+
+```text
+   ⑨  as=events 의 사건 수 상한을 U4 가 진다.
+      **최악이 이 계획의 112 MB 가 아니라 2.3 GB 다** (Step 17 의 고친 글자).
+      개행만 든 10 MiB 입력이 사건 1,048 만 개를 낸다 — 빈 줄도 사건 하나다.
+      U1 은 상한을 안 건다 (10절)
+
+   ⑩  물음 1 의 규칙 번호가 비어 있다.  **값은 실측이 정했다** —
+      2026-09-16 에 배열 꼴을 실물로 봤고 그 안이 image 원소 하나라
+      건질 본문이 0 이었다.  A 로 지었고 시험이 묶었다.
+      business-rules.md 에 R 번호로 올리는 것은 앞 단계의 문서라 안 고쳤다.
+      적을 말은 code-summary.md 3.2 가 그대로 든다
+
+   ⑪  .coverage-contract.yml 의 command.env 가 전제 하나를 빠뜨렸다.
+      ENODE_TEST_DATABASE_URL 만 적혀 있는데 **.github/ci-stubs 를 PATH 에**
+      두는 것도 전제다.  실측 — 스텁 없이 표준 명령을 돌리면 internal/api 의
+      시험 72 개가 실패해 전체가 83.1% · 미달 2 개로 읽힌다.
+      스텁을 넣으면 87.5% · 미달 0 이다.  그 파일은 주인이 따로다 (U7)
+
+   ⑫  business-logic-model.md 5.2 의 빈자리가 닫혔다.
+      「tool_use_id 의 존재를 이 단계가 실측으로 못 댄다」로 적고 넘긴 자리인데,
+      실측이 **있다**로 답했다 (본 tool_result 블록 다섯 전부).
+      규칙은 안 고친다 — R12.2 가 키의 존재에 안 기대는 것이 여전히 옳다.
+      고칠 것은 그 절의 「Code Generation 이 할 것」이 닫혔다는 표시뿐이다
+```
 
 **이 유닛이 회차 문서도 팩도 안 고친다** (`CONVENTIONS.md` 3.4 의 「안 싣는 것」).
