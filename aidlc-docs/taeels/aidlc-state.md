@@ -1012,11 +1012,18 @@ worktree 를 갈라 동시에 돌린다 (`/home/sunny/enode-wt/`).
                           총 길이(Ring.Total 대 Progress.Total 이 같은 단어 다른 값) ·
                           시도(gen 과 attempt 가 같은 수가 아니다) ·
                           상한의 단위 셋 (512 KiB · 10 MiB · 1 MiB)
-   NFR Requirements       U4 만 돈다.  **N1 을 진다.**  U2 는 회차 계획 SKIP
-   NFR Design             대기
+   NFR Requirements       **SKIP** (2026-09-16T02:20:00Z · 사용자 「nfr 단계를
+                          모두 스킵하고 다음으로 간다」).  **회차 계획과 갈린다** —
+                          계획은 EXECUTE 이고 U4 가 N1 을 지도록 걸려 있었다.
+                          어긋남으로 적는다.  U2 는 원래 SKIP 이었다
+   NFR Design             **SKIP** (같은 지시)
    Infrastructure Design  SKIP (회차 계획)
-   Code Generation        대기.  CB0 의 앞 값을 합본에서 쟀다 — 라우트 17.
+   Code Generation        Part 1 을 연다.  CB0 의 앞 값을 합본에서 쟀다 — 라우트 17.
                           U4 가 18 로 만든다
+                          **NFR 스킵이 남긴 값 둘을 이 계획이 진다** — N1 (함대
+                          규모의 청크 PUT 과 폴링 부하)과 한 응답 상한 1 MiB.
+                          v1 의 obs 가 같은 모양이었다 (NFR Design SKIP 뒤
+                          「어떻게」를 Code Generation 계획 5절이 졌다)
 ```
 
 ## 이 웨이브가 회차 밖으로 낼 것 — 여섯

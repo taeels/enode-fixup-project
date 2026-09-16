@@ -1125,3 +1125,26 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 **Context**: CONSTRUCTION — W-b Functional Design. 승인 대기
 
 ---
+
+## W-b — NFR 단계 전부 스킵
+**Timestamp**: 2026-09-16T02:20:00Z
+**User Input**: "nfr 단계를 모두 스킵하고 다음으로 간다."
+**AI Response**: 스킵으로 받았다. **회차 계획과 갈린다** — `execution-plan.md` 는 NFR Requirements 와 NFR Design 을 「EXECUTE (유닛마다 · 최소)」로 걸었고 U4 가 **N1 을 지도록** 배정돼 있었다. 사용자가 그것을 걷었고 **어긋남으로 적는다** (준수라고 안 적는다).
+
+**스킵이 안 닫힌 채로 남기는 값이 둘이다.**
+
+```text
+   N1    함대 규모에서의 청크 PUT 과 폴링 부하.  회차의 미결 둘 중 남은 하나다
+         (N2 는 W-a 에서 U3 가 닫았다)
+   1 MiB  한 응답의 본문 상한.  Functional Design 이 시작값으로 적고
+         「NFR Requirements 가 N1 을 재고 굳힌다」로 미뤘다 (U4 잔여 ④)
+```
+
+**둘 다 Code Generation 계획이 진다.** 선례가 있다 — v1 의 `obs` 에서 NFR Design 을 스킵했을 때 답이 남긴 「어떻게」를 Code Generation 계획 5절이 졌다 (`aidlc-state.md` 의 회차 v1 절). 같은 모양으로 값과 거는 자리를 계획이 적는다.
+
+**U2 는 원래 스킵이었다** — 회차 계획이 「새 표면을 만드는 유닛만 돈다」로 걸었고 U2 는 새 외부 표면이 0 이다. 이 지시로 바뀌는 것은 **U4 뿐이다.**
+
+다음은 **Code Generation Part 1** — 유닛 둘의 계획을 짓는다.
+**Context**: CONSTRUCTION — W-b NFR Requirements · NFR Design 스킵
+
+---
