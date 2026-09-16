@@ -1427,3 +1427,13 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: CONSTRUCTION — U5 병합 · W-e 착수
 
 ---
+
+## Construction · U8 `fleet-card` · Functional Design — 답과 산출물
+**Timestamp**: 2026-09-16T23:00:24Z
+**User Input**: "U8 의 Functional Design Part 1  질문 모두 권장안으로 답하겠다"
+**AI Response**: 계획의 물음 여덟에 `[Answer]: A` 를 박았다 (여덟이 전부 권장 · 갈린 답 0). 답이 다 letter 이고 모호한 것이 0 이라 별도 확인 파일을 안 만들었다. 계획 5.2 가 이름으로 든 모순 검사 자리 넷을 돌려 5.2.1 에 적었다 — **막은 것 하나**(물음 7 의 「렌더러가 두 입력을 받는다」가 물음 1 = A 의 한 벌을 쪼갠다. 렌더러의 입력을 사건 배열 하나로 못 박고 원문 토글을 렌더러 밖에 뒀다) · **값을 정한 것 셋**(끝났다를 폴러가 스스로 정하지 않는다 · 사건 열은 replaceContents 를 안 탄다 · 상태 줄은 step.state 가 연다). 산출물 셋을 `construction/fleet-card/functional-design/` 에 냈다 — domain-entities · business-logic-model · business-rules (규칙은 U5 의 R30 에 이어 R31 ~ R61).
+
+**회차 밖으로 낼 것이 셋 그대로다** — requirements.md SECURITY-08 의 반쪽(데모는 무인증 + 한도) · component-methods.md 의 `name` 기본값 `step` 이 맞는 Run 을 아무도 안 셌다 · N1 에 카드의 전체 재수신이 안 들어 있다.
+**Context**: Construction · U8 Functional Design · Part 1 의 답 수집(Step 5)과 산출물 생성(Step 6). 승인 대기.
+
+---
