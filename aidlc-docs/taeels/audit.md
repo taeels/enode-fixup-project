@@ -1052,3 +1052,205 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 **Context**: CONSTRUCTION — W-a Code Generation Part 2 승인 · 병합 전 합본 게이트 측정
 
 ---
+
+## W-b 착수 — Functional Design Part 1 (U2 · U4)
+**Timestamp**: 2026-09-16T01:35:00Z
+**User Input**: (없음 — "병합하고 w-b 가자" 의 뒷절 실행)
+**AI Response**: 브랜치 둘을 **병합된 `main` 에서** 땄다 (`unit/node-stream` · `unit/log-api` · worktree `/home/sunny/enode-wt/`). 회차 브랜치가 아니라 `main` 인 이유는 둘 다 W-a 의 코드를 딛기 때문이다 — U2 는 U1 이 `runner.go` 에서 덜어낸 자리에 tee 를 잇고, U4 는 U1 의 파서와 U3 의 진행 파일을 둘 다 부른다.
+
+**둘 다 계획을 짓기 전에 코드를 읽었다** (W-a 가 배운 것). 문서가 코드와 갈린 자리를 **다섯** 찾았다.
+
+```text
+   U2   ①  component-methods 3절의 「Decode 안에서 io.ReadAll 을 걷는다」만으로는
+           사건이 흐르는 시점이 안 바뀐다.  부르는 자리가 cmd.Run 뒤다 (runner.go:209)
+       ②  유닛 정의의 「Decode 도 파서를 안 쓴다」가 거짓이다 — U1 이 selectLogs 를
+           옮기면서 internal/enode 가 transcript 를 임포트한다 (runner.go:331)
+       ③  lastJSONObject 가 뒤에서부터 전체를 훑는다.  줄 단위로 읽어도 바이트를
+           통째로 들어야 한다.  requirements 5.7 의 「전체를 메모리에 다시 담지
+           않는다」는 internal/transcript 를 가리키지 Decode 가 아니다
+
+   U4   ④  봉인된 logs/NN-*.log 를 여는 공개 겉면이 internal/record 에 0 이다.
+           경로 조립에 필요한 safe() 는 비공개다.  파일 행렬은 record.go 를 U3 에만 줬다
+       ⑤  데모 모드의 read 래퍼가 무인증이다 (api.go:82).  requirements 5.4 의
+           잔여 ② 는 「토큰 하나라 주체를 못 가른다」로 토큰이 있다는 전제로 쓰였다
+```
+
+**CB0 의 앞 값을 합본에서 쟀다** — `grep -c 'mux.HandleFunc' internal/api/api.go` 가 **17**. U4 가 18 로 만든다.
+
+**U3 가 U4 의 물음을 미리 닫아 둔 자리가 넷이다** — R17 · R18 · R19 · R32. 맞춰 보니 `Progress{Total, Attempt, Capped}` 가 헤더 넷 중 셋과 1 대 1 이고 빈 칸이 0 이다. 그 넷은 이 유닛이 다시 안 묻는다.
+
+**물음 열다섯을 냈다** — U2 일곱 · U4 여덟. 계획 커밋 77eb3d2 (U2) · f8c7b74 (U4).
+**4.2 에 웨이브를 닫는 교차 검사 자리를 미리 이름으로 적었다** — 사건 종류의 어휘 · 총 길이의 뜻 · 시도 · 상한의 단위. W-a 가 「유닛 경계를 넘는 조합은 어느 한 유닛의 모순 검사도 못 본다」를 배웠고 그것을 계획에 박았다.
+**Context**: CONSTRUCTION — W-b Functional Design Part 1. 답 대기
+
+---
+
+## W-b Functional Design — 답 열다섯과 산출물 여섯
+**Timestamp**: 2026-09-16T02:05:00Z
+**User Input**: "권장대로"
+**AI Response**: **물음 열다섯이 전부 A 로 닫혔다.** 권장과 갈린 답이 0 이다. 계획 둘의 2절에 답을 적고 산출물 여섯을 냈다. 커밋 b115b25 (U2) · 0d9f14c (U4).
+
+**모순 검사가 유닛마다 하나씩 막았다.**
+
+```text
+   U2   답 1 = A 와 FR-1 을 그대로 합치면 배출이 두 벌이다 — 배출기가 도는 중에
+        emit 을 부르고 Decode 가 끝난 뒤에 또 부른다.  한 단계의 사건이 정확히
+        두 번 난다.  오늘은 로그가 두 줄이 되는 것으로 끝나지만 **U7 이 그 자리에
+        업로더를 물리면 같은 바이트가 두 번 올라간다**
+        답 — 흘리는 쪽이 낸다.  runner 가 Decode 에 넘기는 emit 이 no-op 이다.
+        시그니처는 안 바뀐다 (R3 그대로)
+
+   U4   답 6 = A (한 응답 1 MiB 상한)와 as=events 를 합치면 폴링이 깨진다 —
+        본문이 사건 배열이라 읽는 쪽이 자기가 읽은 바이트를 셀 수 없고 다음
+        from 을 못 구한다
+        답 — 상한에 걸릴 때 **마지막 개행에서 끊는다.**  그러면 다음 from 이
+        언제나 from + len(본문) 이다.  헤더를 다섯째로 안 늘려도 닫힌다
+```
+
+**교차 검사를 웨이브를 닫기 전에 돌렸다** (W-a 가 배운 것). **둘 다 각자 모순 0 이었다.**
+
+```text
+   모순 0 이나 갈릴 자리 넷   어휘(정본이 하나로 맞다) · 총 길이(같은 단어가 다른 값 —
+                          Ring.Total 대 Progress.Total) · 시도(gen 과 attempt 가
+                          같은 수가 아니다) · 상한의 단위 셋(512 KiB · 10 MiB · 1 MiB)
+
+   새로 찾은 것 하나        Source: progress 에 Bytes 0 이 나가는 길이 **셋**이다 —
+                          ① 아직 안 왔다 (U3 R18) ② 6시간 쓸기가 걷었다 (U3 Reap)
+                          ③ Seal 의 DropProgress 와 verdict 굳히기 사이의 창.
+                          셋이 한 값으로 나가고 **셋이 다른 문서에 살아 어느 유닛의
+                          모순 검사도 못 본다.**  U4 의 잔여 ③ 을 셋으로 넓혔다
+```
+
+**회차 밖으로 낼 것이 여섯으로 늘었다** — 파일 행렬 둘(`record.go` 가 U3 하나 · `internal/transcript/**` 가 U1 하나인데 U4 가 둘 다 만진다) · `unit-of-work.md` U2 절의 거짓 한 줄 · `component-methods.md` 셋(Decode 만 고치면 시점이 안 바뀐다 · `transcript()` 네 갈래는 U7 의 것 · 응답 상한과 개행 규칙이 없다) · `requirements.md` 5.4 잔여 ②(데모에는 토큰 전제가 없다).
+**Context**: CONSTRUCTION — W-b Functional Design. 승인 대기
+
+---
+
+## W-b — NFR 단계 전부 스킵
+**Timestamp**: 2026-09-16T02:20:00Z
+**User Input**: "nfr 단계를 모두 스킵하고 다음으로 간다."
+**AI Response**: 스킵으로 받았다. **회차 계획과 갈린다** — `execution-plan.md` 는 NFR Requirements 와 NFR Design 을 「EXECUTE (유닛마다 · 최소)」로 걸었고 U4 가 **N1 을 지도록** 배정돼 있었다. 사용자가 그것을 걷었고 **어긋남으로 적는다** (준수라고 안 적는다).
+
+**스킵이 안 닫힌 채로 남기는 값이 둘이다.**
+
+```text
+   N1    함대 규모에서의 청크 PUT 과 폴링 부하.  회차의 미결 둘 중 남은 하나다
+         (N2 는 W-a 에서 U3 가 닫았다)
+   1 MiB  한 응답의 본문 상한.  Functional Design 이 시작값으로 적고
+         「NFR Requirements 가 N1 을 재고 굳힌다」로 미뤘다 (U4 잔여 ④)
+```
+
+**둘 다 Code Generation 계획이 진다.** 선례가 있다 — v1 의 `obs` 에서 NFR Design 을 스킵했을 때 답이 남긴 「어떻게」를 Code Generation 계획 5절이 졌다 (`aidlc-state.md` 의 회차 v1 절). 같은 모양으로 값과 거는 자리를 계획이 적는다.
+
+**U2 는 원래 스킵이었다** — 회차 계획이 「새 표면을 만드는 유닛만 돈다」로 걸었고 U2 는 새 외부 표면이 0 이다. 이 지시로 바뀌는 것은 **U4 뿐이다.**
+
+다음은 **Code Generation Part 1** — 유닛 둘의 계획을 짓는다.
+**Context**: CONSTRUCTION — W-b NFR Requirements · NFR Design 스킵
+
+---
+
+## W-b Code Generation Part 1 — 계획 둘
+**Timestamp**: 2026-09-16T02:40:00Z
+**User Input**: (없음 — "nfr 단계를 모두 스킵하고 다음으로 간다" 의 뒷절 실행)
+**AI Response**: 계획 둘을 냈다. 커밋 ec8d7c5 (U2 · Step 열둘 · 체크박스 54) · 24b531f (U4 · Step 열셋 · 체크박스 58). **물음 0 이다** — 갈래는 답 열다섯이 다 닫았다.
+
+**NFR 스킵이 남긴 값 둘을 U4 의 계획 0절이 졌다.**
+
+```text
+   1 MiB   한 응답의 본문 상한.  internal/api/log.go 의 **상수**다.
+           설정 키를 안 만든다 — 조절 손잡이가 아니라 보호이고, 값을 올릴 수
+           있는 것 자체가 보호를 무르는 길이다
+
+   N1     안 닫는다.  대신 **봉투를 산수로 남겼다** — 미는 쪽 S/2 req/s ·
+          당기는 쪽 V x C / 2 req/s · 천장은 데모의 전역 한도 120 req/s
+```
+
+**N1 이 실제로 아픈 자리를 찾았다** — `ratelimit.go:19-20` 의 전역 한도(초당 120 · 버스트 240)를 **이 폴링 라우트가 `GET /v1/nodes` · `GET /v1/runs` 와 한 바구니에서 나눠 쓴다.** v1 의 `obs` 가 이미 「전역 한도의 대가로 한 클라이언트가 나머지를 굶길 수 있다」로 적은 자리이고, 이 회차가 거기에 폴링을 더한다. **한도는 안 바꾼다** — v1 이 값을 보고 고른 자리를 이 유닛이 되돌리는 것이 된다. 대신 U8 에 규칙 하나를 넘긴다: **보이는 카드만 2초로 폴링한다.**
+
+**계획이 실측으로 찾은 것 둘.**
+
+```text
+   U2   internal/enode/harness.go 가 파일 행렬에 없다 — EventKind 와 Event 가
+        거기 산다 (:285 · :291).  행렬은 U2 에 runner.go · claude.go · claim.go 만 줬다
+   U4   internal/api/log_test.go 가 이미 있다 (PUT 과 tar).  GET 의 시험을
+        거기 섞으면 두 시험이 같은 헬퍼를 두고 서로를 고친다 — getlog_test.go 로 가른다
+```
+
+**파일 교집합이 여전히 0 이다** — U2 는 `internal/enode` 넷 · U4 는 `internal/api` 둘 + `record.go` + `transcript.go`.
+**Context**: CONSTRUCTION — W-b Code Generation Part 1. 승인 대기
+
+---
+
+## W-b Code Generation Part 2 — 유닛 둘이 코드를 냈다
+**Timestamp**: 2026-09-16T04:30:00Z
+**User Input**: "승인. 넘어가자."
+**AI Response**: 둘 다 닫았다. 커밋 0b66780 (U2) · 9685f52 (U4). 체크박스 **U2 54 중 54 · U4 58 중 58**.
+
+**진행자가 합본에서 게이트를 다시 쟀다** — `origin/main` + `unit/node-stream` + `unit/log-api`. 충돌 0 · **파일 교집합 0** · 시험 19 패키지 초록 · **스킵 0** · 커버리지 미달 0 (전체 87.5%) · **라우트 18 (CB0)** · `gofmt` 빔 · glyphscan 111 파일 0 · `internal/store` diff 0.
+
+**이음매를 웨이브 닫는 자리에서 실제로 맞댔다.** 노드가 찍는 종류와 선 위로 나가는 종류가 같은 글자인가를 한 번 돌렸다 (합본에서만 가능하고 커밋하지 않았다).
+
+```text
+   양쪽이 같은 여섯    init · text · tool_use · tool_result · capped · result
+   capped 이 값이다   찍는 쪽이 U3 · 읽는 쪽이 U1 · 흘리는 쪽이 U2 · 내는 쪽이 U4 다.
+                    넷을 지나 같은 글자로 나온다
+```
+
+**실측이 계획을 고친 것이 여덟이다 — U2 다섯 · U4 넷** (하나가 겹친다). 무거운 셋.
+
+```text
+   U2   Decode 에 no-op 을 넘기면 final 이 사라진다.  final 은 줄에서 나는
+        사건이 아니라 봉투를 읽고 나는 판정이라 배출기가 낼 수 없다.  거르개가 답이다
+   U2   transcript.Parse 는 개행 없는 줄을 안 읽는다 (쓰는 중에 읽히는 파일을
+        위한 규율).  두 자리 다 개행을 붙여 넘긴다.  안 붙이면 사건이 0 이다
+   U4   태그를 달 타입이 하나가 아니라 다섯이다.  Server 와 Elided 에는 안 다는
+        근거가 주석에 있었는데 **그 관용은 읽을 때만 있다.**  이제 쓰인다
+```
+
+**변이 열하나 전부 빨강. 두 번은 값이 있었다.**
+
+```text
+   U2 ⑤   대기열의 상한을 빼니 Write 가 영영 막혔다 — 실패 메시지가 아니라
+          **멈춤**으로 빨개졌다.  실물에서는 하네스의 stdout 이 그 자리에서 멈춘다
+   U4 ④   머리가 잘린 것을 안 말하는 변이가 **처음에는 살아남았다.**  폴링이
+          규칙대로 돌면 다음 from 이 언제나 줄 머리라 그 갈래를 한 번도 안 밟는다.
+          밟는 길 둘(손으로 준 from · 상한보다 긴 줄)을 재는 시험을 따로 짓고
+          나서야 빨개졌다.  안 지었으면 반쪽 줄이 raw 사건으로 화면에 그려진다
+```
+
+**사고 하나를 적는다** — U2 의 변이를 `git checkout --` 로 되돌리다 커밋 안 된 `runner.go` 작업을 지웠다. 백업에서 되살렸다. **그 사고가 시험의 구멍을 드러냈다**: 배출기가 통째로 없는데도 수를 세는 시험이 초록이었다 — `Decode` 혼자서 같은 종류를 같은 순서로 내기 때문이다. **수를 세는 시험은 시점을 못 잰다.** 하네스가 첫 사건을 기다리게 하는 시험을 따로 지었고, 그 뒤 변이 ① 이 20초 만에 빨개진다.
+
+**앞 팩의 시험 하나를 뒤집었다** — `TestRunHarness_TheRingGetsNothingWhileTheStreamIsRaw` 가 「링이 한 바이트도 안 받는다」를 재고 있었다 (`decisions.md` 6절 ⑲). 그 결정이 이 회차에서 뒤집혔으므로 시험도 뒤집고 **본문 글자까지 확인하게** 했다.
+**Context**: CONSTRUCTION — W-b Code Generation Part 2. 승인 대기
+
+---
+## W-b 병합 지시 · W-c 착수 지시
+**Timestamp**: 2026-09-16T05:40:00Z
+**User Input**: "w-b pr둘고 메인에 올리고 w-c 진행"
+**AI Response**: W-b 의 Code Generation Part 2 승인으로 받는다. 병합 전에 합본에서 게이트를 다시 잰다 (W-a 와 같은 규율 — 각 브랜치의 값이 합쳐진 나무에서도 같다는 보장을 안 믿는다). 초록이면 PR 셋을 올린다 — 회차 브랜치 `v3-run-transcript` 먼저, 그 뒤 `unit/node-stream` · `unit/log-api`. 병합 뒤 W-c (U5 `panel-live` · 단독 · CB1) 를 연다.
+**Context**: CONSTRUCTION — W-b Code Generation Part 2 승인 · 병합 · W-c 착수
+
+---
+
+## W-b 를 닫는다 — 합본 재측정
+**Timestamp**: 2026-09-16T05:52:00Z
+**User Input**: (없음 — 위 지시의 실행)
+**AI Response**: 합본 `origin/main` + `v3-run-transcript` + `unit/node-stream` + `unit/log-api` 에서 다시 쟀다. **충돌 0 · 파일 교집합 0.**
+
+```text
+   build · vet · gofmt 빔 · glyphscan 111 파일 0
+   시험 19 패키지 초록 · 스킵 0
+   커버리지 정본 awk — 미달 0 · 전체 7722/8824 = 87.5%
+   크로스 빌드 windows/amd64 · net/http T 6 · crypto/tls T 1
+   CB0 — grep -c 'mux.HandleFunc' internal/api/api.go = 18 (앞 값 17)
+```
+
+**패키지 하나가 내려갔다** — `internal/api` 82.9% -> **82.3%**. U4 가 `log.go` 238줄을 들였고 그 갈래 몇이 폴링의 규칙적인 경로에서 안 밟힌다. 하한에서 2.3 포인트 위라 안 막으나 U6 이 같은 패키지를 만지므로 거기서 다시 본다.
+
+**`probe.lock` 이 두 웨이브 연속 같은 자리다** — 기준선의 성질로 확인됐다. **`internal/api` 의 deadlock 은 U4 가 405줄을 더한 뒤에도 재현 0** 이고, 그래도 사라졌다고 안 적는다.
+
+**정본에 갈린 자리 하나를 찾았다** — `unit-of-work.md` 의 U5 절이 NFR 요구를 **스킵**이라 적고 그 근거로 U6 의 문장(「출처만 바뀐다 · 기존 `do()` 를 탄다」)을 댔다. 같은 문서 9절의 표는 U5 를 **돈다**로 적는다. 한 문서 안에서 두 값이다.
+**Context**: CONSTRUCTION — W-b 병합 전 합본 측정
+
+---
+
