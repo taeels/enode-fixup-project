@@ -58,28 +58,31 @@ const (
 // 줄 하나가 사건 여럿이 될 수 있다 — assistant 한 줄에 thinking 과 text 와
 // tool_use 가 함께 오면 사건 넷이다. 그 넷은 Line 이 같다.
 type Event struct {
-	Kind Kind
-	Sub  string // Kind 안의 갈래. 없으면 빈 문자열
-	Line int    // 입력에서 몇 번째 줄인가. 1 부터. 한 줄에서 난 사건이 같은 값을 든다
+	Kind Kind   `json:"kind"`
+	Sub  string `json:"sub,omitempty"` // Kind 안의 갈래. 없으면 빈 문자열
+	Line int    `json:"line"`          // 입력에서 몇 번째 줄인가. 1 부터. 한 줄에서 난 사건이 같은 값을 든다
 
-	Text string // 본문. Kind 마다 무엇인지는 아래 표
-	Name string // 도구 이름. tool_use 와 tool_result 만 채운다
-	ID   string // tool_use_id. 붙이기의 열쇠다. 껍데기에는 없다
+	Text string `json:"text,omitempty"` // 본문. Kind 마다 무엇인지는 아래 표
+	Name string `json:"name,omitempty"` // 도구 이름. tool_use 와 tool_result 만 채운다
+	ID   string `json:"id,omitempty"`   // tool_use_id. 붙이기의 열쇠다. 껍데기에는 없다
 	// OK 는 tool_result 의 성공 여부다. nil 은 「없음」이고 false 와 다르다 —
 	// 도구를 안 부른 사건에 false 를 박으면 「실패한 도구가 있었다」로 읽힌다.
-	OK *bool
+	//
+	// omitempty 가 그 셋째 값을 선 위에서도 지킨다 — 포인터라 nil 이면 키가
+	// 통째로 빠지고, 받는 쪽이 "없다" 와 "실패했다" 를 그대로 가른다.
+	OK *bool `json:"ok,omitempty"`
 	// Cut 은 상한과 룬 경계에 잘려 Text 에 안 실린 바이트 수다. 0 이면
 	// 안 잘렸다. 원래 길이가 아니라 잘려 나간 양인 이유는 「안 잘렸다」가
 	// Cut == 0 한 비교이기 때문이다.
-	Cut int
+	Cut int `json:"cut,omitempty"`
 
 	// Shell 이 참이면 이 사건은 selectLogs 가 지은 껍데기 줄에서 왔다.
 	// Text 가 빈 것이 「말을 안 했다」가 아니라 「걷혔다」다 — 그 둘을 가르는
 	// 것이 US-6 이고 이 필드가 그것을 세운다.
-	Shell bool
+	Shell bool `json:"shell,omitempty"`
 
-	Tokens map[string]int // 예산 신호. 키는 in · out · cache_write · cache_read · thinking
-	Info   Info           // init · result · capped 만 채운다. 나머지는 제로값
+	Tokens map[string]int `json:"tokens,omitempty"` // 예산 신호. 키는 in · out · cache_write · cache_read · thinking
+	Info   Info           `json:"info,omitzero"`    // init · result · capped 만 채운다. 나머지는 제로값
 }
 
 // Text 가 Kind 마다 무엇인가
@@ -100,15 +103,15 @@ type Event struct {
 // 언어여야 하는지를 이 패키지가 정하게 되고, 화면 셋이 서로 다른 언어다.
 type Info struct {
 	// init
-	Model   string   // 모델 이름
-	Version string   // 하네스 버전. 줄에 없으면 빈 문자열
-	Tools   int      // 도구 수. tools 배열의 길이다
-	Servers []Server // MCP 서버. 비어 있으면 길이 0 이다 - 배열이고 맵이 아니다
+	Model   string   `json:"model,omitempty"`   // 모델 이름
+	Version string   `json:"version,omitempty"` // 하네스 버전. 줄에 없으면 빈 문자열
+	Tools   int      `json:"tools,omitempty"`   // 도구 수. tools 배열의 길이다
+	Servers []Server `json:"servers,omitempty"` // MCP 서버. 비어 있으면 길이 0 이다 - 배열이고 맵이 아니다
 
 	// result
-	Reason  string  // 와이어의 subtype 그대로. 어휘를 우리가 안 바꾼다
-	Turns   int     // num_turns
-	CostUSD float64 // total_cost_usd
+	Reason  string  `json:"reason,omitempty"`   // 와이어의 subtype 그대로. 어휘를 우리가 안 바꾼다
+	Turns   int     `json:"turns,omitempty"`    // num_turns
+	CostUSD float64 `json:"cost_usd,omitempty"` // total_cost_usd
 
 	// Bytes 는 enode.capped 의 bytes 다. 닿은 상한이고 총 길이가 아니다 —
 	// 표시 줄도 총 길이에 들어가므로 자기가 든 총 길이를 담을 수 없다.
@@ -117,35 +120,45 @@ type Info struct {
 	//
 	// 언제 찍히는지를 이 패키지가 안 적는다 — 찍는 쪽은 internal/record 이고
 	// 상한의 값과 조건은 그쪽 문서가 진다. 두 벌로 들면 갈린다.
-	Bytes int64
+	Bytes int64 `json:"bytes,omitempty"`
 }
 
 // Server 는 init 줄의 mcp_servers 한 칸이다.
 //
-// JSON 태그를 안 단다 — encoding/json 이 키를 대소문자 무시로 맞추므로
-// {"name":...,"status":...} 가 태그 없이 그대로 찬다.
-type Server struct{ Name, Status string }
+// 앞 판은 태그를 안 달았다. 근거는 "읽을 때 encoding/json 이 키를 대소문자
+// 무시로 맞춘다" 였고 그것은 지금도 참이다 — 다만 그때 이 타입은 읽히기만
+// 했다. 이제 GET log 의 as=events 가 이것을 선 위로 내보내고, 쓰는 쪽에는
+// 그 관용이 없다: 태그가 없으면 키가 Name 과 Status 로 나가 이 저장소의
+// 다른 응답(run_id · step_id)과 모양이 갈린다.
+type Server struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
 
 // Result 는 Parse 가 한 번 읽은 결과다.
 type Result struct {
-	Events []Event
-	Elided *Elided // enode.elided 줄이 있었으면. 없으면 nil
+	Events []Event `json:"events"`
+	Elided *Elided `json:"elided,omitempty"` // enode.elided 줄이 있었으면. 없으면 nil
 
-	Raw int // Kind 가 raw 인 사건의 수. Events 안에도 있다 - 세는 값이다
+	Raw int `json:"raw"` // Kind 가 raw 인 사건의 수. Events 안에도 있다 - 세는 값이다
 	// Lines 는 읽은 줄 수다. 버린 머리와 안 읽은 꼬리는 안 센다.
-	Lines int
-	Head  int // 잘린 머리로 안 읽은 바이트 수. truncated 가 거짓이면 0
+	Lines int `json:"lines"`
+	Head  int `json:"head"` // 잘린 머리로 안 읽은 바이트 수. truncated 가 거짓이면 0
 	// Partial 은 개행 없이 끝나 안 읽은 꼬리의 바이트 수다. 0 이면 없다.
 	//
 	// 「버렸다」가 아니라 「안 읽었다」인 이유 - 링과 진행 파일은 쓰는 중에
 	// 읽힌다. 그 바이트는 다음 폴링에서 개행이 붙어 완전한 줄이 된다.
 	// 읽어서 plain 으로 그렸다가 1초 뒤 사건으로 바꾸면 화면이 깜빡이고,
 	// 그 깜빡임이 「멈춘 것인지 도는 것인지」의 오독과 같은 자리에서 난다.
-	Partial int
+	Partial int `json:"partial"`
 }
 
 // Elided 는 걷힌 양이다. 짓는 쪽(ElidedMarker)과 읽는 쪽(Parse)이 같은 값을
 // 본다.
 //
-// JSON 태그를 안 단다 — Server 와 같은 이유다.
-type Elided struct{ Events, Bytes int }
+// 태그를 단다 — Server 와 같은 이유다. 선 위로 나가는 순간 대소문자 관용이
+// 없어진다.
+type Elided struct {
+	Events int `json:"events"`
+	Bytes  int `json:"bytes"`
+}
