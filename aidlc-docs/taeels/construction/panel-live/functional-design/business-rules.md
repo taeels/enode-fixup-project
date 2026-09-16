@@ -106,8 +106,20 @@
          connect-src · img-src · font-src 가 default-src 를 물려받는다
    R27   이 페이지가 밖에서 가져오는 것이 0 이다 (data: 0 · 외부 URL 0 · @import 0).
          재는 법 — page.go 에 그 셋의 문자열이 없다
-   R28   /api/* 에는 이 헤더를 안 건다.  JSON 이고 브라우저가 문서로 안 읽는다
+   R28   **다섯을 제어판의 모든 응답에 건다** — `GET /` 만이 아니다.
+         `Handler()` 에서 한 번 감싼다 (`ui.go` 가 정적 핸들러를 감싸는 것과 같은 모양)
+   R29   `internal/panel` 은 `ui.securityHeaders` 를 **재사용할 수 없다** —
+         경계 검사가 `internal/panel -> internal/api` 를 금지한다 (boundary_test.go)
 ```
+
+**R28 은 계획 단계에서 고친 줄이다.** 앞 판이 「`/api/*` 에는 안 건다 — JSON 이고
+브라우저가 문서로 안 읽는다」였다. **`nosniff` 가 정확히 그 전제를 안 믿는 헤더다** —
+`writeJSON` 이 `Content-Type` 만 세우고 sniffing 을 안 막는데, 이 회차가 그 JSON 에
+신뢰할 수 없는 하네스 바이트를 싣는다. 한 줄이고 공짜라 안 뺀다.
+
+**R29 가 `CONVENTIONS.md` 1.4 의 「도구는 두 벌로 두지 않는다」와 부딪히는 것처럼
+보이나 아니다.** 값이 애초에 다르다 — CSP 가 갈렸다 (R25). 같은 것을 두 벌로
+두는 것이 아니라 **다른 것 둘**이다. 경계가 그것을 강제하는 쪽이라 어긋남이 아니다.
 
 **`'unsafe-inline'` 이 script 에 붙는 대가를 이름으로 적는다** — 주입된 스크립트
 자체는 CSP 가 못 막는다. **막는 것은 R18 하나다.**

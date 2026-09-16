@@ -1318,3 +1318,27 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 
 ---
 
+## W-c Code Generation Part 1 — 계획
+**Timestamp**: 2026-09-16T08:30:00Z
+**User Input**: "진행"
+**AI Response**: Code Generation 계획을 냈다 — `construction/plans/panel-live-code-generation-plan.md`. **Step 열하나 · 체크박스 쉰하나 · 물음 0.** 설계 단계의 답 여덟이 값을 다 정했고 NFR 스킵이 남긴 둘을 계획 0절이 졌다.
+
+**계획이 실측으로 찾은 것 넷. 무거운 것 하나.**
+
+```text
+   제어판의 JS 를 재는 시험이 이 저장소에 0 이다.  .mjs 하네스는
+   internal/api/ui 의 것이고 (gallery-demo.yml:22 의 node --test) 제어판의 JS 는
+   page.go 의 문자열 상수 안이라 임포트가 안 된다.  DOM 규칙 넷 —
+   R19 펼침 열쇠 · R20 세대 비우기 · R21 바닥 따라가기 · R14 별개 타이머 —
+   의 유일한 검사가 CB1 이다.  변이를 못 건다
+```
+
+**답 1 = B 를 골랐으면 CSP 와 함께 이것도 닫혔다.** A 를 고른 대가이므로 숨기지 않고 6절에 적었다. 줄이는 법은 판정을 Go 로 옮기는 것이고 실제로 그렇게 짰다 — `truncated` · 봉투 · 캐시가 전부 Go 이고 브라우저에 남는 것은 그리기뿐이다.
+
+그 밖 셋 — `internal/panel` 이 `ui.securityHeaders` 를 **못 쓴다** (경계가 `panel -> api` 를 막는다. 값이 애초에 갈려 두 벌이 아니다) · 기존 픽스처가 개행이 없어 **사건을 0 개 낸다** (W-b 의 U2 가 같은 자리를 밟았다) · `internal/panel` 커버리지 84.9% 인데 `page.go` 증가분은 문자열 상수라 문장 수에 0 을 더한다.
+
+**설계 문서 한 줄을 계획 단계에서 고쳤다** — R28 이 「`/api/*` 에는 안 건다」였다. `nosniff` 가 정확히 그 전제를 안 믿는 헤더다. 다섯을 모든 응답에 건다. R29 를 더해 경계가 재사용을 막는 것을 적었다.
+**Context**: CONSTRUCTION — W-c Code Generation Part 1. 승인 대기
+
+---
+
