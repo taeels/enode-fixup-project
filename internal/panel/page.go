@@ -329,6 +329,13 @@ function evSummary(e){
   if(e.kind === "capped"){
     return "진행 파일이 상한에 닿았다 (" + ((e.info||{}).bytes || 0) + " 바이트)";
   }
+  // raw 는 한 줄이다. 본문 JSON 을 여기 그리면 카드가 장부가 된다 - CB1 에서
+  // 도는 동안 사건 29 중 16 이 raw 였다 (system/thinking_tokens 가 토큰
+  // 델타마다 한 줄씩 온다). 버리지는 않는다. 줄 전체는 원문 토글이 낸다.
+  if(e.kind === "raw"){
+    var n = (e.text || "").length;
+    return [e.sub, n + " 바이트"].filter(Boolean).join(" · ");
+  }
   return e.text || "";
 }
 
