@@ -971,3 +971,67 @@ Functional Design Step 5 는 그 유닛의 답끼리만 댄다. 같은 날 두 �
 
 **CB0 이 이 웨이브에서 처음 값을 얻는다** — `grep -c 'mux.HandleFunc' internal/api/api.go`
 가 17 에서 **18** 이 된다. 오늘 17 인 것을 합본에서 쟀다.
+
+## 단계 진행 — W-b (U2 `node-stream` · U4 `log-api` 병렬)
+
+브랜치 `unit/node-stream` · `unit/log-api`. 둘 다 **병합된 `main` 에서 땄다** —
+W-a 와 다르다. 회차 브랜치가 아닌 이유는 둘 다 W-a 의 코드를 딛기 때문이다.
+worktree 를 갈라 동시에 돌린다 (`/home/sunny/enode-wt/`).
+
+```text
+   Functional Design      Part 1 (계획) 2026-09-16.  커밋 77eb3d2 (U2) · f8c7b74 (U4)
+                          Part 2 (산출) 승인 2026-09-16T02:05:00Z (사용자 「권장대로」)
+                          커밋 b115b25 (U2) · 0d9f14c (U4).  산출물 여섯
+                          물음 열다섯 (U2 일곱 · U4 여덟) **전부 A · 갈린 답 0**
+
+                          **둘 다 계획을 짓기 전에 코드를 읽었고 문서가 코드와
+                          갈린 자리를 다섯 찾았다** — U2 셋 · U4 둘
+
+                          무거운 셋 — ① component-methods 대로 Decode 안만
+                          고치면 사건이 흐르는 시점이 안 바뀐다.  부르는 자리가
+                          runner.go:209 로 cmd.Run 뒤다 ② 봉인된 logs/ 를 여는
+                          공개 겉면이 internal/record 에 0 이고 safe() 가 비공개다
+                          ③ 데모 모드의 read 래퍼가 무인증이라 requirements 5.4
+                          잔여 ② 의 「토큰 하나」 전제가 데모에는 없다
+
+                          **모순 검사가 유닛마다 하나씩 막았다.**
+                          U2 — 답 1 = A 와 FR-1 을 합치면 배출이 두 벌이다.
+                          한 단계의 사건이 두 번 난다.  U7 이 업로더를 물리면
+                          같은 바이트가 두 번 올라간다.  흘리는 쪽이 낸다 —
+                          runner 가 Decode 에 넘기는 emit 을 no-op 으로 둔다
+                          U4 — 답 6 = A 와 as=events 를 합치면 폴링이 깨진다.
+                          사건 배열이라 읽은 바이트를 셀 수 없다.  **상한에 걸릴 때
+                          마지막 개행에서 끊는다** — 헤더를 다섯째로 안 늘려도 닫힌다
+
+                          **교차 검사가 하나 더 잡았다** — Source: progress 에
+                          Bytes 0 이 나가는 길이 셋이다 (안 왔다 · 6시간 쓸기가
+                          걷었다 · 봉인의 창).  셋이 한 값으로 나가고 셋이 다른
+                          문서에 살아 어느 유닛의 모순 검사도 못 본다
+
+                          **갈릴 자리 넷을 이름으로 적었다** — 어휘(정본 하나로 맞다) ·
+                          총 길이(Ring.Total 대 Progress.Total 이 같은 단어 다른 값) ·
+                          시도(gen 과 attempt 가 같은 수가 아니다) ·
+                          상한의 단위 셋 (512 KiB · 10 MiB · 1 MiB)
+   NFR Requirements       U4 만 돈다.  **N1 을 진다.**  U2 는 회차 계획 SKIP
+   NFR Design             대기
+   Infrastructure Design  SKIP (회차 계획)
+   Code Generation        대기.  CB0 의 앞 값을 합본에서 쟀다 — 라우트 17.
+                          U4 가 18 로 만든다
+```
+
+## 이 웨이브가 회차 밖으로 낼 것 — 여섯
+
+```text
+   때가 박힌 것   unit-of-work-file-matrix.md 1절  internal/record/record.go 가 U3 하나다.
+                                                U4 가 OpenLog 를 더한다.  충돌은 0
+                 unit-of-work-file-matrix.md 1절  internal/transcript/** 가 U1 하나다.
+                                                U4 가 json 태그를 단다.  동작 diff 0
+                 component-methods.md 4.1       응답 상한과 개행 규칙이 없다.
+                                                헤더 넷만으로는 폴링이 안 닫힌다
+
+   그 밖          unit-of-work.md U2 절          「Decode 도 파서를 안 쓴다」가 거짓이다
+                 component-methods.md 3절       Decode 안만 고치면 시점이 안 바뀐다 ·
+                                                transcript() 의 네 갈래는 U7 의 것이다
+                 requirements.md 5.4 잔여 ②      토큰이 있다는 전제로 쓰였다.
+                                                데모에는 없다 — 잔여가 둘로 갈린다
+```

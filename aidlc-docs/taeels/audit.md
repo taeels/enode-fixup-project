@@ -1084,3 +1084,44 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 **Context**: CONSTRUCTION — W-b Functional Design Part 1. 답 대기
 
 ---
+
+## W-b Functional Design — 답 열다섯과 산출물 여섯
+**Timestamp**: 2026-09-16T02:05:00Z
+**User Input**: "권장대로"
+**AI Response**: **물음 열다섯이 전부 A 로 닫혔다.** 권장과 갈린 답이 0 이다. 계획 둘의 2절에 답을 적고 산출물 여섯을 냈다. 커밋 b115b25 (U2) · 0d9f14c (U4).
+
+**모순 검사가 유닛마다 하나씩 막았다.**
+
+```text
+   U2   답 1 = A 와 FR-1 을 그대로 합치면 배출이 두 벌이다 — 배출기가 도는 중에
+        emit 을 부르고 Decode 가 끝난 뒤에 또 부른다.  한 단계의 사건이 정확히
+        두 번 난다.  오늘은 로그가 두 줄이 되는 것으로 끝나지만 **U7 이 그 자리에
+        업로더를 물리면 같은 바이트가 두 번 올라간다**
+        답 — 흘리는 쪽이 낸다.  runner 가 Decode 에 넘기는 emit 이 no-op 이다.
+        시그니처는 안 바뀐다 (R3 그대로)
+
+   U4   답 6 = A (한 응답 1 MiB 상한)와 as=events 를 합치면 폴링이 깨진다 —
+        본문이 사건 배열이라 읽는 쪽이 자기가 읽은 바이트를 셀 수 없고 다음
+        from 을 못 구한다
+        답 — 상한에 걸릴 때 **마지막 개행에서 끊는다.**  그러면 다음 from 이
+        언제나 from + len(본문) 이다.  헤더를 다섯째로 안 늘려도 닫힌다
+```
+
+**교차 검사를 웨이브를 닫기 전에 돌렸다** (W-a 가 배운 것). **둘 다 각자 모순 0 이었다.**
+
+```text
+   모순 0 이나 갈릴 자리 넷   어휘(정본이 하나로 맞다) · 총 길이(같은 단어가 다른 값 —
+                          Ring.Total 대 Progress.Total) · 시도(gen 과 attempt 가
+                          같은 수가 아니다) · 상한의 단위 셋(512 KiB · 10 MiB · 1 MiB)
+
+   새로 찾은 것 하나        Source: progress 에 Bytes 0 이 나가는 길이 **셋**이다 —
+                          ① 아직 안 왔다 (U3 R18) ② 6시간 쓸기가 걷었다 (U3 Reap)
+                          ③ Seal 의 DropProgress 와 verdict 굳히기 사이의 창.
+                          셋이 한 값으로 나가고 **셋이 다른 문서에 살아 어느 유닛의
+                          모순 검사도 못 본다.**  U4 의 잔여 ③ 을 셋으로 넓혔다
+```
+
+**회차 밖으로 낼 것이 여섯으로 늘었다** — 파일 행렬 둘(`record.go` 가 U3 하나 · `internal/transcript/**` 가 U1 하나인데 U4 가 둘 다 만진다) · `unit-of-work.md` U2 절의 거짓 한 줄 · `component-methods.md` 셋(Decode 만 고치면 시점이 안 바뀐다 · `transcript()` 네 갈래는 U7 의 것 · 응답 상한과 개행 규칙이 없다) · `requirements.md` 5.4 잔여 ②(데모에는 토큰 전제가 없다).
+**Context**: CONSTRUCTION — W-b Functional Design. 승인 대기
+
+---
