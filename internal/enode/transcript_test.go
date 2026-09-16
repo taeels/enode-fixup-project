@@ -122,3 +122,60 @@ func TestRingWriteIsBestEffort(t *testing.T) {
 		t.Fatalf("Write = %d, %v (want 100, nil)", n, err)
 	}
 }
+
+// Capacity 는 파일 머리에 적힌 값이지 상수가 아니다. 읽는 쪽이 이것을 쓰는
+// 이유는 하나다 - Total > Capacity 가 곧 "앞이 감겨 나갔다" 이고, 화면이
+// 그것으로 "이 단계의 처음이 아니다" 를 적는다. 상수로 비교하면 링이 다른
+// 용량으로 열리는 날 조용히 틀린다.
+func TestReadRingCarriesTheCapacityFromTheHeader(t *testing.T) {
+	const capacity = 16
+	r, p := openRing(t, capacity)
+
+	// 안 감긴 링
+	if _, err := r.Write([]byte("abc")); err != nil {
+		t.Fatal(err)
+	}
+	snap, err := ReadRing(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.Capacity != capacity {
+		t.Fatalf("capacity = %d, want %d", snap.Capacity, capacity)
+	}
+	if snap.Total > uint64(snap.Capacity) {
+		t.Error("a ring holding 3 bytes in a 16-byte body has lost nothing")
+	}
+
+	// 정확히 찬 링 - 여기가 엄격 부등호의 자리다
+	if _, err := r.Write([]byte("defghijklm")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r.Write([]byte("nop")); err != nil {
+		t.Fatal(err)
+	}
+	snap, err = ReadRing(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.Total != uint64(capacity) || snap.Capacity != capacity {
+		t.Fatalf("want a ring filled to exactly its capacity, got %d/%d", snap.Total, snap.Capacity)
+	}
+	if snap.Total > uint64(snap.Capacity) {
+		t.Error("filled to exactly the capacity is not wrapped - nothing was overwritten")
+	}
+
+	// 감긴 링
+	if _, err := r.Write([]byte("q")); err != nil {
+		t.Fatal(err)
+	}
+	snap, err = ReadRing(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.Capacity != capacity {
+		t.Fatalf("capacity should not move with the writes, got %d", snap.Capacity)
+	}
+	if snap.Total <= uint64(snap.Capacity) {
+		t.Error("one byte past the capacity means the oldest byte is gone")
+	}
+}

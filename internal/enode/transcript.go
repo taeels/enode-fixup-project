@@ -49,6 +49,14 @@ type Snapshot struct {
 	Data       []byte // 오래된 것 -> 새것 순서. total<=capacity 면 전부, 넘으면 최근 capacity
 	Generation uint64
 	Total      uint64
+	// Capacity 는 몸통 바이트 수다 - 파일 머리에 적힌 값이고 상수가 아니다
+	// (OpenRing 이 인자로 받는다).
+	//
+	// 읽는 쪽이 이 값을 쓰는 이유는 하나다 - Total > Capacity 가 곧 "앞이
+	// 감겨 나갔다" 이고, transcript.Parse 의 truncated 인자가 그것을 받는다.
+	// 그 비교를 DefaultTranscriptCapacity 상수로 하면 링이 다른 용량으로
+	// 열리는 날 조용히 틀린다.
+	Capacity int64
 }
 
 func putHeader(b []byte, capacity, total, gen uint64) {
@@ -201,5 +209,5 @@ func ReadRing(path string) (Snapshot, error) {
 		data = append([]byte(nil), body[start:]...)
 		data = append(data, body[:start]...)
 	}
-	return Snapshot{Data: data, Generation: gen, Total: total}, nil
+	return Snapshot{Data: data, Generation: gen, Total: total, Capacity: capacity}, nil
 }

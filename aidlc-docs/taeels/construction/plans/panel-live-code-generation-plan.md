@@ -159,93 +159,108 @@ W-b 의 합본 측정값이다. 이 유닛이 `handleTranscript` 를 통째로 �
 ## 4. 단계 — 열하나
 
 ### Step 1 — 겉면을 못 박는다
-- [ ] `enode.Snapshot` 에 `Capacity int64`
-- [ ] `panel.liveTranscript` 를 3절 그대로
-- [ ] `go build ./...` 가 선다
+- [x] `enode.Snapshot` 에 `Capacity int64`
+- [x] `panel.liveTranscript` 를 3절 그대로
+- [x] `go build ./...` 가 선다
 
 ### Step 2 — `enode.Snapshot.Capacity` 를 채운다 (R9)
-- [ ] `ReadRing` 이 이미 읽은 `capacity` 를 `Snapshot` 에 넣는다
-- [ ] **동작 diff 0** — 기존 시험 전부 그대로 초록
-- [ ] 시험 — 감긴 링과 안 감긴 링에서 `Capacity` 가 파일 머리의 값과 같다
+- [x] `ReadRing` 이 이미 읽은 `capacity` 를 `Snapshot` 에 넣는다
+- [x] **동작 diff 0** — 기존 시험 전부 그대로 초록
+- [x] 시험 — 감긴 링과 안 감긴 링에서 `Capacity` 가 파일 머리의 값과 같다
 
 ### Step 3 — `handleTranscript` 의 읽기와 캐시 (R6 · R7 · R8)
-- [ ] `os.Stat` 으로 mtime 을 **먼저** 얻는다 (`ReadRing` 앞이다 — 캐시가 512 KiB 를 아낀다)
-- [ ] 캐시 열쇠 `(generation, total, mtime)`. **셋이다** — 둘로 안 줄인다
-- [ ] 캐시는 한 칸. `sync.Mutex` 하나로 감싼다 (폴링 탭이 여럿일 수 있다)
-- [ ] `Stat` 실패 · `ReadRing` 실패 -> `available:false` (R15 ①)
+- [x] `os.Stat` 으로 mtime 을 **먼저** 얻는다 (`ReadRing` 앞이다 — 캐시가 512 KiB 를 아낀다)
+- [x] 캐시 열쇠 `(generation, total, mtime)`. **셋이다** — 둘로 안 줄인다
+- [x] 캐시는 한 칸. `sync.Mutex` 하나로 감싼다 (폴링 탭이 여럿일 수 있다)
+- [x] `Stat` 실패 · `ReadRing` 실패 -> `available:false` (R15 ①)
 
 ### Step 4 — 파싱과 봉투 (R9 · R10 · R11)
-- [ ] `truncated = snap.Total > uint64(snap.Capacity)` — **엄격 부등호** (R9)
-- [ ] `transcript.Parse(snap.Data, truncated)` -> `Result`
-- [ ] `Result` 를 `transcript` 키에 **통째로**. 펼치지 않는다 (교차 검사 · U6 이 받는다)
-- [ ] `data` 에 **같은 읽기의 같은 바이트** (R23)
-- [ ] `last_write` 는 RFC 3339 **시각**. 기간이 아니다 (R5)
-- [ ] `ring_path` 는 `enode.TranscriptPath(s.cfg.ConfigPath)` (R 7절 · 답 7 = A)
+- [x] `truncated = snap.Total > uint64(snap.Capacity)` — **엄격 부등호** (R9)
+- [x] `transcript.Parse(snap.Data, truncated)` -> `Result`
+- [x] `Result` 를 `transcript` 키에 **통째로**. 펼치지 않는다 (교차 검사 · U6 이 받는다)
+- [x] `data` 에 **같은 읽기의 같은 바이트** (R23)
+- [x] `last_write` 는 RFC 3339 **시각**. 기간이 아니다 (R5)
+- [x] `ring_path` 는 `enode.TranscriptPath(s.cfg.ConfigPath)` (R 7절 · 답 7 = A)
 
 ### Step 5 — 보안 헤더 다섯 (R24 ~ R29)
-- [ ] `internal/panel/headers.go` 신규. 넷은 `ui.go:64-71` 과 글자 그대로
-- [ ] CSP 는 갈린 값 — `default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'`
-- [ ] `Handler()` 에서 **모든 응답**을 감싼다 (R28). `requireToken` 과의 순서를 정한다
-- [ ] `ui.securityHeaders` 를 임포트하지 않는다 — 경계가 막는다 (R29)
+- [x] `internal/panel/headers.go` 신규. 넷은 `ui.go:64-71` 과 글자 그대로
+- [x] CSP 는 갈린 값 — `default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'`
+- [x] `Handler()` 에서 **모든 응답**을 감싼다 (R28). `requireToken` 과의 순서를 정한다
+- [x] `ui.securityHeaders` 를 임포트하지 않는다 — 경계가 막는다 (R29)
 
 ### Step 6 — 카드의 HTML (R18)
-- [ ] 트랜스크립트 카드에 자리 넷 — 사건 열 · 경과 · 잘림 · 잔여 한 줄
-- [ ] 원문 토글 버튼 하나. `<pre>` 는 그대로 쓰되 기본이 접힘
-- [ ] 데몬 로그 카드는 **한 글자도 안 고친다** (FR-4)
-- [ ] `TestHandleIndexServesButtons` 가 세는 다섯 문자열이 그대로 있다
+- [x] 트랜스크립트 카드에 자리 넷 — 사건 열 · 경과 · 잘림 · 잔여 한 줄
+- [x] 원문 토글 버튼 하나. `<pre>` 는 그대로 쓰되 기본이 접힘
+- [x] 데몬 로그 카드는 **한 글자도 안 고친다** (FR-4)
+- [x] `TestHandleIndexServesButtons` 가 세는 다섯 문자열이 그대로 있다
 
 ### Step 7 — 그리는 JS (R14 · R16 · R17 · R18 · R19 · R20 · R21 · R22 · R23)
-- [ ] 사건을 `textContent` 로만 그린다. `innerHTML` 에 하네스 바이트가 0 번 닿는다 (R18)
-- [ ] 펼침 상태를 `Event.ID` 로 든다. `Line` 으로 안 든다 (R19)
-- [ ] **그리기 전에** 바닥 여부를 재고, 바닥이었을 때만 따라간다 (R21)
-- [ ] 세대가 바뀌면 펼침 · 스크롤 · 토글을 비운다 (R20)
-- [ ] 경과는 **별개 타이머** 1초. 폴링이 죽어도 흐른다 (R14)
-- [ ] 폴링이 실패하면 카드를 회색으로 두고 마지막 값을 **안 지운다** (R16)
-- [ ] 이 카드 경로의 빈 `.catch` 를 0 으로 (R17)
-- [ ] 종류 일곱만 그린다. 모르는 것은 `raw` 로 온다 (R22)
+- [x] 사건을 `textContent` 로만 그린다. `innerHTML` 에 하네스 바이트가 0 번 닿는다 (R18)
+- [x] 펼침 상태를 `Event.ID` 로 든다. `Line` 으로 안 든다 (R19)
+- [x] **그리기 전에** 바닥 여부를 재고, 바닥이었을 때만 따라간다 (R21)
+- [x] 세대가 바뀌면 펼침 · 스크롤 · 토글을 비운다 (R20)
+- [x] 경과는 **별개 타이머** 1초. 폴링이 죽어도 흐른다 (R14)
+- [x] 폴링이 실패하면 카드를 회색으로 두고 마지막 값을 **안 지운다** (R16)
+- [x] 이 카드 경로의 빈 `.catch` 를 0 으로 (R17)
+- [x] 종류 일곱만 그린다. 모르는 것은 `raw` 로 온다 (R22)
 
 ### Step 8 — 시험: 봉투와 캐시
-- [ ] 링이 없다 -> `available:false` 이고 나머지 키가 **없다**
-- [ ] 링을 읽었다 -> `transcript.events` 가 찬다. **픽스처에 개행을 붙인다** (1.3)
-- [ ] `data` 가 사건과 **같은 바이트**다
-- [ ] 응답 JSON 에 초 단위 기간 필드가 **0 개**다 (R5 를 세는 법)
-- [ ] 같은 링을 두 번 부르면 두 번째가 파싱을 안 한다 (캐시가 듣는다)
-- [ ] 링에 새로 쓰면 캐시가 안 듣는다
+- [x] 링이 없다 -> `available:false` 이고 나머지 키가 **없다**
+- [x] 링을 읽었다 -> `transcript.events` 가 찬다. **픽스처에 개행을 붙인다** (1.3)
+- [x] `data` 가 사건과 **같은 바이트**다
+- [x] 응답 JSON 에 초 단위 기간 필드가 **0 개**다 (R5 를 세는 법)
+- [x] 같은 링을 두 번 부르면 두 번째가 파싱을 안 한다 (캐시가 듣는다)
+- [x] 링에 새로 쓰면 캐시가 안 듣는다
 
 ### Step 9 — 시험: 잘림과 경과
-- [ ] `Total == Capacity` -> `truncated:false` (**엄격 부등호를 재는 줄이다** · R9)
-- [ ] `Total > Capacity` -> `truncated:true` 이고 `Parse` 가 머리를 버렸다
-- [ ] `last_write` 가 링 파일의 mtime 과 같다
-- [ ] `Ring.Reset()` 뒤 `generation` 이 오르고 `last_write` 가 새것이다
+- [x] `Total == Capacity` -> `truncated:false` (**엄격 부등호를 재는 줄이다** · R9)
+- [x] `Total > Capacity` -> `truncated:true` 이고 `Parse` 가 머리를 버렸다
+- [x] `last_write` 가 링 파일의 mtime 과 같다
+- [x] `Ring.Reset()` 뒤 `generation` 이 오르고 `last_write` 가 새것이다
 
 ### Step 10 — 시험: 헤더 다섯
-- [ ] `GET /` 에 다섯이 다 있다
-- [ ] **`GET /api/transcript` 에도 다 있다** (R28 이 고친 자리다)
-- [ ] CSP 값이 갈린 값 그대로다 — 이 줄이 R25 의 어긋남을 고정한다
-- [ ] `boundary_test.go` 의 여덟 줄이 그대로 초록 (R29 를 안 깼다)
+- [x] `GET /` 에 다섯이 다 있다
+- [x] **`GET /api/transcript` 에도 다 있다** (R28 이 고친 자리다)
+- [x] CSP 값이 갈린 값 그대로다 — 이 줄이 R25 의 어긋남을 고정한다
+- [x] `boundary_test.go` 의 여덟 줄이 그대로 초록 (R29 를 안 깼다)
 
 ### Step 11 — 변이와 게이트
-- [ ] 변이 여섯 (5절)
-- [ ] `eval "$(scripts/testdb.sh)"` 뒤 CP0 계열 전부
-- [ ] 라우트 둘 다 안 늘었다 — `api.go` 18 · `panel.go` 10
-- [ ] `diff 0` 이어야 할 곳 전부 0
-- [ ] 코드 요약을 쓰고 이 계획의 체크박스를 **실측으로** 채운다
+- [x] 변이 여섯 (5절)
+- [x] `eval "$(scripts/testdb.sh)"` 뒤 CP0 계열 전부
+- [x] 라우트 둘 다 안 늘었다 — `api.go` 18 · `panel.go` 10
+- [x] `diff 0` 이어야 할 곳 전부 0
+- [x] 코드 요약을 쓰고 이 계획의 체크박스를 **실측으로** 채운다
 
 ---
 
 ## 5. 변이 여섯 — 안 죽으면 시험이 없는 것이다
 
+**실측 결과를 옆에 적는다. 셋이 처음에 살아남았다.**
+
 ```text
-   ①  truncated 를 언제나 false 로            Step 9 의 잘림 줄이 빨개야 한다
-   ②  엄격 부등호를 >= 로                     Step 9 의 Total == Capacity 줄
-   ③  응답에 기간(초)을 싣고 캐시한다           Step 8 의 「기간 필드 0 개」
-                                            **모순 검사 ① 을 재는 변이다**
-   ④  캐시 열쇠에서 mtime 을 뺀다              링을 다시 만들어 (0,0) 으로 돌린 뒤
-                                            옛 항목이 나오는 것을 잡는다
-   ⑤  헤더를 GET / 에만 건다                  Step 10 의 /api/transcript 줄
-   ⑥  Parse 에 넘기는 바이트와 data 를 다른    Step 8 의 「같은 바이트」 줄
-      읽기에서 가져온다                       (답 6 = A 를 재는 변이다)
+   ①  truncated 를 언제나 false 로            ReportsAWrappedRing            FAIL
+   ②  엄격 부등호를 >= 로                     TreatsAnExactlyFullRingAsWhole  FAIL
+   ③  응답에 기간(초)을 싣고 캐시한다           **처음에 살아남았다** -> FAIL
+   ④  캐시 열쇠에서 mtime 을 뺀다              **처음에 살아남았다** -> FAIL (둘)
+   ⑤  헤더를 GET / 에만 건다                  SecurityHeadersAreOnEvery...   FAIL (둘)
+   ⑥  Parse 에 넘기는 바이트와 data 를 다른    **시험으로는 끝내 못 잡았다** ->
+      읽기에서 가져온다                        **구조로 닫았다** -> FAIL
 ```
+
+**③ 이 살아남은 이유** — 방금 쓴 링은 경과가 0 이라 변이가 더한 `age_seconds` 를
+`omitempty` 가 지웠다. 시험이 없는 키를 못 찾아 초록이었다. `os.Chtimes` 로 링을
+90초 늙히고, **금지어 목록 대신 봉투가 인정한 키 밖의 수를 전부** 막았다.
+한 번 헛디뎠다 — 「60 ~ 120 사이의 수」로 걸렀더니 `total` 이 76 바이트라 걸렸다.
+**바이트 수와 초가 같은 자리에 온다.**
+
+**④ 가 살아남은 이유** — 시험이 링을 다시 만든 뒤 한 줄을 써서 `total` 이 앞것과
+달랐다. **캐시의 `(0,0)` 과 애초에 안 부딪힌다.** 길이가 같고 내용이 다른 두 줄로
+고쳤다 — 그러면 갈리는 것이 mtime 하나뿐이다.
+
+**⑥ 은 시험으로 끝내 못 잡았다.** 조용한 링에서는 두 읽기가 같은 바이트다.
+경합으로 재니 열에 셋, 산수로 좁혀도 열에 일곱이었다. **열에 셋을 놓치는 시험은
+게이트가 아니다.** 시험을 버리고 `liveBody(snap, mtime, path)` 로 갈라
+**스냅샷 하나만 받게** 했다 — 그 갈래가 아예 없다. 코드 요약 2.1 이 전문이다.
 
 **DOM 규칙 넷(R19 · R20 · R21 · R14)에 변이를 못 건다** — 1.1 이 그 이유다.
 **그 넷은 CB1 이 진다.** 변이를 못 거는 것을 숨기지 않고 여기 적는다.
