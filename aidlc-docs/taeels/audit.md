@@ -1299,3 +1299,26 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+## U7 Code Generation Part 1 — 계획
+**Timestamp**: 2026-09-16T10:50:00Z
+**User Input**: "어 그래"
+**AI Response**: Code Generation 계획을 냈다 — `construction/plans/chunk-push-code-generation-plan.md`. **Step 열둘 · 체크박스 쉰 · 물음 0.**
+
+**U5 와 다르다** — 값 둘(버퍼 상한 1 MiB · 오프셋의 자리)을 Functional Design 이 이미 졌으므로 이 계획은 옮겨 적기만 한다. **남은 값 하나를 계획이 졌다** — 재전송 간격이다. 주기 그대로 2초이고 백오프를 안 둔다: 버퍼가 1 MiB 라 재전송이 오래 못 가고, **백오프를 두면 멈추기까지의 시간이 늘어 CB3 의 10초 창을 오히려 좁힌다.**
+
+**계획이 실측으로 둘을 찾았다.**
+
+```text
+   step 이 두 자리 다 스코프   claim.go:441 execute 안이라 runID · seq · name ·
+                           attempt 넷을 따로 나를 필요가 0 이다
+   Client 가 advertise.go    행렬은 claim.go · upload.go 둘을 줬다.  PutLogChunk 를
+   에 산다                   upload.go 에 두면 **행렬이 준 파일 둘만 만진다**
+```
+
+**Step 2 가 착수 조건이다** — `api.go` 의 `attempt <= 0` 을 `< 0` 으로. `attempt=0` 을 밟는 시험이 저장소에 0 이었으므로 그 시험도 함께 짓는다.
+
+**변이 일곱 중 둘(③ 동기 전송 · ⑥ 버퍼 상한 제거)이 W-b 의 U2 변이 ⑤ 와 같은 자리다** — 거기서 `Write` 가 영영 막혀 실패가 아니라 **600초 멈춤**으로 빨갰다. 업로더는 네트워크라 더 세다. **시험에 타임아웃을 걸어 멈춤이 멈춤으로 보이게 한다** — 안 걸면 변이가 「빨강」이 아니라 「영영 안 끝남」이 되고 그 둘은 읽는 사람에게 다르다.
+**Context**: CONSTRUCTION — U7 Code Generation Part 1. 승인 대기
+
+---
+
