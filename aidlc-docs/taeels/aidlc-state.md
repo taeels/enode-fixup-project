@@ -1321,6 +1321,39 @@ U2 의 tee 와 U1 의 파서를 딛는다. 브랜치는 **병합된 `main` 에�
    CB6   한 장면     U8 이 진다
 ```
 
+## U8 이 착수하자마자 밟을 자리 — 카드가 URL 을 못 만든다
+
+**실측으로 밟았다 (2026-09-16 · `cb3-live-1`).**
+
+```text
+   GET .../steps/{seq}/log 는 ?name= 을 받고 없으면 "step" 으로 기본값을 쓴다
+   Run 상세의 단계 객체에는 **name 이 없다** — 있는 것은 id 다
+
+   {"seq":1,"id":"summarize","state":"DONE","uses":"brain", ...}
+
+   name 없이        -> 200  X-Enode-Log-Bytes: 0      **빈 카드**
+   name=summarize  -> 200  X-Enode-Log-Bytes: 6785   내용이 온다
+```
+
+**404 가 아니라 200 에 0 바이트라 더 아프다** — 화면이 「에이전트가 아무 말도
+안 했다」로 그리고, 보는 사람도 짓는 사람도 어디가 틀렸는지 못 짚는다.
+
+**닫는 법은 화면 쪽이다.** 상세의 `id` 가 곧 로그의 이름이다 — `StepView.ID` 가
+`steps.name` 을 그대로 싣는다 (`observe.go:54` 의 `SELECT seq, name, ...`).
+확인했다: DB 의 `steps.name` 이 `summarize` 이고 여러 단계짜리 Run 에서도
+(`probe_exec` · `probe_exec2` · ...) 같다.
+
+```text
+   권하는 것   U8 이 steps[].id 를 ?name= 으로 넘긴다.  U8 안에서 닫히고
+              「ui.go 의 diff 가 0 이다」와도 맞는다
+   안 권하는 것  서버의 기본값을 그 단계의 실제 이름으로 바꾸는 것 —
+              Go 를 건드리게 되고 U8 의 범위가 넓어진다
+```
+
+**회차 밖으로 낼 것에 더한다** — `component-methods.md` 의 `GET log` 절이
+`name` 의 기본값을 `step` 으로 적었는데, **그 기본값이 맞는 Run 이 실제로 몇이나
+되는지 아무도 안 셌다.** 계약이 단계 이름을 지으므로 대개 안 맞는다.
+
 ## 회차 밖의 일 — 이 세션이 한 것
 
 ```text
