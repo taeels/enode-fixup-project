@@ -1322,3 +1322,30 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+## U7 Code Generation Part 2 — 생성
+**Timestamp**: 2026-09-16T11:30:00Z
+**User Input**: "승인"
+**AI Response**: Step 열둘을 다 돌았다. **체크박스 50 중 50.** 요약은 `construction/chunk-push/code/code-summary.md`.
+
+```text
+   시험 19 패키지 초록 · 스킵 0
+   커버리지 미달 0 · 전체 7845/8954 = 87.6%
+   internal/enode  87.0% -> 87.4%   ·  internal/api 82.3% 그대로
+   라우트 api.go 18 그대로 (CB0 안 건드림)
+   gofmt 0 줄 · glyphscan 112 파일 0 · 크로스 빌드 OK · net/http T 6
+   diff 0 — record · transcript · panel · store · go.mod · go.sum 전부 0
+```
+
+**한 줄을 고쳤고 그것이 시험 하나를 뒤집게 했다.** `attempt <= 0` 을 `< 0` 으로 바꾸니 U4 의 `TestPutLog_TheProgressBranch` 가 빨개졌다 — **그 시험의 400 목록에 `attempt=0` 이 들어 있었다.** 버그가 정본으로 박혀 있던 것이다. `attempt=-1` 로 바꾸고 `TestPutProgress_TheFirstAttemptIsZero` 를 더했다.
+
+**실측이 진짜 결함 하나를 잡았다 — 전송 중인 바이트가 상한 계산에서 빠져 있었다.** `take` 가 버퍼를 떼어 가면 그동안 `u.buf` 가 비어 보여서 **실제 메모리가 상한의 두 배**가 된다. 버퍼 상한 시험이 「넘칠 만큼 썼는데 안 넘쳤다」로 잡았다. `inflight` 필드를 더해 셈에 넣었다.
+
+**변이 일곱 중 다섯이 바로 빨갰고 둘이 살아남았다.**
+
+**⑤ 는 규칙이 공허했다.** 「`Attempt` 를 `Total` 보다 먼저 본다」(R8)인데, 새 시도를 보면 **멈추므로** 그 뒤에 오프셋을 읽는 자리가 0 이다. **시험을 지어 억지로 빨갛게 만들지 않았다** — 그러면 코드가 아니라 시험이 규칙을 만든다. **R8 을 걷고 그 자리에 이 사실을 적었다.**
+
+**⑦ 은 Step 9 의 순서 줄을 안 지어 살아남았다.** 지으면서 **가짜 Mediator 가 진행 청크와 선별본을 한 자리에 덮고 있던 것**도 드러났다 — 그러면 「두 벌이 안 생긴다」가 「한 벌만 생긴다」로 조용히 바뀐다.
+**Context**: CONSTRUCTION — U7 Code Generation Part 2. 승인 대기
+
+---
+

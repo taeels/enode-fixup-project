@@ -505,3 +505,45 @@ printf '{"type":"result","subtype":"success"}\n'
 		t.Fatalf("a server the step did not request was opened: %s", body)
 	}
 }
+
+// 꼬리를 비우는 것이 선별본 업로드보다 먼저다.
+//
+// 뒤집으면 봉인 직전의 마지막 줄이 중앙 화면에 안 뜬다 - 진행 파일은 봉인 때
+// 지워지므로, 그 줄이 진행 파일에 닿기 전에 봉인이 시작되면 그 줄을 도는
+// 동안 본 사람이 아무도 없게 된다.
+//
+// 그리고 두 파일이 다르다는 것을 함께 잰다. 같은 자리에 덮이면 "두 벌이
+// 안 생긴다" 가 "한 벌만 생긴다" 로 조용히 바뀐다.
+func TestExecute_TheProgressTailLandsBeforeTheSealedLog(t *testing.T) {
+	m := newMediator(t)
+	w := newWorker(m)
+	w.Local.Workspace = t.TempDir()
+	holdLease(w)
+
+	sh := script(t, "chatty", `printf 'the last thing the step said\n'`)
+	w.execute(context.Background(), runStep(sh))
+
+	m.mu.Lock()
+	order := append([]string(nil), m.order...)
+	progress := string(m.progress)
+	sealed := string(m.logs["build"])
+	m.mu.Unlock()
+
+	if len(order) < 2 {
+		t.Fatalf("both the progress chunk and the sealed log should have landed, got %v", order)
+	}
+	if order[0] != "progress" {
+		t.Errorf("the progress tail must be flushed before the sealed log, got %v", order)
+	}
+	if last := order[len(order)-1]; last != "sealed" {
+		t.Errorf("the sealed log should come last, got %v", order)
+	}
+	// 두 파일이 다르다 - 같은 바이트가 두 자리에 있는 것이 정상이다.
+	// 한쪽이 비면 갈래 하나가 안 돈 것이다.
+	if !strings.Contains(progress, "the last thing the step said") {
+		t.Errorf("the progress file missed the tail: %q", progress)
+	}
+	if !strings.Contains(sealed, "the last thing the step said") {
+		t.Errorf("the sealed log missed the tail: %q", sealed)
+	}
+}
