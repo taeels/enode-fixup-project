@@ -67,8 +67,25 @@ func hasName(ss []string, want string) bool {
 	return false
 }
 
+// Verdict 는 한 Run 의 판정이다.
+//
+// 선 위에서 checks 는 언제나 배열이다 - 비어 있으면 [] 이고 null 이 아니다.
+// MarshalJSON 이 그것을 지킨다 (아래). 왜 타입이 지는가: 이 값이 선 위로
+// 나가는 길이 셋이고(목록 · 상세 · 봉인된 record) 저장된 jsonb 를 다시
+// 마샬하는 길까지 있어서, 자리마다 손으로 채우면 언젠가 한 자리를 빠뜨린다.
+//
+// 빠뜨리면 무엇이 깨지나 - 화면이 이 자리에 배열을 요구하고, 관측 응답을
+// 통째로 검사하므로 Run 하나의 null 이 목록 전체를 못 뜨게 한다. 실제로
+// 그렇게 깨졌다: 판정 조건이 0 개인 계약 하나가 checks:null 로 저장돼
+// 있었고, 함대 화면이 토큰을 넣는 자리에서 "Invalid observation:
+// verdict.checks" 로 멈췄다.
+//
+// omitempty 는 답이 아니다. 키가 통째로 사라지면 화면이 똑같이 거절한다 -
+// 없는 것과 빈 것을 가르는 자리가 아니라, 언제나 있어야 하는 자리다.
 type Verdict struct {
-	State  string  `json:"state"`
+	State string `json:"state"`
+	// Checks 는 대조된 조건의 기록이다. 조건이 0 개인 계약이면 비어 있다 -
+	// 그것은 "안 쟀다" 가 아니라 "잴 것이 없었다" 이고, 둘 다 빈 배열로 나간다.
 	Checks []Check `json:"checks"`
 	// Fleet 은 판정 시점에 관측한 함대다 (ADR-058) — fleet_has 를 쓴
 	// 계약에만 담긴다.
@@ -77,6 +94,19 @@ type Verdict struct {
 	// 안 남기면 봉인된 묶음만 보고 판정을 재현할 수 없다 (ADR-005 성질 4).
 	// 그리고 "왜 실패했나" 의 답이 대개 여기 있다: 그 노드가 그때 없었다.
 	Fleet []contract.Advert `json:"fleet,omitempty"`
+}
+
+// MarshalJSON 은 checks 를 언제나 배열로 낸다.
+//
+// nil 슬라이스가 null 로 마샬되는 것이 Go 의 기본이고, 그 기본이 이 자리에서는
+// 틀린 값이다. 별칭 타입으로 재귀를 끊는다 - 그 줄이 없으면 이 메서드가
+// 자기를 다시 부른다.
+func (v Verdict) MarshalJSON() ([]byte, error) {
+	if v.Checks == nil {
+		v.Checks = []Check{}
+	}
+	type wire Verdict
+	return json.Marshal(wire(v))
 }
 
 // Verify 는 ⑩ 이다 — 계약에 선언된 기계적 조건만 대조한다 (ADR-004 · I3).
