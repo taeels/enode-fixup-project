@@ -253,6 +253,26 @@ CB5 와 FR-8 은 이월이라 유닛이 0 이다.
 **남은 유닛 넷 중 하나가 W-c 다** — U5 `panel-live` 단독. **CB1** 을 진다.
 뒤의 셋(U6 · U7 · U8)이 전부 딛는 게이트라 단독으로 둔다.
 
+**웨이브 순서가 바뀌었다 (2026-09-16 · 사용자 지시).** 계획은 W-c(U5) -> W-d(U6·U7)
+-> W-e(U8) 인데, 중앙에 보이는 실시간이 목표이고 그것을 채우는 것이 U7 · U8 이라
+**U5 를 미뤄 두고 U7 을 먼저 돌렸다.** 의존 행렬이 U7 의 U5 의존을 **게이트로만**
+적었고 코드로는 U2 · U4 라 가능했다. **CB1 은 U8 착수 앞에서 CB3 와 함께 잰다.**
+
+```text
+   U1 transcript · U3 progress-store   병합됨  PR #40 #41
+   U2 node-stream · U4 log-api         병합됨  PR #43 #44
+   U5 panel-live                       코드 섰음 · 미병합 (unit/panel-live)
+   U7 chunk-push                       코드 섰음 · 미병합 (unit/chunk-push) · 배포본
+   U6 panel-past · U8 fleet-card       안 지었다
+```
+
+**CB3 의 첫 줄과 마지막 줄을 실 하네스로 쟀다** — 도는 동안 총 길이가 30307 ->
+76271 로 자랐고 (`source=progress` · `attempt=0`), 봉인 뒤 `GET` 과 `record` tar 의
+로그가 **같은 6785 바이트**다. 10초 정지만 안 쟀다. 값은 담당 루트의 「U7 의 코드가
+섰다」.
+
+**화면은 아직 0 이다.** 데이터는 흐르는데 그리는 유닛(U5 · U8)이 둘 다 안 붙어 있다.
+
 ### OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
 

@@ -287,9 +287,15 @@ func TestPutLog_TheProgressBranch(t *testing.T) {
 	}
 
 	// attempt 가 없거나 규칙 밖이면 400 이다. 모르는 채로 붙이면 앞 시도를 걷는다.
+	//
+	// 0 은 규칙 밖이 아니다. 앞 판이 여기 attempt=0 을 넣어 두었는데, 그것이
+	// 노드의 첫 시도이므로 (store 의 Claim.Attempt - "0 부터. 재시도면 1 이상")
+	// 그 줄은 대부분의 단계가 청크를 못 올리는 것을 정본으로 박고 있었다.
+	// 미는 쪽을 지으면서 실측으로 밟아 뒤집었다 -
+	// TestPutProgress_TheFirstAttemptIsZero 가 그 자리를 잰다.
 	for _, q := range []string{
 		"/v1/runs/putp/steps/1/log?name=build&progress=1",
-		"/v1/runs/putp/steps/1/log?name=build&progress=1&attempt=0",
+		"/v1/runs/putp/steps/1/log?name=build&progress=1&attempt=-1",
 		"/v1/runs/putp/steps/1/log?name=build&progress=1&attempt=x",
 	} {
 		if code, _, _ := call(t, srv, "PUT", q, "x"); code != 400 {
@@ -401,5 +407,51 @@ func TestGetLog_ALineLongerThanTheCapStillMovesForward(t *testing.T) {
 	}
 	if res.Partial == 0 {
 		t.Fatal("the cut tail was not reported as partial")
+	}
+}
+
+// 노드의 첫 시도는 attempt 0 이다 (store/claim.go 의 Claim.Attempt —
+// "0 부터. 재시도면 1 이상"). 이 줄이 저장소에 0 이었고, 그래서 putProgress 의
+// attempt <= 0 이 대부분의 단계를 막고 있는 것을 아무도 못 봤다 — 진행 청크를
+// 미는 코드가 아직 없었고(U7) 아래 시험들이 전부 attempt=1 이었다.
+func TestPutProgress_TheFirstAttemptIsZero(t *testing.T) {
+	srv, _ := newServerFast(t)
+	startRun(t, srv, "attempt0")
+
+	body := jsonLine("the first attempt is speaking")
+	code, h, _ := call(t, srv, "PUT",
+		"/v1/runs/attempt0/steps/1/log?name=build&progress=1&attempt=0", body)
+	if code != 200 {
+		t.Fatalf("attempt 0 is the node's first try, not an error: got %d", code)
+	}
+	if h.Get("X-Enode-Log-Bytes") != strconv.Itoa(len(body)) {
+		t.Errorf("the chunk should have landed whole: bytes=%q want %d",
+			h.Get("X-Enode-Log-Bytes"), len(body))
+	}
+	if h.Get("X-Enode-Log-Attempt") != "0" {
+		t.Errorf("the server should echo the attempt it stored, got %q",
+			h.Get("X-Enode-Log-Attempt"))
+	}
+
+	// 그리고 실제로 읽힌다 — 200 만 보고 저장을 안 확인하면 이 시험이
+	// 검증하는 것이 절반이다.
+	code, _, b := call(t, srv, "GET", "/v1/runs/attempt0/steps/1/log?name=build", "")
+	if code != 200 || string(b) != body {
+		t.Fatalf("the attempt-0 chunk did not come back: code %d body %q", code, b)
+	}
+}
+
+// 음수는 여전히 400 이다. 0 을 열면서 검증을 통째로 걷으면 안 된다 —
+// 음수 시도는 존재하지 않으므로 그것을 받으면 파일 이름이 이상해진다.
+func TestPutProgress_ANegativeAttemptIsStillRefused(t *testing.T) {
+	srv, _ := newServerFast(t)
+	startRun(t, srv, "attemptneg")
+
+	for _, bad := range []string{"-1", "", "x"} {
+		code, _, _ := call(t, srv, "PUT",
+			"/v1/runs/attemptneg/steps/1/log?name=build&progress=1&attempt="+bad, "hi\n")
+		if code != 400 {
+			t.Errorf("attempt=%q should be refused, got %d", bad, code)
+		}
 	}
 }

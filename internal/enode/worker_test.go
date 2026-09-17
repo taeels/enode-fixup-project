@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -45,6 +46,15 @@ type mediator struct {
 	putCode  map[string]int    // PUT blob 이 답할 상태코드. 없으면 200
 	claims   []*Step           // claim 이 차례로 내줄 것. 비면 204 다
 	instance []string          // claim 이 받은 X-Enode-Instance 값들
+
+	// 진행 청크(progress=1)는 선별본과 다른 파일로 간다. 한 자리에 덮으면
+	// 두 벌이 아니라 한 벌이 되고, 그러면 "두 벌이 안 생긴다" 를 재는 시험이
+	// 아무것도 안 재게 된다.
+	progress []byte
+	// order 는 로그 쪽 PUT 이 들어온 차례다 - "progress" 와 "sealed".
+	// 꼬리 비우기가 선별본 업로드보다 먼저여야 봉인 직전의 마지막 줄이
+	// 중앙 화면에 뜬다. 그 순서를 여기서 잰다.
+	order []string
 }
 
 func newMediator(t *testing.T) *mediator {
@@ -87,7 +97,16 @@ func (m *mediator) serve(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(body)
 	case len(p) == 6 && p[5] == "log":
 		b, _ := io.ReadAll(r.Body)
+		if r.URL.Query().Get("progress") == "1" {
+			m.progress = append(m.progress, b...)
+			m.order = append(m.order, "progress")
+			w.Header().Set("X-Enode-Log-Bytes", strconv.Itoa(len(m.progress)))
+			w.Header().Set("X-Enode-Log-Attempt", r.URL.Query().Get("attempt"))
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		m.logs[r.URL.Query().Get("name")] = b
+		m.order = append(m.order, "sealed")
 		w.WriteHeader(http.StatusOK)
 	case len(p) == 7 && p[5] == "blob":
 		name := p[6]

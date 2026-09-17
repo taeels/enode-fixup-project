@@ -913,9 +913,18 @@ func (s *Server) putLog(w http.ResponseWriter, r *http.Request) {
 //
 // attempt 를 요구한다. 모르는 채로 붙이면 안 되기 때문이다 — 진행 파일은
 // 시도가 바뀌면 앞 시도를 걷고(record 의 R9), 틀린 값이 그 걷기를 부른다.
+//
+// 0 은 유효하다. 바로 위 seq 검사와 모양이 같아 보이지만 두 수의 바닥이 다르다 —
+// seq 는 1 부터이고 attempt 는 0 부터다 (store/claim.go 의 Claim.Attempt,
+// "0 부터. 재시도면 1 이상"). 첫 시도가 0 이므로 <= 0 으로 막으면 대부분의
+// 단계가 청크를 한 바이트도 못 올린다.
+//
+// 이 자리가 처음에 <= 0 이었던 것은 위 줄을 따라 썼기 때문이고, 그때 이 갈래를
+// 아무도 안 밟았다 — 진행 청크를 미는 유일한 코드가 아직 없었고(U7), 시험은
+// 전부 attempt=1 이었다. 미는 쪽을 지으면서 실측으로 밟았다.
 func (s *Server) putProgress(w http.ResponseWriter, r *http.Request, runID string, seq int, name string) {
 	attempt, err := strconv.Atoi(r.URL.Query().Get("attempt"))
-	if err != nil || attempt <= 0 {
+	if err != nil || attempt < 0 {
 		fail(w, 400, "invalid attempt")
 		return
 	}

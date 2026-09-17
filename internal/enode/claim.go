@@ -310,11 +310,35 @@ type Worker struct {
 
 // transcript 는 tee 대상을 io.Writer 로 낸다. ring 이 nil 이면 typed-nil 이 아니라
 // 진짜 nil 을 돌려준다 — runner 의 nil 검사가 성립하게.
-func (w *Worker) transcript() io.Writer {
-	if w.ring == nil {
-		return nil
+// transcript 는 이 단계의 하네스 출력이 흘러갈 자리를 낸다 - 노드의 링과
+// Mediator 로 미는 업로더 둘이다. 규칙이 하나다: 링으로 가는 것은 Mediator 로도
+// 간다. 그래야 중앙 화면이 제어판보다 적게 보이는 일이 없다.
+//
+// step 을 받는 이유 - 업로더는 runID · seq · name · attempt 넷을 알아야 한다.
+// 링은 노드에 하나라 몰라도 됐다.
+//
+// 정리 함수를 함께 내는 이유 - 업로더는 단계 끝에 남은 꼬리를 마지막으로
+// 비우고 고루틴을 멈춰야 한다. 부르는 쪽이 defer 로 든다. 둘 다 없으면
+// nil 과 no-op 이라 부르는 쪽에 갈래가 안 생긴다.
+func (w *Worker) transcript(step *Step) (io.Writer, func()) {
+	var sinks []io.Writer
+	if w.ring != nil {
+		sinks = append(sinks, w.ring)
 	}
-	return w.ring
+	stop := func() {}
+	if w.Client != nil && step != nil {
+		u := newUploader(w.Client, step, w.Log)
+		sinks = append(sinks, u)
+		stop = u.Close
+	}
+	switch len(sinks) {
+	case 0:
+		return nil, stop
+	case 1:
+		return sinks[0], stop
+	default:
+		return io.MultiWriter(sinks...), stop
+	}
 }
 
 // report 는 보고가 닿을 때까지 다시 보낸다 (ADR-030).
@@ -626,11 +650,16 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	cmd.Env = harnessEnv(append(commandEnv, step.Env...),
 		map[string]string{"OUT": out, "IN": in}, nil)
 	var buf bytes.Buffer
-	// 명령 단계 stdout/stderr 도 트랜스크립트 링에 tee 한다 (unit-of-work §6).
+	// 명령 단계 stdout/stderr 도 링과 업로더로 tee 한다 (unit-of-work §6).
 	// 로그 업로드·판정은 그대로 buf 를 읽는다.
+	//
+	// 에이전트 단계만 올리는 길도 있으나 그러면 중앙이 제어판보다 적게 보인다 -
+	// 링에는 명령 출력이 들어가는데 Mediator 에는 안 들어가서, 화면 둘이 같은
+	// 단계를 두고 다른 것을 보인다. 그 비대칭을 화면이 설명할 길이 없다.
 	var sink io.Writer = &buf
-	if w.ring != nil {
-		sink = io.MultiWriter(&buf, w.ring)
+	cmdTee, stopCmdTee := w.transcript(step)
+	if cmdTee != nil {
+		sink = io.MultiWriter(&buf, cmdTee)
 	}
 	cmd.Stdout, cmd.Stderr = sink, sink
 
@@ -641,6 +670,10 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	res := Result{Node: w.Ident.NodeID, Workspace: prep,
 		Produced: w.uploadProduced(ctx, step, out, stamp, log),
 		Changed:  CheckChanged(stamp, step.CheckChanged)}
+
+	// 꼬리를 비우는 것이 UploadLog(선별본)보다 먼저다 - 뒤집으면 봉인 직전의
+	// 마지막 줄이 중앙 화면에 안 뜬다.
+	stopCmdTee()
 
 	// 로그를 먼저 올린다 — 단계가 실패해도 원문은 남아야 한다.
 	// 여기서 실패해도 결과 보고는 계속한다. 로그가 없다고 Run 을 멈출 이유는 없다.
@@ -775,6 +808,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	if len(p.MCP) > 0 && w.Local.Workspace != "" {
 		wsMCP, wsErr = readWorkspaceMCP(w.Local.Workspace)
 	}
+	tee, stopTee := w.transcript(step)
 	logBytes, h := runHarness(runCtx, ha, bin, Job{
 		Params: p, Prompt: prompt,
 		IO: IOPaths{Dir: dir, In: in, Out: out},
@@ -791,8 +825,11 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		Stamp:      stamp, // 훅이 볼 기준 시각 — git 이 못 보는 것까지
 		Inject:     inject,
 		Emit:       func(e Event) { log.Debug("harness event", "kind", e.Kind) },
-		Transcript: w.transcript(), // 하네스 stdout 을 트랜스크립트 링으로 tee
+		Transcript: tee, // 하네스 stdout 을 링과 업로더로 tee
 	})
+	// 꼬리를 비우는 것이 UploadLog(선별본)보다 먼저다 - 뒤집으면 봉인 직전의
+	// 마지막 문장이 중앙 화면에 안 뜬다.
+	stopTee()
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
 	res := Result{Node: w.Ident.NodeID, Harness: &h, Workspace: prep,

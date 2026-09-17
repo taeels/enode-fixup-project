@@ -1254,6 +1254,136 @@ Part 2 도 worktree 둘에서 병렬이다. U1 은 불변식 F2 의 글자를 �
 
 ---
 
+## W-d(순서 변경) U7 chunk-push — Functional Design Part 1
+**Timestamp**: 2026-09-16T10:05:00Z
+**User Input**: "그래. 7번 가자"
+**AI Response**: 브랜치 `unit/chunk-push` 를 병합된 `main` (05ee710) 에서 땄다. 계획은 `construction/plans/chunk-push-functional-design-plan.md` · **물음 여덟.**
+
+**실측이 이 유닛을 통째로 막는 것 하나를 찾았고 탐침으로 쟀다.**
+
+```text
+   노드의 첫 시도    store/claim.go:156   Attempt int  // 0 부터. 재시도면 1 이상
+   Mediator 의 검증  api.go putProgress   attempt <= 0 -> 400 invalid attempt
+
+   탐침   attempt=0  ->  400  {"error":{"code":400,"reason":"invalid attempt"}}
+         attempt=1  ->  200  X-Enode-Log-Bytes: 93
+```
+
+**첫 시도가 대부분이므로 이대로 지으면 한 바이트도 안 올라가고 CB3 이 통째로 빨갛다.** U4 가 못 본 이유는 `internal/api/getlog_test.go` 의 진행 청크 시험 **다섯이 전부 `attempt=1`** 이라 그 갈래를 한 번도 안 밟기 때문이다 — **W-b 의 U4 변이 넷째와 같은 모양이다.** `record` 계층은 0 을 정상으로 다루므로 막는 것은 **API 검증 한 줄뿐**이다.
+
+그 밖 둘 — `unit-of-work.md` 의 U7 절이 「tee 의 갈래 하나」로 적었는데 **실제로는 둘이다** (에이전트 `claim.go:794` · 명령 `claim.go:632`) · 「`Client.PutLogChunk` 하나」로 적었는데 **`transcript()` 의 시그니처도 함께 넓어진다** (인자가 0 개인데 업로더는 넷을 알아야 한다).
+**Context**: CONSTRUCTION — U7 Functional Design Part 1. 승인 대기
+
+---
+
+## U7 Functional Design Part 2 — 산출
+**Timestamp**: 2026-09-16T10:30:00Z
+**User Input**: "권장대로"
+**AI Response**: 물음 여덟을 전부 권장으로 닫았다 — **여덟이 전부 A · 갈린 답 0.** 산출물 셋을 `construction/chunk-push/functional-design/` 에 냈다.
+
+**모순 검사가 하나를 막았다 — 「멈춘다」가 자기를 알릴 수 없다.**
+
+답 3 = A 의 버퍼 넘침도 「멈춘다」이고 답 5 = A 의 상한도 「멈춘다」다. 화면이 둘을 가를 수 있는지를 보러 갔더니 **더 나쁜 것이 있었다.**
+
+```text
+   버퍼가 넘치는 조건    Mediator 에 못 닿는다.  그래서 쌓였다
+   표시를 박는 방법      Mediator 에 PUT 한다
+```
+
+**둘이 서로를 배제한다.** 상한은 반대다 — 서버가 알고 서버가 박는다 (`enode.capped`). **그 비대칭이 답이다**: 진행 파일에 `capped` 줄이 있으면 상한이고, 아무 줄 없이 끝나 있으면 노드가 포기한 것이다. **연결이 돌아와도 재개하지 않는다** — 버린 바이트가 이미 없어 재개하면 표시 없는 구멍이 생긴다 (답 3 = B 를 기각한 바로 그 이유).
+
+**값 둘을 이 단계가 졌다** (NFR 스킵이라 정할 자리가 여기다). 버퍼 상한 **1 MiB** — CB3 의 10초 정지가 들어가야 해서 링의 512 KiB 보다 키웠고 **CB3 이 그 값을 실제로 밟는다**. 오프셋은 **보내는 고루틴의 지역 변수**로만 둔다 — 공유 상태가 줄고 `Write` 가 못 막히는 것이 구조로 선다.
+
+**교차 검사** — 이 유닛이 새 type 을 **0 개** 들인다. 어휘가 안 넓어지므로 U8 이 그릴 것이 안 는다. U8 에 넘기는 규칙은 하나다 — **진행 파일이 조용히 끝날 수 있고, `capped` 줄의 유무가 「끝났다」와 「안 오고 있다」를 가른다** (NC-6).
+**Context**: CONSTRUCTION — U7 Functional Design Part 2 완료
+
+---
+
+## U7 Code Generation Part 1 — 계획
+**Timestamp**: 2026-09-16T10:50:00Z
+**User Input**: "어 그래"
+**AI Response**: Code Generation 계획을 냈다 — `construction/plans/chunk-push-code-generation-plan.md`. **Step 열둘 · 체크박스 쉰 · 물음 0.**
+
+**U5 와 다르다** — 값 둘(버퍼 상한 1 MiB · 오프셋의 자리)을 Functional Design 이 이미 졌으므로 이 계획은 옮겨 적기만 한다. **남은 값 하나를 계획이 졌다** — 재전송 간격이다. 주기 그대로 2초이고 백오프를 안 둔다: 버퍼가 1 MiB 라 재전송이 오래 못 가고, **백오프를 두면 멈추기까지의 시간이 늘어 CB3 의 10초 창을 오히려 좁힌다.**
+
+**계획이 실측으로 둘을 찾았다.**
+
+```text
+   step 이 두 자리 다 스코프   claim.go:441 execute 안이라 runID · seq · name ·
+                           attempt 넷을 따로 나를 필요가 0 이다
+   Client 가 advertise.go    행렬은 claim.go · upload.go 둘을 줬다.  PutLogChunk 를
+   에 산다                   upload.go 에 두면 **행렬이 준 파일 둘만 만진다**
+```
+
+**Step 2 가 착수 조건이다** — `api.go` 의 `attempt <= 0` 을 `< 0` 으로. `attempt=0` 을 밟는 시험이 저장소에 0 이었으므로 그 시험도 함께 짓는다.
+
+**변이 일곱 중 둘(③ 동기 전송 · ⑥ 버퍼 상한 제거)이 W-b 의 U2 변이 ⑤ 와 같은 자리다** — 거기서 `Write` 가 영영 막혀 실패가 아니라 **600초 멈춤**으로 빨갰다. 업로더는 네트워크라 더 세다. **시험에 타임아웃을 걸어 멈춤이 멈춤으로 보이게 한다** — 안 걸면 변이가 「빨강」이 아니라 「영영 안 끝남」이 되고 그 둘은 읽는 사람에게 다르다.
+**Context**: CONSTRUCTION — U7 Code Generation Part 1. 승인 대기
+
+---
+
+## U7 Code Generation Part 2 — 생성
+**Timestamp**: 2026-09-16T11:30:00Z
+**User Input**: "승인"
+**AI Response**: Step 열둘을 다 돌았다. **체크박스 50 중 50.** 요약은 `construction/chunk-push/code/code-summary.md`.
+
+```text
+   시험 19 패키지 초록 · 스킵 0
+   커버리지 미달 0 · 전체 7845/8954 = 87.6%
+   internal/enode  87.0% -> 87.4%   ·  internal/api 82.3% 그대로
+   라우트 api.go 18 그대로 (CB0 안 건드림)
+   gofmt 0 줄 · glyphscan 112 파일 0 · 크로스 빌드 OK · net/http T 6
+   diff 0 — record · transcript · panel · store · go.mod · go.sum 전부 0
+```
+
+**한 줄을 고쳤고 그것이 시험 하나를 뒤집게 했다.** `attempt <= 0` 을 `< 0` 으로 바꾸니 U4 의 `TestPutLog_TheProgressBranch` 가 빨개졌다 — **그 시험의 400 목록에 `attempt=0` 이 들어 있었다.** 버그가 정본으로 박혀 있던 것이다. `attempt=-1` 로 바꾸고 `TestPutProgress_TheFirstAttemptIsZero` 를 더했다.
+
+**실측이 진짜 결함 하나를 잡았다 — 전송 중인 바이트가 상한 계산에서 빠져 있었다.** `take` 가 버퍼를 떼어 가면 그동안 `u.buf` 가 비어 보여서 **실제 메모리가 상한의 두 배**가 된다. 버퍼 상한 시험이 「넘칠 만큼 썼는데 안 넘쳤다」로 잡았다. `inflight` 필드를 더해 셈에 넣었다.
+
+**변이 일곱 중 다섯이 바로 빨갰고 둘이 살아남았다.**
+
+**⑤ 는 규칙이 공허했다.** 「`Attempt` 를 `Total` 보다 먼저 본다」(R8)인데, 새 시도를 보면 **멈추므로** 그 뒤에 오프셋을 읽는 자리가 0 이다. **시험을 지어 억지로 빨갛게 만들지 않았다** — 그러면 코드가 아니라 시험이 규칙을 만든다. **R8 을 걷고 그 자리에 이 사실을 적었다.**
+
+**⑦ 은 Step 9 의 순서 줄을 안 지어 살아남았다.** 지으면서 **가짜 Mediator 가 진행 청크와 선별본을 한 자리에 덮고 있던 것**도 드러났다 — 그러면 「두 벌이 안 생긴다」가 「한 벌만 생긴다」로 조용히 바뀐다.
+**Context**: CONSTRUCTION — U7 Code Generation Part 2. 승인 대기
+
+---
+
+## 세션을 넘긴다 — 상태 감사
+**Timestamp**: 2026-09-16T12:35:00Z
+**User Input**: "새 세션으로 넘어가도됨? Aidlc state 확인하고 넘어갈 준비"
+**AI Response**: 상태 파일이 낡아 있어 고쳤다. **U7 이 「Code Generation Part 1 승인 대기」로 남아 있었는데 실제로는 Part 2 가 끝나고 게이트까지 쟀다.**
+
+더한 것 — U7 Part 2 의 결과(체크박스 50/50 · 게이트 · 변이 일곱 중 둘이 살아남은 것) · **CB3 의 첫 줄과 마지막 줄을 실 하네스로 잰 것** · 다음 세션이 서 있는 자리 · 회차 밖의 일(배포 · NPM · verdict 수정).
+
+**앞서 적은 것 하나를 고쳤다** — 「`runctl record` 가 tar 를 안 낸다」고 쓸 뻔했는데 **제가 틀렸다.** 환경변수를 안 내보낸 셸에서 돌리고 `2>/dev/null` 로 오류를 삼킨 것이다. 도구는 멀쩡하고, 다시 재서 **봉인 뒤 GET 과 tar 의 로그가 같은 6785 바이트**임을 확인했다 — CB3 의 마지막 줄이 초록이다.
+
+**브랜치 넷이 전부 origin 과 동기이고 미커밋이 0 이다.**
+**Context**: 세션 인계 — 상태 감사와 정정
+
+---
+
+## U8 착수 자리를 실측으로 찾았다 — 카드가 URL 을 못 만든다
+**Timestamp**: 2026-09-16T12:50:00Z
+**User Input**: "근데. U8 하면 현황판에서도 실시간 트랜스크립트 나와?" / "그래"
+**AI Response**: 답은 「그렇다, 다만 지금 그대로 지으면 빈 카드가 뜬다」다. 데이터는 다 있다 — 방금 돌린 `cb3-live-1` 이 `as=events` 로 사건 29개와 도구 이름 여섯을 낸다. U8 은 Go 를 0 줄 만지고 `.mjs` 로 그리기만 하면 된다.
+
+**그런데 카드가 로그 URL 을 못 만든다.**
+
+```text
+   GET .../steps/{seq}/log 는 ?name= 을 받고 없으면 "step" 으로 기본값을 쓴다
+   Run 상세의 단계 객체에는 name 이 없다 — 있는 것은 id 다
+
+   name 없이        -> 200  X-Enode-Log-Bytes: 0      빈 카드
+   name=summarize  -> 200  X-Enode-Log-Bytes: 6785   내용이 온다
+```
+
+**404 가 아니라 200 에 0 바이트**라 「에이전트가 아무 말도 안 했다」로 보인다.
+
+**닫는 법을 확인했다** — 상세의 `id` 가 곧 로그의 이름이다. `StepView.ID` 가 `steps.name` 을 그대로 싣는다 (`observe.go:54`). DB 로 대 봤고 여러 단계짜리 Run 에서도 같다. **U8 이 `steps[].id` 를 `?name=` 으로 넘기면 U8 안에서 닫히고 「`ui.go` diff 0」과도 맞는다.**
+
+**회차 밖으로 낼 것이 하나 는다** — `component-methods.md` 의 `GET log` 절이 기본값을 `step` 으로 적었는데, 계약이 단계 이름을 지으므로 그 기본값이 맞는 Run 이 대개 없다.
+**Context**: U8 착수 전 실측 — 다음 세션이 밟을 자리
 ## W-c 착수 — U5 panel-live Functional Design Part 1
 **Timestamp**: 2026-09-16T07:20:00Z
 **User Input**: (없음 — 「w-c 진행」의 실행)
@@ -1600,6 +1730,20 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 
 **측정 뒤 기계 상태** — `enode-dev` 의 mediator 와 `~/.local/bin/enode` 가 측정 나무 것이다 (백업 `*.bak-u6cb2-20260917-133503`). 기록 프록시(8081)와 둘째 제어판(8100)과 `nodes/exec-hop.yaml` 은 걷었다. **측정 나무는 병합하지 않는다.**
 **Context**: Construction · U6 · Code Generation 승인 · 게이트 측정 (CB2 · CB6 보류 해제)
+
+---
+
+## Construction · U7 `chunk-push` · CB3 의 마지막 줄 — 초록
+**Timestamp**: 2026-09-17T05:10:00Z
+**User Input**: "pr49 머지하고 u7은 범위를 최소화해서 확인해라. 토큰 아까우니까. 지금부터는 영어로 말해라."
+**AI Response**: PR #49 를 병합했다 (`main` = 146d6be). U7 은 안 잰 한 줄만 쟀다 — 배포본이 이미 U7 을 들고 있어 다시 안 지었다.
+
+**처음 주입이 틀렸다.** `SIGSTOP` 으로 mediator 를 얼렸더니 PUT 이 실패하지 않았다 — 커널이 연결을 받아 두고 클라이언트는 응답만 기다렸고, 주기 flush 가 `context.Background()` 를 쓰므로 제한시간이 없다. 노드 로그에 실패가 0 줄이었다. **지연만 주입한 것이고 프로세스를 죽여야 connection refused 가 난다.**
+
+**다시 쟀다 — `cb3-pause-2` (haiku · $0.0260).** mediator 프로세스를 죽이고 10초 뒤 다시 띄웠다. 노드 로그에 「cannot push the transcript chunk」 err=connection refused 와 「the transcript upload recovered」 failures=5 after=10s 가 남았다. 끊기 전 10,789 바이트가 뒤에 15,348 이 됐고(+4,559) **뒤의 앞 10,789 바이트가 앞과 바이트까지 같다** — 이어 붙었고 두 벌이 안 생겼다. 단계는 `reason=ok · 턴 6` 로 살았다. 실패 다섯에 로그 한 줄인 것도 함께 섰다.
+
+**CB3 초록이다.** 첫 줄과 마지막 줄은 2026-09-16 에 이미 쟀다.
+**Context**: Construction · U7 · CB3 마지막 줄 측정. 병합 지점
 
 ---
 
