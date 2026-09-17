@@ -217,95 +217,95 @@ FR-7 과 CB4 가 「그 카드가 그래프와 목록을 가리지 않는다」�
 ## 4. 단계 — 열둘
 
 ### Step 1 — 겉면과 빈 패키지
-- [ ] `internal/transcriptui/embed.go` — `//go:embed` 와 `var` 뿐. **함수 0** (1.2)
-- [ ] `card.mjs` 에 3절의 세 `export` 를 빈 몸으로 세운다
-- [ ] `go build ./...` 가 서고 `go list ./...` 가 20 이다
+- [x] `internal/transcriptui/embed.go` — `//go:embed` 와 `var` 뿐. **함수 0** (1.2)
+- [x] `card.mjs` 에 3절의 세 `export` 를 빈 몸으로 세운다
+- [x] `go build ./...` 가 서고 `go list ./...` 가 20 이다
 
 ### Step 2 — 라우트 둘 (R32 · R33 · R34)
-- [ ] `ui.go` 가 `/ui/shared/transcriptui/card.mjs` 를 낸다. MIME 이 javascript 다
-- [ ] `/ui/shared/transcriptui/` 는 **404** — 디렉터리 목록을 안 낸다 (1.3)
-- [ ] `panel.go` 가 `GET /static/card.mjs` 를 낸다. 보안 헤더 래퍼 안이다
-- [ ] 두 응답의 **바이트가 같다** (R34 를 재는 시험 하나)
-- [ ] `internal/api/api.go` 의 `HandleFunc` 수가 **안 늘었다** (R33 · CB0)
+- [x] `ui.go` 가 `/ui/shared/transcriptui/card.mjs` 를 낸다. MIME 이 javascript 다
+- [x] `/ui/shared/transcriptui/` 는 **404** — 디렉터리 목록을 안 낸다 (1.3)
+- [x] `panel.go` 가 `GET /static/card.mjs` 를 낸다. 보안 헤더 래퍼 안이다
+- [x] 두 응답의 **바이트가 같다** (R34 를 재는 시험 하나)
+- [x] `internal/api/api.go` 의 `HandleFunc` 수가 **안 늘었다** (R33 · CB0)
 
 ### Step 3 — 경계 넷 (R31)
-- [ ] `boundary_test.go` 의 표에 네 줄 — `transcriptui -> panel · api · store · enode`
-- [ ] 여덟이 열둘이 되고 전부 초록이다
-- [ ] 파일 행렬 6.1 의 빈 넷째 줄(`api/ui -> store`)이 섰는지 보고, 안 섰으면 함께 세운다
+- [x] `boundary_test.go` 의 표에 네 줄 — `transcriptui -> panel · api · store · enode`
+- [x] 여덟이 열둘이 되고 전부 초록이다
+- [x] 파일 행렬 6.1 의 빈 넷째 줄(`api/ui -> store`)이 섰는지 보고, 안 섰으면 함께 세운다
 
 ### Step 4 — 렌더러를 옮긴다 (R36 ~ R41 · U5 의 R18 · R19 · R21 · R22 · R30)
-- [ ] `evLabel` · `evSummary` · `drawEvent` 를 **글자 그대로** 옮긴다 (R40)
-- [ ] 전역 둘을 인자로 뺀다 — `open` 과 `onToggle` (1.5)
-- [ ] 본문은 `textContent` 로만. `innerHTML` 에 하네스 바이트가 0 번 (R54)
-- [ ] 펼침 열쇠는 `tool_use_id` (R39)
-- [ ] **그리기 전에** 바닥을 재고 바닥이었을 때만 따라간다 (R53 · U5 의 R21)
-- [ ] `Date.now` · `new Date` · `fetch` 가 `card.mjs` 에 **0 번** (R37 · R38)
-- [ ] `activeTool` — 마지막 `tool_use` 의 짝짓기 (R57)
-- [ ] `parseEvents` — 계약 검사. 모르는 모양이면 던진다 (R55)
+- [x] `evLabel` · `evSummary` · `drawEvent` 를 **글자 그대로** 옮긴다 (R40)
+- [x] 전역 둘을 인자로 뺀다 — `open` 과 `onToggle` (1.5)
+- [x] 본문은 `textContent` 로만. `innerHTML` 에 하네스 바이트가 0 번 (R54)
+- [x] 펼침 열쇠는 `tool_use_id` (R39)
+- [x] **그리기 전에** 바닥을 재고 바닥이었을 때만 따라간다 (R53 · U5 의 R21)
+- [x] `Date.now` · `new Date` · `fetch` 가 `card.mjs` 에 **0 번** (R37 · R38)
+- [x] `activeTool` — 마지막 `tool_use` 의 짝짓기 (R57)
+- [x] `parseEvents` — 계약 검사. 모르는 모양이면 던진다 (R55)
 
 ### Step 5 — 제어판을 그 모듈 위에 세운다 (답 2 = A)
-- [ ] `page.go` 에서 그리는 함수 셋이 빠진다
-- [ ] 인라인 모듈 한 줄로 `window.enodeCard` 에 건다 (3절)
-- [ ] 기존 인라인 스크립트는 **그대로 둔다.** `onclick` 아홉을 안 걷는다
-- [ ] 폴링(1초) · 세대 리셋(R20) · 경과(R14) · 잘림 줄 · 링 경로는 `page.go` 에 남는다
-- [ ] 제어판이 **상태 줄을 얻는다** — 오늘 없는 줄이다 (도메인 5절)
+- [x] `page.go` 에서 그리는 함수 셋이 빠진다
+- [x] 인라인 모듈 한 줄로 `window.enodeCard` 에 건다 (3절)
+- [x] 기존 인라인 스크립트는 **그대로 둔다.** `onclick` 아홉을 안 걷는다
+- [x] 폴링(1초) · 세대 리셋(R20) · 경과(R14) · 잘림 줄 · 링 경로는 `page.go` 에 남는다
+- [x] 제어판이 **상태 줄을 얻는다** — 오늘 없는 줄이다 (도메인 5절 · `statusLine`)
 
 ### Step 6 — 규율을 함수로 뺀다 (R50)
-- [ ] `client.mjs` 에서 4초 제한시간 · `AbortController` · 연속 실패 얼리기를 뺀다
-- [ ] `retryDelay` 는 이미 `export` 다. 그대로 쓴다
-- [ ] `ObservationClient` 의 동작이 **안 바뀐다** — 기존 `client.test.mjs` 가 그대로 초록
+- [x] `client.mjs` 에서 4초 제한시간 · `AbortController` · 연속 실패 얼리기를 뺀다
+- [x] `retryDelay` 는 이미 `export` 다. 그대로 쓴다
+- [x] `ObservationClient` 의 동작이 **안 바뀐다** — 기존 `client.test.mjs` 가 그대로 초록
 
 ### Step 7 — 폴러 (R44 ~ R51)
-- [ ] `transcript-poller.mjs` 신규. `setInterval` 2초 — **목록의 5초와 별개** (R46)
-- [ ] 화면이 `{seq, name, state}` 목록을 넘긴다. 폴러가 상세를 **안 읽는다** (R47)
-- [ ] `CLAIMED` 만 2초. 끝난 단계는 한 번 (R49)
-- [ ] URL 은 `?name=` 에 `steps[].id` (R42). `?from=` 이 0 번 (R43)
-- [ ] 멈추는 신호 둘 — 상세의 `DONE`·`FAILED`, 응답의 `source=sealed` (R48)
-- [ ] 열쇠 `(run, seq, attempt)`. `X-Enode-Log-Attempt` 가 다르면 안 잇는다 (R44 · R45)
-- [ ] Run 상세가 안 열려 있으면 요청 0 (R51)
+- [x] `transcript-poller.mjs` 신규. `setInterval` 2초 — **목록의 5초와 별개** (R46)
+- [x] 화면이 `{seq, name, state}` 목록을 넘긴다. 폴러가 상세를 **안 읽는다** (R47)
+- [x] `CLAIMED` 만 2초. 끝난 단계는 한 번 (R49)
+- [x] URL 은 `?name=` 에 `steps[].id` (R42). `?from=` 이 0 번 (R43)
+- [x] 멈추는 신호 둘 — 상세의 `DONE`·`FAILED`, 응답의 `source=sealed` (R48)
+- [x] 열쇠 `(run, seq, attempt)`. `X-Enode-Log-Attempt` 가 다르면 안 잇는다 (R44 · R45)
+- [x] Run 상세가 안 열려 있으면 요청 0 (R51)
 
 ### Step 8 — 카드를 화면에 붙인다 (R52 · R53 · R56 · R58 ~ R61)
-- [ ] 자리는 **사이드바**의 `stepList` 아래다 (1.4)
-- [ ] 렌더러를 **주입받는다.** `view.mjs` 에 정적 임포트가 0 (1.1)
-- [ ] 총 길이가 안 움직이면 DOM 을 안 건드린다 (R52)
-- [ ] 사건 열은 `replaceContents` 를 **안 탄다** (R53). 나머지는 탄다
-- [ ] 상태 줄은 `state === 'CLAIMED'` 일 때만 (R56)
-- [ ] 세 상태를 안 합친다 · 실패해도 마지막 값을 안 지운다 · 빈 `catch` 0 (R58 ~ R60)
-- [ ] 404 는 카드를 접는다. 총 길이 0 과 다르다 (R61)
-- [ ] NC-4 · NC-5 · NC-6 을 그린다. NC-6 이 이 유닛이 지는 완료 조건이다
+- [x] 자리는 **사이드바**의 `stepList` 아래다 (1.4)
+- [x] 렌더러를 **주입받는다.** `view.mjs` 에 정적 임포트가 0 (1.1)
+- [x] 총 길이가 안 움직이면 DOM 을 안 건드린다 (R52)
+- [x] 사건 열은 `replaceContents` 를 **안 탄다** (R53). 나머지는 탄다
+- [x] 상태 줄은 `state === 'CLAIMED'` 일 때만 (R56)
+- [x] 세 상태를 안 합친다 · 실패해도 마지막 값을 안 지운다 · 빈 `catch` 0 (R58 ~ R60)
+- [x] 404 는 카드를 접는다. 총 길이 0 과 다르다 (R61)
+- [x] NC-4 · NC-5 · NC-6 을 그린다. NC-6 이 이 유닛이 지는 완료 조건이다
 
 ### Step 9 — 원문 토글 (답 7 = A)
-- [ ] 켤 때 `as=raw` 를 한 번 더 부른다
-- [ ] 끈 동안 `as=raw` 요청이 **0** 이다
-- [ ] 원문은 `pre.textContent` 한 줄. **렌더러 밖이다** (R36)
+- [x] 켤 때 `as=raw` 를 한 번 더 부른다
+- [x] 끈 동안 `as=raw` 요청이 **0** 이다
+- [x] 원문은 `pre.textContent` 한 줄. **렌더러 밖이다** (R36)
 
 ### Step 10 — 시험: 렌더러
-- [ ] `card.test.mjs` 신규. 디스크 경로로 임포트한다 (1.1)
-- [ ] 종류 일곱이 각각 그려진다. 모르는 `type` 은 `raw` 로 온다
-- [ ] `raw` 가 **한 줄**이다 — 본문 JSON 이 카드에 0 번 (R40 · U5 의 R30)
-- [ ] `innerHTML` 이 이 경로에 0 번이고 태그가 글자로 남는다 (R54)
-- [ ] 펼침이 `tool_use_id` 로 든다. `line` 이 밀려도 안 따라 밀린다 (R39)
-- [ ] 바닥이 아니었으면 안 따라간다 (R53 을 재는 줄이다)
-- [ ] `activeTool` — 짝이 없으면 이름, 있으면 `null` (R57)
-- [ ] **이 파일이 R14 · R19 · R20 · R21 · R30 의 첫 자동 검사다** (계획 1.1 의 값)
+- [x] `card.test.mjs` 신규. 디스크 경로로 임포트한다 (1.1)
+- [x] 종류 일곱이 각각 그려진다. 모르는 `type` 은 `raw` 로 온다
+- [x] `raw` 가 **한 줄**이다 — 본문 JSON 이 카드에 0 번 (R40 · U5 의 R30)
+- [x] `innerHTML` 이 이 경로에 0 번이고 태그가 글자로 남는다 (R54)
+- [x] 펼침이 `tool_use_id` 로 든다. `line` 이 밀려도 안 따라 밀린다 (R39)
+- [x] 바닥이 아니었으면 안 따라간다 (R53 을 재는 줄이다)
+- [x] `activeTool` — 짝이 없으면 이름, 있으면 `null` (R57)
+- [x] **이 파일이 R14 · R19 · R20 · R21 · R30 의 첫 자동 검사다** (계획 1.1 의 값)
 
 ### Step 11 — 시험: 폴러
-- [ ] 가짜 타이머와 가짜 `fetch` 로 돈다. 네트워크를 안 탄다
-- [ ] 2초와 5초가 **다른 타이머**다 — 목록을 멈춰도 카드 요청이 난다 (**CB4 를 재는 줄**)
-- [ ] URL 에 `name=<id>` 가 있고 `from=` 이 없다
-- [ ] `DONE` 을 받으면 한 번 더 읽고 멈춘다. **안 받으면 계속 돈다** (R48)
-- [ ] `attempt` 가 바뀌면 든 것을 버린다
-- [ ] 429 가 `Retry-After` 만큼 민다 — `client.mjs` 와 **같은 함수**를 쓴다 (R50)
-- [ ] 실패해도 마지막 값이 안 지워진다 (R59)
+- [x] 가짜 타이머와 가짜 `fetch` 로 돈다. 네트워크를 안 탄다
+- [x] 2초와 5초가 **다른 타이머**다 — 목록을 멈춰도 카드 요청이 난다 (**CB4 를 재는 줄**)
+- [x] URL 에 `name=<id>` 가 있고 `from=` 이 없다
+- [x] `DONE` 을 받으면 한 번 더 읽고 멈춘다. **안 받으면 계속 돈다** (R48)
+- [x] `attempt` 가 바뀌면 든 것을 버린다
+- [x] 429 가 `Retry-After` 만큼 민다 — `client.mjs` 와 **같은 함수**를 쓴다 (R50)
+- [x] 실패해도 마지막 값이 안 지워진다 (R59)
 
 ### Step 12 — 변이와 게이트
-- [ ] 변이 일곱 (5절). 실측 결과를 옆에 적는다
-- [ ] `go test ./... -count=1` 전부 초록 · 패키지별 커버리지 80% 하한 통과
-- [ ] `node --test internal/api/ui/tests/*.test.mjs` 전부 초록
-- [ ] `go run ./scripts/glyphscan.go` 통과
-- [ ] `diff 0` 이어야 할 곳 전부 0 (2절)
+- [x] 변이 일곱 (5절). 실측 결과를 옆에 적는다
+- [x] `go test ./... -count=1` 전부 초록 · 패키지별 커버리지 80% 하한 통과
+- [x] `node --test internal/api/ui/tests/*.test.mjs` 전부 초록
+- [x] `go run ./scripts/glyphscan.go` 통과
+- [x] `diff 0` 이어야 할 곳 전부 0 (2절)
 - [ ] **CB1 의 카드 줄을 사람이 다시 본다** (6절)
-- [ ] 코드 요약을 쓰고 이 계획의 체크박스를 **실측으로** 채운다
+- [x] 코드 요약을 쓰고 이 계획의 체크박스를 **실측으로** 채운다
 
 ---
 
@@ -365,6 +365,8 @@ FR-7 과 CB4 가 「그 카드가 그래프와 목록을 가리지 않는다」�
 
 ## 8. 물음 — 하나
 
+**권장대로 닫혔다 (2026-09-17 · 사용자 「실함대에서만」).**
+
 형식은 `common/question-format-guide.md` 다.
 
 ### Question 1 — 데모 모드에도 카드를 보이나
@@ -391,4 +393,4 @@ FR-7 과 CB4 가 「그 카드가 그래프와 목록을 가리지 않는다」�
 **A 의 대가** — `view.mjs` 에 모드 갈림이 한 줄 는다. `askList` 와 같은 모양이라
 새 개념이 0 이다.
 
-[Answer]:
+[Answer]: A

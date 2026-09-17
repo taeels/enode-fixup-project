@@ -16,6 +16,7 @@ import (
 	"github.com/taeels/enode/internal/contract"
 	"github.com/taeels/enode/internal/enode"
 	"github.com/taeels/enode/internal/runctl"
+	"github.com/taeels/enode/internal/transcriptui"
 )
 
 // fakeMediator stands in for the mediator. It answers the three routes the panel
@@ -388,4 +389,59 @@ func TestHandleIndexServesButtons(t *testing.T) {
 func readAll(resp *http.Response) (string, error) {
 	b, err := io.ReadAll(resp.Body)
 	return string(b), err
+}
+
+// 카드 렌더러를 제어판도 낸다. 현황판이 내는 것과 같은 바이트여야 한다 —
+// 사본을 두면 두 화면이 서로 다른 규칙으로 그리게 되고, 그것이 이 유닛이
+// 없애려던 바로 그 모양이다 (business-rules R34).
+func TestPanelServesTheSharedCardModule(t *testing.T) {
+	s := testServer(t, nil, "n")
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/static/card.mjs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("GET /static/card.mjs = %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "javascript") {
+		t.Errorf("module MIME = %q", ct)
+	}
+	body, _ := readAll(resp)
+	want, err := transcriptui.Files.ReadFile("card.mjs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body != string(want) {
+		t.Errorf("served card module differs from the embedded one (%d vs %d bytes)", len(body), len(want))
+	}
+	if !strings.Contains(body, "export function renderEvents") {
+		t.Error("card module is missing renderEvents")
+	}
+}
+
+// 제어판 페이지는 그리는 함수를 더 안 들고 모듈을 부른다. 옮겼다는 것을
+// 페이지 쪽에서 재는 줄이다 — 함수가 남아 있으면 두 벌이 그대로다.
+func TestIndexLoadsTheCardModuleInsteadOfItsOwnDrawing(t *testing.T) {
+	s := testServer(t, nil, "n")
+	srv := httptest.NewServer(s.Handler())
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	b, _ := readAll(resp)
+	for _, want := range []string{`import * as card from "/static/card.mjs"`, "window.enodeCard.renderEvents", "window.enodeCard.statusLine"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("index page missing %q", want)
+		}
+	}
+	for _, gone := range []string{"function drawEvent(", "function evLabel(", "function evSummary("} {
+		if strings.Contains(b, gone) {
+			t.Errorf("index page still carries %q", gone)
+		}
+	}
 }

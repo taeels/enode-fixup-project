@@ -1451,3 +1451,25 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: Construction · U8 · Functional Design 승인(Step 8·9) · NFR Requirements/NFR Design/Infrastructure Design SKIP 기록.
 
 ---
+
+## Construction · U8 `fleet-card` · Code Generation 계획 승인
+**Timestamp**: 2026-09-16T23:40:02Z
+**User Input**: "실함대에서만. 넘어가라"
+**AI Response**: 계획 8절의 물음 1 을 **A** 로 닫았다 — 카드는 `mode === 'fleet'` 에서만 뜬다. `view.mjs` 의 `askList` 가 이미 그 모양이라 새 개념이 0 이고, `business-rules` 잔여 ③(데모에서 하네스 원문이 무인증으로 보인다)이 함께 닫힌다. Part 1 승인으로 보고 **Part 2 (코드 생성)** 로 간다.
+**Context**: Construction · U8 · Code Generation Part 1 승인 · Part 2 착수.
+
+---
+
+## Construction · U8 `fleet-card` · Code Generation Part 2 — 코드가 섰다
+**Timestamp**: 2026-09-17T00:15:00Z
+**User Input**: (없음 — 앞 승인 「실함대에서만. 넘어가라」로 Part 2 를 돌았다)
+**AI Response**: 단계 열둘을 돌았고 체크박스 예순여섯이 실측으로 찼다 (남은 하나는 CB1 재확인 — 사람이다). 변이 일곱 중 **⑦ 이 처음에 살아남았다** — 「총 길이가 세 번 안 움직이면 끝」을 심었는데 시험이 바퀴 셋이라 그 규칙이 발동하기 전에 끝났다. 첫 바퀴는 총 길이가 null 에서 움직인 것으로 세므로 문턱이 넷째 바퀴다. 바퀴를 다섯으로 늘려 고쳤고 일곱이 전부 빨개졌다.
+
+**계획에 없던 것 둘을 했다** — ① `statusLine(events, live)` 를 `card.mjs` 로 뺐다. 상태 줄의 문이 `view.mjs` 안에 있으면 변이 ④ 를 걸 자리가 없어서다 (현황판의 그리기를 재는 하네스가 0 이다). 한 벌이 하나 늘고 재는 자리가 하나 늘었다. ② `boundary_test.go` 에 금지 넷과 함께 **봉인 하나**를 더했다 — 금지는 이름을 아는 넷만 막고 잎임을 못 재는데, 파일 행렬 6.5 가 요구한 것은 잎이다.
+
+**계획의 한 줄을 실측이 고쳤다** — 「기존 시험 열둘이 `view.mjs` 를 임포트한다」가 정확하지 않다. 직접 임포트는 0 이고 `tour` · `webcam` · `submission` · `gallery-view` 넷이 임포트하며 그 넷을 시험 넷이 임포트한다. 전이다. 결론(정적 임포트를 적으면 하네스가 터진다)은 같다.
+
+**게이트** — `go test ./...` 초록 · 패키지별 커버리지 미달 0 (`internal/transcriptui` 는 문장이 0 이라 표에 안 나온다 · 스킵 게이트 위반 0) · `node --test` 98 + 21 = 전부 초록 · glyphscan 통과 · `gofmt` 깨끗 · diff 0 이어야 할 곳 전부 0. **CB4 · CB6 · CB1 재확인은 사람이고 아직이다.**
+**Context**: Construction · U8 · Code Generation Part 2 완료. 승인 대기.
+
+---
