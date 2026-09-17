@@ -1780,11 +1780,19 @@ U7 의 커밋을 싣는다.
 ### 배포 — 무엇이 지금 CT103 에 올라가 있나
 
 ```text
-   enode-dev     581ade2ff1b2 (measure/u8-cb4).  mediator · enode · runctl · enodectl
-   앞 판          .bak-<sha>-<시각> 으로 옆에 있다 (2f56034e1f64 · 2a3bdbb69c76 · be6dbcbcd558)
+   enode-dev     01c554aa7c47 (main).  mediator · enode · runctl · enodectl
+   앞 판          .bak-<sha>-<시각> 으로 옆에 있다 (afabde5 · u6cb2-prev · 2f56034e1f64 · 2a3bdbb69c76)
    제어판         127.0.0.1:8099 에 따로 띄웠다 (enode panel --config nodes/exec.yaml)
    주의          **측정 나무는 병합하지 않는다.**  U8 의 PR 은 unit/fleet-card 가 진다
 ```
+
+**2026-09-17 에 main 으로 갈았다.** 그 전까지 이 절은 `581ade2ff1b2 (measure/u8-cb4)` 로
+적혀 있었는데, 그 값은 09:31 에 측정 나무를 올린 기록이고 그 뒤 두 번 더 갈렸다 —
+13:35 의 `measure/u6-cb2`, 그리고 `ADR-071` 이 병합된 뒤의 `main` 둘이다. **측정 나무가
+아니라 `main` 이 올라가 있는 것이 지금과 앞의 차이다.**
+
+`card.mjs` 는 `//go:embed` 로 바이너리에 박힌다 — **화면만 고쳐도 다시 빌드해서 갈아야
+보인다.** 이 절을 읽고 제어판이 옛 화면을 그리면 먼저 그것을 의심한다.
 
 **도는 중에 Mediator 를 갈아 끼우면 그 단계가 `harness_error` 로 죽는다**
 (`cb4-card-3` 이 그랬다). 제품 결함이 아니라 측정 절차의 실수다.
