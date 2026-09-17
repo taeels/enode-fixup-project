@@ -343,8 +343,14 @@ func openPack(j Job) packInput {
 // 틀린다 — 이 저장소가 env.go 의 환경변수에서 이미 고른 규율이다 (R1).
 //
 //	전문      첫 system/init · 마지막 type=="result" · stderr.  셋뿐이다
+//	줄여 쓴다  assistant · user.  말과 도구 호출과 도구 결과가 남는다 (ADR-071)
 //	껍데기    type 이 문자열인 그 밖의 모든 사건
 //	안 남는다  JSON 객체가 아닌 줄 · type 이 문자열이 아닌 줄.  세기만 한다
+//
+// ADR-071 이 「본문은 어느 사건에서도 안 남는다」를 무른다. 무른 이유는
+// 측정이다 — 걷힌 25,583 바이트 중 사람이 읽는 본문이 6,959(27%)였고 그중
+// 에이전트가 한 말은 547 바이트였다. 나머지는 봉투 반복과 서명이다. 지우는
+// 쪽이 아니라 짓는 쪽이라는 규율은 안 바뀐다 — 블록도 이름으로 집는다.
 //
 // 경로에 예외가 없다 — 크래시 · 임대 만료 · 플래그 오류에서도 같다. 한 번
 // 「봉투가 안 나오는 경로는 원문 그대로」로 예외를 뒀다가 걷었다: 임대 만료는
@@ -385,13 +391,22 @@ func selectLogs(stdout, stderr []byte) []byte {
 			continue
 		}
 		events++
-		elided += len(ln) + 1 // 개행을 포함한다
 		obj, typ, ok := transcript.ParseLine(ln)
 		if !ok {
-			continue // 모르는 줄은 세기만 한다
+			elided += len(ln) + 1 // 개행을 포함한다
+			continue              // 모르는 줄은 세기만 한다
 		}
-		out.Write(transcript.Shell(obj, typ))
+		sh := transcript.Shell(obj, typ)
+		out.Write(sh)
 		out.WriteByte('\n')
+		// 걷은 바이트는 「지운 만큼」이다 — 원문 길이가 아니다 (ADR-071 5절).
+		//
+		// 본문이 남기 시작하면서 뜻이 갈렸다. 원문 길이로 세면 내용이 대부분
+		// 남아 있는데도 화면이 「25 KB 가 걷혔다」로 읽고, 그것이 거짓이다.
+		// 개행은 양쪽에 하나씩이라 안 센다.
+		if n := len(ln) - len(sh); n > 0 {
+			elided += n
+		}
 	}
 	// 걷었음을 한 줄로 남긴다. 걷은 것이 0 이어도 쓴다 — 그래야 읽는 사람이
 	// 이 파일이 걸러진 것임을 안다.

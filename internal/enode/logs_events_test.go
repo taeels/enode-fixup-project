@@ -51,20 +51,22 @@ func TestLogsEvents_BothPathsGiveTheSameSpine(t *testing.T) {
 		}
 	}
 
-	// 다른 것 — 그 차이가 US-6 이 읽는 값이다.
+	// 그리고 본문도 같다 (ADR-071). 이것이 이 ADR 이 산 것이다 —
+	// 지난 것을 여는 화면이 도는 것과 같은 글자를 그린다.
 	//
-	// 걷힌 사건은 Shell 이 참이고 본문이 없다. 전문으로 남은 봉투 둘은
-	// 양쪽에서 같으므로 Shell 이 거짓이다.
+	// 어느 사건도 껍데기 줄기로 안 간다. 껍데기 줄기는 이제 옛 기록 몫이다.
+	for i := range whole.Events {
+		a, b := whole.Events[i], shelled.Events[i]
+		if a.Text != b.Text {
+			t.Fatalf("event %d says %q verbatim and %q through the log", i, a.Text, b.Text)
+		}
+		if a.ID != b.ID {
+			t.Fatalf("event %d has id %q verbatim and %q through the log", i, a.ID, b.ID)
+		}
+	}
 	for i, e := range shelled.Events {
-		envelope := e.Kind == transcript.KindInit || e.Kind == transcript.KindResult
-		if e.Shell == envelope {
-			t.Fatalf("event %d (%s) has Shell=%v, which is backwards", i, e.Kind, e.Shell)
-		}
-		if e.Shell && e.Text != "" {
-			t.Fatalf("a shelled event carried a body: %q", e.Text)
-		}
-		if e.Shell && e.ID != "" {
-			t.Fatalf("a shelled event carried a tool_use_id: %q", e.ID)
+		if e.Shell {
+			t.Fatalf("event %d (%s) was read as a shell; the body should be there", i, e.Kind)
 		}
 	}
 
@@ -79,13 +81,12 @@ func TestLogsEvents_BothPathsGiveTheSameSpine(t *testing.T) {
 
 // 척추가 갈리는 자리 하나를 이름으로 잰다.
 //
-// 블록이 여럿인 assistant 줄은 원문에서 사건 여럿이고 껍데기에서 하나다 —
-// logShell 에 블록 배열 자리가 없기 때문이다. 그래서 FR-3 의 수용 기준은
-// 「사건 열이 같다」가 아니라 「줄 하나가 사건 하나인 줄에서 같다」다.
+// 생각 블록 하나가 사라지는 것이 그 자리 전부다 (ADR-071 2절). 원문에서
+// 생각과 말 둘인 줄이 로그에서 말 하나가 된다. 나머지 블록 종류는 안 준다.
 //
-// 고칠 것이 아니라 적을 것이다. 껍데기에 블록 수를 실으면 본문의 모양이
-// 새고, 그것이 허용목록이 막는 바로 그것이다.
-func TestLogsEvents_AMultiBlockLineCollapsesIntoOneShell(t *testing.T) {
+// 고칠 것이 아니라 적을 것이다. 생각은 본문이 비고 서명만 1,186 바이트라
+// 남길 값이 없다 — 본문이 실제로 차서 오는 날 이 시험이 그 자리다.
+func TestLogsEvents_TheThinkingBlockIsTheOnlyOneThatGoes(t *testing.T) {
 	stdout := assistantTextLine + "\n"
 
 	whole := transcript.Parse([]byte(stdout), false)
@@ -97,8 +98,12 @@ func TestLogsEvents_AMultiBlockLineCollapsesIntoOneShell(t *testing.T) {
 	if len(shelled.Events) != 1 {
 		t.Fatalf("the shelled line made %d events, want 1", len(shelled.Events))
 	}
-	// 줄이 통째로 사라지지는 않는다 — 걷힌 것이 사건 하나로 선다.
-	if shelled.Events[0].Kind != transcript.KindText || !shelled.Events[0].Shell {
-		t.Fatalf("the collapsed event is %+v", shelled.Events[0])
+	// 남은 하나는 말이고, 그 말이 원문 그대로다.
+	e := shelled.Events[0]
+	if e.Kind != transcript.KindText || e.Sub == "thinking" {
+		t.Fatalf("the kept event is %+v", e)
+	}
+	if want := whole.Events[1].Text; e.Text != want {
+		t.Fatalf("the kept event says %q, want %q", e.Text, want)
 	}
 }

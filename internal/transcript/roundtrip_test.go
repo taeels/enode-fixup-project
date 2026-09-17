@@ -33,7 +33,7 @@ func TestRoundTrip_WhatTheShellWritesIsWhatTheParserReads(t *testing.T) {
 			ok:   boolOf(false),
 		},
 		{
-			name: "an assistant that only talked keeps nothing but its kind",
+			name: "an assistant that only talked keeps what it said",
 			line: line("assistant-text.json"),
 			kind: KindText,
 		},
@@ -54,8 +54,11 @@ func TestRoundTrip_WhatTheShellWritesIsWhatTheParserReads(t *testing.T) {
 			}
 			e := r.Events[0]
 
-			if !e.Shell {
-				t.Fatalf("the parser did not see a shell: %s", shell)
+			// ADR-071 뒤로 짓는 쪽이 message 를 실으므로 읽는 쪽이 원문
+			// 줄기로 간다. 껍데기 줄기가 사라진 것이 아니다 — 옛 기록이
+			// 그리로 가고, parse_test 의 두 줄기 시험이 그것을 잰다.
+			if e.Shell {
+				t.Fatalf("the reduced line was read as a shell: %s", shell)
 			}
 			if e.Kind != tc.kind {
 				t.Fatalf("got kind %q, want %q — the two sides disagree: %s", e.Kind, tc.kind, shell)
@@ -74,7 +77,8 @@ func TestRoundTrip_WhatTheShellWritesIsWhatTheParserReads(t *testing.T) {
 					t.Fatalf("token %q is %d, want %d: %s", k, e.Tokens[k], v, shell)
 				}
 			}
-			// 본문은 어느 쪽으로도 안 돌아온다.
+			// 안 나가야 할 것은 어느 쪽으로도 안 돌아온다 — 본문은 이제
+			// 돌아오고 (ADR-071) 생각의 서명과 최상위 두 벌은 아니다.
 			assertNoLeak(t, []byte(e.Text))
 		})
 	}
