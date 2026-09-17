@@ -234,7 +234,11 @@ type Harness interface {
 	//
 	// 광고 경로가 부른다. 그래서 값싸야 하고, 광고가 안 쓰는 것을
 	// 알아내지 않는다 — 버전은 Version 이 따로 답한다.
-	Usable(ctx context.Context, bin string) error
+	//
+	// auth 는 인증 필드를 길어올 settings 파일이다 (local.yaml 의 harness_auth).
+	// 실행이 읽는 것과 같은 파일이어야 한다 — 갈리면 광고가 다른 갈래의
+	// 답을 싣고, 그것이 ADR-059 가 닫은 거짓 광고다.
+	Usable(ctx context.Context, bin string, auth AuthSettings) error
 	// Version 은 기록에 남길 버전 문자열이다 (ADR-005 성질 4).
 	//
 	// 실행 경로만 부른다. 광고는 버전을 안 싣는다(detect.go) —
@@ -263,7 +267,10 @@ type Harness interface {
 	// 그리고 보조 오류로 조기 반환하지 않는다. 훅 쓰기가 실패해도 남은
 	// 쓰기(팩 · 허용목록)를 끝까지 하고 마지막에 감싼다. 조기 반환하면
 	// 허용목록이 아예 안 쓰이고 치명도 안 난다.
-	Instrument(dir, self string, a HookArgs, c Components) ([]string, error)
+	//
+	// auth 는 Usable 이 받은 것과 같은 값이다. 하네스마다 그 파일을 어떻게
+	// 쓰는지가 다르므로(claude 는 두 필드를 우리 settings 에 얹는다) 여기로 온다.
+	Instrument(dir, self string, a HookArgs, c Components, auth AuthSettings) ([]string, error)
 
 	Argv(p AgentParams, io IOPaths) []string                          // 순수 함수
 	Decode(r io.Reader, exitCode int, emit func(Event)) HarnessResult // 순수 함수

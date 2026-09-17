@@ -203,7 +203,7 @@ func TestHook_ReportsWhatChanged(t *testing.T) {
 // 것은 그대로다. 계장 임시 디렉터리가 통째로 $OUT 밖이기 때문이다.
 func TestHook_TheSettingsFileSitsOutsideOUT(t *testing.T) {
 	home, out := t.TempDir(), t.TempDir()
-	flags, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out, Expect: []string{"a"}})
+	flags, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out, Expect: []string{"a"}}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestHook_MergesGatewayAuthFieldsFromPersonalSettings(t *testing.T) {
 	}
 
 	home, out := t.TempDir(), t.TempDir()
-	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
@@ -283,7 +283,7 @@ func TestHookRewritesOnlyTheTypedCredentialHelperProjection(t *testing.T) {
 	_, err := WriteHookSettings(home, "/run/enode/bin/enode", HookArgs{
 		Out: "/run/enode/out", CredentialHelperSource: "/host/auth-helper",
 		CredentialHelperTarget: "/run/enode/bin/auth-helper",
-	})
+	}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +310,7 @@ func TestHook_NoPersonalSettingsIsFine(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // .claude/settings.json 이 존재하지 않는 HOME
 
 	home, out := t.TempDir(), t.TempDir()
-	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
@@ -333,7 +333,7 @@ func TestHook_APathWithSpacesSurvives(t *testing.T) {
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(filepath.Join(home, hookSettingsName))
@@ -416,5 +416,50 @@ func TestHook_LooksOnlyAtAPlanStep(t *testing.T) {
 	}
 	if out.Len() != 0 {
 		t.Fatalf("blocked something that is not a plan: %s", out.String())
+	}
+}
+
+// 고른 인증 구성(harness_auth.settings)의 helper 가 runc 투영 대상이 되고, 컨테이너 안 경로로 바뀐다.
+// 기본 자리의 helper 를 투영하면 치환이 안 맞아 호스트 경로가 settings 에 남는다.
+func TestHookRewritesTheChosenSettingsCredentialHelper(t *testing.T) {
+	personalHome := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(personalHome, ".claude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	def := `{"apiKeyHelper":"/host/default-helper"}`
+	if err := os.WriteFile(filepath.Join(personalHome, ".claude", "settings.json"), []byte(def), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", personalHome)
+	chosen := filepath.Join(t.TempDir(), "settings-corp.json")
+	if err := os.WriteFile(chosen, []byte(`{"apiKeyHelper":"/host/corp-helper","env":{"ANTHROPIC_BASE_URL":"https://llm.example"}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	auth := AuthSettings(chosen)
+	source := gatewayAuthHelperPath(auth)
+	if source != "/host/corp-helper" {
+		t.Fatalf("projection source = %q, want the chosen file's helper", source)
+	}
+	home := t.TempDir()
+	if _, err := WriteHookSettings(home, "/run/enode/bin/enode", HookArgs{
+		Out: "/run/enode/out", CredentialHelperSource: source,
+		CredentialHelperTarget: "/run/enode/bin/auth-helper",
+	}, auth); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["apiKeyHelper"] != "/run/enode/bin/auth-helper" {
+		t.Fatalf("chosen credential helper kept a host-only path: %v", got)
+	}
+	env, _ := got["env"].(map[string]any)
+	if env["ANTHROPIC_BASE_URL"] != "https://llm.example" {
+		t.Fatalf("chosen settings env was not carried: %v", got)
 	}
 }

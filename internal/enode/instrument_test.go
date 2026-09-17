@@ -51,7 +51,7 @@ func TestAdapter_InstrumentBuildsThePrivateWorld(t *testing.T) {
 	noHome(t)
 	dir, out := t.TempDir(), t.TempDir()
 	flags, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode",
-		HookArgs{Out: out, Expect: []string{"plan.json"}}, Components{})
+		HookArgs{Out: out, Expect: []string{"plan.json"}}, Components{}, "")
 	if err != nil {
 		t.Fatalf("instrumentation failed: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestAdapter_OnlyTheStopHookIsPlanted(t *testing.T) {
 	noHome(t)
 	dir, out := t.TempDir(), t.TempDir()
 	if _, err := (claudeHarness{}).Instrument(dir, "/usr/bin/enode",
-		HookArgs{Out: out}, Components{}); err != nil {
+		HookArgs{Out: out}, Components{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	var cfg struct {
@@ -151,7 +151,7 @@ func TestAdapter_AnEmptySelfDropsOnlyTheHooksKey(t *testing.T) {
 	}
 
 	dir, out := t.TempDir(), t.TempDir()
-	flags, err := claudeHarness{}.Instrument(dir, "", HookArgs{Out: out}, Components{})
+	flags, err := claudeHarness{}.Instrument(dir, "", HookArgs{Out: out}, Components{}, "")
 	if err != nil {
 		t.Fatalf("an empty self killed the instrumentation: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestAdapter_TheIsolationFlagsSurviveAnAuxiliaryFailure(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(home, hookSettingsName), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	flags, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode", HookArgs{Out: out}, Components{})
+	flags, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode", HookArgs{Out: out}, Components{}, "")
 	if err == nil {
 		t.Fatal("a hook settings write that could not happen was reported as success")
 	}
@@ -228,7 +228,7 @@ func TestAdapter_EverythingButTheHookSettingsIsFatal(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(dir, "home"), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		_, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode", HookArgs{}, Components{})
+		_, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode", HookArgs{}, Components{}, "")
 		assertFatal(t, err, "cannot create the harness home")
 	})
 
@@ -238,7 +238,7 @@ func TestAdapter_EverythingButTheHookSettingsIsFatal(t *testing.T) {
 		if err := os.MkdirAll(filepath.Join(dir, mcpAllowlistName), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		_, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode", HookArgs{}, Components{})
+		_, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode", HookArgs{}, Components{}, "")
 		assertFatal(t, err, "cannot write mcp allowlist")
 		// 불변식 ① — 홈이 가장 먼저다. 뒤에 만들면 이 경로에서 안 남는다.
 		if st, err := os.Stat(filepath.Join(dir, "home")); err != nil || !st.IsDir() {
@@ -253,7 +253,7 @@ func TestAdapter_EverythingButTheHookSettingsIsFatal(t *testing.T) {
 		if err := os.MkdirAll(filepath.Join(personalHome, ".claude", credentialsName), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		_, err := claudeHarness{}.Instrument(t.TempDir(), "/usr/bin/enode", HookArgs{}, Components{})
+		_, err := claudeHarness{}.Instrument(t.TempDir(), "/usr/bin/enode", HookArgs{}, Components{}, "")
 		assertFatal(t, err, "cannot copy credentials")
 	})
 }
@@ -287,7 +287,7 @@ func TestAdapter_TheCredentialsRideIntoTheFakeHome(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	if _, err := (claudeHarness{}).Instrument(dir, "/usr/bin/enode", HookArgs{}, Components{}); err != nil {
+	if _, err := (claudeHarness{}).Instrument(dir, "/usr/bin/enode", HookArgs{}, Components{}, ""); err != nil {
 		t.Fatal(err)
 	}
 	copied := filepath.Join(dir, "home", credentialsName)
@@ -311,7 +311,7 @@ func TestAdapter_TheCredentialsRideIntoTheFakeHome(t *testing.T) {
 func TestAdapter_NoCredentialsIsNormal(t *testing.T) {
 	noHome(t)
 	dir := t.TempDir()
-	if _, err := (claudeHarness{}).Instrument(dir, "/usr/bin/enode", HookArgs{}, Components{}); err != nil {
+	if _, err := (claudeHarness{}).Instrument(dir, "/usr/bin/enode", HookArgs{}, Components{}, ""); err != nil {
 		t.Fatalf("a node without an oauth login was reported as a failure: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "home", credentialsName)); err == nil {
@@ -331,7 +331,7 @@ func TestAdapter_ThePackIsSpreadOutsideTheFakeHome(t *testing.T) {
 		{Name: "agents/helper.md", Data: []byte("helper")},
 	}}
 	flags, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode",
-		HookArgs{Out: t.TempDir()}, Components{Pack: pk})
+		HookArgs{Out: t.TempDir()}, Components{Pack: pk}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -390,7 +390,7 @@ func TestAdapter_APackThatCannotBeSpreadKillsTheStep(t *testing.T) {
 	}
 	pk := &Pack{Files: []PackFile{{Name: "skills/hello/SKILL.md", Data: []byte("hello")}}}
 	_, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode",
-		HookArgs{Out: t.TempDir()}, Components{Pack: pk})
+		HookArgs{Out: t.TempDir()}, Components{Pack: pk}, "")
 	assertFatal(t, err, "cannot extract the pack")
 }
 
@@ -407,7 +407,7 @@ func TestAdapter_ThePackSurvivesAnAuxiliaryFailure(t *testing.T) {
 	}
 	pk := &Pack{Files: []PackFile{{Name: "skills/hello/SKILL.md", Data: []byte("hello")}}}
 	flags, err := claudeHarness{}.Instrument(dir, "/usr/bin/enode",
-		HookArgs{Out: t.TempDir()}, Components{Pack: pk})
+		HookArgs{Out: t.TempDir()}, Components{Pack: pk}, "")
 	if !errors.Is(err, errAux) {
 		t.Fatalf("the hook settings failure was not graded as auxiliary: %v", err)
 	}
@@ -427,14 +427,14 @@ type gradeHarness struct {
 	err error
 }
 
-func (gradeHarness) Name() string                         { return "grade" }
-func (gradeHarness) Env() []string                        { return nil }
-func (gradeHarness) Fixed(string) map[string]string       { return nil }
-func (gradeHarness) Usable(context.Context, string) error { return nil }
+func (gradeHarness) Name() string                                       { return "grade" }
+func (gradeHarness) Env() []string                                      { return nil }
+func (gradeHarness) Fixed(string) map[string]string                     { return nil }
+func (gradeHarness) Usable(context.Context, string, AuthSettings) error { return nil }
 func (gradeHarness) Version(context.Context, string) (string, error) {
 	return "", errors.New("no version here")
 }
-func (h gradeHarness) Instrument(string, string, HookArgs, Components) ([]string, error) {
+func (h gradeHarness) Instrument(string, string, HookArgs, Components, AuthSettings) ([]string, error) {
 	return []string{"--flag-we-already-earned"}, h.err
 }
 func (gradeHarness) Argv(AgentParams, IOPaths) []string { return nil }

@@ -19,9 +19,9 @@ type projectionHarness struct {
 	argvIO              IOPaths
 }
 
-func (*projectionHarness) Name() string                         { return "projection" }
-func (*projectionHarness) Env() []string                        { return nil }
-func (*projectionHarness) Usable(context.Context, string) error { return nil }
+func (*projectionHarness) Name() string                                       { return "projection" }
+func (*projectionHarness) Env() []string                                      { return nil }
+func (*projectionHarness) Usable(context.Context, string, AuthSettings) error { return nil }
 func (*projectionHarness) Version(context.Context, string) (string, error) {
 	return "", errors.New("not relevant")
 }
@@ -35,7 +35,7 @@ func (h *projectionHarness) Argv(_ AgentParams, paths IOPaths) []string {
 func (*projectionHarness) Fixed(dir string) map[string]string {
 	return map[string]string{"HARNESS_HOME": filepath.Join(dir, "home")}
 }
-func (h *projectionHarness) Instrument(dir, self string, hook HookArgs, _ Components) ([]string, error) {
+func (h *projectionHarness) Instrument(dir, self string, hook HookArgs, _ Components, _ AuthSettings) ([]string, error) {
 	h.hostInstrumentation, h.self, h.hook = dir, self, hook
 	return []string{"--settings", filepath.Join(dir, "settings.json")}, nil
 }

@@ -89,6 +89,13 @@ type Job struct {
 	// 가리켜야 한다. 봉투를 읽는 동안은 이미 결과 확정의 구간이다.
 	Exited func(code int, runErr error, at time.Time)
 
+	// Auth 는 인증 필드를 길어올 settings 파일이다 (local.yaml 의 harness_auth).
+	//
+	// Job 이 들고 오는 이유는 NodeMCP 와 같다 — 노드가 아는 사실이고,
+	// 여기서 안 실으면 노드 선언이 조용히 안 실린다. 빈 값이면 하네스의
+	// 기본 자리다 (claude 는 ~/.claude/settings.json).
+	Auth AuthSettings
+
 	// Log 는 Components.Notes 가 나갈 자리다 (U4).
 	//
 	// logs/ 에는 안 싣는다 — 그 파일은 허용목록이고 첫 줄이 system/init 이어야
@@ -164,7 +171,7 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	// ④ 계장. self 가 비어도 부른다 — 오늘은 os.Executable() 하나가 허용목록까지
 	// 떨어뜨렸다. 훅 블록만 그것에 달린다 (WriteHookSettings).
 	self, _ := os.Executable()
-	helper := gatewayAuthHelperPath()
+	helper := gatewayAuthHelperPath(j.Auth)
 	projection, projectErr := session.Project(ctx, FrameworkProjectionSpec{
 		HarnessExecutable: bin,
 		EnodeExecutable:   self,
@@ -186,7 +193,7 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 			a.Stamp = projectedPath(p, tmp, projection.Instrumentation)
 		}
 	}
-	flags, err := h.Instrument(tmp, projection.EnodeExecutable, a, c)
+	flags, err := h.Instrument(tmp, projection.EnodeExecutable, a, c, j.Auth)
 	for i := range flags {
 		flags[i] = strings.ReplaceAll(flags[i], tmp, projection.Instrumentation)
 	}

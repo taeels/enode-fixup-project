@@ -57,13 +57,13 @@ func TestALoggedOutHarnessDropsOutOfTheAdvert(t *testing.T) {
 
 	// ① 로그인돼 있다 → 쓸 수 있다
 	bin := fakeClaude(t, `{"loggedIn":true,"authMethod":"claude.ai"}`, true)
-	if err := (claudeHarness{}).Usable(ctx, bin); err != nil {
+	if err := (claudeHarness{}).Usable(ctx, bin, ""); err != nil {
 		t.Fatalf("rejected while logged in: %v", err)
 	}
 
 	// ② 로그인 안 됐다 → 못 쓴다
 	bin = fakeClaude(t, `{"loggedIn":false}`, true)
-	err := (claudeHarness{}).Usable(ctx, bin)
+	err := (claudeHarness{}).Usable(ctx, bin, "")
 	if !errors.Is(err, errNotUsable) {
 		t.Fatalf("passed while logged out: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestALoggedOutHarnessDropsOutOfTheAdvert(t *testing.T) {
 	// 그대로 실렸다. 그 VM 의 claude 는 {"loggedIn":false} 를 분명히 찍고
 	// 있었고, 우리가 Output() 으로 종료코드를 보느라 안 읽은 것이다.
 	bin = fakeClaude(t, `{"loggedIn":false}`, true, true)
-	err = (claudeHarness{}).Usable(ctx, bin)
+	err = (claudeHarness{}).Usable(ctx, bin, "")
 	if !errors.Is(err, errNotUsable) {
 		t.Fatalf("gave up judging because the exit code was not 0: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestALoggedOutHarnessDropsOutOfTheAdvert(t *testing.T) {
 		{"loggedIn is absent", `{"authMethod":"claude.ai"}`, true},
 	} {
 		bin = fakeClaude(t, tc.out, tc.ok)
-		err := (claudeHarness{}).Usable(ctx, bin)
+		err := (claudeHarness{}).Usable(ctx, bin, "")
 		if errors.Is(err, errNotUsable) {
 			t.Fatalf("%s — judged the unknown as unusable", tc.name)
 		}
