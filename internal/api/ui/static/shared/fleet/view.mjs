@@ -54,8 +54,17 @@ function timePair(list, name, value, context) {
 }
 const shellArgument = value => "'" + value.replaceAll("'", "'\\''") + "'";
 export class DashboardView {
-  constructor(root, { mode, identity, onRetry, onLogout, onRunSelection = () => {}, onRunHistory }) {
+  // transcripts 는 트랜스크립트 카드의 폴러다 (TranscriptPoller). card 는 그
+  // 카드를 그리는 모듈이다 (internal/transcriptui/card.mjs).
+  //
+  // 둘 다 임포트가 아니라 주입이다. card.mjs 는 static 트리 밖에 살아
+  // 브라우저가 보는 URL(/ui/shared/transcriptui/card.mjs)과 디스크 경로가
+  // 다르고, 여기에 정적 임포트를 적으면 이 파일을 임포트하는 node --test
+  // 시험 열둘이 통째로 터진다. 폴러도 같은 자리에 두는 것이 맞다 — 타이머의
+  // 수명을 화면 밖(app.mjs)이 지므로 시험이 가짜 타이머로 재기 쉽다.
+  constructor(root, { mode, identity, onRetry, onLogout, onRunSelection = () => {}, onRunHistory, transcripts = null, card = null }) {
     this.root = root; this.mode = mode; this.onRunSelection = onRunSelection;
+    this.transcripts = transcripts; this.card = card;
     this.state = { scene: 'fleet', representation: mode === 'demo' ? '3d' : '2d', run: null, node: null, step: null, actor: null, filter: '' };
     this.resources = new Map(); this.positions = new Map(); this.now = performance.now();
     root.classList.add('dashboard');
@@ -105,7 +114,17 @@ export class DashboardView {
     this.submissionNotice = element('p', 'submission-notice'); this.submissionNotice.setAttribute('role', 'status'); this.submissionNotice.hidden = true;
     this.requirements = element('section', 'requirements'); this.stepList = element('details', 'step-list');
     this.askList = element('section', 'requirements'); this.askList.hidden = mode !== 'fleet';
-    this.sidebar.append(filterLabel, this.runStatus, this.submissionNotice, this.runList, message('QUEUED 작업은 노드에 배치하지 않습니다.'), this.askList, this.requirements, this.stepList);
+    // 카드는 사이드바다. 인스펙터는 장면 패널 위에 떠 있어서 거기 넣으면
+    // FR-7 과 CB4 의 「그 카드가 그래프와 목록을 가리지 않는다」가 구조적으로
+    // 거짓이 된다.
+    //
+    // 실 함대에서만 보인다 — GET log 가 데모 모드에서는 무인증 + 한도이고
+    // (api.go 의 read), 공개 화면에 하네스 원문을 올리는 것은 이 유닛이
+    // 정할 자리가 아니다. askList 와 같은 모양이라 새 개념이 0 이다.
+    this.transcriptList = element('section', 'transcripts'); this.transcriptList.hidden = mode !== 'fleet';
+    this.transcriptHeading = element('h3', '', '단계 트랜스크립트'); this.transcriptList.append(this.transcriptHeading);
+    this.transcriptNodes = new Map();
+    this.sidebar.append(filterLabel, this.runStatus, this.submissionNotice, this.runList, message('QUEUED 작업은 노드에 배치하지 않습니다.'), this.askList, this.requirements, this.stepList, this.transcriptList);
     layout.append(this.panel, this.sidebar); root.replaceChildren(header, this.connection, layout);
     this.zoom = 1; this.dimensions = { width: 880, height: 620 }; this.autoFit = true;
     this.compact = this.viewport.clientWidth < 560;
@@ -248,6 +267,86 @@ export class DashboardView {
       const b = button(`${s.seq}. ${s.id} · ${s.state} · needs: ${s.needs.join(', ') || '없음'}`, `${this.mode}-step-select-button`, () => this.selectStep(s.id), 'text-step'); b.dataset.stepId = s.id; stepItems.push(b);
     }
     replaceContents(this.stepList, stepItems, JSON.stringify(detail?.steps)); this.stepList.hidden = !detail;
+    this.renderTranscripts(detail);
+  }
+
+  // renderTranscripts 는 단계마다 카드 하나를 든다 (FR-7).
+  //
+  // 이 카드들은 replaceContents 를 안 탄다 (business-rules R53). 그 함수는
+  // 갈아 그린 뒤 scrollTop 을 되돌리는데 사건 열의 규칙은 「바닥에 있었으면
+  // 바닥을 따라간다」라 정반대다 — 태우면 U5 가 CB1 에서 고친 동작(도는 동안
+  // 위로 올려 읽기)이 현황판에서 도로 빨개진다. DOM 을 단계마다 한 번 짓고
+  // 제자리에서 고친다.
+  renderTranscripts(detail) {
+    const poller = this.transcripts;
+    if (this.mode !== 'fleet' || !poller || !this.card) { this.transcriptList.hidden = true; return; }
+    // 상세의 단계 객체에는 name 이 없다 — id 가 곧 로그의 이름이다 (R42).
+    const steps = (detail?.steps || []).map(s => ({ seq: s.seq, name: s.id, state: s.state }));
+    poller.track(this.state.run, steps);
+    for (const [seq, node] of this.transcriptNodes) {
+      if (!steps.some(s => s.seq === seq)) { node.root.remove(); this.transcriptNodes.delete(seq); }
+    }
+    this.transcriptList.hidden = !steps.length;
+    for (const step of steps) {
+      let node = this.transcriptNodes.get(step.seq);
+      if (!node) { node = this.buildTranscriptCard(step); this.transcriptNodes.set(step.seq, node); this.transcriptList.append(node.root); }
+      this.paintTranscriptCard(node, step, poller.card(step.seq));
+    }
+  }
+
+  buildTranscriptCard(step) {
+    const root = element('article', 'transcript-card');
+    root.dataset.testid = 'fleet-transcript-card'; root.dataset.stepSeq = String(step.seq);
+    const head = element('h3', 'transcript-head', `${step.seq}. ${step.name}`);
+    const age = element('span', 'muted transcript-age');
+    const toggle = button('원문', 'fleet-transcript-raw-button', () => {
+      this.transcripts.setRaw(step.seq, !this.transcripts.card(step.seq).rawOpen);
+      this.render();
+    }, 'transcript-toggle');
+    toggle.dataset.stepSeq = String(step.seq);
+    head.append(age, toggle);
+    const status = element('p', 'transcript-status'); status.hidden = true;
+    const meta = element('p', 'muted transcript-meta');
+    const body = element('div', 'transcript-events');
+    const raw = element('pre', 'transcript-raw'); raw.hidden = true;
+    root.append(head, status, meta, body, raw);
+    return { root, age, toggle, status, meta, body, raw, drawn: null };
+  }
+
+  paintTranscriptCard(node, step, c) {
+    // 실패해도 마지막 값을 안 지운다 (R59). 카드를 흐리게 두고 값이 낡았다고
+    // 적는다 — 빈 화면으로 떨어뜨리면 「단계가 끝났다」로 읽힌다.
+    node.root.classList.toggle('is-stale', !!c.error);
+    // NC-6. 시각을 들고 화면이 뺀다 — 기간을 서버가 실으면 캐시에 얼어붙는다.
+    node.age.textContent = c.missing ? '작업을 못 찾았다'
+      : c.changedAt === null ? '아직 첫 글자 전'
+      : `마지막 갱신 ${Math.max(0, Math.round((Date.now() - c.changedAt) / 1000))}초 전`;
+    // 상태 줄의 문은 step.state 다 (R56). 끝난 단계에 짝 없는 tool_use 가
+    // 남을 수 있고, 그때 「쓰는 중」을 세우면 끝난 것을 도는 것으로 그린다.
+    const status = this.card.statusLine(c.events, step.state === 'CLAIMED');
+    node.status.hidden = status === null;
+    node.status.textContent = status ?? '';
+    // 아직 한 바이트도 안 온 단계에는 출처를 안 적는다. 서버는 파일이 없어도
+    // source=progress 로 답하는데, 그것을 그대로 그리면 시작도 안 한 단계가
+    // 「진행 중인 파일」을 든 것처럼 보인다.
+    const arrived = c.total !== null && c.total > 0;
+    node.meta.textContent = [step.state,
+      !arrived ? '' : c.source === 'sealed' ? '봉인된 로그' : c.source === 'progress' ? '진행 중인 파일' : '',
+      c.capped ? '상한에 닿았다' : '',
+      c.total === null ? '' : `${c.total} 바이트`,
+      c.error].filter(Boolean).join(' · ');
+    node.toggle.textContent = c.rawOpen ? '사건' : '원문';
+    node.raw.hidden = !c.rawOpen; node.body.hidden = !!c.rawOpen;
+    if (c.rawOpen) { node.raw.textContent = c.raw; return; }
+    // 총 길이가 안 움직였으면 DOM 을 안 건드린다 (R52). 받는 것은 매번
+    // 전체이나 그리는 것까지 매번은 아니다 — 조용한 구간의 비용이 0 이 된다.
+    const signature = `${c.attempt}/${c.total}/${[...c.open].sort().join(',')}`;
+    if (node.drawn === signature) return;
+    node.drawn = signature;
+    this.card.renderEvents(node.body, c.events, {
+      open: c.open,
+      onToggle: (id, on) => { this.transcripts.toggleOpen(step.seq, id, on); this.render(); },
+    });
   }
   renderRequirements(detail, resource, nodes) {
     this.requirements.hidden = !detail;

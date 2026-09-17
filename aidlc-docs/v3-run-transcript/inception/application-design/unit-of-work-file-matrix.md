@@ -22,8 +22,11 @@
 | `internal/api/log.go` (신규) | | | | 신규 | | | | |
 | `internal/api/api.go` | | | | 등록 줄 · `putLog` 갈림 | | | | |
 | `internal/panel/transcript.go` | | | | | **도는 것** | **지난 것** | | |
-| `internal/panel/page.go` | | | | | 카드 · 헤더 다섯 | | | |
-| 경계 검사 시험 (6절) | **금지 넷 (+ 빈 넷째 줄)** | | | | | | | |
+| `internal/panel/page.go` | | | | | 카드 · 헤더 다섯 | | | **렌더러를 뺀다** |
+| `internal/panel/panel.go` | | | | | 봉투 배선 | | | 라우트 하나 (10 -> 11) |
+| `internal/transcriptui/**` (신규) | | | | | | | | **신규 · 한 벌** |
+| `internal/api/ui/ui.go` | | | | | | | | 같은 .mjs 를 낸다 |
+| 경계 검사 시험 (6절) | **금지 넷 (+ 빈 넷째 줄)** | | | | | | | **금지 넷** |
 | `internal/runctl/client.go` | | | | | | `StepLog` | | |
 | `internal/api/ui/static/shared/fleet/**` | | | | | | | | 단계 카드 |
 | `internal/api/ui/tests/**` | | | | | | | | 시험 |
@@ -34,7 +37,7 @@
 
 ---
 
-## 2. 유닛 둘 이상이 만지는 파일 — 셋
+## 2. 유닛 둘 이상이 만지는 파일 — 여섯
 
 **`CONVENTIONS.md` 3.1 이 표시하라고 한 자리다.**
 
@@ -43,9 +46,14 @@
 | `internal/enode/runner.go` | U1 · U2 | **U1 -> U2** | U1 이 `parseEventLine` · `eventShell` · `elidedMarker` 셋을 덜어낸다. U2 가 그 뒤에 tee 를 잇는다. 뒤집으면 U1 의 이동이 U2 의 변경 위를 지나 충돌이 는다 |
 | `internal/enode/claim.go` | U2 · U7 | **U2 -> U7** | U2 가 `transcript()` 를 링 하나로 되살리고 U7 이 거기에 `io.MultiWriter` 로 갈래를 더한다. 뒤집으면 U7 이 없는 링에 갈래를 더하게 된다 |
 | `internal/panel/transcript.go` | U5 · U6 | **U5 -> U6** | U5 가 `handleTranscript` 를 사건 배열로 바꾸고 U6 이 `handleRecord` 의 출처를 바꾼다. 둘이 같은 파일의 다른 함수라 순서는 충돌이 아니라 **CB1 을 먼저 본다**는 값이다 |
+| `internal/panel/page.go` | U5 · U8 | **U5 -> U8** | U5 가 카드를 짓고 CB1 으로 그 모양을 세운 뒤, U8 이 그 그리는 함수들을 `internal/transcriptui` 로 뺀다. 뒤집으면 **아직 초록인 적 없는 모양을 두 화면에 박는다** |
+| `internal/panel/panel.go` | U5 · U8 | **U5 -> U8** | U5 가 봉투를 잇고 U8 이 `.mjs` 를 내는 라우트 하나를 더한다 (R1 이 10 -> 11) |
+| 경계 검사 시험 | U1 · U8 | **U1 -> U8** | U1 이 `internal/transcript` 의 금지 넷을 넣고 U8 이 `internal/transcriptui` 의 금지 넷을 같은 표에 더한다 (6.5) |
 
-**셋 다 착수 순서(`unit-of-work-dependency.md` 3절)가 이미 그 순서다.**
+**여섯 다 착수 순서(`unit-of-work-dependency.md` 3절)가 이미 그 순서다.**
 ①U1 ②U2 ③U5 ④U3 ⑤U4 ⑥U6 ⑦U7 ⑧U8 — 표의 화살표를 거스르는 자리가 0 이다.
+**U8 이 `page.go` 를 만지게 되면서 「U5 를 먼저 병합한다」가 순서가 아니라
+착수 조건이 됐다** (`unit-of-work.md` 의 U8 절 · 딛는 게이트).
 
 ---
 
@@ -58,9 +66,12 @@
                    같은 유닛이라 직렬이 실제로 안 생긴다
 ```
 
-**대신 실제로 직렬인 자리가 다른 데 셋 있었다** (2절). 규약이 가리킨 파일이
-아니라 `internal/enode` 둘과 `internal/panel` 하나다. **행렬을 안 냈으면 그
-셋을 못 봤다** — 팩이 이것을 필수로 건 이유가 이 자리다.
+**대신 실제로 직렬인 자리가 다른 데 여섯 있었다** (2절). 규약이 가리킨 파일이
+아니라 `internal/enode` 둘과 `internal/panel` 셋, 그리고 경계 검사 시험이다.
+**행렬을 안 냈으면 그 자리를 못 봤다** — 팩이 이것을 필수로 건 이유가 여기다.
+
+**셋이 여섯으로 는 것은 U8 의 설계 변경이다** (5.0). 「그리는 것이 한 벌」이
+U8 을 `internal/panel` 안으로 들여보냈다.
 
 ---
 
@@ -89,8 +100,24 @@
    internal/contract   코드 diff 0.  계약 문법이 안 는다
    internal/match · proc · schema · config · build     코드 diff 0
    cmd/ 다섯           코드 diff 0.  새 실행파일도 새 하위명령도 0
-   internal/api/ui/ui.go   Go diff 0.  U8 은 정적 파일과 시험만 만진다
 ```
+
+### 5.0 `internal/api/ui/ui.go` 가 0 에서 빠졌다 — U8 의 설계 변경이다
+
+**앞 판이 「Go diff 0. U8 은 정적 파일과 시험만 만진다」로 적었다.** 사용자가
+2026-09-17 에 「그리는 것이 한 벌」을 U8 에 들였고, 그러면 두 화면이 같은 `.mjs`
+바이트를 내야 하므로 **내는 쪽이 둘 다 Go 다.**
+
+```text
+   새로 생긴다   internal/transcriptui   .mjs 한 장을 go:embed 로 든 잎 패키지
+   만진다       internal/api/ui/ui.go    그 바이트를 static 트리에 낸다
+                internal/panel/panel.go  같은 바이트를 내는 라우트 하나
+                internal/panel/page.go   그리는 함수들이 여기서 빠진다
+```
+
+**대가를 유닛 문서가 이름으로 적었다** — U8 이 커지고 U5 병합 뒤에만 착수한다.
+산 것은 규칙이 한 자리에 사는 것과 `.mjs` 하네스가 처음으로 카드 규칙(R14 ·
+R19 · R20 · R21 · R30)을 재는 것이다.
 
 ### 5.1 `internal/store` 가 0 에서 빠졌다 — U3 의 Functional Design 이 고쳤다
 
@@ -172,3 +199,20 @@ panel_test` 가 남의 패키지 경계를 검사하게 된다.
 
 이 회차가 만든 결함은 아니다 — 오늘 검사기도 같다. **U1 의 Code Generation 이
 어느 명령으로 세울지를 정하고 그 판단을 `code-summary.md` 에 적는다.**
+
+### 6.5 U8 에 거는 것 — 새 패키지의 금지 넷
+
+**두 벌을 접으면서 새 결합을 만들지 않는다.** `internal/transcriptui` 는 `.mjs`
+한 장을 `//go:embed` 로 들고만 있는 잎이어야 하고, 그것을 검사기가 진다.
+
+```text
+   금지      transcriptui -> panel · api · store · enode      넷
+   왜        제어판과 현황판이 둘 다 이 패키지를 임포트한다.  잎이 아니면
+             두 화면이 서로의 의존을 통해 다시 붙는다 — 접은 두 벌이 뒤로 돌아온다
+   같이 본다  6.1 의 빈 넷째 줄(api/ui -> store)이 U1 에서 섰는지.
+             안 섰으면 U8 이 그 김에 세운다 — 검사기를 두 벌로 만들지 않는다
+```
+
+**`go list -deps` 로 세우면 자동으로 초록이다** (embed 뿐이라 의존이 0). 값은
+6.3 과 같다 — 나중에 누가 임포트를 더했을 때 빨개지는 데 있다. 6.4 의 실측대로
+시험 임포트까지 보려면 `go list -test -deps` 를 쓴다.

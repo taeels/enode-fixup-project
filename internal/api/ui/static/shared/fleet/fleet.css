@@ -102,6 +102,30 @@ body.dashboard { margin:0; }
 .dashboard .text-step { display:block; width:100%; margin-top:6px; text-align:left; overflow-wrap:anywhere; font-size:11px; }
 .dashboard .submission-notice { border:1px solid #6B5229; background:#282219; border-radius:8px; padding:12px; color:#EDBD70; font-size:12px; overflow-wrap:anywhere; }
 .dashboard .attribute-list { margin:10px 0; }
+
+/* 트랜스크립트 카드. 사이드바에 산다 - 장면 패널 위에 뜨는 인스펙터에 두면
+   FR-7 의 "그래프와 목록을 가리지 않는다" 가 구조적으로 거짓이 된다.
+   사건 줄의 클래스 이름은 제어판과 같다. 그리는 것이 한 벌이라 그쪽 page.go
+   의 CSS 와 같은 이름을 봐야 한다 - 이름이 갈리면 한 벌이 화면마다 다르게
+   보이고, 그것은 한 벌이 아니다. */
+.dashboard .transcripts { display:flex; flex-direction:column; gap:10px; }
+.dashboard .transcript-card { border:1px solid var(--line); border-radius:8px; background:var(--surface); padding:12px; }
+.dashboard .transcript-card.is-stale { opacity:.55; }
+.dashboard .transcript-head { display:flex; align-items:center; gap:8px; overflow-wrap:anywhere; }
+.dashboard .transcript-age { margin-left:auto; flex-shrink:0; font-size:11px; }
+.dashboard .transcript-toggle { flex-shrink:0; padding:3px 9px; font-size:11px; }
+.dashboard .transcript-status { margin-top:6px; color:#A9D5F4; font-size:12px; }
+.dashboard .transcript-meta { margin-top:4px; font-size:11px; overflow-wrap:anywhere; }
+.dashboard .transcript-events { max-height:18rem; overflow:auto; margin-top:8px; }
+.dashboard .transcript-raw { max-height:18rem; overflow:auto; margin-top:8px; white-space:pre-wrap; word-break:break-all; font:11px/1.5 ui-monospace,monospace; }
+.dashboard .ev { border-top:1px solid var(--line); padding:7px 0; font-size:12px; }
+.dashboard .ev:first-child { border-top:0; }
+.dashboard .ev .k { font-family:ui-monospace,monospace; font-size:11px; color:var(--muted); margin-right:8px; }
+.dashboard .ev .body { white-space:pre-wrap; overflow-wrap:anywhere; }
+.dashboard .ev .tool { font-family:ui-monospace,monospace; color:#EDBD70; }
+.dashboard .ev .fold { cursor:pointer; color:#75B4FF; font-size:11px; }
+.dashboard .ev .cut { color:var(--muted); font-size:11px; }
+.dashboard .ev.raw { color:var(--muted); }
 @media(max-width:1150px) { .dashboard .zoom-hint { display:none; } .dashboard .scene-panel[data-scene=run] .scene-header { align-items:flex-start; flex-direction:column; gap:5px; padding:10px 16px; } .dashboard .scene-heading { width:100%; } .dashboard .scene-back { padding:3px 8px; } }
 @media(max-width:450px) { .dashboard .scene-header { padding-inline:16px; } .dashboard .scene-navigation { right:10px; gap:3px; } .dashboard .scene-navigation button { padding-inline:7px; } .dashboard .inspector { padding:16px; } .dashboard .inspector dl { grid-template-columns:92px minmax(0,1fr); gap:9px; } }
 @media(max-width:1150px) { .dashboard-layout { grid-template-columns:minmax(0,1fr) 330px; gap:16px; padding-inline:16px; } .dashboard .brand>span { display:none; } }

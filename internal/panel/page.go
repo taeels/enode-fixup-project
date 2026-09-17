@@ -60,8 +60,22 @@ const indexHTML = `<!doctype html>
   .actions{ display:flex; gap:8px; }
 
   .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-top:16px; }
-  .card h2{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ts); margin:0 0 14px; font-weight:600; }
+  .card h2{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ts); margin:0 0 14px; font-weight:600;
+            display:flex; align-items:center; gap:8px; }
   .muted{ color:var(--td); }
+
+  /* 트랜스크립트 카드. 값이 낡았으면 카드 전체가 흐려진다 - 마지막 값을
+     지우지 않으면서 그것을 믿으면 안 된다고 말하는 자리다. */
+  #tx-card.stale{ opacity:.55; }
+  #tx-events{ max-height:22rem; overflow:auto; }
+  .ev{ border-top:1px solid var(--border); padding:7px 0; font-size:13px; }
+  .ev:first-child{ border-top:0; }
+  .ev .k{ font-family:var(--mono); font-size:11px; color:var(--td); margin-right:8px; }
+  .ev .body{ white-space:pre-wrap; word-break:break-word; }
+  .ev .tool{ font-family:var(--mono); color:var(--drain); }
+  .ev .fold{ cursor:pointer; color:var(--ts); font-size:12px; }
+  .ev .cut{ color:var(--queued); font-size:11px; margin-left:8px; }
+  .ev.raw .body{ font-family:var(--mono); font-size:12px; color:var(--td); }
 
   .runid{ font-family:var(--mono); font-size:22px; }
   .lease{ font-family:var(--mono); font-size:20px; color:var(--leased); }
@@ -81,6 +95,13 @@ const indexHTML = `<!doctype html>
   .chip .k{ color:var(--ts); }
 
   pre{ background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px; overflow:auto; max-height:22rem; font-family:var(--mono); font-size:12px; color:var(--ts); }
+
+  /* 지난 것의 단계 하나. 도는 것의 카드와 같은 사건 열을 안에 든다 - 그리는
+     것이 한 벌이므로 .ev 규칙이 여기에도 그대로 선다. */
+  .step{ background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-top:10px; }
+  .step .evs{ max-height:22rem; overflow:auto; }
+  .step .note{ color:var(--ts); font-size:12px; margin-top:6px; }
+  .step pre{ margin-top:8px; }
 </style>
 </head>
 <body>
@@ -119,10 +140,19 @@ const indexHTML = `<!doctype html>
     <div id="caps"></div>
   </div>
 
-  <div class="card">
-    <h2>하네스 트랜스크립트 <span class="muted">(지금 도는 것)</span></h2>
+  <div class="card" id="tx-card">
+    <h2>하네스 트랜스크립트 <span class="muted">(지금 도는 것)</span>
+      <span class="grow"></span>
+      <span class="badge" id="tx-age"></span>
+      <button id="tx-toggle" onclick="toggleRaw()">원문</button>
+    </h2>
+    <div id="tx-stale" class="muted" style="display:none">값이 낡았다 — 제어판에 못 닿았다. 아래는 마지막으로 받은 것이다</div>
+    <div id="tx-cut" class="muted" style="display:none"></div>
+    <div id="tx-active" class="muted" style="display:none"></div>
     <div id="transcript-empty" class="muted">아직 없음 — 도는 단계가 없거나 아직 첫 글자 전이다</div>
+    <div id="tx-events" style="display:none"></div>
     <pre id="transcript" style="display:none"></pre>
+    <div class="subline" id="tx-ring"></div>
   </div>
 
   <div class="card">
@@ -140,6 +170,20 @@ const indexHTML = `<!doctype html>
   <div class="subline" id="mediator"></div>
 </main>
 
+<script type="module">
+// 카드 렌더러 한 벌. 제어판과 현황판이 같은 바이트를 로드한다.
+//
+// card.mjs 자체는 부수효과가 0 이므로 (현황판은 주입으로 받는다) 창에 거는
+// 것이 이 줄의 일이다. 아래 인라인 스크립트는 그대로 두고 onclick 도 안
+// 걷는다 - CSP 가 script-src 'self' 'unsafe-inline' 이라 같은 출처의 모듈이
+// 그대로 서고 (R25), 페이지를 다시 짓는 것은 CB1 을 다시 빨갛게 만들 표면을
+// 넓힌다.
+import * as card from "/static/card.mjs";
+window.enodeCard = card;
+// 모듈은 defer 라 아래 인라인 스크립트보다 뒤에 선다. 그사이 폴링 응답이
+// 먼저 도착했을 수 있으므로 한 번 다시 그린다 - 순서를 우연에 안 맡긴다.
+if(window.drawTranscript) window.drawTranscript();
+</script>
 <script>
 function esc(v){ return String(v==null?"":v).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
 function fmt(t){ return t ? new Date(t).toLocaleString() : ""; }
@@ -175,6 +219,11 @@ function render(st){
   ].join("  ·  ");
 
   var wk = st.work || {};
+  // 상태 줄은 이 노드가 단계를 들고 있을 때만 낸다. 현황판은 step.state 가
+  // 그 문이고 (business-rules R56) 제어판에는 단계 객체가 없다 - 임대가
+  // 그 자리다. 링은 단계가 끝나도 다음 단계가 덮을 때까지 남아 있으므로,
+  // 이 문이 없으면 끝난 단계가 "쓰는 중" 으로 남는다.
+  txLive = !!wk.has_lease;
   if(wk.has_lease){
     el("work").innerHTML =
       "<div class='head'><span class='runid'>" + esc(wk.run_id) + "</span><span class='grow'></span>" +
@@ -255,17 +304,123 @@ function showLogs(){
 }
 
 // 하네스 트랜스크립트 — 로컬 링 파일을 1초로 읽는다(데몬 로그와 별개 타이머).
-// generation 이 바뀌면(새 단계) 화면을 비운다.
+//
+// 상태가 셋이고 절대로 안 합쳐진다.
+//
+//   링이 없다        "아직 없음". 도는 단계가 없거나 첫 글자 전이다
+//   읽었다           사건 열과 경과와 잘림을 그린다. 카드가 정상색
+//   폴링이 실패했다   마지막 값을 지우지 않고 카드를 흐리게 둔다
+//
+// 둘째와 셋째를 합치면 화면이 마지막 값을 정상색으로 들고 있어 멈춘 것을 도는
+// 것으로 읽는다. 앞 판이 정확히 그 모양이었다 - 빈 catch 가 실패를 삼켰다.
 var lastTxGen = -1;
+var txOpen = new Set(); // 펼친 도구 결과. 열쇠는 tool_use_id 다 (card.mjs 의 겉면)
+var txLive = false;     // 이 노드가 지금 단계를 들고 있나. 상태 줄의 문이다
+var txRaw = false; // 원문 토글
+var txLastWrite = null;
+
+function toggleRaw(){
+  txRaw = !txRaw;
+  el("tx-toggle").textContent = txRaw ? "사건" : "원문";
+  drawTranscript();
+}
+
+// 경과는 폴링과 별개 타이머로 흐른다. 폴링이 죽어도 시계가 멈추면 안 된다 -
+// 그 둘이 같은 타이머를 타면 "조용하다" 와 "못 닿는다" 가 한 모양이 된다.
+function drawAge(){
+  var box = el("tx-age");
+  if(txLastWrite === null){ box.textContent = ""; return; }
+  var sec = Math.max(0, Math.round((Date.now() - txLastWrite) / 1000));
+  box.textContent = "마지막 사건 " + sec + "초 전";
+}
+
+// 그리는 것은 card.mjs 한 벌이다 (window.enodeCard).
+//
+// evLabel · evSummary · drawEvent 가 여기 살았고 현황판이 같은 규칙을 .mjs 로
+// 한 번 더 지을 참이었다. U8 이 그 셋을 internal/transcriptui 로 빼서 두 화면이
+// 같은 바이트를 로드한다 - 규칙이 한 자리에 살고, 제어판 JS 를 재는 하네스가
+// 없던 자리(R19 · R20 · R21 · R30)가 node --test 안으로 들어온다.
+//
+// 이 페이지에 남는 것은 폴링 · 세대 리셋 · 경과 · 잘림 줄 · 링 경로다. 전부
+// 링에만 있는 것이라 한 벌에 안 들어간다.
+
+var txLast = null;
+function drawTranscript(){
+  var pre=el("transcript"), box=el("tx-events"), empty=el("transcript-empty");
+  var t = txLast;
+  if(!t || !t.available){
+    pre.style.display="none"; box.style.display="none"; empty.style.display="block";
+    el("tx-cut").style.display="none"; el("tx-ring").textContent="";
+    el("tx-active").style.display="none";
+    return;
+  }
+  empty.style.display="none";
+
+  // 렌더러가 아직 안 섰으면 그리지 않는다. 모듈이 서는 순간 자기가 이
+  // 함수를 한 번 더 부른다 - 빈 catch 로 삼키지 않는다 (R60).
+  if(!window.enodeCard){ return; }
+
+  // 바닥에 있었는지를 그리기 전에 잰다. 갈고 나서 재면 언제나 바닥이 아니다.
+  // 위로 올려 읽는 중이면 따라가지 않는다 - 앞 판은 무조건 따라가서 도는
+  // 동안 스크롤백을 읽을 수 없었다.
+  var view = txRaw ? pre : box;
+  var stuck = view.scrollHeight - view.scrollTop - view.clientHeight < 24;
+
+  var evs = (t.transcript && t.transcript.events) || [];
+  if(txRaw){
+    box.style.display="none"; pre.style.display="block";
+    pre.textContent = t.data || "";
+    if(stuck){ view.scrollTop = view.scrollHeight; }
+  } else {
+    pre.style.display="none"; box.style.display="block";
+    // 사건 열의 스크롤은 렌더러가 진다 - 그리기 전에 바닥을 재는 자리가
+    // 한 벌 안에 있다 (business-rules R53). 위의 stuck 은 원문 쪽 것이다.
+    window.enodeCard.renderEvents(box, evs, {
+      open: txOpen,
+      onToggle: function(id, next){
+        if(next){ txOpen.add(id); } else { txOpen.delete(id); }
+        drawTranscript();
+      }
+    });
+  }
+
+  // 상태 줄 - 마지막 도구 호출의 결과가 아직이면 그 도구, 아니면 생각 중.
+  // 임대가 없으면 줄이 0 이다 (R56 의 제어판 판 · render 의 txLive).
+  var act = el("tx-active");
+  var status = txRaw ? null : window.enodeCard.statusLine(evs, txLive);
+  if(status){ act.style.display="block"; act.textContent = status; }
+  else { act.style.display="none"; }
+
+  var cut = el("tx-cut");
+  if(t.truncated){
+    cut.style.display="block";
+    cut.textContent = "앞 " + (t.total - t.capacity) + " 바이트가 링에서 감겨 나갔다 — 이 단계의 처음이 아니다";
+  } else { cut.style.display="none"; }
+
+  el("tx-ring").textContent = "하네스 원문이 이 기계의 " + t.ring_path + " 에 남는다 — 단계마다 덮인다";
+}
+
 function loadTranscript(){
   fetch("/api/transcript").then(function(r){return r.json();}).then(function(t){
-    var pre=el("transcript"), empty=el("transcript-empty");
-    if(!t.available || !t.data){ pre.style.display="none"; empty.style.display="block"; return; }
-    empty.style.display="none"; pre.style.display="block";
-    if(t.generation !== lastTxGen){ lastTxGen = t.generation; }
-    pre.textContent = t.data;
-    pre.scrollTop = pre.scrollHeight;
-  }).catch(function(){});
+    el("tx-card").classList.remove("stale");
+    el("tx-stale").style.display="none";
+    // 세대가 바뀌면(새 단계) 펼침과 토글을 비운다. 앞 단계의 tool_use_id 로
+    // 이번 단계의 사건이 펴지면 안 된다.
+    if(t.generation !== lastTxGen){
+      lastTxGen = t.generation; txOpen = new Set(); txRaw = false;
+      el("tx-toggle").textContent = "원문";
+      el("tx-events").scrollTop = 0; el("transcript").scrollTop = 0;
+    }
+    txLastWrite = t.last_write ? new Date(t.last_write).getTime() : null;
+    txLast = t;
+    drawTranscript();
+    drawAge();
+  }).catch(function(){
+    // 마지막 값을 지우지 않는다. 빈 화면으로 떨어뜨리면 "단계가 끝났다" 로
+    // 읽힌다 - 실제로는 제어판에 못 닿은 것이다.
+    el("tx-card").classList.add("stale");
+    el("tx-stale").style.display="block";
+  });
 }
 
 // 지난 작업 — Mediator 가 가진 것을 읽어 이 노드 것만 (decisions §6.5).
@@ -285,26 +440,151 @@ function loadRuns(){
   }).catch(function(){ el("runs").innerHTML = "<span class='muted'>Mediator 에 못 닿았다</span>"; });
 }
 
+// 지난 것 — 단계마다 봉투 한 칸이다. /api/record 가 상세 하나와 단계마다의
+// 로그를 모아 낸다 (브라우저는 요청 하나 그대로다).
+//
+// 그리는 것은 도는 것과 같은 함수다 (window.enodeCard.renderEvents). 이 경로가
+// 그리는 코드를 0 줄 짓는 것이 이 유닛의 값이다 - 앞 판은 tar 안의 바이트를
+// 그대로 <pre> 에 부었고, 그래서 같은 Run 이 도는 동안과 끝난 뒤에 다른
+// 화면이었다. U8 이 렌더러를 한 벌로 빼 놔서 부르기만 하면 된다.
+//
+// 상태 줄을 안 부른다. statusLine 의 문이 "도는 단계인가" 이고 지난 것은 전부
+// 끝난 것이다. 봉인 전 Run 을 눌렀어도 마찬가지다 - 그 Run 이 도는 것은 위의
+// 트랜스크립트 카드가 말한다.
+//
+// 자동 갱신이 0 이다. 봉인된 것은 안 자란다. "한 번 읽고 끝" 은 "누를 때마다
+// 한 번" 이고 영원히 한 번이 아니다 - 봉인 전 Run 을 다시 누르면 그사이 자란
+// 것까지 온다.
+var recSteps = {}; // seq -> 단계. 토글이 자기 단계를 찾는다
+var recOpen = {};  // seq -> Set. 펼친 tool_use_id 를 단계마다 따로 든다 (열쇠가 tool_use_id 라 단계 안에서만 유일하다)
+var recRaw = {};   // seq -> bool. 원문 토글도 단계마다 따로다
+
+function recMuted(text){ return "<div class='muted' style='margin-top:10px'>" + esc(text) + "</div>"; }
+function recNote(text){ return "<div class='note'>" + esc(text) + "</div>"; }
+
+// recWhy 는 총 길이 0 의 뜻이다. 한 문장이 아니라 셋이다 - Step.Chosen 이 있는
+// 이유가 정확히 앞의 둘을 가르려는 것이고, 한 문장으로 접으면 그 열이 나른
+// 값을 화면에서 버린다.
+function recWhy(s){
+  if(s.total > 0) return "";
+  if(s.state === "SKIPPED") return s.chosen ? "골랐는데 못 닿았다" : "경로가 갈려 안 갔다";
+  return "돌았고 아무 말도 안 했다";
+}
+
+// recSource 는 봉인 전과 뒤를 가르는 첫째 신호다. 서버가 어느 파일을 읽었는지를
+// 그대로 옮긴 값이라 제어판이 다시 판정하지 않는다. 둘째 신호는 걷힌 줄이고
+// (걷는 일은 봉인 때 일어난다) 둘이 같은 답을 내야 한다.
+function recSource(s){
+  if(!s.source) return "";
+  return s.source === "progress"
+    ? "봉인 전 — 진행 파일이다. 다시 누르면 그사이 자란 것까지 읽는다"
+    : "봉인된 로그";
+}
+
+function recStepHTML(s){
+  var head = "<div class='head'>" +
+    "<span class='mt' style='font-family:var(--mono)'>" + esc(s.seq) + " · " + esc(s.id) + "</span>" +
+    "<span class='badge'>" + esc(s.state) + "</span><span class='grow'></span>" +
+    (s.error ? "" : "<button id='rec-tog-" + esc(s.seq) + "' onclick='toggleRecRaw(" + esc(s.seq) + ")'>원문</button>") +
+    "</div>";
+  // 단계 하나의 실패는 그 단계 자리에 남는다. 화면 전체를 비우면 읽는 사람이
+  // 그것을 "기록이 없다" 로 읽는다.
+  if(s.error) return "<div class='step'>" + head + recNote("이 단계의 로그를 못 불러왔다 — " + s.error) + "</div>";
+
+  var t = s.transcript || {};
+  var notes = "";
+  var src = recSource(s);
+  if(src) notes += recNote(src + " · " + s.total + " 바이트");
+  var why = recWhy(s);
+  if(why) notes += recNote(why);
+  // 걷힌 줄은 단계마다 하나다. Run 하나로 합치면 어느 단계가 얼마나 걷혔는지가
+  // 사라진다. 봉인된 것은 도는 동안 본 것과 다른 물건이고, 화면이 그 말을 안
+  // 하면 읽는 사람이 같은 물건으로 읽는다.
+  if(t.elided) notes += recNote("본문 " + t.elided.events + " 개가 걷혔다 (" + t.elided.bytes + " 바이트) — 봉인이 남긴 것만 보고 있다");
+  // 한 응답의 상한에서 잘렸다. 이 화면은 폴링이 없으므로 나머지가 영영 안 온다.
+  if(s.received < s.total) notes += recNote("처음 " + s.received + " 바이트만 왔다 — 한 응답의 상한이다. 나머지는 이 화면이 안 가져온다");
+  if(s.capped) notes += recNote("진행 파일이 상한에 닿아 거기서 멈췄다");
+
+  return "<div class='step'>" + head + notes +
+    "<div class='evs' id='rec-ev-" + esc(s.seq) + "'></div>" +
+    "<pre id='rec-raw-" + esc(s.seq) + "' style='display:none'></pre></div>";
+}
+
+function drawStepEvents(s){
+  var box = el("rec-ev-" + s.seq);
+  if(!box) return;
+  // 렌더러가 안 섰으면 그 말을 한다. 빈 채로 두면 "에이전트가 아무 말도 안
+  // 했다" 로 읽힌다 - 빈 catch 와 같은 잘못이다.
+  if(!window.enodeCard){ box.textContent = "카드 렌더러가 아직 안 섰다"; return; }
+  var open = recOpen[s.seq];
+  window.enodeCard.renderEvents(box, (s.transcript && s.transcript.events) || [], {
+    open: open,
+    onToggle: function(id, next){
+      if(next){ open.add(id); } else { open.delete(id); }
+      drawStepEvents(s);
+    },
+    empty: "이 단계는 읽을 사건이 없다"
+  });
+}
+
+function toggleRecRaw(seq){
+  var s = recSteps[seq];
+  if(!s) return;
+  recRaw[seq] = !recRaw[seq];
+  var box = el("rec-ev-" + seq), pre = el("rec-raw-" + seq), tog = el("rec-tog-" + seq);
+  if(recRaw[seq]){
+    box.style.display = "none"; pre.style.display = "block";
+    // 하네스 바이트는 textContent 로만 들어간다. 사건 열을 만든 것과 같은
+    // 읽기의 같은 바이트다 - 토글이 따로 읽지 않는다.
+    pre.textContent = s.data || "";
+    tog.textContent = "사건";
+  } else {
+    pre.style.display = "none"; box.style.display = "block";
+    tog.textContent = "원문";
+  }
+}
+
+function drawRecord(runId, verdictHtml, res){
+  var steps = res.steps || [];
+  recSteps = {}; recOpen = {}; recRaw = {};
+  var blocks = steps.map(function(s){
+    recSteps[s.seq] = s;
+    recOpen[s.seq] = new Set();
+    return recStepHTML(s);
+  }).join("");
+  if(!steps.length) blocks = recMuted("이 Run 에 단계가 없다");
+  el("record").innerHTML = "<div style='margin-top:12px;border-top:1px solid var(--border);padding-top:12px'>" +
+    "<div class='mt' style='font-family:var(--mono)'>" + esc(runId) + " · " + esc(res.state || "") + "</div>" +
+    verdictHtml + blocks + "</div>";
+  steps.forEach(drawStepEvents);
+}
+
 function loadRecord(runId){
   var rec = el("record");
-  rec.innerHTML = "<div class='muted' style='margin-top:10px'>불러오는 중...</div>";
+  rec.innerHTML = recMuted("불러오는 중...");
   var run = runsById[runId] || {};
   var v = run.verdict;
   var checks = (v && v.checks != null) ? v.checks : v;
-  var verdictHtml = v ? "<div class='muted' style='margin-top:10px'>결과</div><pre>" + esc(JSON.stringify(checks, null, 2)) + "</pre>" : "";
-  fetch("/api/record?run=" + encodeURIComponent(runId)).then(function(r){return r.json();}).then(function(res){
-    var logs = res.logs || [];
-    var body = logs.length
-      ? logs.map(function(l){ return "<div class='muted' style='margin-top:10px'>" + esc(l.name) + "</div><pre>" + esc(l.content) + "</pre>"; }).join("")
-      : "<div class='muted' style='margin-top:10px'>봉인된 트랜스크립트가 없다</div>";
-    rec.innerHTML = "<div style='margin-top:12px;border-top:1px solid var(--border);padding-top:12px'>" +
-      "<div class='mt' style='font-family:var(--mono)'>" + esc(runId) + "</div>" + verdictHtml + body + "</div>";
-  }).catch(function(){ rec.innerHTML = "<div class='muted'>기록을 못 불러왔다</div>"; });
+  var verdictHtml = v ? recMuted("결과") + "<pre>" + esc(JSON.stringify(checks, null, 2)) + "</pre>" : "";
+  fetch("/api/record?run=" + encodeURIComponent(runId)).then(function(r){
+    if(!r.ok) return { code: r.status };
+    return r.json().then(function(body){ return { code: 200, body: body }; });
+  }).catch(function(){
+    // 빈 catch 가 0 이다. 못 닿은 것을 "기록이 없다" 로 접으면 읽는 사람이
+    // 없는 것과 못 본 것을 같게 읽는다.
+    return { code: 0 };
+  }).then(function(got){
+    if(got.code === 200){ drawRecord(runId, verdictHtml, got.body); return; }
+    // 404 는 "그런 Run 이 없다" 이고 빈 화면과 다르다.
+    rec.innerHTML = recMuted(got.code === 404 ? "그런 Run 이 없다" : "기록을 못 불러왔다");
+  });
 }
 
 load(); loadTranscript(); loadRuns();
 setInterval(load, 5000);
 setInterval(loadTranscript, 1000);
+// 경과는 폴링과 별개 타이머다 — 폴링이 죽어도 시계가 흐른다.
+setInterval(drawAge, 1000);
 setInterval(loadRuns, 5000);
 </script>
 </body>

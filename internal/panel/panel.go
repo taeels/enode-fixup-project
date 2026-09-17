@@ -20,6 +20,7 @@ import (
 
 	"github.com/taeels/enode/internal/enode"
 	"github.com/taeels/enode/internal/runctl"
+	"github.com/taeels/enode/internal/transcriptui"
 )
 
 // Config 는 제어판 서버의 입력이다. 겉면은 unit-of-work §5 가 얼렸고,
@@ -47,6 +48,10 @@ type Server struct {
 	// 제어판 자신이 enode(enode panel)이므로 자기를 --config 로 다시 띄운다.
 	// 시험이 무해한 실행파일로 갈아끼우는 이음매다.
 	startBin string
+
+	// live 는 도는 트랜스크립트의 한 칸 캐시다. 1초 폴링이 매번 512 KiB 를
+	// 다시 파싱하지 않게 한다 — 침묵 구간에서 비용이 0 이 된다.
+	live liveCache
 }
 
 // New 는 제어판 서버를 만든다.
@@ -86,10 +91,29 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/transcript", s.handleTranscript)
 	mux.HandleFunc("GET /api/runs", s.handleRuns)
 	mux.HandleFunc("GET /api/record", s.handleRecord)
+	// 카드 렌더러. 현황판이 /ui/shared/transcriptui/card.mjs 로 내는 것과
+	// 같은 바이트다 — 두 화면이 같은 규칙으로 그리게 하는 것이 이 유닛의
+	// 값이고, 사본을 두면 그 값이 사라진다.
+	//
+	// U5 의 R1 이 「HandleFunc 가 10 그대로다」였고 이 줄이 그것을 11 로
+	// 바꾼다. 그 유닛의 문서를 고치지 않는다 — 바꾸는 유닛이 자기 문서에
+	// 적는다 (business-rules R32).
+	mux.HandleFunc("GET /static/card.mjs", s.handleCard)
+	// 보안 헤더가 가장 바깥이다 — requireToken 이 내는 401 도 브라우저가
+	// 그리는 문서라 같은 헤더가 붙어야 한다.
 	if s.cfg.PanelToken != "" {
-		return s.requireToken(mux)
+		return securityHeaders(s.requireToken(mux))
 	}
-	return mux
+	return securityHeaders(mux)
+}
+
+// handleCard 는 카드 렌더러 .mjs 를 낸다 — 현황판이 내는 것과 같은 바이트다.
+//
+// 이 라우트도 requireToken 아래다 (Handler 가 mux 를 통째로 감싼다). LAN
+// 노출에서 브라우저가 페이지 자체를 못 여는 것이 앞 판의 잔여이고, 모듈이
+// 그 잔여를 넓히지 않는다 — 페이지를 못 열면 모듈을 부를 자리도 없다.
+func (s *Server) handleCard(w http.ResponseWriter, r *http.Request) {
+	http.ServeFileFS(w, r, transcriptui.Files, "card.mjs")
 }
 
 // requireToken 은 Authorization: Bearer <panel_token> 을 요구한다 (LAN 노출 시).

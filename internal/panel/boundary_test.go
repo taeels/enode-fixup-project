@@ -37,7 +37,7 @@ func TestImportBoundaries(t *testing.T) {
 		return false
 	}
 
-	// 금지 여덟 줄. 표 하나라 줄을 더하는 것이 한 행이다.
+	// 금지 열두 줄. 표 하나라 줄을 더하는 것이 한 행이다.
 	//
 	// 오늘 넷이 자동으로 초록인 것이 쓸모없다는 뜻이 아니다 — 값은 나중에
 	// 누가 임포트를 더했을 때 빨개지는 데 있다.
@@ -50,13 +50,17 @@ func TestImportBoundaries(t *testing.T) {
 		{"internal/transcript", "internal/api"},
 		{"internal/transcript", "internal/store"},
 		{"internal/transcript", "internal/panel"},
+		{"internal/transcriptui", "internal/panel"},
+		{"internal/transcriptui", "internal/api"},
+		{"internal/transcriptui", "internal/store"},
+		{"internal/transcriptui", "internal/enode"},
 	} {
 		if has(deps(rule.from), rule.to) {
 			t.Errorf("%s must not import %s", rule.from, rule.to)
 		}
 	}
 
-	// 봉인 하나 — 금지 넷보다 강하다.
+	// 봉인 둘 — 금지 넷보다 강하다.
 	//
 	// 금지는 이름을 아는 넷만 막고 봉인은 전부 막는다: 새 내부 패키지든
 	// 새 외부 모듈이든 같다. 넷을 그래도 두는 이유는 실패 메시지가 어느
@@ -64,13 +68,41 @@ func TestImportBoundaries(t *testing.T) {
 	//
 	// 표준 라이브러리는 첫 경로 조각에 점이 없다 (encoding/json · unicode/utf8).
 	// 점이 있으면 모듈 경로다 (github.com/... · gopkg.in/...).
-	for _, dep := range strings.Split(deps("internal/transcript"), "\n") {
-		dep = strings.TrimSpace(dep)
-		if dep == "" || dep == mod+"internal/transcript" {
-			continue
+	//
+	// 봉인이 둘인 이유 — internal/transcriptui 도 같은 성질을 져야 한다.
+	// 제어판과 현황판이 둘 다 그것을 임포트해 같은 바이트를 내므로, 잎이
+	// 아니면 두 화면이 그 의존을 통해 다시 붙는다. 위의 금지 넷은 이름을
+	// 아는 넷만 막고, 이 봉인이 「잎이다」를 실제로 잰다.
+	for _, sealed := range []string{"internal/transcript", "internal/transcriptui"} {
+		for _, dep := range strings.Split(deps(sealed), "\n") {
+			dep = strings.TrimSpace(dep)
+			if dep == "" || dep == mod+sealed {
+				continue
+			}
+			if first, _, _ := strings.Cut(dep, "/"); strings.Contains(first, ".") {
+				t.Errorf("%s must depend on the standard library only, but it imports %s", sealed, dep)
+			}
 		}
-		if first, _, _ := strings.Cut(dep, "/"); strings.Contains(first, ".") {
-			t.Errorf("internal/transcript must depend on the standard library only, but it imports %s", dep)
+	}
+
+	// 표준 라이브러리 금지 하나 — 제어판이 tar 를 안 푼다.
+	//
+	// 이 줄만 -deps 가 아니라 직접 임포트를 본다. internal/enode 가
+	// archive/tar 를 딛고(봉인이 tar 를 짓는다) panel 이 그것을 임포트하므로
+	// 의존 그래프에는 언제나 보인다 — 그래서 -deps 로는 이 성질을 못 잰다.
+	// 걷은 것은 제어판 자신의 임포트이고 재는 자리도 거기다.
+	//
+	// 이것이 「출처가 GET 이다」의 기계 검사다. 지난 트랜스크립트를 GET
+	// record 의 tar 에서 꺼내던 자리를 GET log 로 옮겼고, 임포트가 남아
+	// 있으면 옮기다 만 것이다. 사람이 브라우저 네트워크 탭에서 보는 것을
+	// 여기서는 임포트 목록으로 본다.
+	own, err := exec.Command("go", "list", "-f", `{{join .Imports "\n"}}`, mod+"internal/panel").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go list internal/panel: %v\n%s", err, own)
+	}
+	for _, line := range strings.Split(string(own), "\n") {
+		if strings.TrimSpace(line) == "archive/tar" {
+			t.Error("internal/panel must not import archive/tar; the past transcript comes from GET log now")
 		}
 	}
 

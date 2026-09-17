@@ -224,6 +224,38 @@ func (c *Client) Record(ctx context.Context, runID string, w io.Writer) error {
 	return err
 }
 
+// StepLog 은 단계 하나의 로그 원문과 그것을 설명하는 헤더를 낸다.
+//
+// 사건 열을 안 낸다. as=raw 만 부르고 부르는 쪽이 같은 바이트를
+// transcript.Parse 에 넣는다 — 서버의 as=events 가 하는 일이 정확히 그것이고
+// (api 의 getLog 가 같은 조각을 Parse 에 넣는다) ?from= 을 안 붙이므로 첫 줄을
+// 버릴 일이 없어 답이 글자까지 같다.
+//
+// 둘을 따로 부르면 안 되는 이유가 봉인 전에 있다. 진행 파일은 자라므로 두
+// 읽기 사이에 자란 만큼 사건 열과 원문이 다른 창을 보이고, 읽는 사람은 그것을
+// 파서의 버그로 읽는다. panel 의 liveBody 가 같은 규율을 링에서 진다 —
+// 스냅샷 하나로 둘을 만든다.
+//
+// 헤더를 함께 내는 것이 이 겉면의 값이다. 출처와 총 길이와 상한이 거기 있어서,
+// 몸통만 내면 부르는 쪽이 봉인 전인지 뒤인지를 못 안다.
+//
+// name 에는 단계의 ID 를 넣는다. 상세의 단계 객체에 이름 필드가 따로 없고
+// ID 가 곧 로그의 이름이다 (GET log 의 name 기본값은 아직 step 이다).
+func (c *Client) StepLog(ctx context.Context, runID string, seq int, name string) ([]byte, http.Header, error) {
+	q := url.Values{"name": {name}, "as": {"raw"}}
+	path := "/v1/runs/" + runID + "/steps/" + strconv.Itoa(seq) + "/log?" + q.Encode()
+	resp, err := c.do(ctx, "GET", path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+	return b, resp.Header, nil
+}
+
 // Terminal 은 종료 상태인지다 (INVARIANTS §1.1).
 func Terminal(state string) bool { return state == "SUCCEEDED" || state == "FAILED" }
 
