@@ -20,7 +20,7 @@ const KINDS = ['init', 'text', 'tool_use', 'tool_result', 'result', 'raw', 'capp
 // ContractError 는 name 으로 갈린다. client.mjs 의 오류 사상이 그 이름을 읽고
 // "잘못된 관측 JSON" 과 계약 위반을 가른다 - 같은 이름을 쓰는 이유다.
 class ContractError extends Error {
-  constructor(what) { super(`사건 계약 위반: ${what}`); this.name = 'ContractError'; }
+  constructor(what) { super(`the event contract was broken: ${what}`); this.name = 'ContractError'; }
 }
 const check = (ok, what) => { if (!ok) throw new ContractError(what); };
 const count = (v, what) => { check(Number.isInteger(v) && v >= 0, what); return v; };
@@ -35,11 +35,11 @@ const count = (v, what) => { check(Number.isInteger(v) && v >= 0, what); return 
 // 모르는 키는 안 막는다. 파서가 나중에 필드를 더할 수 있고, 그때 화면이
 // 통째로 거부하면 새 필드를 더하는 쪽이 화면을 먼저 고쳐야 한다.
 export function parseEvents(body) {
-  check(body !== null && typeof body === 'object' && !Array.isArray(body), '몸통이 객체가 아니다');
-  check(Array.isArray(body.events), 'events 가 배열이 아니다');
+  check(body !== null && typeof body === 'object' && !Array.isArray(body), 'the body is not an object');
+  check(Array.isArray(body.events), 'events is not an array');
   for (const e of body.events) {
-    check(e !== null && typeof e === 'object' && !Array.isArray(e), '사건이 객체가 아니다');
-    check(KINDS.includes(e.kind), `모르는 kind: ${String(e.kind)}`);
+    check(e !== null && typeof e === 'object' && !Array.isArray(e), 'an event is not an object');
+    check(KINDS.includes(e.kind), `unknown kind: ${String(e.kind)}`);
     count(e.line, 'line');
     for (const key of ['sub', 'text', 'name', 'id']) if (e[key] !== undefined) check(typeof e[key] === 'string', key);
     if (e.ok !== undefined) check(typeof e.ok === 'boolean', 'ok');
@@ -62,7 +62,7 @@ export function parseEvents(body) {
 export function statusLine(events, live) {
   if (!live) return null;
   const tool = activeTool(events);
-  return tool ? `${tool.name} 쓰는 중` : '생각 중';
+  return tool ? `running ${tool.name}` : 'thinking';
 }
 
 // activeTool 은 마지막 tool_use 에 짝이 되는 tool_result 가 아직 없으면 그
@@ -90,12 +90,12 @@ export function activeTool(events) {
 }
 
 function label(e) {
-  if (e.kind === 'text') return e.sub === 'thinking' ? '생각' : 'Agent';
-  if (e.kind === 'tool_use') return '도구';
-  if (e.kind === 'tool_result') return e.ok === false ? '결과(실패)' : '결과';
-  if (e.kind === 'init') return '시작';
-  if (e.kind === 'result') return '끝';
-  if (e.kind === 'capped') return '상한';
+  if (e.kind === 'text') return e.sub === 'thinking' ? 'Thinking' : 'Agent';
+  if (e.kind === 'tool_use') return 'Tool';
+  if (e.kind === 'tool_result') return e.ok === false ? 'Result (failed)' : 'Result';
+  if (e.kind === 'init') return 'Start';
+  if (e.kind === 'result') return 'End';
+  if (e.kind === 'capped') return 'Capped';
   return 'raw';
 }
 
@@ -140,20 +140,20 @@ function toolArgs(text) {
 function summary(e) {
   if (e.kind === 'init') {
     const i = e.info || {};
-    return [i.model, i.version, i.tools ? `도구 ${i.tools}` : ''].filter(Boolean).join(' · ');
+    return [i.model, i.version, i.tools ? `${i.tools} tools` : ''].filter(Boolean).join(' · ');
   }
   if (e.kind === 'result') {
     const r = e.info || {};
     // 달러는 자리를 묶는다 - 부동소수가 그대로 나오면 $0.016518900000000003 이
     // 되어 카드 한 줄의 절반을 먹는다. 네 자리면 한 단계의 비용이 다 들어간다.
     const cost = r.cost_usd ? `$${Number(r.cost_usd).toFixed(4)}` : '';
-    return [r.reason, r.turns ? `턴 ${r.turns}` : '', cost].filter(Boolean).join(' · ');
+    return [r.reason, r.turns ? `${r.turns} turns` : '', cost].filter(Boolean).join(' · ');
   }
-  if (e.kind === 'capped') return `진행 파일이 상한에 닿았다 (${(e.info || {}).bytes || 0} 바이트)`;
+  if (e.kind === 'capped') return `the progress file reached its limit (${(e.info || {}).bytes || 0} bytes)`;
   // raw 는 한 줄이다. 본문 JSON 을 여기 그리면 카드가 장부가 된다 - CB1 에서
   // 도는 동안 사건 29 중 16 이 raw 였다 (system/thinking_tokens 가 토큰
   // 델타마다 한 줄씩 온다). 버리지는 않는다. 줄 전체는 원문 토글이 낸다 (R40).
-  if (e.kind === 'raw') return [e.sub, `${(e.text || '').length} 바이트`].filter(Boolean).join(' · ');
+  if (e.kind === 'raw') return [e.sub, `${(e.text || '').length} bytes`].filter(Boolean).join(' · ');
   if (e.kind === 'tool_use') return toolArgs(e.text);
   return e.text || '';
 }
@@ -194,13 +194,13 @@ function row(e, open, onToggle) {
   const foldable = e.kind === 'tool_result' && e.id;
   if (foldable) {
     const shown = open.has(e.id);
-    const fold = el('span', 'fold', shown ? ' [접기]' : ' [펼치기]');
+    const fold = el('span', 'fold', shown ? ' [fold]' : ' [unfold]');
     fold.addEventListener('click', () => onToggle(e.id, !shown));
     line.append(fold);
     if (!shown) return line;
   }
   line.append(el('div', 'body', summary(e)));
-  if (e.cut) line.append(el('span', 'cut', `${e.cut} 바이트가 잘렸다`));
+  if (e.cut) line.append(el('span', 'cut', `${e.cut} bytes were cut`));
   return line;
 }
 
@@ -213,7 +213,7 @@ function row(e, open, onToggle) {
 // open 은 펼친 tool_use_id 의 Set 이고 onToggle(id, next) 는 부르는 쪽이 자기
 // 상태를 고쳐 다시 그린다. 이 둘이 인자인 이유는 앞 판에서 제어판의 전역
 // txOpen 과 drawTranscript 에 직접 붙어 있었기 때문이다.
-export function renderEvents(container, events, { open = new Set(), onToggle = () => {}, empty = '아직 읽을 사건이 없다' } = {}) {
+export function renderEvents(container, events, { open = new Set(), onToggle = () => {}, empty = 'nothing to read yet' } = {}) {
   // 바닥에 있었는지를 그리기 전에 잰다. 갈고 나서 재면 언제나 바닥이 아니다.
   // 위로 올려 읽는 중이면 따라가지 않는다 (R53 · U5 의 R21) - 앞 판은
   // 무조건 따라가서 도는 동안 스크롤백을 읽을 수 없었다.

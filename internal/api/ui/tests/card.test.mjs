@@ -52,9 +52,9 @@ test('every parser kind is drawn and an unknown type never reaches the card', ()
   ], {});
   assert.equal(box.children.length, 7);
   const drawn = text(box);
-  for (const want of ['시작', 'Agent', '도구', '결과', '끝', '상한', 'raw']) assert.ok(drawn.includes(want), want);
+  for (const want of ['Start', 'Agent', 'Tool', 'Result', 'End', 'Capped', 'raw']) assert.ok(drawn.includes(want), want);
   assert.ok(drawn.includes('claude'), 'init carries its values');
-  assert.ok(drawn.includes('턴 3'), 'result carries its values');
+  assert.ok(drawn.includes('3 turns'), 'result carries its values');
 });
 
 // 읽을 값이 없는 셋은 카드에 안 오른다 (ADR-071).
@@ -100,7 +100,7 @@ test('raw stays one line and its body never reaches the card', () => {
   const body = '{"type":"system","subtype":"thinking_tokens","delta":{"thinking":17}}';
   renderEvents(box, [ev('raw', { sub: 'system', text: body })], {});
   const drawn = text(box);
-  assert.ok(drawn.includes(`${body.length} 바이트`), 'the byte count stands in for the body');
+  assert.ok(drawn.includes(`${body.length} bytes`), 'the byte count stands in for the body');
   assert.ok(!drawn.includes('thinking_tokens'), 'the raw body is not drawn');
 });
 
@@ -168,8 +168,8 @@ test('a wrongly shaped events body is refused instead of drawn half way', () => 
 
 test('the status line has a gate: a step that is not running gets no line', () => {
   const running = [ev('tool_use', { name: 'Read', id: 't1' })];
-  assert.equal(statusLine(running, true), 'Read 쓰는 중');
-  assert.equal(statusLine([ev('text', { text: 'a' })], true), '생각 중');
+  assert.equal(statusLine(running, true), 'running Read');
+  assert.equal(statusLine([ev('text', { text: 'a' })], true), 'thinking');
   // 도구가 도는 중에 단계가 죽으면 짝 없는 tool_use 가 남는다. 문이 없으면
   // 화면이 끝난 것을 도는 것으로 그린다.
   assert.equal(statusLine(running, false), null);
