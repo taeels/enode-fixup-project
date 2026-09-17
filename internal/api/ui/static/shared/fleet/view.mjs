@@ -326,8 +326,12 @@ export class DashboardView {
     const status = this.card.statusLine(c.events, step.state === 'CLAIMED');
     node.status.hidden = status === null;
     node.status.textContent = status ?? '';
+    // 아직 한 바이트도 안 온 단계에는 출처를 안 적는다. 서버는 파일이 없어도
+    // source=progress 로 답하는데, 그것을 그대로 그리면 시작도 안 한 단계가
+    // 「진행 중인 파일」을 든 것처럼 보인다.
+    const arrived = c.total !== null && c.total > 0;
     node.meta.textContent = [step.state,
-      c.source === 'sealed' ? '봉인된 로그' : c.source === 'progress' ? '진행 중인 파일' : '',
+      !arrived ? '' : c.source === 'sealed' ? '봉인된 로그' : c.source === 'progress' ? '진행 중인 파일' : '',
       c.capped ? '상한에 닿았다' : '',
       c.total === null ? '' : `${c.total} 바이트`,
       c.error].filter(Boolean).join(' · ');

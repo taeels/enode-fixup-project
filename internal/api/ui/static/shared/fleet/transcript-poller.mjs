@@ -146,7 +146,10 @@ export class TranscriptPoller {
     if (c.attempt !== null && attempt !== c.attempt) {
       Object.assign(c, { events: [], total: null, raw: '', open: new Set(), changedAt: null });
     }
-    if (c.total !== total) c.changedAt = this.wallNow();
+    // 시계는 첫 바이트가 온 뒤에 흐른다. null 에서 0 으로 간 것은 움직인
+    // 것이 아니다 - 그것을 갱신으로 세면 아직 시작도 안 한 단계가
+    // 「마지막 갱신 67초 전」이라고 말한다 (CB4 에서 실제로 그랬다).
+    if (total > 0 && c.total !== total) c.changedAt = this.wallNow();
     Object.assign(c, { attempt, total, events, source: headers.get('X-Enode-Log-Source') || '', capped: headers.get('X-Enode-Log-Capped') === '1' });
   }
 }

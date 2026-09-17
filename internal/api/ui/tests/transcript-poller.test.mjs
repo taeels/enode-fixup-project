@@ -99,6 +99,15 @@ test('the last update time moves only when the total moves', async () => {
   assert.equal(h.poller.card(1).changedAt, 10000, 'new bytes move the clock');
 });
 
+test('the clock does not start before the first byte arrives', async () => {
+  // CB4 에서 밟았다 - 아직 시작도 안 한 단계의 카드가 "마지막 갱신 67초 전"
+  // 이라고 말했다. null 에서 0 으로 간 것은 움직인 것이 아니다.
+  const h = harness({ steps: [{ seq: 1, name: 'a', state: 'PENDING' }], responses: [reply({ bytes: '0' })] });
+  await h.tick();
+  assert.equal(h.poller.card(1).changedAt, null, 'an empty log leaves the clock unset');
+  assert.equal(h.poller.card(1).total, 0, 'but the answer was still received');
+});
+
 test('a changed attempt drops what the card held instead of splicing two files', async () => {
   const h = harness({ steps: [claimed(1, 'a')], responses: [
     reply({ bytes: '40', attempt: '0', events: [ev('text', { text: '첫 시도' })] }),
