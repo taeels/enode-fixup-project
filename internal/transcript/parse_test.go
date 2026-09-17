@@ -1,6 +1,7 @@
 package transcript
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -503,5 +504,45 @@ func TestParse_TheEnvelopesCarryTheirValues(t *testing.T) {
 	}
 	if res.Info.CostUSD != 0.5 {
 		t.Fatalf("the cost is %v, want 0.5", res.Info.CostUSD)
+	}
+}
+
+// 선 위에서 events 는 언제나 배열이다. 짝 팩의 verdict.checks 와 같은 자리이고
+// 같은 방법으로 닫았다 - 타입이 자기 선 위 모양을 진다.
+//
+// 빈 입력은 예외가 아니라 흔한 상태다: 아직 아무도 아무 말도 안 한 단계.
+// 그 자리가 null 로 나가면 사건 배열을 검사하는 화면이 계약 위반으로 거절하고,
+// 카드가 "아직 첫 글자 전" 대신 오류로 선다.
+func TestEventsMarshalAsAnArrayEvenWhenEmpty(t *testing.T) {
+	for name, r := range map[string]Result{
+		"zero value":   {},
+		"parsed empty": Parse(nil, false),
+		"empty bytes":  Parse([]byte{}, false),
+	} {
+		b, err := json.Marshal(r)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !bytes.Contains(b, []byte(`"events":[]`)) {
+			t.Errorf("%s: events is not an empty array on the wire: %s", name, b)
+		}
+		var back struct {
+			Events []Event `json:"events"`
+		}
+		if err := json.Unmarshal(b, &back); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if back.Events == nil {
+			t.Errorf("%s: a reader still sees null", name)
+		}
+	}
+	// 사건이 있으면 그대로다 - 별칭 타입이 나머지 필드를 안 잃는다.
+	full := Parse([]byte("{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"m\"}\n"), false)
+	b, err := json.Marshal(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(b, []byte(`"events":[]`)) || !bytes.Contains(b, []byte(`"lines":1`)) {
+		t.Errorf("a non-empty result lost something: %s", b)
 	}
 }

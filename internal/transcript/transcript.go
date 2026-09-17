@@ -136,6 +136,18 @@ type Server struct {
 }
 
 // Result 는 Parse 가 한 번 읽은 결과다.
+//
+// 선 위에서 events 는 언제나 배열이다 - 비어 있으면 [] 이고 null 이 아니다.
+// MarshalJSON 이 그것을 지킨다 (아래). 짝 팩의 store.Verdict 가 checks 에서
+// 같은 자리를 밟았고 같은 방법으로 닫았다 - 타입이 자기 선 위 모양을 진다.
+//
+// 왜 타입이 지는가: 이 값이 선 위로 나가는 길이 둘이고 (GET log 의 as=events ·
+// 제어판의 /api/transcript 봉투) 둘 다 빈 입력을 정상으로 다룬다. 아직 아무도
+// 아무 말도 안 한 단계는 흔한 상태이지 예외가 아니다.
+//
+// 빠뜨리면 무엇이 깨지나 - 화면이 이 자리에 배열을 요구하고, 사건 배열을
+// 검사하는 쪽이 null 을 계약 위반으로 거절한다. 실제로 그렇게 깨졌다:
+// 아직 안 시작한 단계의 카드가 "events 가 배열이 아니다" 로 섰다.
 type Result struct {
 	Events []Event `json:"events"`
 	Elided *Elided `json:"elided,omitempty"` // enode.elided 줄이 있었으면. 없으면 nil
@@ -151,6 +163,19 @@ type Result struct {
 	// 읽어서 plain 으로 그렸다가 1초 뒤 사건으로 바꾸면 화면이 깜빡이고,
 	// 그 깜빡임이 「멈춘 것인지 도는 것인지」의 오독과 같은 자리에서 난다.
 	Partial int `json:"partial"`
+}
+
+// MarshalJSON 은 events 를 언제나 배열로 낸다.
+//
+// nil 슬라이스가 null 로 마샬되는 것이 Go 의 기본이고, 그 기본이 이 자리에서는
+// 틀린 값이다. 별칭 타입으로 재귀를 끊는다 - 그 줄이 없으면 이 메서드가
+// 자기를 다시 부른다.
+func (r Result) MarshalJSON() ([]byte, error) {
+	if r.Events == nil {
+		r.Events = []Event{}
+	}
+	type wire Result
+	return json.Marshal(wire(r))
 }
 
 // Elided 는 걷힌 양이다. 짓는 쪽(ElidedMarker)과 읽는 쪽(Parse)이 같은 값을
