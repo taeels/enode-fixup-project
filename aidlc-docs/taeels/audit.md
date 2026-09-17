@@ -1481,3 +1481,21 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: Construction · U8 · Code Generation 승인(Step 6·7) · 게이트 측정 착수.
 
 ---
+
+## Construction · U8 `fleet-card` · 게이트 측정 — CB4 초록 · CB1 재확인 초록 · CB6 보류
+**Timestamp**: 2026-09-17T03:10:00Z
+**User Input**: "계속해"
+**AI Response**: 측정 나무(`measure/u8-cb4` — main + U5 + U7 + U8)를 지어 CT103 의 `enode-dev` 에 올리고 실 하네스로 쟀다. Run 넷을 돌렸다 (`cb4-card-1` ~ `cb4-card-4`).
+
+**CB4 초록 — 여섯 줄 전부.** 단계 셋에 카드 셋 · 도는 동안 자란다(40,969 -> 99,997 바이트/15초) · **목록 폴링을 막아도 자란다**(`/v1/nodes` · `/v1/runs` · `/v1/asks` · `/v1/runs/{id}` 거절 12건 동안 로그 호출 8건, 카드는 계속 자랐다) · 원문 토글(`as=raw` 96,866 바이트) · 그래프와 목록을 **안 가린다**(사각형 실측으로 겹침 0) · 끝난 단계가 사유·턴·비용 한 줄로 닫힌다(`success · 턴 21 · $0.6609222`).
+
+**CB1 재확인 초록.** 제어판이 `window.enodeCard` 의 export 넷을 들고 사건 78 을 그린다. raw 한 줄(R30) 그대로 · 원문 토글 230,794 바이트 · 접기/펼치기가 `tool_use_id` 로 든다 · **제어판이 상태 줄을 새로 얻었다**(「생각 중」) · 다음 단계 첫 줄에 카드가 갈린다(장면 ⑤). 제어판과 현황판이 낸 `card.mjs` 가 **같은 바이트다**(R34 를 선 위에서 확인).
+
+**CB6 보류 — 장면 ⑥ 때문이다.** ① ~ ⑤ 와 ⑦ 이 초록이고, ⑥ 의 절반(`runctl record` 의 tar 와 `GET log` 가 세 단계 모두 같은 바이트: 11553 · 102 · 4790)도 초록이다. 나머지 절반인 **「제어판의 지난 작업에서 그 Run 을 누르면 같은 모양으로 읽힌다」가 안 된다** — 아직 판정 JSON 원문을 그린다. **U6 `panel-past` 를 이 회차에 안 지었기 때문이고 U8 밖이다.** `scene-gates.md` §4 대로 보류로 적는다. **보류는 통과가 아니므로 병합 지점도 아니다.**
+
+**측정이 결함 셋을 냈고 전부 고쳤다.** ① `GET log?as=events` 가 빈 로그에 `{"events":null}` 을 냈다 — 카드가 계약 위반으로 섰다. `internal/transcript` 는 U1 의 것이라 회차 밖 브랜치 `fix/transcript-events-is-always-an-array` 에서 고쳤다 (PR #45 의 `verdict.checks` 와 같은 자리 · 같은 방법). ② NC-6 의 시계가 첫 바이트 전에 흘렀다 — 시작도 안 한 단계가 「마지막 갱신 67초 전」이라고 말했다. ③ 한 바이트도 안 온 카드가 「진행 중인 파일」을 들었다. ②③ 은 U8 의 것이라 `unit/fleet-card` 에서 고쳤다.
+
+**운영 기록** — 도는 중에 Mediator 를 갈아 끼우면 그 단계가 `harness_error` 로 죽는다 (`cb4-card-3`). 제품 결함이 아니라 측정 절차의 실수이고, 다음부터는 Run 이 끝난 뒤에 올린다.
+**Context**: Construction · U8 · 게이트 측정 (CB4 · CB6 · CB1 재확인).
+
+---
