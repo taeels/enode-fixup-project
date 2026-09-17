@@ -85,6 +85,27 @@ func TestImportBoundaries(t *testing.T) {
 		}
 	}
 
+	// 표준 라이브러리 금지 하나 — 제어판이 tar 를 안 푼다.
+	//
+	// 이 줄만 -deps 가 아니라 직접 임포트를 본다. internal/enode 가
+	// archive/tar 를 딛고(봉인이 tar 를 짓는다) panel 이 그것을 임포트하므로
+	// 의존 그래프에는 언제나 보인다 — 그래서 -deps 로는 이 성질을 못 잰다.
+	// 걷은 것은 제어판 자신의 임포트이고 재는 자리도 거기다.
+	//
+	// 이것이 「출처가 GET 이다」의 기계 검사다. 지난 트랜스크립트를 GET
+	// record 의 tar 에서 꺼내던 자리를 GET log 로 옮겼고, 임포트가 남아
+	// 있으면 옮기다 만 것이다. 사람이 브라우저 네트워크 탭에서 보는 것을
+	// 여기서는 임포트 목록으로 본다.
+	own, err := exec.Command("go", "list", "-f", `{{join .Imports "\n"}}`, mod+"internal/panel").CombinedOutput()
+	if err != nil {
+		t.Fatalf("go list internal/panel: %v\n%s", err, own)
+	}
+	for _, line := range strings.Split(string(own), "\n") {
+		if strings.TrimSpace(line) == "archive/tar" {
+			t.Error("internal/panel must not import archive/tar; the past transcript comes from GET log now")
+		}
+	}
+
 	// 「있어야 한다」는 금지 표가 못 담는 모양이라 표 밖에 그대로 둔다.
 	if !has(deps("cmd/enode"), "internal/panel") {
 		t.Error("cmd/enode should import internal/panel (the panel subcommand)")

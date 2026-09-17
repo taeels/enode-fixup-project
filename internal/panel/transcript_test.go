@@ -1,12 +1,14 @@
 package panel
 
 import (
-	"archive/tar"
-	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -72,43 +74,6 @@ func TestHandleRunsFiltersByNode(t *testing.T) {
 	_ = json.NewDecoder(resp.Body).Decode(&out)
 	if len(out.Runs) != 1 || out.Runs[0].RunID != "mine" {
 		t.Fatalf("expected only this node's run: %+v", out.Runs)
-	}
-}
-
-func TestHandleRecordExtractsLogs(t *testing.T) {
-	// build a tar with logs/01-build.log and a non-log entry
-	var tarbuf bytes.Buffer
-	tw := tar.NewWriter(&tarbuf)
-	write := func(name, body string) {
-		_ = tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(body))})
-		_, _ = tw.Write([]byte(body))
-	}
-	write("logs/01-build.log", "compiling the kernel")
-	write("verdict.json", "{}")
-	_ = tw.Close()
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/runs/r1/record", func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write(tarbuf.Bytes())
-	})
-	srv := httptest.NewServer(mux)
-	defer srv.Close()
-	s := testServer(t, nil, "n")
-	s.client.Base = srv.URL
-
-	psrv := httptest.NewServer(s.Handler())
-	defer psrv.Close()
-	resp, err := http.Get(psrv.URL + "/api/record?run=r1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	var out struct {
-		Logs []recordLog `json:"logs"`
-	}
-	_ = json.NewDecoder(resp.Body).Decode(&out)
-	if len(out.Logs) != 1 || out.Logs[0].Name != "logs/01-build.log" || out.Logs[0].Content != "compiling the kernel" {
-		t.Fatalf("record did not extract logs/*.log only: %+v", out.Logs)
 	}
 }
 
@@ -525,5 +490,296 @@ func TestLiveBodyIsPure(t *testing.T) {
 	}
 	if string(first) != string(second) {
 		t.Errorf("liveBody must not read a clock:\n%s\n%s", first, second)
+	}
+}
+
+// 아래는 U6 panel-past 가 더한 것이다 — 지난 것의 출처가 tar 에서 GET 으로 바뀌었다.
+//
+// 앞 판의 시험은 tar 를 지어 먹이고 logs/NN-*.log 만 꺼내는지를 쟀다. 재던
+// 것이 없어졌고 재는 것이 바뀐다 — 단계 목록을 받아 단계마다 로그 하나를
+// 읽고 봉투 하나로 묶는가다.
+
+// pastFake 는 상세 하나와 단계마다의 로그를 내는 가짜 Mediator 다.
+//
+// 읽기 횟수를 세는 것이 이 픽스처의 값이다. 단계마다 한 번만 읽는 것이
+// 이 유닛의 규율이고 (사건 열과 원문이 같은 읽기에서 나와야 한다) 그것은
+// 응답을 보는 것만으로는 안 재진다.
+type pastFake struct {
+	mu    sync.Mutex
+	reads map[int]int // seq -> 그 단계의 로그를 몇 번 읽었나
+	steps []pastFakeStep
+	state string
+}
+
+type pastFakeStep struct {
+	seq    int
+	id     string
+	state  string
+	chosen bool
+	// body 는 읽을 때마다 낸다. n 은 그 단계를 몇 번째로 읽는가다 (1 부터).
+	body   func(n int) string
+	source string
+	// total 이 0 이면 본문 길이를 쓴다. 다르게 주면 잘린 응답이다.
+	total  int64
+	capped bool
+	// code 가 0 이 아니면 그 상태로 답한다 (단계 하나의 실패).
+	code int
+}
+
+func newPastFake(state string, steps ...pastFakeStep) *pastFake {
+	return &pastFake{reads: map[int]int{}, steps: steps, state: state}
+}
+
+func (f *pastFake) handler(runID string) http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /v1/runs/"+runID, func(w http.ResponseWriter, r *http.Request) {
+		out := []map[string]any{}
+		for _, st := range f.steps {
+			out = append(out, map[string]any{"seq": st.seq, "id": st.id, "state": st.state, "chosen": st.chosen})
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"run_id": runID, "state": f.state, "steps": out})
+	})
+	mux.HandleFunc("GET /v1/runs/"+runID+"/steps/{seq}/log", func(w http.ResponseWriter, r *http.Request) {
+		seq, _ := strconv.Atoi(r.PathValue("seq"))
+		f.mu.Lock()
+		f.reads[seq]++
+		n := f.reads[seq]
+		f.mu.Unlock()
+		for _, st := range f.steps {
+			if st.seq != seq {
+				continue
+			}
+			// 화면이 단계 이름으로 Step.ID 를 넘기는지를 여기서 잰다. 상세의
+			// 단계 객체에 이름 필드가 없고 ID 가 곧 로그의 이름이다.
+			if got := r.URL.Query().Get("name"); got != st.id {
+				http.Error(w, fmt.Sprintf("name = %q, want the step id %q", got, st.id), http.StatusBadRequest)
+				return
+			}
+			if st.code != 0 {
+				http.Error(w, "read failed", st.code)
+				return
+			}
+			body := ""
+			if st.body != nil {
+				body = st.body(n)
+			}
+			total := st.total
+			if total == 0 {
+				total = int64(len(body))
+			}
+			w.Header().Set("X-Enode-Log-Source", st.source)
+			w.Header().Set("X-Enode-Log-Bytes", strconv.FormatInt(total, 10))
+			if st.capped {
+				w.Header().Set("X-Enode-Log-Capped", "1")
+			}
+			_, _ = w.Write([]byte(body))
+			return
+		}
+		http.Error(w, "no such step", http.StatusNotFound)
+	})
+	return mux
+}
+
+// pastGet 은 제어판의 지난 것 봉투를 받는다.
+func pastGet(t *testing.T, f *pastFake, runID string) (int, pastRecord, *Server) {
+	t.Helper()
+	med := httptest.NewServer(f.handler(runID))
+	t.Cleanup(med.Close)
+	s := testServer(t, med, "n")
+	s.client.Base = med.URL
+	psrv := httptest.NewServer(s.Handler())
+	t.Cleanup(psrv.Close)
+
+	resp, err := http.Get(psrv.URL + "/api/record?run=" + runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	var out pastRecord
+	if resp.StatusCode == http.StatusOK {
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return resp.StatusCode, out, s
+}
+
+const elidedLine = `{"type":"enode.elided","events":98,"bytes":408989}` + "\n"
+
+func TestPastRecordIsOneEnvelopePerStep(t *testing.T) {
+	f := newPastFake("SUCCEEDED",
+		// 봉인된 단계. 걷힌 줄이 있다 — 걷는 일은 봉인 때 일어난다.
+		pastFakeStep{seq: 1, id: "survey", state: "DONE", chosen: true, source: "sealed",
+			body: func(int) string { return elidedLine + txLine }},
+		// 봉인 전 단계. 같은 봉투 안에서 출처가 갈린다 — Run 한 줄로 접으면
+		// 이 단계가 거짓이 된다.
+		pastFakeStep{seq: 2, id: "build", state: "CLAIMED", chosen: true, source: "progress",
+			body: func(int) string { return txLine }},
+		// 로그가 없는 단계 둘. 목록에서 안 뺀다 — 빼면 화면의 단계 수가
+		// 계약과 안 맞고 왜 없는지를 말할 자리가 사라진다.
+		//
+		// 둘의 차이가 Chosen 하나다. 총 길이 0 이 "경로가 갈려 안 갔다" 와
+		// "골랐는데 못 닿았다" 를 다시 뜻하게 되는 자리이고, Step.Chosen 이
+		// 있는 이유가 정확히 그 구별이다.
+		pastFakeStep{seq: 3, id: "deploy", state: "SKIPPED", chosen: false, source: "sealed"},
+		pastFakeStep{seq: 4, id: "rollback", state: "SKIPPED", chosen: true, source: "sealed"},
+	)
+	code, out, _ := pastGet(t, f, "r1")
+	if code != http.StatusOK {
+		t.Fatalf("status = %d", code)
+	}
+	if out.RunID != "r1" || out.State != "SUCCEEDED" {
+		t.Errorf("run = %q state = %q", out.RunID, out.State)
+	}
+	if len(out.Steps) != 4 {
+		t.Fatalf("steps = %d, want the detail's four (a step with no log stays in the list)", len(out.Steps))
+	}
+
+	one := out.Steps[0]
+	if one.Source != "sealed" || one.Total != int64(len(elidedLine+txLine)) {
+		t.Errorf("step 1 carried source=%q total=%d; the headers must be copied as they came", one.Source, one.Total)
+	}
+	if one.Transcript == nil || len(one.Transcript.Events) != 1 || one.Transcript.Events[0].Text != "hello" {
+		t.Fatalf("step 1 events = %+v", one.Transcript)
+	}
+	// 걷힌 줄이 봉인된 것에만 있다. 출처 헤더가 첫째 신호이고 이것이 둘째다.
+	if one.Transcript.Elided == nil || one.Transcript.Elided.Events != 98 || one.Transcript.Elided.Bytes != 408989 {
+		t.Errorf("step 1 elided = %+v, want the sealed marker", one.Transcript.Elided)
+	}
+	if one.Data != elidedLine+txLine {
+		t.Errorf("step 1 data = %q, want the same bytes the events came from", one.Data)
+	}
+
+	two := out.Steps[1]
+	if two.Source != "progress" {
+		t.Errorf("step 2 source = %q, want progress in the same envelope", two.Source)
+	}
+	// progress 면 elided 가 없다. 진행 파일에 봉인 표시가 섞이면 하나가 틀린 것이다.
+	if two.Transcript == nil || two.Transcript.Elided != nil {
+		t.Errorf("step 2 elided = %+v, want none before the seal", two.Transcript)
+	}
+
+	three, four := out.Steps[2], out.Steps[3]
+	if three.Total != 0 || three.State != "SKIPPED" || four.Total != 0 || four.State != "SKIPPED" {
+		t.Fatalf("steps 3 and 4 = %+v %+v, want kept steps with nothing in them", three, four)
+	}
+	// 두 단계의 차이는 Chosen 하나다. 접으면 SKIPPED 가 다시 두 가지를 뜻하고
+	// 화면이 "안 갔다" 와 "갔는데 못 닿았다" 를 합친다.
+	if three.Chosen || !four.Chosen {
+		t.Errorf("chosen = %v %v, want false then true", three.Chosen, four.Chosen)
+	}
+	if three.Transcript == nil {
+		t.Error("step 3 lost its transcript; an empty log is not a failure")
+	}
+}
+
+// 사건 열과 원문이 같은 읽기에서 나온다.
+//
+// 이 시험이 이 유닛의 값을 지킨다. 설계는 단계마다 as=events 와 as=raw 를 따로
+// 부르기로 적었고, 그러면 봉인 전 진행 파일이 두 읽기 사이에 자라 사건 열과
+// 원문이 다른 창을 보인다. 가짜가 읽을 때마다 다른 것을 내므로 두 번 읽으면
+// 이 단언이 죽는다.
+func TestPastRecordReadsEachStepOnce(t *testing.T) {
+	f := newPastFake("RUNNING",
+		pastFakeStep{seq: 1, id: "survey", state: "CLAIMED", chosen: true, source: "progress",
+			body: func(n int) string { return strings.Repeat(txLine, n) }},
+	)
+	_, out, _ := pastGet(t, f, "r1")
+	if len(out.Steps) != 1 {
+		t.Fatalf("steps = %d", len(out.Steps))
+	}
+	if f.reads[1] != 1 {
+		t.Fatalf("the step's log was read %d times; the events and the raw bytes must come from one read", f.reads[1])
+	}
+	got := out.Steps[0]
+	if got.Data != txLine || got.Transcript == nil || len(got.Transcript.Events) != 1 {
+		t.Errorf("data = %q with %d events; they must agree", got.Data, len(got.Transcript.Events))
+	}
+	// 받은 길이를 브라우저가 문자열 길이로 대신 셀 수 없으므로 서버가 센다.
+	if got.Received != len(txLine) {
+		t.Errorf("received = %d, want %d", got.Received, len(txLine))
+	}
+}
+
+// 한 응답의 상한에서 잘린 단계. 이 화면은 폴링이 없어 나머지가 영영 안 온다.
+func TestPastRecordSaysWhenOnlyAPrefixCame(t *testing.T) {
+	f := newPastFake("SUCCEEDED",
+		pastFakeStep{seq: 1, id: "survey", state: "DONE", chosen: true, source: "sealed",
+			body: func(int) string { return txLine }, total: 999999},
+	)
+	_, out, _ := pastGet(t, f, "r1")
+	got := out.Steps[0]
+	if got.Total != 999999 || got.Received != len(txLine) {
+		t.Fatalf("total = %d received = %d, want the file's length and this read's length", got.Total, got.Received)
+	}
+}
+
+// 단계 하나가 실패해도 나머지는 그린다.
+//
+// tar 는 통째로 오거나 안 왔으므로 이 구별이 없었다. 1+N 이 되면서 생긴
+// 자리이고, 한 단계의 실패가 화면 전체를 비우면 읽는 사람이 그것을
+// "기록이 없다" 로 읽는다.
+func TestPastRecordKeepsTheRestWhenOneStepFails(t *testing.T) {
+	f := newPastFake("SUCCEEDED",
+		pastFakeStep{seq: 1, id: "survey", state: "DONE", chosen: true, source: "sealed",
+			body: func(int) string { return txLine }},
+		pastFakeStep{seq: 2, id: "build", state: "DONE", chosen: true, code: http.StatusServiceUnavailable},
+		pastFakeStep{seq: 3, id: "deploy", state: "DONE", chosen: true, source: "sealed",
+			body: func(int) string { return txLine }},
+	)
+	code, out, _ := pastGet(t, f, "r1")
+	if code != http.StatusOK {
+		t.Fatalf("status = %d; one step's failure must not empty the screen", code)
+	}
+	if len(out.Steps) != 3 {
+		t.Fatalf("steps = %d", len(out.Steps))
+	}
+	if out.Steps[1].Error == "" || out.Steps[1].Transcript != nil {
+		t.Errorf("step 2 = %+v, want the failure in its own slot and no transcript", out.Steps[1])
+	}
+	if out.Steps[0].Transcript == nil || out.Steps[2].Transcript == nil {
+		t.Error("the steps around the failure lost their events")
+	}
+}
+
+// 404 는 "그런 Run 이 없다" 이고 빈 화면과 다르다.
+func TestPastRecordCarriesTheMissingRun(t *testing.T) {
+	med := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":{"code":404,"reason":"no such run"}}`, http.StatusNotFound)
+	}))
+	defer med.Close()
+	s := testServer(t, med, "n")
+	s.client.Base = med.URL
+	psrv := httptest.NewServer(s.Handler())
+	defer psrv.Close()
+
+	resp, err := http.Get(psrv.URL + "/api/record?run=gone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 kept as 404", resp.StatusCode)
+	}
+}
+
+// 상세가 죽으면 502 다. 그 Run 이 없는 것과 못 본 것이 갈린다.
+func TestPastRecordFailingDetailIs502(t *testing.T) {
+	med := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error":{"code":503,"reason":"query failed"}}`, http.StatusServiceUnavailable)
+	}))
+	defer med.Close()
+	s := testServer(t, med, "n")
+	s.client.Base = med.URL
+	psrv := httptest.NewServer(s.Handler())
+	defer psrv.Close()
+
+	resp, err := http.Get(psrv.URL + "/api/record?run=r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502", resp.StatusCode)
 	}
 }

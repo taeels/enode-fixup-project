@@ -304,3 +304,59 @@ func TestNodesTruncatedBodyIsAnError(t *testing.T) {
 		t.Errorf("body = %q, want nil", string(raw))
 	}
 }
+
+// StepLog 은 as=raw 만 부르고 ?from= 을 안 붙인다.
+//
+// 이 시험이 URL 을 글자로 재는 이유 - as=events 를 따로 부르는 것이 이 겉면이
+// 피하려는 것이고, from 이 붙으면 첫 줄이 버려질 수 있어 답이 서버의 as=events
+// 와 안 같아진다. 둘 다 코드를 봐야만 아는 성질이라 URL 에 걸어 둔다.
+func TestStepLogAsksForRawWithTheStepName(t *testing.T) {
+	var gotPath string
+	var gotQuery url.Values
+	c, done := newClient(func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotQuery = r.URL.Path, r.URL.Query()
+		w.Header().Set("X-Enode-Log-Source", "sealed")
+		w.Header().Set("X-Enode-Log-Bytes", "42")
+		w.Header().Set("X-Enode-Log-Capped", "1")
+		_, _ = w.Write([]byte("two\nlines\n"))
+	})
+	defer done()
+
+	body, h, err := c.StepLog(context.Background(), "r1", 3, "survey")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotPath != "/v1/runs/r1/steps/3/log" {
+		t.Errorf("path = %q", gotPath)
+	}
+	if gotQuery.Get("as") != "raw" || gotQuery.Get("name") != "survey" {
+		t.Errorf("query = %v, want as=raw and name=survey", gotQuery)
+	}
+	if _, ok := gotQuery["from"]; ok {
+		t.Errorf("query carried from=%q; this surface reads once and never resumes", gotQuery.Get("from"))
+	}
+	if string(body) != "two\nlines\n" {
+		t.Errorf("body = %q", string(body))
+	}
+	// 헤더를 함께 내는 것이 이 겉면의 값이다. 몸통만 내면 부르는 쪽이
+	// 봉인 전인지 뒤인지를 못 안다.
+	if h.Get("X-Enode-Log-Source") != "sealed" || h.Get("X-Enode-Log-Bytes") != "42" || h.Get("X-Enode-Log-Capped") != "1" {
+		t.Errorf("headers = %v", h)
+	}
+}
+
+func TestStepLogFailCarriesWireCode(t *testing.T) {
+	c, done := newClient(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(429)
+		_, _ = w.Write([]byte(`{"error":{"code":429,"reason":"rate limited"}}`))
+	})
+	defer done()
+	body, h, err := c.StepLog(context.Background(), "r1", 1, "build")
+	var f *Fail
+	if !errors.As(err, &f) || f.Code != 429 || f.Reason != "rate limited" {
+		t.Fatalf("err = %v, want a 429 Fail", err)
+	}
+	if body != nil || h != nil {
+		t.Errorf("a failed read returned body=%q headers=%v, want both nil", string(body), h)
+	}
+}

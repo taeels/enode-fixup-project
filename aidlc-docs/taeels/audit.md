@@ -1499,3 +1499,107 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: Construction · U8 · 게이트 측정 (CB4 · CB6 · CB1 재확인).
 
 ---
+
+## Construction · U6 `panel-past` 를 연다 — Functional Design Part 1
+**Timestamp**: 2026-09-17T03:30:00Z
+**User Input**: "U6이 먼데" / "그래"
+**AI Response**: U6 을 설명하고 돌릴지 물었더니 승인했다. 브랜치 `unit/panel-past` 를 **`unit/fleet-card` 에서** 땄다 (물음 1 의 권장 자리다 — 아니면 다시 딴다). 계획 `construction/plans/panel-past-functional-design-plan.md` · 실측 여덟 · 물음 여섯.
+
+**무거운 것 둘** — ① `page.go` 의 `loadRecord` 가 바이트를 그대로 `<pre>` 에 붓는다. 출처만 바꾸면 화면이 안 바뀌므로 **CB2 의 「같은 파서의 같은 모양이다」가 안 선다.** 유닛 정본의 경로 줄에 `page.go` 가 없다. ② **U6 의 의존이 설계 변경으로 바뀌었다** — U8 이 렌더러를 `window.enodeCard` 로 옮겨 놨으므로 U6 이 그것을 부르면 그리는 코드가 0 줄이다. 의존 행렬에 U8 칸이 없는 것은 그 행렬이 2026-09-17 의 「그리는 것이 한 벌」 변경보다 앞서기 때문이다.
+
+**실측이 낸 숫자 하나** — `cb4-card-4` 의 `survey` 는 진행 파일 127,117 바이트 대 봉인된 로그 11,553 바이트로 **9%** 이고, 걷힌 양이 `enode.elided` 한 줄에 `{"events":98,"bytes":408989}` 로 있다. 봉인된 것은 도는 동안 본 것과 다른 물건이고, 화면이 그 말을 안 하면 읽는 사람이 같은 물건으로 읽는다.
+**Context**: Construction · U6 · Functional Design Part 1. 답 대기.
+
+---
+
+## Construction · U6 `panel-past` · Functional Design — 답과 산출물
+**Timestamp**: 2026-09-17T03:45:00Z
+**User Input**: "권장대로"
+**AI Response**: 물음 여섯에 `[Answer]: A` 를 박았다 (갈린 답 0 · 모호한 응답 0 이라 확인 파일을 안 만들었다). 계획 5.2 가 이름으로 든 모순 검사 자리 넷을 돌렸다 — **이번에는 막은 것이 없다.**
+
+**값을 정한 것 셋** — ① 봉투의 키 이름을 도는 것과 맞춘다 (꺼내는 식이 `<봉투>.transcript.events` 로 같아야 화면 함수가 하나로 선다). ② 「한 번 읽고 끝」은 「누를 때마다 한 번」이다 (자동 갱신 0 이라는 뜻이고 영원히 한 번이 아니다). ③ **걷힌 줄은 봉인된 것에만 있으므로 그것이 봉인 전과 뒤를 가르는 둘째 신호다** — 출처 헤더가 첫째이고 둘이 같은 답을 내야 한다.
+
+**넓힌 것 하나** — 답 6 의 「남긴 것이 없다」 한 줄이 **셋**이 된다. `Step.Chosen` 이 「경로가 갈려 안 갔다」와 「골랐는데 못 닿았다」를 가르려고 있는 열이고, 한 문장으로 접으면 그 열이 나른 값을 화면에서 버린다. 셋째(「돌았고 아무 말도 안 했다」)는 총 길이를 실제로 봐야 알므로 **상태로 미리 걸러 요청을 아끼지 않는다.**
+
+산출물 셋을 `construction/panel-past/functional-design/` 에 냈다 — 규칙은 U8 의 R61 에 이어 **R62 ~ R89**. 한 벌이므로 U5 의 R14 ~ R30 과 U8 의 R31 ~ R61 도 이 유닛의 규칙이다.
+
+**이 유닛이 치르는 값 하나를 이름으로 적었다** — 봉인 전 Run 을 누르면 진행 파일 전체가 한 응답에 실린다 (봉인 뒤 세 단계 합 16,445 바이트 대 봉인 전 한 단계 127,117). 브라우저는 루프백이라 안 아프고 아픈 쪽은 Mediator 의 N+1 이다. NFR 단계가 없어 설계에 적고 CB2 가 밟는다.
+**Context**: Construction · U6 · Functional Design 답 수집(Step 5)과 산출물 생성(Step 6). 승인 대기.
+
+---
+## Construction · U6 `panel-past` · Functional Design 승인 · Code Generation Part 1
+**Timestamp**: 2026-09-17T04:10:00Z
+**User Input**: "승인. 코드 써라."
+**AI Response**: Functional Design 을 승인으로 닫았다. **NFR Requirements · NFR Design · Infrastructure Design 은 SKIP** 이다 — `unit-of-work.md` 10절이 U6 을 스킵으로 걸었고 근거가 「출처만 바뀐다 · 기존 do() 를 탄다」다. 앞의 U4 · U5 · U8 과 달리 이 스킵은 어긋남이 아니다. 「코드 써라」는 단계 착수의 지시로 받고 **Part 2 는 계획 승인 뒤에 연다** (W-a 에서 같은 모양으로 적었다).
+
+계획을 냈다 — `construction/plans/panel-past-code-generation-plan.md`. **Step 여덟 · 체크박스 쉰셋 · 물음 0.**
+
+**계획을 짓기 전에 코드를 읽었고 실측이 다섯을 찾았다. 앞의 셋이 설계 문서의 줄을 고친다.**
+
+**① 봉투 하나가 두 읽기에서 나오면 R69 가 봉인 전에 깨진다.** 설계가 단계마다 `as=events` 와 `as=raw` 를 따로 부르기로 적었는데 그 둘은 다른 읽기다. 봉인 뒤는 파일이 불변이라 안 아프고 **봉인 전은 진행 파일이 자라서 사건 열과 원문이 다른 창을 보인다.** U5 의 `liveBody` 주석이 같은 자리를 이미 이름으로 적어 뒀다. 고치는 법 — 단계마다 `as=raw` 를 **한 번** 부르고 제어판이 `transcript.Parse(body, false)` 를 부른다. 서버의 `as=events` 가 하는 일이 정확히 그것이고 (`log.go` 가 같은 `sl.body` 를 Parse 에 넣는다), `?from=` 을 안 쓰므로 `headCut` 이 거짓이라 **글자까지 같은 답**이다. 덤으로 요청이 2N+1 에서 **1+N** 으로 준다 — 설계 1.1 의 산수(「3단계면 4」)가 그 수였다. 두 줄이 어긋나 있었다.
+
+**② `sealed` 를 제어판이 낼 독립된 출처가 없다.** `source` 에서 유도하면 「같은 답을 내야 한다」가 자동으로 참이라 재는 값이 0 이고, `Terminal(state)` 로 내면 **봉인 창에서 거짓말을 한다** (`log.go` 의 주석이 그 창을 적는다 — 종료 상태인데 Seal 이 아직 안 돈 동안 진행 파일이 아직 있다). 봉투에서 `sealed` 를 빼고 Run 의 `state` 를 싣는다. 봉인 전과 뒤는 **단계마다의 `source` 하나가 말한다** — R73 · R74 가 이미 단계 단위다.
+
+**③ 한 응답 상한 1 MiB 가 지난 것에도 걸린다.** 폴링하는 U8 은 `?from=` 으로 이어 받지만 이 유닛은 한 번 읽고 끝이라 **나머지가 영영 안 온다.** 봉인된 로그가 1 MiB 를 넘으면 `capped` 헤더도 안 붙는다 (그것은 진행 파일 쪽 값이다). 화면이 `total` 과 받은 길이를 견주어 「처음 N 바이트만 왔다」를 적는다.
+
+**④ 커버리지 여유** — 표준 측정 명령으로 `internal/panel` 86.0% (221/257) · `internal/runctl` 97.1% (100/103). DB 없이 재면 store 5.6% · api 20.6% 로 나오는데 그 둘은 testdb.sh 없이 스킵되는 것이고 이 유닛과 무관하다.
+
+**⑤ 기존 시험 둘이 tar 를 짓는다.** `TestHandleRecordExtractsLogs` 를 지우지 않고 다시 짓는다 — 재던 것이 없어지고 재는 것이 바뀐다.
+
+**변이 일곱 중 ⑥ 이 이 유닛의 값을 지키는 줄이다** — 「`data` 를 두 번째 읽기로 채운다」. 나머지 여섯은 화면이 무엇을 말하는가를 재고 ⑥ 은 봉투 하나가 한 읽기에서 나오는가를 잰다.
+**Context**: CONSTRUCTION · U6 · Functional Design 승인 · NFR 셋 SKIP 기록 · Code Generation Part 1. 승인 대기
+
+---
+
+## Construction · U6 `panel-past` · Code Generation Part 1 승인 · Part 2 — 코드가 섰다
+**Timestamp**: 2026-09-17T04:35:00Z
+**User Input**: "다음으로"
+**AI Response**: 계획을 승인으로 받고 Part 2 를 돌았다. **Step 여덟 · 체크박스 쉰셋 중 쉰둘이 실측으로 찼다** (남은 하나는 CB2 — 사람이다). 요약 `construction/panel-past/code/code-summary.md`.
+
+**새 파일이 0 이고 새 Go 패키지가 0 이다.** 이 유닛은 출처만 바꾼다 — `internal/panel` 에서 `archive/tar` 와 tar 를 푸는 코드와 `recordLog` 타입이 없어지고, `runctl.Client.StepLog` 하나와 봉투 타입 둘(`pastRecord` · `pastStep`)이 그 자리에 왔다. **그리는 코드를 0 줄 지었다** — `window.enodeCard.renderEvents` 를 부른다. `Client.Record` 는 그대로 산다 (`runctl record` 가 쓴다) 고 라우트 수는 11 그대로다.
+
+**계획의 고침 셋이 코드가 됐다** — ① 단계마다 `as=raw` 하나를 읽고 제어판이 `transcript.Parse(body, false)` 를 부른다 ② 봉투에 `sealed` 가 없고 `state` 가 있다 ③ `total` 과 `received` 가 다르면 화면이 「처음 N 바이트만 왔다」를 적는다.
+
+**계획의 한 줄을 실측이 다시 고쳤다 — 둘이다.**
+
+**① `internal/panel` 의 tar 를 `go list -deps` 로 못 잰다.** `internal/enode` 가 `archive/tar` 를 딛고(봉인이 tar 를 짓는다) 제어판이 그것을 임포트하므로 **의존 그래프에는 언제나 보인다.** 걷은 것은 제어판 자신의 임포트이므로 `go list -f '{{join .Imports ...}}'` 로 직접 임포트를 잰다. **「파일에 tar 라는 낱말이 0」도 안 지켰다** — 남은 넷이 전부 걷힌 이유를 적는 주석이고, 낱말 수는 임포트가 사라졌는지의 대용이었다. 그 자리는 이제 경계 시험이 직접 잰다.
+
+**② 봉투에 `received` 를 더했다.** 계획 1.3 이 「화면이 `total` 과 받은 길이를 견준다」였는데 **브라우저가 그 길이를 못 센다** — JS 문자열의 길이는 UTF-16 단위라 하네스가 한국어를 한 줄만 내도 바이트 수와 갈린다. 서버가 센다.
+
+**변이 일곱이 전부 죽었다.** ④ 를 재려고 시험의 픽스처를 늘렸다 — 처음 판은 `SKIPPED · chosen 거짓` 단계 하나뿐이라 `Chosen` 을 통째로 버려도 안 죽었다. 같은 상태에 `chosen` 만 다른 단계를 하나 더 세워 **R76 과 R77 의 구별 자체**를 재게 했다. ⑥ (「`data` 를 두 번째 읽기로 채운다」)이 이 유닛의 값을 지키는 줄이다.
+
+**게이트** — `go test ./... -count=1` 초록 (testdb.sh 로 DB 를 띄웠다) · 패키지별 커버리지 하한 미달 0 (`internal/panel` 86.0% -> 88.5% · `internal/runctl` 97.1% -> 97.3% · 전체 87.7%) · `node --test` 99 중 99 초록 · glyphscan 통과 · `gofmt` 깨끗 · `mux.HandleFunc` 11 그대로 · diff 0 이어야 할 곳 전부 0.
+
+**선 위에서 화면을 한 번 돌렸다.** `page.go` 의 HTML 을 꺼내 실제 `card.mjs` 와 실제 파서가 낸 봉투로 올렸다. 단계 다섯이 각자의 문장으로 섰고(봉인된 로그 + 걷힌 줄 · 봉인 전 + 잘림 줄 · 「경로가 갈려 안 갔다」 · 「골랐는데 못 닿았다」 · 실패 한 칸), 펼침이 `tool_use_id` 로 들고 단계끼리 안 섞였으며 원문 토글의 `pre` 에 자식 요소가 0 이었다. **이것은 게이트가 아니다** — 실제 하네스도 Mediator 도 안 탔고 그 둘이 CB2 다.
+**Context**: CONSTRUCTION · U6 · Code Generation Part 1 승인 · Part 2 완료. 승인 대기
+
+---
+
+## Construction · U6 `panel-past` · Code Generation 승인 · 게이트 측정 — CB2 초록
+**Timestamp**: 2026-09-17T04:45:00Z
+**User Input**: "측정할때 모델을 하이쿠로 고정할 수 있나? 지금 사용량이 또 얼마 안남아서" / "어"
+**AI Response**: 된다고 답하고 그대로 쟀다. 계약의 `agent.model` 이 `claude --model` 로 그대로 나간다 — `planshape` 의 허용 키 일곱에 `model` 이 있고 `claude.go:347` 이 붙이며 `claude_test.go:18` 이 그 자리를 이미 잰다. 노드 기본값은 없다. **값은 검증 안 하므로 오타는 lint 가 아니라 실행에서 터진다.**
+
+**Code Generation 을 승인으로 닫고 측정에 들어갔다.** 측정 나무 `measure/u6-cb2` (U6 위에 U7 을 얹었다 · `e3d987f`)를 지어 CT103 의 `enode-dev` 에 올렸다. U7 이 필요한 이유는 U8 때와 같다 — `main` 의 Mediator 가 노드의 첫 시도 청크를 400 으로 막고 그 수정이 `unit/chunk-push` 에 있다. **도는 Run 이 0 인 것을 확인하고 갈아 끼웠다** (U8 때의 운영 기록대로).
+
+**Run 하나로 쟀다** — `cb2-past-1`, 단계 둘, 둘 다 haiku. 시작 줄에 `claude-haiku-4-5-20251001` 로 찍혔고 **두 단계 합이 $0.0347** 이다.
+
+**CB2 초록 — 줄 다섯 전부.**
+
+**① 같은 Run 을 봉인 전과 뒤에 눌렀다.** 봉인 전은 `source=progress` · 걷힌 줄 없음 · survey 15,343 바이트였고, 봉인 뒤는 `source=sealed` · 걷힌 줄 있음 · survey 5,038 바이트였다. **같은 Run 이 다른 물건이 됐고 두 신호가 같은 답을 냈다** (R74).
+
+**② 출처가 GET 이고 tar 를 안 푼다.** 제어판 -> Mediator 홉을 기록 프록시로 흘려 보며 쟀다. Run 하나를 누르면 나가는 것이 정확히 셋이다 — `GET /v1/runs/cb2-past-1` · `GET .../steps/1/log?as=raw&name=survey` · `GET .../steps/2/log?as=raw&name=note`. **record 호출 0 · log 호출 2(= 단계 수) · 1+N 그대로.** `name` 에 Step.ID 가 실렸고 `from` 이 0 번이다.
+
+**CB2 의 「브라우저 네트워크 탭」 줄을 한 홉 옮겨 쟀다.** 그 줄이 쓰일 때는 브라우저가 직접 부르는 설계였는데, 답 5 = A 가 모으는 자리를 제어판으로 옮겼다 — 브라우저는 `/api/record` 하나만 부르고 record 도 log 도 0 이다. 게이트가 재려던 것(출처가 GET 이고 tar 를 안 푼다)은 그 홉에서 그대로 서고, **재는 자리가 브라우저에서 제어판으로 옮겨진 것**이다.
+
+**③ 같은 파서의 같은 모양** — 단계마다 사건 19. 시작(모델·버전·도구 29) · 생각 · 도구 Bash · 접힌 결과 · 말 · 「끝 success · 턴 4 · $0.0181」. 도는 것의 카드와 같은 함수가 그렸다. **④ verdict.checks** 그대로 보인다. **⑤ 펼침**이 `tool_use_id` 로 든다.
+
+**이것으로 U8 의 CB6 보류가 풀린다** — 장면 ⑥ 의 나머지 절반이 이 측정이다.
+
+**관찰 하나 — 결함이 아니다.** 봉인 뒤의 사건 열은 껍데기만 남아 「말」과 「생각」과 「결과」의 본문이 비어 있다 (`logShell` 의 허용목록이 본문을 안 남긴다). **그것을 설명하는 것이 걷힌 줄 하나다.** 봉인의 설계가 그렇고, 한 줄로 충분한가는 사람이 고를 자리라 적어만 둔다.
+
+**측정 뒤 기계 상태** — `enode-dev` 의 mediator 와 `~/.local/bin/enode` 가 측정 나무 것이다 (백업 `*.bak-u6cb2-20260917-133503`). 기록 프록시(8081)와 둘째 제어판(8100)과 `nodes/exec-hop.yaml` 은 걷었다. **측정 나무는 병합하지 않는다.**
+**Context**: Construction · U6 · Code Generation 승인 · 게이트 측정 (CB2 · CB6 보류 해제)
+
+---
+
