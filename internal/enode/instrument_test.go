@@ -533,9 +533,11 @@ func TestRunHarness_TheRingGetsTheRawStream(t *testing.T) {
 // runHarness 가 안 부르면 원문이 그대로 Record 로 올라가 봉인된다.
 func TestRunHarness_TheUploadedLogIsTheFilteredOne(t *testing.T) {
 	dir := t.TempDir()
+	// 생각 블록을 섞는다 — 거른 것이 올라갔는지를 그 서명으로 가른다.
+	// 말은 이제 올라가므로(ADR-071) 말로는 두 줄기를 못 가른다.
 	bin := writeScript(t, dir,
 		`printf '{"type":"system","subtype":"init","mcp_servers":[]}\n'`+"\n"+
-			`printf '{"type":"assistant","message":{"content":[{"type":"text","text":"sk-ant-secret"}]}}\n'`+"\n"+
+			`printf '{"type":"assistant","message":{"content":[{"type":"thinking","thinking":"","signature":"sk-ant-secret"},{"type":"text","text":"what it said"}]}}\n'`+"\n"+
 			`printf '{"type":"result","subtype":"success","num_turns":1}\n'`+"\n")
 
 	logBytes, h := runHarness(context.Background(), claudeHarness{}, bin,
@@ -546,6 +548,10 @@ func TestRunHarness_TheUploadedLogIsTheFilteredOne(t *testing.T) {
 	}
 	if strings.Contains(string(logBytes), "sk-ant-secret") {
 		t.Fatalf("the raw stream was uploaded as the step log:\n%s", logBytes)
+	}
+	// 거른 것이되 빈 것은 아니다 — 말은 올라간다 (ADR-071).
+	if !strings.Contains(string(logBytes), "what it said") {
+		t.Fatalf("the uploaded log has nothing to read:\n%s", logBytes)
 	}
 	if !strings.Contains(string(logBytes), "enode.elided") {
 		t.Fatalf("the log does not say it was filtered:\n%s", logBytes)

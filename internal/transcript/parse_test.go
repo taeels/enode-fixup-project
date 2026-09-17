@@ -173,11 +173,11 @@ func TestParse_CappedCarriesTheLimitItWasGiven(t *testing.T) {
 // R4 — 껍데기와 원문을 Shell 하나로 가른다.
 func TestParse_ShellTellsTheTwoStemsApart(t *testing.T) {
 	whole := line("assistant-tool.json")
-	obj, typ, ok := ParseLine([]byte(whole))
-	if !ok {
-		t.Fatalf("the fixture was not read as an event")
-	}
-	shell := string(Shell(obj, typ))
+	// 껍데기 줄기는 이제 옛 기록의 것이다 (ADR-071). Shell 이 짓는 줄에는
+	// message 가 있으므로 원문 줄기로 간다 — 그래서 짓는 쪽을 부르지 않고
+	// 이미 봉인된 모양의 픽스처를 쓴다. 이 시험이 지키는 것이 그것이다:
+	// 0444 로 굳은 옛 logs/ 가 오늘 코드로도 읽힌다.
+	shell := line("shell-assistant.json")
 
 	from := func(ln string) Event {
 		r := Parse(join(ln), false)

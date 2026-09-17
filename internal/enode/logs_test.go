@@ -27,12 +27,14 @@ func line(name string) string {
 	return strings.TrimRight(string(b), "\n")
 }
 
-// logs/ 는 허용목록이다 (decisions.md 6절 ⑱)
+// logs/ 는 크기로 자르고 내용으로 안 고른다 (ADR-071)
 //
-// 재는 것이 넷이다 — ① 도구 사건의 본문이 안 남는지 · ② assistant 의 text
-// 본문도 안 남는지(「도구 사건」만 거르는 구현을 잡는 줄) · ③ 봉투 없이 끊긴
-// stdout 에서도 같은지(「예외 없음」을 재는 줄) · ④ 껍데기와 전문이 남는지
-// (통째로 버리는 구현을 잡는 줄).
+// 재는 것이 넷이다 — ① 말과 도구 호출과 도구 결과가 남는지 · ② 생각의
+// 서명과 최상위 두 벌은 어느 경로로도 안 남는지 · ③ 봉투 없이 끊긴
+// stdout 에서도 같은지(「예외 없음」을 재는 줄) · ④ 전문 셋이 그대로인지.
+//
+// ⑱ 의 「본문은 어느 사건에서도 안 남는다」를 ADR-071 이 물렀다. 무른 근거는
+// 측정이고 ADR 1절이 그 숫자를 진다.
 
 // 실측이 본 모양을 그대로 쓴다 — 본문이 블록 안에도 최상위에도 있다.
 //
@@ -47,7 +49,11 @@ var (
 )
 
 // 이 글자들이 logs/ 에 남으면 봉인이 그것을 진다 — 삭제도 막힌다.
-var leaks = []string{"/etc/shadow", "sk-ant-secret", "root:x:0:0"}
+//
+// 목록이 ADR-071 에서 줄었다. /etc/shadow 는 도구 인자로, sk-ant-secret 은
+// 에이전트가 한 말로 이제 남는다 — 그것이 그 ADR 이 되살린 자리다. 남은
+// 셋은 읽을 것이 없으면서 크기만 큰 것들이다.
+var leaks = []string{"signature", "wire_tool_inputs", "tool_use_result"}
 
 func assertNoLeak(t *testing.T, out []byte) {
 	t.Helper()
@@ -82,13 +88,27 @@ func TestLogs_TheAllowlistKeepsThreeThingsWhole(t *testing.T) {
 	if !strings.Contains(got, `{"type":"assistant","tools":["Read"]`) {
 		t.Fatalf("the tool call left no shell at all:\n%s", got)
 	}
-	if !strings.Contains(got, `{"type":"user","ok":false}`) {
+	if !strings.Contains(got, `{"type":"user","ok":false,`) {
 		t.Fatalf("the tool result left no shell at all:\n%s", got)
+	}
+	// 그리고 사람이 읽을 것이 남는다 (ADR-071). 이 셋이 오늘 화면의
+	// 빈 줄이었다 — 말 · 무엇을 읽었나 · 그래서 무엇이 나왔나.
+	for _, want := range []string{
+		"I read the credentials file and it says sk-ant-secret",
+		`{"file_path":"/etc/shadow"}`,
+		"root:x:0:0 and sk-ant-secret",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("the sealed log has nothing to read — %q is gone:\n%s", want, got)
+		}
 	}
 }
 
-// 본문은 어느 사건에서도 안 남는다 — 경로에 예외가 없다.
-func TestLogs_NoBodySurvivesOnAnyPath(t *testing.T) {
+// 안 나가야 할 것은 어느 사건에서도 안 남는다 — 경로에 예외가 없다.
+//
+// ADR-071 이 본문을 되살렸어도 이 줄은 그대로 선다. 바뀐 것은 목록이고
+// 「경로에 예외가 없다」는 규율이 아니다.
+func TestLogs_NothingThatMustLeaveSurvivesOnAnyPath(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		stdout string
@@ -155,9 +175,24 @@ func TestLogs_TheMarkerSaysWhatWasTaken(t *testing.T) {
 	if mark.Events != 2 {
 		t.Fatalf("the marker counted %d events, want 2", mark.Events)
 	}
-	want := len(assistantToolLine) + len(userResultLine) + 2 // 개행을 포함한다
+	// 걷은 바이트는 「지운 만큼」이다 — 원문 길이가 아니다 (ADR-071 5절).
+	//
+	// 본문이 남기 시작하면서 뜻이 갈렸다. 원문 길이로 세면 내용이 대부분
+	// 남아 있는데도 화면이 「걷혔다」로 읽고, 그것이 거짓이다.
+	want := 0
+	for _, ln := range []string{assistantToolLine, userResultLine} {
+		obj, typ, ok := transcript.ParseLine([]byte(ln))
+		if !ok {
+			t.Fatalf("the fixture was not read as an event: %s", ln)
+		}
+		want += len(ln) - len(transcript.Shell(obj, typ))
+	}
 	if mark.Bytes != want {
 		t.Fatalf("the marker counted %d bytes, want %d", mark.Bytes, want)
+	}
+	// 그리고 그것은 원문 길이보다 작다 — 남은 것이 있다는 뜻이다.
+	if whole := len(assistantToolLine) + len(userResultLine) + 2; want >= whole {
+		t.Fatalf("the marker says %d of %d was taken; nothing was kept", want, whole)
 	}
 	if lines[len(lines)-1] != "stderr line" {
 		t.Fatalf("the marker was not written before stderr:\n%s", got)
