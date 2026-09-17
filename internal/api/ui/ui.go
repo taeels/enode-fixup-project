@@ -16,10 +16,17 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/taeels/enode/internal/transcriptui"
 )
 
 //go:embed static
 var staticFiles embed.FS
+
+// cardModulePath 는 /ui/ 를 뗀 뒤의 카드 렌더러 경로다. shared/ 아래인 것은
+// 이 모듈이 실 함대와 데모가 함께 쓰는 자리이기 때문이고, 제어판이 내는
+// /static/card.mjs 와는 URL 이 다르다 — 바이트만 같다.
+const cardModulePath = "shared/transcriptui/card.mjs"
 
 // Handler 는 /ui/ 아래 정적 파일을 낸다. 모든 응답에 SECURITY-04 보안
 // 헤더를 싣는다(nfr-design.md 「SECURITY-04 HTTP 보안 헤더」).
@@ -39,6 +46,15 @@ func Handler() http.Handler {
 		name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
 		if name == "" {
 			name = "."
+		}
+		// 카드 렌더러는 static 트리 밖의 패키지가 든다 — 제어판이 같은
+		// 바이트를 자기 라우트로 내야 해서 둘 다 임포트할 수 있는 잎에
+		// 산다(internal/transcriptui). 디렉터리(.../transcriptui/)는 여기
+		// 안 걸리고 아래 fileServer 가 404 로 낸다 — static 에 그 이름이
+		// 없으므로 목록이 나올 자리가 애초에 없다.
+		if name == cardModulePath {
+			http.ServeFileFS(w, r, transcriptui.Files, "card.mjs")
+			return
 		}
 		if info, err := fs.Stat(sub, name); err == nil && info.IsDir() {
 			if _, err := fs.Stat(sub, path.Join(name, "index.html")); err != nil {

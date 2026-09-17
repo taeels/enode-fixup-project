@@ -37,7 +37,7 @@ func TestImportBoundaries(t *testing.T) {
 		return false
 	}
 
-	// 금지 여덟 줄. 표 하나라 줄을 더하는 것이 한 행이다.
+	// 금지 열두 줄. 표 하나라 줄을 더하는 것이 한 행이다.
 	//
 	// 오늘 넷이 자동으로 초록인 것이 쓸모없다는 뜻이 아니다 — 값은 나중에
 	// 누가 임포트를 더했을 때 빨개지는 데 있다.
@@ -50,13 +50,17 @@ func TestImportBoundaries(t *testing.T) {
 		{"internal/transcript", "internal/api"},
 		{"internal/transcript", "internal/store"},
 		{"internal/transcript", "internal/panel"},
+		{"internal/transcriptui", "internal/panel"},
+		{"internal/transcriptui", "internal/api"},
+		{"internal/transcriptui", "internal/store"},
+		{"internal/transcriptui", "internal/enode"},
 	} {
 		if has(deps(rule.from), rule.to) {
 			t.Errorf("%s must not import %s", rule.from, rule.to)
 		}
 	}
 
-	// 봉인 하나 — 금지 넷보다 강하다.
+	// 봉인 둘 — 금지 넷보다 강하다.
 	//
 	// 금지는 이름을 아는 넷만 막고 봉인은 전부 막는다: 새 내부 패키지든
 	// 새 외부 모듈이든 같다. 넷을 그래도 두는 이유는 실패 메시지가 어느
@@ -64,13 +68,20 @@ func TestImportBoundaries(t *testing.T) {
 	//
 	// 표준 라이브러리는 첫 경로 조각에 점이 없다 (encoding/json · unicode/utf8).
 	// 점이 있으면 모듈 경로다 (github.com/... · gopkg.in/...).
-	for _, dep := range strings.Split(deps("internal/transcript"), "\n") {
-		dep = strings.TrimSpace(dep)
-		if dep == "" || dep == mod+"internal/transcript" {
-			continue
-		}
-		if first, _, _ := strings.Cut(dep, "/"); strings.Contains(first, ".") {
-			t.Errorf("internal/transcript must depend on the standard library only, but it imports %s", dep)
+	//
+	// 봉인이 둘인 이유 — internal/transcriptui 도 같은 성질을 져야 한다.
+	// 제어판과 현황판이 둘 다 그것을 임포트해 같은 바이트를 내므로, 잎이
+	// 아니면 두 화면이 그 의존을 통해 다시 붙는다. 위의 금지 넷은 이름을
+	// 아는 넷만 막고, 이 봉인이 「잎이다」를 실제로 잰다.
+	for _, sealed := range []string{"internal/transcript", "internal/transcriptui"} {
+		for _, dep := range strings.Split(deps(sealed), "\n") {
+			dep = strings.TrimSpace(dep)
+			if dep == "" || dep == mod+sealed {
+				continue
+			}
+			if first, _, _ := strings.Cut(dep, "/"); strings.Contains(first, ".") {
+				t.Errorf("%s must depend on the standard library only, but it imports %s", sealed, dep)
+			}
 		}
 	}
 

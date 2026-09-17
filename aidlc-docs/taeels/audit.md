@@ -1407,10 +1407,95 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 
 ---
 
+## U8 설계 변경 — It's a Plan 과의 비교에서 둘을 들였다
+**Timestamp**: 2026-09-17T07:30:00Z
+**User Input**: "Its a plan의 실시간 트랜스크립트 기능과 비교해라" / "U8 에 들ㅇㅣㄹ것을 activeTool 에 더해 “그리는 것이 한 벌” 을 추가하자. raw접기 추가하고, u8 설계를 변경하고 넘어간다."
+**AI Response**: `/home/sunny/itsaplan` 의 코드를 읽어 여덟 축으로 비교했다 — 어휘 · 번역하는 자리 · 나르는 법(SSE 대 폴링) · 쌓는 자리(Postgres 행 대 링 512 KiB) · 이어받기 · 상한 · 잘림을 말하는 법 · 그리는 자리. **enode 가 나은 둘** — 잘림이 값이다(truncated · head · NC-2 · capped), 원문이 남는다. **IAP 가 나은 둘** — 프로토콜 어휘라 장부 줄이 화면에 안 온다, 컴포넌트가 한 벌이다. 사용자가 뒤의 둘 중 하나(한 벌)와 `activeTool` 을 U8 에 들였고, raw 는 버리지 않고 접는 쪽(R30)으로 U5 에 넣었다. 회차 문서 셋(`unit-of-work.md` · 파일 행렬 · 의존 행렬)을 그 값에 맞췄고 `unit/fleet-card` 를 `unit/panel-live` 에서 땄다.
+**Context**: CONSTRUCTION — W-e 착수 앞의 설계 변경
 ## CB1 서명 — U5 `panel-live`
 **Timestamp**: 2026-09-17T07:45:00Z
 **User Input**: "서명한다"
 **AI Response**: CB1 을 초록으로 닫는다. 사람이 실 하네스의 화면을 보고 서명한 것이고 코드 게이트로 대신하지 않았다 (`scene-gates.md` §4). 이 서명이 병합 지점이라 `unit/panel-live` 를 PR 로 `main` 에 올린다. 서명 앞에 고친 것 하나가 R30 (raw 한 줄 접기)이고, 그 규칙의 자동 검사는 U8 이 렌더러를 한 벌로 만들며 선다.
 **Context**: CONSTRUCTION — U5 의 장면 게이트 서명 · 병합
+
+---
+
+## U5 병합 · U8 Functional Design Part 1
+**Timestamp**: 2026-09-17T08:05:00Z
+**User Input**: "서명한다"
+**AI Response**: CB1 서명을 받아 PR #46 을 열고 CI 셋(test · cross · bounded-demo)이 초록인 뒤 `main` 에 병합했다 (`3a04b67`). 이어서 U8 의 Functional Design Part 1 을 열었다 — 코드를 먼저 읽어 실측 여덟을 찾았고 물음 여덟을 냈다. 무거운 셋은 별개 타이머가 구조로 안 서는 것 · 데모의 무인증 한도 · 창을 잘라 받으면 경계의 줄이 조용히 사라지는 것이다.
+**Context**: CONSTRUCTION — U5 병합 · W-e 착수
+
+---
+
+## Construction · U8 `fleet-card` · Functional Design — 답과 산출물
+**Timestamp**: 2026-09-16T23:00:24Z
+**User Input**: "U8 의 Functional Design Part 1  질문 모두 권장안으로 답하겠다"
+**AI Response**: 계획의 물음 여덟에 `[Answer]: A` 를 박았다 (여덟이 전부 권장 · 갈린 답 0). 답이 다 letter 이고 모호한 것이 0 이라 별도 확인 파일을 안 만들었다. 계획 5.2 가 이름으로 든 모순 검사 자리 넷을 돌려 5.2.1 에 적었다 — **막은 것 하나**(물음 7 의 「렌더러가 두 입력을 받는다」가 물음 1 = A 의 한 벌을 쪼갠다. 렌더러의 입력을 사건 배열 하나로 못 박고 원문 토글을 렌더러 밖에 뒀다) · **값을 정한 것 셋**(끝났다를 폴러가 스스로 정하지 않는다 · 사건 열은 replaceContents 를 안 탄다 · 상태 줄은 step.state 가 연다). 산출물 셋을 `construction/fleet-card/functional-design/` 에 냈다 — domain-entities · business-logic-model · business-rules (규칙은 U5 의 R30 에 이어 R31 ~ R61).
+
+**회차 밖으로 낼 것이 셋 그대로다** — requirements.md SECURITY-08 의 반쪽(데모는 무인증 + 한도) · component-methods.md 의 `name` 기본값 `step` 이 맞는 Run 을 아무도 안 셌다 · N1 에 카드의 전체 재수신이 안 들어 있다.
+**Context**: Construction · U8 Functional Design · Part 1 의 답 수집(Step 5)과 산출물 생성(Step 6). 승인 대기.
+
+---
+
+## Construction · U8 `fleet-card` · Functional Design 승인 · NFR 스킵
+**Timestamp**: 2026-09-16T23:20:11Z
+**User Input**: "승인하고 nfr 건너뛴다"
+**AI Response**: Functional Design 을 승인으로 닫고 **NFR Requirements 와 NFR Design 을 둘 다 SKIP** 으로 기록했다 (NFR Design 은 실행 조건이 「NFR Requirements 가 돌았을 때」라 함께 닫힌다). Infrastructure Design 도 SKIP 이다 — 새 인프라가 0 이다 (새 포트 · 새 저장소 · 배포 자원 0).
+
+**어긋남으로 적는다** — `unit-of-work.md` 의 U8 절과 같은 문서 9절의 표가 둘 다 「NFR 요구 **돈다**. 카드가 새 표면이다」로 적었고, 사용자가 그것을 건너뛰기로 정했다. 규칙이 틀린 것이 아니라 사용자가 값을 치르기로 한 것이므로 **숨기지 않고 상태 파일과 계획 0절에 적는다.**
+
+**스킵이 넘긴 값 셋을 Code Generation 계획이 진다** (U5 · U4 와 같은 모양) — ① R43 의 전체 재수신이 N1 에 더하는 양 ② 사건이 수천일 때 매 2초 DOM 비용과 카드 수 ③ 데모 모드에서 카드가 하네스 원문을 무인증으로 보이는 자리 (business-rules 잔여 ③).
+
+다음 단계는 **Code Generation Part 1** 이다.
+**Context**: Construction · U8 · Functional Design 승인(Step 8·9) · NFR Requirements/NFR Design/Infrastructure Design SKIP 기록.
+
+---
+
+## Construction · U8 `fleet-card` · Code Generation 계획 승인
+**Timestamp**: 2026-09-16T23:40:02Z
+**User Input**: "실함대에서만. 넘어가라"
+**AI Response**: 계획 8절의 물음 1 을 **A** 로 닫았다 — 카드는 `mode === 'fleet'` 에서만 뜬다. `view.mjs` 의 `askList` 가 이미 그 모양이라 새 개념이 0 이고, `business-rules` 잔여 ③(데모에서 하네스 원문이 무인증으로 보인다)이 함께 닫힌다. Part 1 승인으로 보고 **Part 2 (코드 생성)** 로 간다.
+**Context**: Construction · U8 · Code Generation Part 1 승인 · Part 2 착수.
+
+---
+
+## Construction · U8 `fleet-card` · Code Generation Part 2 — 코드가 섰다
+**Timestamp**: 2026-09-17T00:15:00Z
+**User Input**: (없음 — 앞 승인 「실함대에서만. 넘어가라」로 Part 2 를 돌았다)
+**AI Response**: 단계 열둘을 돌았고 체크박스 예순여섯이 실측으로 찼다 (남은 하나는 CB1 재확인 — 사람이다). 변이 일곱 중 **⑦ 이 처음에 살아남았다** — 「총 길이가 세 번 안 움직이면 끝」을 심었는데 시험이 바퀴 셋이라 그 규칙이 발동하기 전에 끝났다. 첫 바퀴는 총 길이가 null 에서 움직인 것으로 세므로 문턱이 넷째 바퀴다. 바퀴를 다섯으로 늘려 고쳤고 일곱이 전부 빨개졌다.
+
+**계획에 없던 것 둘을 했다** — ① `statusLine(events, live)` 를 `card.mjs` 로 뺐다. 상태 줄의 문이 `view.mjs` 안에 있으면 변이 ④ 를 걸 자리가 없어서다 (현황판의 그리기를 재는 하네스가 0 이다). 한 벌이 하나 늘고 재는 자리가 하나 늘었다. ② `boundary_test.go` 에 금지 넷과 함께 **봉인 하나**를 더했다 — 금지는 이름을 아는 넷만 막고 잎임을 못 재는데, 파일 행렬 6.5 가 요구한 것은 잎이다.
+
+**계획의 한 줄을 실측이 고쳤다** — 「기존 시험 열둘이 `view.mjs` 를 임포트한다」가 정확하지 않다. 직접 임포트는 0 이고 `tour` · `webcam` · `submission` · `gallery-view` 넷이 임포트하며 그 넷을 시험 넷이 임포트한다. 전이다. 결론(정적 임포트를 적으면 하네스가 터진다)은 같다.
+
+**게이트** — `go test ./...` 초록 · 패키지별 커버리지 미달 0 (`internal/transcriptui` 는 문장이 0 이라 표에 안 나온다 · 스킵 게이트 위반 0) · `node --test` 98 + 21 = 전부 초록 · glyphscan 통과 · `gofmt` 깨끗 · diff 0 이어야 할 곳 전부 0. **CB4 · CB6 · CB1 재확인은 사람이고 아직이다.**
+**Context**: Construction · U8 · Code Generation Part 2 완료. 승인 대기.
+
+---
+
+## Construction · U8 `fleet-card` · Code Generation 승인 · 게이트 측정 착수
+**Timestamp**: 2026-09-17T00:25:00Z
+**User Input**: "하자"
+**AI Response**: Code Generation 을 승인으로 닫고 게이트 측정에 들어간다. CB4 · CB6 · CB1 재확인 셋이다. 측정 나무를 따로 만든다 — main + U5(병합됨) + U7(`unit/chunk-push`) + U8 이 한 나무에 있어야 하고, U7 을 `unit/fleet-card` 에 합치면 U8 의 PR 이 U7 의 커밋을 싣게 되므로 브랜치를 따로 판다.
+**Context**: Construction · U8 · Code Generation 승인(Step 6·7) · 게이트 측정 착수.
+
+---
+
+## Construction · U8 `fleet-card` · 게이트 측정 — CB4 초록 · CB1 재확인 초록 · CB6 보류
+**Timestamp**: 2026-09-17T03:10:00Z
+**User Input**: "계속해"
+**AI Response**: 측정 나무(`measure/u8-cb4` — main + U5 + U7 + U8)를 지어 CT103 의 `enode-dev` 에 올리고 실 하네스로 쟀다. Run 넷을 돌렸다 (`cb4-card-1` ~ `cb4-card-4`).
+
+**CB4 초록 — 여섯 줄 전부.** 단계 셋에 카드 셋 · 도는 동안 자란다(40,969 -> 99,997 바이트/15초) · **목록 폴링을 막아도 자란다**(`/v1/nodes` · `/v1/runs` · `/v1/asks` · `/v1/runs/{id}` 거절 12건 동안 로그 호출 8건, 카드는 계속 자랐다) · 원문 토글(`as=raw` 96,866 바이트) · 그래프와 목록을 **안 가린다**(사각형 실측으로 겹침 0) · 끝난 단계가 사유·턴·비용 한 줄로 닫힌다(`success · 턴 21 · $0.6609222`).
+
+**CB1 재확인 초록.** 제어판이 `window.enodeCard` 의 export 넷을 들고 사건 78 을 그린다. raw 한 줄(R30) 그대로 · 원문 토글 230,794 바이트 · 접기/펼치기가 `tool_use_id` 로 든다 · **제어판이 상태 줄을 새로 얻었다**(「생각 중」) · 다음 단계 첫 줄에 카드가 갈린다(장면 ⑤). 제어판과 현황판이 낸 `card.mjs` 가 **같은 바이트다**(R34 를 선 위에서 확인).
+
+**CB6 보류 — 장면 ⑥ 때문이다.** ① ~ ⑤ 와 ⑦ 이 초록이고, ⑥ 의 절반(`runctl record` 의 tar 와 `GET log` 가 세 단계 모두 같은 바이트: 11553 · 102 · 4790)도 초록이다. 나머지 절반인 **「제어판의 지난 작업에서 그 Run 을 누르면 같은 모양으로 읽힌다」가 안 된다** — 아직 판정 JSON 원문을 그린다. **U6 `panel-past` 를 이 회차에 안 지었기 때문이고 U8 밖이다.** `scene-gates.md` §4 대로 보류로 적는다. **보류는 통과가 아니므로 병합 지점도 아니다.**
+
+**측정이 결함 셋을 냈고 전부 고쳤다.** ① `GET log?as=events` 가 빈 로그에 `{"events":null}` 을 냈다 — 카드가 계약 위반으로 섰다. `internal/transcript` 는 U1 의 것이라 회차 밖 브랜치 `fix/transcript-events-is-always-an-array` 에서 고쳤다 (PR #45 의 `verdict.checks` 와 같은 자리 · 같은 방법). ② NC-6 의 시계가 첫 바이트 전에 흘렀다 — 시작도 안 한 단계가 「마지막 갱신 67초 전」이라고 말했다. ③ 한 바이트도 안 온 카드가 「진행 중인 파일」을 들었다. ②③ 은 U8 의 것이라 `unit/fleet-card` 에서 고쳤다.
+
+**운영 기록** — 도는 중에 Mediator 를 갈아 끼우면 그 단계가 `harness_error` 로 죽는다 (`cb4-card-3`). 제품 결함이 아니라 측정 절차의 실수이고, 다음부터는 Run 이 끝난 뒤에 올린다.
+**Context**: Construction · U8 · 게이트 측정 (CB4 · CB6 · CB1 재확인).
 
 ---

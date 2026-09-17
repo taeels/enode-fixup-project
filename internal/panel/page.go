@@ -141,6 +141,7 @@ const indexHTML = `<!doctype html>
     </h2>
     <div id="tx-stale" class="muted" style="display:none">값이 낡았다 — 제어판에 못 닿았다. 아래는 마지막으로 받은 것이다</div>
     <div id="tx-cut" class="muted" style="display:none"></div>
+    <div id="tx-active" class="muted" style="display:none"></div>
     <div id="transcript-empty" class="muted">아직 없음 — 도는 단계가 없거나 아직 첫 글자 전이다</div>
     <div id="tx-events" style="display:none"></div>
     <pre id="transcript" style="display:none"></pre>
@@ -162,6 +163,20 @@ const indexHTML = `<!doctype html>
   <div class="subline" id="mediator"></div>
 </main>
 
+<script type="module">
+// 카드 렌더러 한 벌. 제어판과 현황판이 같은 바이트를 로드한다.
+//
+// card.mjs 자체는 부수효과가 0 이므로 (현황판은 주입으로 받는다) 창에 거는
+// 것이 이 줄의 일이다. 아래 인라인 스크립트는 그대로 두고 onclick 도 안
+// 걷는다 - CSP 가 script-src 'self' 'unsafe-inline' 이라 같은 출처의 모듈이
+// 그대로 서고 (R25), 페이지를 다시 짓는 것은 CB1 을 다시 빨갛게 만들 표면을
+// 넓힌다.
+import * as card from "/static/card.mjs";
+window.enodeCard = card;
+// 모듈은 defer 라 아래 인라인 스크립트보다 뒤에 선다. 그사이 폴링 응답이
+// 먼저 도착했을 수 있으므로 한 번 다시 그린다 - 순서를 우연에 안 맡긴다.
+if(window.drawTranscript) window.drawTranscript();
+</script>
 <script>
 function esc(v){ return String(v==null?"":v).replace(/[&<>]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c];}); }
 function fmt(t){ return t ? new Date(t).toLocaleString() : ""; }
@@ -197,6 +212,11 @@ function render(st){
   ].join("  ·  ");
 
   var wk = st.work || {};
+  // 상태 줄은 이 노드가 단계를 들고 있을 때만 낸다. 현황판은 step.state 가
+  // 그 문이고 (business-rules R56) 제어판에는 단계 객체가 없다 - 임대가
+  // 그 자리다. 링은 단계가 끝나도 다음 단계가 덮을 때까지 남아 있으므로,
+  // 이 문이 없으면 끝난 단계가 "쓰는 중" 으로 남는다.
+  txLive = !!wk.has_lease;
   if(wk.has_lease){
     el("work").innerHTML =
       "<div class='head'><span class='runid'>" + esc(wk.run_id) + "</span><span class='grow'></span>" +
@@ -287,7 +307,8 @@ function showLogs(){
 // 둘째와 셋째를 합치면 화면이 마지막 값을 정상색으로 들고 있어 멈춘 것을 도는
 // 것으로 읽는다. 앞 판이 정확히 그 모양이었다 - 빈 catch 가 실패를 삼켰다.
 var lastTxGen = -1;
-var txOpen = {};   // 펼친 도구 결과. 열쇠는 tool_use_id 다
+var txOpen = new Set(); // 펼친 도구 결과. 열쇠는 tool_use_id 다 (card.mjs 의 겉면)
+var txLive = false;     // 이 노드가 지금 단계를 들고 있나. 상태 줄의 문이다
 var txRaw = false; // 원문 토글
 var txLastWrite = null;
 
@@ -306,89 +327,15 @@ function drawAge(){
   box.textContent = "마지막 사건 " + sec + "초 전";
 }
 
-// 그리는 종류는 파서의 일곱뿐이다. 모르는 type 은 파서가 raw 로 준다.
-function evLabel(e){
-  if(e.kind === "text") return e.sub === "thinking" ? "생각" : "말";
-  if(e.kind === "tool_use") return "도구";
-  if(e.kind === "tool_result") return e.ok === false ? "결과(실패)" : "결과";
-  if(e.kind === "init") return "시작";
-  if(e.kind === "result") return "끝";
-  if(e.kind === "capped") return "상한";
-  return "raw";
-}
-
-function evSummary(e){
-  if(e.kind === "init"){
-    var i = e.info || {};
-    return [i.model, i.version, i.tools ? ("도구 " + i.tools) : ""].filter(Boolean).join(" · ");
-  }
-  if(e.kind === "result"){
-    var r = e.info || {};
-    return [r.reason, r.turns ? ("턴 " + r.turns) : "", r.cost_usd ? ("$" + r.cost_usd) : ""].filter(Boolean).join(" · ");
-  }
-  if(e.kind === "capped"){
-    return "진행 파일이 상한에 닿았다 (" + ((e.info||{}).bytes || 0) + " 바이트)";
-  }
-  // raw 는 한 줄이다. 본문 JSON 을 여기 그리면 카드가 장부가 된다 - CB1 에서
-  // 도는 동안 사건 29 중 16 이 raw 였다 (system/thinking_tokens 가 토큰
-  // 델타마다 한 줄씩 온다). 버리지는 않는다. 줄 전체는 원문 토글이 낸다.
-  if(e.kind === "raw"){
-    var n = (e.text || "").length;
-    return [e.sub, n + " 바이트"].filter(Boolean).join(" · ");
-  }
-  return e.text || "";
-}
-
-// 본문은 textContent 로만 들어간다. innerHTML 에 하네스 바이트가 0 번 닿는다 -
-// CSP 에 'unsafe-inline' 이 붙어 있으므로 이 줄이 유일한 방어다.
-function drawEvent(e){
-  var row = document.createElement("div");
-  row.className = "ev" + (e.kind === "raw" ? " raw" : "");
-
-  var k = document.createElement("span");
-  k.className = "k";
-  k.textContent = evLabel(e);
-  row.appendChild(k);
-
-  if(e.name){
-    var n = document.createElement("span");
-    n.className = "tool";
-    n.textContent = e.name;
-    row.appendChild(n);
-  }
-
-  // 도구 결과는 접어 둔다. 펼침 상태의 열쇠가 tool_use_id 인 것이 값이다 -
-  // line 번호는 파서가 창 안에서 1 부터 세므로 링이 감기면 전부 밀린다.
-  var folded = e.kind === "tool_result" && e.id;
-  if(folded && !txOpen[e.id]){
-    var f = document.createElement("span");
-    f.className = "fold";
-    f.textContent = " [펼치기]";
-    f.onclick = function(){ txOpen[e.id] = true; drawTranscript(); };
-    row.appendChild(f);
-    return row;
-  }
-  if(folded){
-    var g = document.createElement("span");
-    g.className = "fold";
-    g.textContent = " [접기]";
-    g.onclick = function(){ delete txOpen[e.id]; drawTranscript(); };
-    row.appendChild(g);
-  }
-
-  var body = document.createElement("div");
-  body.className = "body";
-  body.textContent = evSummary(e);
-  row.appendChild(body);
-
-  if(e.cut){
-    var c = document.createElement("span");
-    c.className = "cut";
-    c.textContent = e.cut + " 바이트가 잘렸다";
-    row.appendChild(c);
-  }
-  return row;
-}
+// 그리는 것은 card.mjs 한 벌이다 (window.enodeCard).
+//
+// evLabel · evSummary · drawEvent 가 여기 살았고 현황판이 같은 규칙을 .mjs 로
+// 한 번 더 지을 참이었다. U8 이 그 셋을 internal/transcriptui 로 빼서 두 화면이
+// 같은 바이트를 로드한다 - 규칙이 한 자리에 살고, 제어판 JS 를 재는 하네스가
+// 없던 자리(R19 · R20 · R21 · R30)가 node --test 안으로 들어온다.
+//
+// 이 페이지에 남는 것은 폴링 · 세대 리셋 · 경과 · 잘림 줄 · 링 경로다. 전부
+// 링에만 있는 것이라 한 벌에 안 들어간다.
 
 var txLast = null;
 function drawTranscript(){
@@ -397,9 +344,14 @@ function drawTranscript(){
   if(!t || !t.available){
     pre.style.display="none"; box.style.display="none"; empty.style.display="block";
     el("tx-cut").style.display="none"; el("tx-ring").textContent="";
+    el("tx-active").style.display="none";
     return;
   }
   empty.style.display="none";
+
+  // 렌더러가 아직 안 섰으면 그리지 않는다. 모듈이 서는 순간 자기가 이
+  // 함수를 한 번 더 부른다 - 빈 catch 로 삼키지 않는다 (R60).
+  if(!window.enodeCard){ return; }
 
   // 바닥에 있었는지를 그리기 전에 잰다. 갈고 나서 재면 언제나 바닥이 아니다.
   // 위로 올려 읽는 중이면 따라가지 않는다 - 앞 판은 무조건 따라가서 도는
@@ -407,22 +359,30 @@ function drawTranscript(){
   var view = txRaw ? pre : box;
   var stuck = view.scrollHeight - view.scrollTop - view.clientHeight < 24;
 
+  var evs = (t.transcript && t.transcript.events) || [];
   if(txRaw){
     box.style.display="none"; pre.style.display="block";
     pre.textContent = t.data || "";
+    if(stuck){ view.scrollTop = view.scrollHeight; }
   } else {
     pre.style.display="none"; box.style.display="block";
-    box.textContent = "";
-    var evs = (t.transcript && t.transcript.events) || [];
-    for(var i=0;i<evs.length;i++){ box.appendChild(drawEvent(evs[i])); }
-    if(!evs.length){
-      var none = document.createElement("div");
-      none.className = "muted";
-      none.textContent = "아직 읽을 사건이 없다";
-      box.appendChild(none);
-    }
+    // 사건 열의 스크롤은 렌더러가 진다 - 그리기 전에 바닥을 재는 자리가
+    // 한 벌 안에 있다 (business-rules R53). 위의 stuck 은 원문 쪽 것이다.
+    window.enodeCard.renderEvents(box, evs, {
+      open: txOpen,
+      onToggle: function(id, next){
+        if(next){ txOpen.add(id); } else { txOpen.delete(id); }
+        drawTranscript();
+      }
+    });
   }
-  if(stuck){ view.scrollTop = view.scrollHeight; }
+
+  // 상태 줄 - 마지막 도구 호출의 결과가 아직이면 그 도구, 아니면 생각 중.
+  // 임대가 없으면 줄이 0 이다 (R56 의 제어판 판 · render 의 txLive).
+  var act = el("tx-active");
+  var status = txRaw ? null : window.enodeCard.statusLine(evs, txLive);
+  if(status){ act.style.display="block"; act.textContent = status; }
+  else { act.style.display="none"; }
 
   var cut = el("tx-cut");
   if(t.truncated){
@@ -440,7 +400,7 @@ function loadTranscript(){
     // 세대가 바뀌면(새 단계) 펼침과 토글을 비운다. 앞 단계의 tool_use_id 로
     // 이번 단계의 사건이 펴지면 안 된다.
     if(t.generation !== lastTxGen){
-      lastTxGen = t.generation; txOpen = {}; txRaw = false;
+      lastTxGen = t.generation; txOpen = new Set(); txRaw = false;
       el("tx-toggle").textContent = "원문";
       el("tx-events").scrollTop = 0; el("transcript").scrollTop = 0;
     }
