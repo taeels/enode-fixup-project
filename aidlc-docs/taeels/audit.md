@@ -1551,3 +1551,27 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 
 ---
 
+## Construction · U6 `panel-past` · Code Generation Part 1 승인 · Part 2 — 코드가 섰다
+**Timestamp**: 2026-09-17T04:35:00Z
+**User Input**: "다음으로"
+**AI Response**: 계획을 승인으로 받고 Part 2 를 돌았다. **Step 여덟 · 체크박스 쉰셋 중 쉰둘이 실측으로 찼다** (남은 하나는 CB2 — 사람이다). 요약 `construction/panel-past/code/code-summary.md`.
+
+**새 파일이 0 이고 새 Go 패키지가 0 이다.** 이 유닛은 출처만 바꾼다 — `internal/panel` 에서 `archive/tar` 와 tar 를 푸는 코드와 `recordLog` 타입이 없어지고, `runctl.Client.StepLog` 하나와 봉투 타입 둘(`pastRecord` · `pastStep`)이 그 자리에 왔다. **그리는 코드를 0 줄 지었다** — `window.enodeCard.renderEvents` 를 부른다. `Client.Record` 는 그대로 산다 (`runctl record` 가 쓴다) 고 라우트 수는 11 그대로다.
+
+**계획의 고침 셋이 코드가 됐다** — ① 단계마다 `as=raw` 하나를 읽고 제어판이 `transcript.Parse(body, false)` 를 부른다 ② 봉투에 `sealed` 가 없고 `state` 가 있다 ③ `total` 과 `received` 가 다르면 화면이 「처음 N 바이트만 왔다」를 적는다.
+
+**계획의 한 줄을 실측이 다시 고쳤다 — 둘이다.**
+
+**① `internal/panel` 의 tar 를 `go list -deps` 로 못 잰다.** `internal/enode` 가 `archive/tar` 를 딛고(봉인이 tar 를 짓는다) 제어판이 그것을 임포트하므로 **의존 그래프에는 언제나 보인다.** 걷은 것은 제어판 자신의 임포트이므로 `go list -f '{{join .Imports ...}}'` 로 직접 임포트를 잰다. **「파일에 tar 라는 낱말이 0」도 안 지켰다** — 남은 넷이 전부 걷힌 이유를 적는 주석이고, 낱말 수는 임포트가 사라졌는지의 대용이었다. 그 자리는 이제 경계 시험이 직접 잰다.
+
+**② 봉투에 `received` 를 더했다.** 계획 1.3 이 「화면이 `total` 과 받은 길이를 견준다」였는데 **브라우저가 그 길이를 못 센다** — JS 문자열의 길이는 UTF-16 단위라 하네스가 한국어를 한 줄만 내도 바이트 수와 갈린다. 서버가 센다.
+
+**변이 일곱이 전부 죽었다.** ④ 를 재려고 시험의 픽스처를 늘렸다 — 처음 판은 `SKIPPED · chosen 거짓` 단계 하나뿐이라 `Chosen` 을 통째로 버려도 안 죽었다. 같은 상태에 `chosen` 만 다른 단계를 하나 더 세워 **R76 과 R77 의 구별 자체**를 재게 했다. ⑥ (「`data` 를 두 번째 읽기로 채운다」)이 이 유닛의 값을 지키는 줄이다.
+
+**게이트** — `go test ./... -count=1` 초록 (testdb.sh 로 DB 를 띄웠다) · 패키지별 커버리지 하한 미달 0 (`internal/panel` 86.0% -> 88.5% · `internal/runctl` 97.1% -> 97.3% · 전체 87.7%) · `node --test` 99 중 99 초록 · glyphscan 통과 · `gofmt` 깨끗 · `mux.HandleFunc` 11 그대로 · diff 0 이어야 할 곳 전부 0.
+
+**선 위에서 화면을 한 번 돌렸다.** `page.go` 의 HTML 을 꺼내 실제 `card.mjs` 와 실제 파서가 낸 봉투로 올렸다. 단계 다섯이 각자의 문장으로 섰고(봉인된 로그 + 걷힌 줄 · 봉인 전 + 잘림 줄 · 「경로가 갈려 안 갔다」 · 「골랐는데 못 닿았다」 · 실패 한 칸), 펼침이 `tool_use_id` 로 들고 단계끼리 안 섞였으며 원문 토글의 `pre` 에 자식 요소가 0 이었다. **이것은 게이트가 아니다** — 실제 하네스도 Mediator 도 안 탔고 그 둘이 CB2 다.
+**Context**: CONSTRUCTION · U6 · Code Generation Part 1 승인 · Part 2 완료. 승인 대기
+
+---
+

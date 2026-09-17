@@ -231,72 +231,72 @@ type pastRecord struct {
 ## 4. 단계 — 여덟
 
 ### Step 1 — 겉면 하나 (R66)
-- [ ] `internal/runctl/client.go` 에 `StepLog`. 기존 `do()` 를 탄다
-- [ ] 경로는 `/v1/runs/{id}/steps/{seq}/log?name=<Step.ID>&as=raw`
-- [ ] `?from=` 이 **0 번** 나온다 (1.3 · R75)
-- [ ] 몸통과 헤더를 함께 낸다. `resp.Body` 를 닫는다
-- [ ] `go build ./...` 가 서고 `go list ./...` 가 **안 는다**
+- [x] `internal/runctl/client.go` 에 `StepLog`. 기존 `do()` 를 탄다
+- [x] 경로는 `/v1/runs/{id}/steps/{seq}/log?name=<Step.ID>&as=raw`
+- [x] `?from=` 이 **0 번** 나온다 (1.3 · R75)
+- [x] 몸통과 헤더를 함께 낸다. `resp.Body` 를 닫는다
+- [x] `go build ./...` 가 서고 `go list ./...` 가 **안 는다**
 
 ### Step 2 — `handleRecord` 를 다시 짓는다 (R62 ~ R72)
-- [ ] `archive/tar` 임포트가 사라진다. 파일에 `tar` 라는 낱말이 0 이다
-- [ ] `Client.Status` 로 단계 목록을 받는다. 실패하면 `markMediator(false)` (R87)
-- [ ] `runctl.Fail` 의 404 를 **404 로 그대로 낸다** (R88). 다른 실패는 502
-- [ ] 단계마다 `StepLog` 를 **순차로** 한 번 (0.1). 동시성 1 이다
-- [ ] 헤더 셋을 **그대로** 옮긴다 — `source` · `total` · `capped` (R70)
-- [ ] `transcript.Parse(body, false)` 로 사건 열을 만든다 (1.1)
-- [ ] `Data` 는 **같은 바이트**다. 두 번 안 읽는다 (R69)
-- [ ] 단계 하나가 실패하면 그 단계의 `Error` 에 적고 **나머지를 그린다** (R86)
-- [ ] 로그가 없는 단계를 목록에서 **안 뺀다** (R79). 상태로 미리 안 거른다 (R80)
-- [ ] `sealed` 를 안 낸다. `state` 를 낸다 (1.2)
-- [ ] `recordLog` 타입이 사라진다
+- [x] `archive/tar` 임포트가 사라진다. **낱말 넷이 남았다** — 전부 걷힌 이유를 적는 주석이다 (요약 3절)
+- [x] `Client.Status` 로 단계 목록을 받는다. 실패하면 `markMediator(false)` (R87)
+- [x] `runctl.Fail` 의 404 를 **404 로 그대로 낸다** (R88). 다른 실패는 502
+- [x] 단계마다 `StepLog` 를 **순차로** 한 번 (0.1). 동시성 1 이다
+- [x] 헤더 셋을 **그대로** 옮긴다 — `source` · `total` · `capped` (R70)
+- [x] `transcript.Parse(body, false)` 로 사건 열을 만든다 (1.1)
+- [x] `Data` 는 **같은 바이트**다. 두 번 안 읽는다 (R69)
+- [x] 단계 하나가 실패하면 그 단계의 `Error` 에 적고 **나머지를 그린다** (R86)
+- [x] 로그가 없는 단계를 목록에서 **안 뺀다** (R79). 상태로 미리 안 거른다 (R80)
+- [x] `sealed` 를 안 낸다. `state` 를 낸다 (1.2)
+- [x] `recordLog` 타입이 사라진다
 
 ### Step 3 — 경계 (R62)
-- [ ] `boundary_test.go` 가 `internal/panel` 의 의존에 **`archive/tar` 가 없음**을 잰다
-- [ ] 표준 라이브러리 이름이라 기존 `has` 와 다른 자리다 — 단언을 따로 둔다
-- [ ] 기존 열둘과 봉인 둘이 그대로 초록이다
+- [x] `boundary_test.go` 가 `internal/panel` 의 **직접 임포트**에 `archive/tar` 가 없음을 잰다. `-deps` 로는 못 잰다 — `internal/enode` 가 그것을 딛는다 (요약 3절)
+- [x] 표준 라이브러리 이름이라 기존 `has` 와 다른 자리다 — 단언을 따로 둔다
+- [x] 기존 열둘과 봉인 둘이 그대로 초록이다
 
 ### Step 4 — 화면 (R73 ~ R89)
-- [ ] `page.go` 의 `loadRecord` 가 새 봉투를 그린다
-- [ ] 사건 열은 `window.enodeCard.renderEvents` — **그리는 코드가 0 줄** (R81)
-- [ ] 펼침은 단계마다 따로. 열쇠는 `tool_use_id` (R83)
-- [ ] 원문 토글은 `pre.textContent = step.data` — 렌더러 밖이다 (R84 · U8 의 R36)
-- [ ] `statusLine` 을 **안 부른다** (R82)
-- [ ] 걷힌 줄 — 「본문 N 개가 걷혔다 (M 바이트)」. **단계마다 하나** (R85)
-- [ ] `source` 가 `progress` 면 「봉인 전」을 적는다 (R73)
-- [ ] 총 길이 0 의 세 문장 (R76 · R77 · R78)
-- [ ] 잘린 응답에 「처음 N 바이트만 왔다」 (1.3)
-- [ ] 단계의 `Error` 는 그 단계 자리에 (R86) · 빈 `catch` 가 0 (R89)
-- [ ] `verdict` 를 안 만진다. 지금처럼 Run 목록에서 온다
-- [ ] 하네스 바이트가 `innerHTML` 에 **0 번** 닿는다 (R84)
+- [x] `page.go` 의 `loadRecord` 가 새 봉투를 그린다
+- [x] 사건 열은 `window.enodeCard.renderEvents` — **그리는 코드가 0 줄** (R81)
+- [x] 펼침은 단계마다 따로. 열쇠는 `tool_use_id` (R83)
+- [x] 원문 토글은 `pre.textContent = step.data` — 렌더러 밖이다 (R84 · U8 의 R36)
+- [x] `statusLine` 을 **안 부른다** (R82)
+- [x] 걷힌 줄 — 「본문 N 개가 걷혔다 (M 바이트)」. **단계마다 하나** (R85)
+- [x] `source` 가 `progress` 면 「봉인 전」을 적는다 (R73)
+- [x] 총 길이 0 의 세 문장 (R76 · R77 · R78)
+- [x] 잘린 응답에 「처음 N 바이트만 왔다」 (1.3). 봉투에 `received` 를 더했다 — JS 문자열 길이는 바이트가 아니다
+- [x] 단계의 `Error` 는 그 단계 자리에 (R86) · 빈 `catch` 가 0 (R89)
+- [x] `verdict` 를 안 만진다. 지금처럼 Run 목록에서 온다
+- [x] 하네스 바이트가 `innerHTML` 에 **0 번** 닿는다 (R84)
 
 ### Step 5 — 시험: 클라이언트
-- [ ] `StepLog` 이 URL 을 그 모양으로 짓는다 — `name` 이 붙고 `from` 이 없다
-- [ ] 헤더 셋이 그대로 올라온다
-- [ ] 비 2xx 가 `*Fail` 이고 코드를 든다 (기존 시험과 같은 모양)
+- [x] `StepLog` 이 URL 을 그 모양으로 짓는다 — `name` 이 붙고 `from` 이 없다
+- [x] 헤더 셋이 그대로 올라온다
+- [x] 비 2xx 가 `*Fail` 이고 코드를 든다 (기존 시험과 같은 모양)
 
 ### Step 6 — 시험: 제어판
-- [ ] 가짜 Mediator 가 단계 셋을 내고 단계마다 다른 바이트를 준다
-- [ ] 봉투의 단계 수가 상세와 **같다**. 로그 0 바이트인 단계도 있다 (R79)
-- [ ] `source` 가 `progress` 인 단계와 `sealed` 인 단계가 **한 봉투에** 있다 (1.2 의 값)
-- [ ] `elided` 가 봉인된 단계에만 있다 (R74 를 재는 줄)
-- [ ] 단계 하나만 500 을 내면 **그 단계만** `error` 이고 나머지가 그대로다 (R86)
-- [ ] 상세가 404 면 제어판도 404 다 (R88)
-- [ ] 상세가 죽으면 502 이고 `markMediator(false)` 다 (R87)
-- [ ] **같은 읽기의 같은 바이트** — 같은 단계를 두 번 읽으면 다른 것을 주는
+- [x] 가짜 Mediator 가 단계 셋을 내고 단계마다 다른 바이트를 준다
+- [x] 봉투의 단계 수가 상세와 **같다**. 로그 0 바이트인 단계도 있다 (R79)
+- [x] `source` 가 `progress` 인 단계와 `sealed` 인 단계가 **한 봉투에** 있다 (1.2 의 값)
+- [x] `elided` 가 봉인된 단계에만 있다 (R74 를 재는 줄)
+- [x] 단계 하나만 500 을 내면 **그 단계만** `error` 이고 나머지가 그대로다 (R86)
+- [x] 상세가 404 면 제어판도 404 다 (R88)
+- [x] 상세가 죽으면 502 이고 `markMediator(false)` 다 (R87)
+- [x] **같은 읽기의 같은 바이트** — 같은 단계를 두 번 읽으면 다른 것을 주는
       가짜 서버에서 `data` 와 `transcript.events` 가 어긋나지 않는다 (R69 · 1.1)
-- [ ] `/api/record` 에 `run=` 이 없으면 400 (기존 시험 그대로 산다)
+- [x] `/api/record` 에 `run=` 이 없으면 400 (기존 시험 그대로 산다)
 
 ### Step 7 — 변이
-- [ ] 변이 일곱 (5절). 실측 결과를 옆에 적는다
+- [x] 변이 일곱 (5절). 실측 결과를 옆에 적는다
 
 ### Step 8 — 게이트와 문서
-- [ ] `go test ./... -count=1` 전부 초록
-- [ ] 패키지별 커버리지 80% 하한 통과 (1.4 의 주의를 함께 적는다)
-- [ ] `node --test internal/api/ui/tests/*.test.mjs` 전부 초록 (**안 건드렸다**를 잰다)
-- [ ] `go run ./scripts/glyphscan.go` 통과 · `gofmt` 깨끗
-- [ ] `diff 0` 이어야 할 곳 전부 0 (2절)
-- [ ] `grep -c 'mux.HandleFunc' internal/panel/panel.go` 가 **11 그대로** (R65)
-- [ ] 코드 요약을 쓰고 이 계획의 체크박스를 **실측으로** 채운다
+- [x] `go test ./... -count=1` 전부 초록
+- [x] 패키지별 커버리지 80% 하한 통과 (1.4 의 주의를 함께 적는다)
+- [x] `node --test internal/api/ui/tests/*.test.mjs` 전부 초록 (**안 건드렸다**를 잰다)
+- [x] `go run ./scripts/glyphscan.go` 통과 · `gofmt` 깨끗
+- [x] `diff 0` 이어야 할 곳 전부 0 (2절)
+- [x] `grep -c 'mux.HandleFunc' internal/panel/panel.go` 가 **11 그대로** (R65)
+- [x] 코드 요약을 쓰고 이 계획의 체크박스를 **실측으로** 채운다
 - [ ] **CB2 는 사람이다** (6절)
 
 ---
