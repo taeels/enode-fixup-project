@@ -1575,3 +1575,31 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 
 ---
 
+## Construction · U6 `panel-past` · Code Generation 승인 · 게이트 측정 — CB2 초록
+**Timestamp**: 2026-09-17T04:45:00Z
+**User Input**: "측정할때 모델을 하이쿠로 고정할 수 있나? 지금 사용량이 또 얼마 안남아서" / "어"
+**AI Response**: 된다고 답하고 그대로 쟀다. 계약의 `agent.model` 이 `claude --model` 로 그대로 나간다 — `planshape` 의 허용 키 일곱에 `model` 이 있고 `claude.go:347` 이 붙이며 `claude_test.go:18` 이 그 자리를 이미 잰다. 노드 기본값은 없다. **값은 검증 안 하므로 오타는 lint 가 아니라 실행에서 터진다.**
+
+**Code Generation 을 승인으로 닫고 측정에 들어갔다.** 측정 나무 `measure/u6-cb2` (U6 위에 U7 을 얹었다 · `e3d987f`)를 지어 CT103 의 `enode-dev` 에 올렸다. U7 이 필요한 이유는 U8 때와 같다 — `main` 의 Mediator 가 노드의 첫 시도 청크를 400 으로 막고 그 수정이 `unit/chunk-push` 에 있다. **도는 Run 이 0 인 것을 확인하고 갈아 끼웠다** (U8 때의 운영 기록대로).
+
+**Run 하나로 쟀다** — `cb2-past-1`, 단계 둘, 둘 다 haiku. 시작 줄에 `claude-haiku-4-5-20251001` 로 찍혔고 **두 단계 합이 $0.0347** 이다.
+
+**CB2 초록 — 줄 다섯 전부.**
+
+**① 같은 Run 을 봉인 전과 뒤에 눌렀다.** 봉인 전은 `source=progress` · 걷힌 줄 없음 · survey 15,343 바이트였고, 봉인 뒤는 `source=sealed` · 걷힌 줄 있음 · survey 5,038 바이트였다. **같은 Run 이 다른 물건이 됐고 두 신호가 같은 답을 냈다** (R74).
+
+**② 출처가 GET 이고 tar 를 안 푼다.** 제어판 -> Mediator 홉을 기록 프록시로 흘려 보며 쟀다. Run 하나를 누르면 나가는 것이 정확히 셋이다 — `GET /v1/runs/cb2-past-1` · `GET .../steps/1/log?as=raw&name=survey` · `GET .../steps/2/log?as=raw&name=note`. **record 호출 0 · log 호출 2(= 단계 수) · 1+N 그대로.** `name` 에 Step.ID 가 실렸고 `from` 이 0 번이다.
+
+**CB2 의 「브라우저 네트워크 탭」 줄을 한 홉 옮겨 쟀다.** 그 줄이 쓰일 때는 브라우저가 직접 부르는 설계였는데, 답 5 = A 가 모으는 자리를 제어판으로 옮겼다 — 브라우저는 `/api/record` 하나만 부르고 record 도 log 도 0 이다. 게이트가 재려던 것(출처가 GET 이고 tar 를 안 푼다)은 그 홉에서 그대로 서고, **재는 자리가 브라우저에서 제어판으로 옮겨진 것**이다.
+
+**③ 같은 파서의 같은 모양** — 단계마다 사건 19. 시작(모델·버전·도구 29) · 생각 · 도구 Bash · 접힌 결과 · 말 · 「끝 success · 턴 4 · $0.0181」. 도는 것의 카드와 같은 함수가 그렸다. **④ verdict.checks** 그대로 보인다. **⑤ 펼침**이 `tool_use_id` 로 든다.
+
+**이것으로 U8 의 CB6 보류가 풀린다** — 장면 ⑥ 의 나머지 절반이 이 측정이다.
+
+**관찰 하나 — 결함이 아니다.** 봉인 뒤의 사건 열은 껍데기만 남아 「말」과 「생각」과 「결과」의 본문이 비어 있다 (`logShell` 의 허용목록이 본문을 안 남긴다). **그것을 설명하는 것이 걷힌 줄 하나다.** 봉인의 설계가 그렇고, 한 줄로 충분한가는 사람이 고를 자리라 적어만 둔다.
+
+**측정 뒤 기계 상태** — `enode-dev` 의 mediator 와 `~/.local/bin/enode` 가 측정 나무 것이다 (백업 `*.bak-u6cb2-20260917-133503`). 기록 프록시(8081)와 둘째 제어판(8100)과 `nodes/exec-hop.yaml` 은 걷었다. **측정 나무는 병합하지 않는다.**
+**Context**: Construction · U6 · Code Generation 승인 · 게이트 측정 (CB2 · CB6 보류 해제)
+
+---
+
