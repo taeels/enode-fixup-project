@@ -38,6 +38,12 @@ type SetupOptions struct {
 	MinFreeGB     int
 	Principal     string // 비우면 git 전역 설정을 읽는다 (ADR-015 §1)
 
+	// AuthName · AuthSettings 는 이 노드가 어느 인증 구성으로 도는가다
+	// (local.yaml 의 harness_auth). 한 기계에 갈래가 둘이면 설정 파일을
+	// 둘로 만들고 여기서 갈린다 — 그것이 곧 노드 둘이다 (ADR-015 §2).
+	AuthName     string
+	AuthSettings string
+
 	Check bool // 아무것도 안 쓰고 상태만 본다
 	Yes   bool // 묻지 않는다
 	In    io.Reader
@@ -99,6 +105,16 @@ func Setup(o SetupOptions) int {
 	}
 	if o.BoardSoC != "" || o.BoardTag != "" || o.BoardPort != "" {
 		local.Board = &Board{SoC: o.BoardSoC, Tag: o.BoardTag, Port: o.BoardPort}
+	}
+	if o.AuthName != "" || o.AuthSettings != "" {
+		local.Auth = &HarnessAuth{Name: o.AuthName, Settings: o.AuthSettings}
+		// 여기서 편다 — 아래 Detect 가 이 경로로 하네스에게 물어보므로,
+		// 사람은 그 구성으로 지금 일을 시킬 수 있는지를 이 화면에서 안다.
+		// LoadLocal 이 하는 것과 같은 함수다 (규칙을 두 벌로 두지 않는다).
+		if err := local.resolveAuth(); err != nil {
+			p("  %v\n", err)
+			return 2
+		}
 	}
 	// nil 을 넘기면 안 된다 — Detect 는 「깔렸는데 못 쓴다」에서 log.Warn 을
 	// 부르고, 그것이 nil 이면 그 자리에서 죽는다. 그리고 그 경고가 바로
@@ -357,6 +373,10 @@ func SetupCLI(prog string, args []string) int {
 		free  = fs.Int("min-free-gb", 0, "stop advertising build capacity below this")
 		princ = fs.String("principal", "",
 			"your email; needed only where git config --global user.email is not set")
+		aname = fs.String("harness-auth", "",
+			"name the auth this node runs with; it rides the advert as auth=<name>")
+		asets = fs.String("harness-auth-settings", "",
+			"the settings.json the harness auth fields are read from (absolute, or ~/ prefixed)")
 		check = fs.Bool("check", false, "report and write nothing")
 		yes   = fs.Bool("yes", false, "ask nothing")
 	)
@@ -392,6 +412,7 @@ func SetupCLI(prog string, args []string) int {
 		Mediator: *med, Token: *tok, Workspace: *ws, WorkspaceID: *wsid,
 		Arch: *arch, BoardSoC: *soc, BoardTag: *tag, BoardPort: *port, Principal: *princ,
 		Labels: parseLabels(*label), Orchestration: *orch, MinFreeGB: *free,
+		AuthName: *aname, AuthSettings: *asets,
 		Check: *check, Yes: *yes,
 	})
 }

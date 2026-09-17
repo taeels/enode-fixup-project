@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -91,6 +93,10 @@ type Local struct {
 	// 시험용 스텁을 가리키게 할 수 있다.
 	HarnessBin string `yaml:"harness_bin,omitempty"`
 
+	// Auth 는 이 노드가 어느 인증 구성으로 하네스를 돌리는가다.
+	// 비우면 오늘 그대로 하네스의 기본 자리를 본다.
+	Auth *HarnessAuth `yaml:"harness_auth,omitempty"`
+
 	// 이 값 아래로 떨어지면 빌드 능력을 광고에서 뺀다 (ADR-017 결정 3).
 	// 매칭 조건이 아니라 광고 조건이다 — "할 수 있는가" 는 노드가 판단한다.
 	MinFreeGB int `yaml:"min_free_gb,omitempty"`
@@ -110,6 +116,76 @@ type Board struct {
 	Port string `yaml:"port"`
 }
 
+// HarnessAuth 는 이 노드가 어느 인증 구성으로 하네스를 돌리는가다.
+//
+// 왜 자리가 생겼나 — 한 기계가 갈래를 둘 쓴다 (사내 실측 2026-09-17).
+// 하나는 Bedrock 과 인증 게이트웨이, 하나는 사내 LLM 이다. 사람은 settings
+// 파일을 둘로 나눠 두고 셸 별칭으로 --settings 를 갈아끼운다. 노드에는 그
+// 손이 없다 — 오늘은 ~/.claude/settings.json 한 자리만 보므로 한 기계가 한
+// 갈래에 묶인다.
+//
+// 실행 명령어를 통째로 받지 않는다
+//
+// 사람이 적고 싶은 것은 `claude --settings ~/.claude/settings-corp.json` 이지만
+// 그 문자열을 받으면 조용히 깨진다:
+//
+//	실측 (claude 2.1.274)  --settings 를 두 번 주면 마지막 것이 이긴다
+//	  claude --settings a.json    --settings nope.json  → Settings file not found
+//	  claude --settings nope.json --settings a.json     → 정상 동작
+//	  앞의 없는 파일을 아예 안 읽는다.  오류도 안 난다
+//
+// enode 는 계장 플래그를 argv 뒤에 붙인다 (runner.go ④). 그래서 사람이 적은
+// --settings 는 언제나 우리 것에 덮여 아무 일도 안 하고, 순서를 뒤집으면
+// 이번엔 훅과 인증 필드가 함께 사라진다. 둘 다 조용한 초록이다. 같은 함정이
+// --mcp-config (가변인자라 뒤 인자를 삼킨다) · --setting-sources ·
+// --output-format 에도 있다.
+//
+// 그래서 받는 것은 경로 하나다 — 그 파일에서 인증 필드만 골라 우리 settings 에
+// 얹는다 (hook.go 의 readAuthFields). 거르는 쪽이 enode 라 노드 주인이
+// 권한 · 훅 · 모델을 덮어쓸 수 없고, argv 는 한 글자도 안 바뀐다.
+type HarnessAuth struct {
+	// Name 은 광고에 auth=<이름> 으로 실릴 글자다. 비우면 안 싣는다.
+	//
+	// 사람이 짓는다 — 이 settings 가 무슨 갈래인지는 기계가 모른다. Board 와
+	// 같은 자리다 (ADR-012 「포트에 무엇이 달렸는지는 기계가 모른다」).
+	//
+	// 그런데 labels 와 달리 선언만으로 안 실린다 — Usable() 이 이 파일로
+	// 통과해야 실린다. 광고가 곧 능력이라는 것(ADR-012)이 여기서도 서야
+	// 하기 때문이다. labels 로 적으면 파일이 없어져도 노드가 계속 그 이름을
+	// 외치고, 그것이 ADR-059 가 하네스에서 닫은 바로 그 거짓 광고다.
+	Name string `yaml:"name,omitempty"`
+
+	// Settings 는 인증 필드를 길어올 파일이다. 비우면 ~/.claude/settings.json.
+	//
+	// 앞의 ~ 는 홈으로 편다 — yaml 에 적힌 ~ 는 셸을 안 지나므로 글자 그대로
+	// 남는다. 편 뒤에는 절대경로여야 한다: 노드의 작업 디렉터리는 이 파일이
+	// 정하는 것이 아니라서 상대경로가 어디를 가리키는지 사람이 못 읽는다.
+	Settings string `yaml:"settings,omitempty"`
+}
+
+// AuthSettings 는 인증 필드를 길어올 파일의 경로다.
+//
+// string 이 아니라 이름 붙인 종류인 이유 — 이 값이 가는 두 자리(Usable ·
+// Instrument)에 이미 bin 이라는 string 이 있다. 둘을 바꿔 넣어도 컴파일되면
+// 그 실수는 실행 시점에 「하네스를 못 찾는다」로만 보인다.
+type AuthSettings string
+
+// harnessAuth 는 이 노드가 인증 필드를 길어올 파일이다. 비면 하네스 기본 자리.
+func (l Local) harnessAuth() AuthSettings {
+	if l.Auth == nil {
+		return ""
+	}
+	return AuthSettings(l.Auth.Settings)
+}
+
+// harnessAuthName 은 광고에 실릴 인증 구성의 이름이다. 비면 안 싣는다.
+func (l Local) harnessAuthName() string {
+	if l.Auth == nil {
+		return ""
+	}
+	return l.Auth.Name
+}
+
 func LoadLocal(path string) (Local, error) {
 	var l Local
 	b, err := os.ReadFile(path)
@@ -127,7 +203,57 @@ func LoadLocal(path string) (Local, error) {
 	if err := validateMCP(l.MCP); err != nil {
 		return Local{}, fmt.Errorf("config %s: %w", path, err)
 	}
+	// 경로를 여기서 펴고 잰다 — 읽는 자리가 둘(광고 · 실행)이라 거기서 펴면
+	// 규칙이 두 벌이 되고, 두 벌이 되면 규칙이 갈린다.
+	if err := l.resolveAuth(); err != nil {
+		return Local{}, fmt.Errorf("config %s: %w", path, err)
+	}
 	return l, nil
+}
+
+// resolveAuth 는 harness_auth.settings 의 ~ 를 펴고 절대경로인지 본다.
+//
+// 여기서 오류가 나면 노드가 안 뜬다 (validateMCP 와 같은 자리). 틀리면
+// 닫히는 쪽으로 틀린다 — 사람이 가리킨 인증 구성이 애매한 채로 도는 것은
+// 「어느 갈래로 돌았는지 아무도 모른다」이고, 갈래가 둘인 기계에서 그것이
+// 정확히 이 필드가 막으려던 것이다.
+//
+// 파일이 있는지는 안 본다. 그것은 지금이 아니라 광고와 실행 시점의 사실이고
+// (ADR-017 결정 3 의 「못 하면 뺀다」), 여기서 죽이면 파일이 늦게 붙는 기계에서
+// 노드가 아예 안 뜬다.
+func (l *Local) resolveAuth() error {
+	if l.Auth == nil || l.Auth.Settings == "" {
+		return nil
+	}
+	p, err := expandHome(l.Auth.Settings)
+	if err != nil {
+		return fmt.Errorf("harness_auth.settings: %w", err)
+	}
+	if !filepath.IsAbs(p) {
+		return fmt.Errorf("harness_auth.settings %q: needs an absolute path or one starting with ~",
+			l.Auth.Settings)
+	}
+	l.Auth.Settings = p
+	return nil
+}
+
+// expandHome 은 앞의 ~ 를 홈으로 편다.
+//
+// 셸이 안 펴 주는 자리다 — yaml 에 적힌 ~ 는 글자 그대로 파일에 남는다.
+// 사람은 셸에서 그 글자가 펴지는 것을 보고 살아서 여기에도 적는다.
+func expandHome(p string) (string, error) {
+	if p != "~" && !strings.HasPrefix(p, "~/") && !strings.HasPrefix(p, `~\`) {
+		return p, nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot expand ~ in %q: %w", p, err)
+	}
+	rest := strings.TrimLeft(p[1:], `/\`)
+	if rest == "" {
+		return home, nil
+	}
+	return filepath.Join(home, filepath.FromSlash(rest)), nil
 }
 
 // validateMCP 는 mcp: 절의 아는 키의 모양을 본다 (decisions.md 2절 · US-2).

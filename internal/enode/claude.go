@@ -102,7 +102,7 @@ func claudeHome(dir string) string { return filepath.Join(dir, "home") }
 // 예전에는 이 자리가 Probe 하나였고 「쓸 수 있는가」와 버전을 함께 돌려줬다.
 // 그런데 광고 경로는 버전을 받자마자 버렸고, 버리는 값을 위해 프로세스가
 // 60초마다 하나씩 더 떴다. 부르는 쪽이 필요한 것만 부르게 가른다.
-func (claudeHarness) Usable(ctx context.Context, bin string) error {
+func (claudeHarness) Usable(ctx context.Context, bin string, auth AuthSettings) error {
 	path, err := claudePath(bin)
 	if err != nil {
 		return err
@@ -119,7 +119,20 @@ func (claudeHarness) Usable(ctx context.Context, bin string) error {
 	//
 	// ADR-012 가 적은 그대로다 — "못 하는 것을 빼고 보내는 것이
 	// 「지금은 못 한다」를 표현하는 방법이다".
-	return claudeUsable(ctx, path)
+	//
+	// 광고가 실행과 같은 파일을 본다 (features.md 3.1)
+	//
+	// 인증이 settings 의 필드로 오는 노드에서 이 확인이 다른 파일을 보면
+	// 「쓸 수 있다」가 다른 갈래의 답이 된다. 한 기계가 갈래를 둘 쓰면 그
+	// 어긋남이 곧 매칭 통과 · 실행 시점 죽음이다 — ADR-059 가 --version 에서
+	// 닫은 모양이 인증 구성 축에서 되살아난다.
+	//
+	// 그래서 둘을 한다. 읽어 보고(사람이 가리킨 파일이 없으면 여기서 아니다),
+	// 그 파일로 물어본다.
+	if _, err := readAuthFields(auth); err != nil {
+		return fmt.Errorf("%w: %v", errNotUsable, err)
+	}
+	return claudeUsable(ctx, path, auth)
 }
 
 // Version 은 기록에 남길 버전 문자열이다 (ADR-005 성질 4).
@@ -168,7 +181,7 @@ var errNotUsable = errors.New("harness is installed but not usable")
 // 여기서는 조용한 사라짐이 조용한 실패보다 나쁘기 때문이다 —
 // 못 쓰는 노드는 실행 시점에 _cannot 으로 드러나지만, 사라진 노드는
 // 「왜 매칭이 안 되지」로 남는다.)
-func claudeUsable(ctx context.Context, path string) error {
+func claudeUsable(ctx context.Context, path string, auth AuthSettings) error {
 	// 종료코드를 안 본다. 나온 것을 본다
 	//
 	// 처음에는 Output() 을 썼고, 그것이 종료코드가 0 이 아니면 실패로 읽는다.
@@ -180,7 +193,15 @@ func claudeUsable(ctx context.Context, path string) error {
 	//	분명히 찍고 있었다 — 우리가 그것을 안 읽은 것이다.
 	//
 	// ⇒ stdout 에 판정할 것이 있으면 종료코드와 무관하게 읽는다.
-	cmd := child(exec.CommandContext(ctx, path, "auth", "status", "--json"))
+	//
+	// 플래그를 앞에 둔다 — auth status 는 하위명령이고 전역 플래그가 그 앞에
+	// 온다. 실측 (claude 2.1.274) 으로 이 조합이 답하는 것을 확인했다.
+	args := []string{}
+	if auth != "" {
+		args = append(args, "--settings", string(auth))
+	}
+	args = append(args, "auth", "status", "--json")
+	cmd := child(exec.CommandContext(ctx, path, args...))
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	_ = cmd.Run() // 종료코드는 안 본다
@@ -199,7 +220,8 @@ func claudeUsable(ctx context.Context, path string) error {
 // Instrument 는 이 하네스의 사적인 세계를 파일로 짓고 플래그를 돌려준다 (R5③ · R6).
 //
 //	<dir>/home/                   가짜 홈.  가장 먼저 만든다.  CLAUDE_CONFIG_DIR 이 가리킨다
-//	<dir>/home/settings.json      훅과 게이트웨이 인증 필드
+//	<dir>/home/settings.json      훅과 게이트웨이 인증 필드.  auth 가 그 인증 필드를
+//	                              어느 파일에서 길어올지다 (local.yaml 의 harness_auth)
 //	<dir>/home/.credentials.json  실제 홈에 있으면 0600 으로 복사
 //	<dir>/mcp.json                허용목록.  홈 밖이다
 //	<dir>/pack/                   팩.  홈 밖이다 — --plugin-dir 이 가리킨다
@@ -210,7 +232,7 @@ func claudeUsable(ctx context.Context, path string) error {
 //
 // 오류에도 이미 얻은 플래그를 함께 돌려준다. 격리는 겹이 여럿이고, 보조 실패
 // 하나가 --strict-mcp-config 를 떨어뜨리면 그중 확실한 겹 하나가 사라진다.
-func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]string, error) {
+func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components, auth AuthSettings) ([]string, error) {
 	// ① 가짜 홈을 가장 먼저 만든다. 실패는 치명이다 —
 	// CLAUDE_CONFIG_DIR 이 없는 경로를 가리키면 하네스가 진짜 홈으로
 	// 되돌아갈 수 있고, 그러면 격리가 조용히 풀린다.
@@ -223,10 +245,14 @@ func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]s
 	// 워크스페이스 .mcp.json 을 끊는 겹이 이것이고, 가짜 홈이 끊는 것과 다르다.
 	flags := []string{"--setting-sources", ""}
 
-	// ② 훅 설정. 유일한 보조 등급이다 — 실패해도 남은 쓰기를 마저 한다.
-	// 없는 파일을 가리키는 --settings 를 붙이면 하네스가 아예 안 뜨므로
-	// 이 플래그는 성공했을 때만 붙는다.
-	hookFlags, aux := WriteHookSettings(home, self, a)
+	// ② 훅 설정. 없는 파일을 가리키는 --settings 를 붙이면 하네스가 아예
+	// 안 뜨므로 이 플래그는 성공했을 때만 붙는다.
+	//
+	// 등급이 둘이다 — 훅 쓰기 실패는 보조이고, 사람이 가리킨 인증 구성을
+	// 못 읽은 것은 치명이다 (hook.go 의 그 함수 머리). 여기서는 가르지 않고
+	// 그대로 들고 간다: 마지막의 return 이 그것을 돌려주고, 등급을 읽는 것은
+	// 부르는 쪽이다 (runner.go 의 errors.Is(err, errAux)).
+	hookFlags, hookErr := WriteHookSettings(home, self, a, auth)
 	flags = append(flags, hookFlags...)
 
 	// ③ 팩. c.Pack 이 nil 이면 아무것도 안 한다 — 팩 없는 단계의 argv 가
@@ -258,7 +284,7 @@ func (claudeHarness) Instrument(dir, self string, a HookArgs, c Components) ([]s
 	if err := copyCredentials(home); err != nil {
 		return flags, err
 	}
-	return flags, aux
+	return flags, hookErr
 }
 
 // packDirName 은 계장 아래 팩이 사는 디렉터리다 (features.md 3.6).

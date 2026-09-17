@@ -78,6 +78,13 @@ type Job struct {
 	// HarnessResult 를 안 타고 나가서 단계 오류의 꼴이 경로마다 달라진다.
 	WorkspaceMCPErr error
 
+	// Auth 는 인증 필드를 길어올 settings 파일이다 (local.yaml 의 harness_auth).
+	//
+	// Job 이 들고 오는 이유는 NodeMCP 와 같다 — 노드가 아는 사실이고,
+	// 여기서 안 실으면 노드 선언이 조용히 안 실린다. 빈 값이면 하네스의
+	// 기본 자리다 (claude 는 ~/.claude/settings.json).
+	Auth AuthSettings
+
 	// Log 는 Components.Notes 가 나갈 자리다 (U4).
 	//
 	// logs/ 에는 안 싣는다 — 그 파일은 허용목록이고 첫 줄이 system/init 이어야
@@ -156,7 +163,7 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 			a.Stamp = p
 		}
 	}
-	flags, err := h.Instrument(tmp, self, a, c)
+	flags, err := h.Instrument(tmp, self, a, c, j.Auth)
 	// 오류에도 이미 얻은 플래그를 붙인다 — 보조 실패 하나가 격리의 겹을
 	// 함께 떨어뜨리면 안 된다.
 	args = append(args, flags...)

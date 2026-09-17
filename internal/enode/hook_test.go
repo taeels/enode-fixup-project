@@ -203,7 +203,7 @@ func TestHook_ReportsWhatChanged(t *testing.T) {
 // 것은 그대로다. 계장 임시 디렉터리가 통째로 $OUT 밖이기 때문이다.
 func TestHook_TheSettingsFileSitsOutsideOUT(t *testing.T) {
 	home, out := t.TempDir(), t.TempDir()
-	flags, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out, Expect: []string{"a"}})
+	flags, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out, Expect: []string{"a"}}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,7 +245,7 @@ func TestHook_MergesGatewayAuthFieldsFromPersonalSettings(t *testing.T) {
 	}
 
 	home, out := t.TempDir(), t.TempDir()
-	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
@@ -275,7 +275,7 @@ func TestHook_NoPersonalSettingsIsFine(t *testing.T) {
 	t.Setenv("HOME", t.TempDir()) // .claude/settings.json 이 존재하지 않는 HOME
 
 	home, out := t.TempDir(), t.TempDir()
-	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
@@ -298,7 +298,7 @@ func TestHook_APathWithSpacesSurvives(t *testing.T) {
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}); err != nil {
+	if _, err := WriteHookSettings(home, "/usr/bin/enode", HookArgs{Out: out}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(filepath.Join(home, hookSettingsName))

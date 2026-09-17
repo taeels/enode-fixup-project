@@ -816,8 +816,11 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		NodeMCP:         w.Local.MCP,
 		WorkspaceMCP:    wsMCP,
 		WorkspaceMCPErr: wsErr,
-		Log:             log,
-		Expect:          step.Out, // 훅이 짚을 이름 — 계약이 요구한 산출물
+		// 인증 필드를 어느 settings 에서 길어올지 (local.yaml 의 harness_auth).
+		// 광고가 Usable() 에 준 것과 같은 값이어야 한다 — 갈리면 광고가 거짓이다.
+		Auth:   w.Local.harnessAuth(),
+		Log:    log,
+		Expect: step.Out, // 훅이 짚을 이름 — 계약이 요구한 산출물
 		// 계획 단계면 훅이 모양까지 본다 (ADR-046).
 		// expands 단계는 산출물이 정확히 하나임을 계약 검증이 보장한다.
 		Plan:       planOutName(step),

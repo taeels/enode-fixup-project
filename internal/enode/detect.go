@@ -124,11 +124,11 @@ func (harnessFP) Kind() string { return "harness" }
 func (harnessFP) Probe(ctx context.Context, l Local, log *slog.Logger) (map[string]string, error) {
 	attrs := map[string]string{}
 	for _, h := range harnesses {
-		bin := l.HarnessBin
+		bin, auth := l.HarnessBin, l.harnessAuth()
 		if h.Name() != "claude" {
-			bin = "" // 지금은 claude 만 덮어쓸 수 있다
+			bin, auth = "", "" // 지금은 claude 만 덮어쓸 수 있다
 		}
-		if err := h.Usable(ctx, bin); err != nil {
+		if err := h.Usable(ctx, bin, auth); err != nil {
 			// 「있는데 못 쓴다」는 조용히 빠지면 안 된다 (ADR-059)
 			//
 			// 없는 것은 당연한 일이라 로그가 필요 없다 — 그 기계에 안 깔았을 뿐이다.
@@ -159,6 +159,25 @@ func (harnessFP) Probe(ctx context.Context, l Local, log *slog.Logger) (map[stri
 		// 1 씩 줄어 정렬이 움직인다.
 		if _, taken := attrs["harness"]; !taken {
 			attrs["harness"] = h.Name()
+		}
+
+		// 인증 구성의 이름을 싣는다 (local.yaml 의 harness_auth.name)
+		//
+		// 왜 labels 로 안 두나 — labels 는 선언이라 파일이 없어져도 그대로
+		// 실린다. 여기는 Usable() 을 통과한 뒤라 「그 구성으로 지금 일을
+		// 시킬 수 있다」가 이미 참이다. 광고가 곧 능력이라는 ADR-012 를
+		// 이 축에서도 지키는 것이 이 자리에 둔 값 전부다.
+		//
+		// 갈래가 둘인 기계가 이것으로 갈린다 — 계약이
+		// requires: [{capability: agent.reason, auth: corp}] 로 고른다.
+		// 매처는 부분집합 비교뿐이라 이 글자를 알 필요가 없다 (ADR-012).
+		//
+		// 탐지가 labels 를 이긴다 — capabilities() 가 이미 있는 키의 label 을
+		// 건너뛴다. 낡은 labels: {auth: …} 가 남아 있어도 이것이 이긴다.
+		if h.Name() == "claude" {
+			if name := l.harnessAuthName(); name != "" {
+				attrs["auth"] = name
+			}
 		}
 	}
 	return attrs, nil

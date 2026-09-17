@@ -108,7 +108,7 @@ func TestAdapter_AnUnknownNameIsReportedAbsent(t *testing.T) {
 
 // Usable 이 곧 executable resolve 다 — 없으면 err. Version 도 같은 해석을 쓴다.
 func TestAdapter_UsableIsResolve(t *testing.T) {
-	if err := (claudeHarness{}).Usable(context.Background(), "definitely-no-such-binary"); err == nil {
+	if err := (claudeHarness{}).Usable(context.Background(), "definitely-no-such-binary", ""); err == nil {
 		t.Fatal("claimed a missing binary exists — riding the advert, it blows up on stage")
 	}
 	if _, err := (claudeHarness{}).Version(context.Background(), "definitely-no-such-binary"); err == nil {

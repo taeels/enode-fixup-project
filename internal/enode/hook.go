@@ -304,10 +304,15 @@ const hookSettingsName = "settings.json"
 //
 // $OUT 밖이다 — $OUT 에 두면 ④수확이 산출물로 걷어 올린다.
 //
-// 오류는 errAux 로 감싼다. 훅은 세 겹 중 셋째이고 모델 협조가 필요한 겹이라
-// 없어도 단계는 돈다 — 진짜 안전망은 워크스페이스 diff 다 (이 파일 머리).
-// 감싸는 자리는 이 함수의 둘뿐이다 — 그 둘이 한 자리다.
-func WriteHookSettings(home string, self string, a HookArgs) ([]string, error) {
+// 훅 쓰기의 오류는 errAux 로 감싼다. 훅은 세 겹 중 셋째이고 모델 협조가
+// 필요한 겹이라 없어도 단계는 돈다 — 진짜 안전망은 워크스페이스 diff 다
+// (이 파일 머리). 감싸는 자리는 이 함수의 둘뿐이다 — 그 둘이 한 자리다.
+//
+// 인증 필드 읽기의 오류는 안 감싼다. 그것은 보조가 아니다 — 사람이 가리킨
+// 인증 구성이 없는데 단계가 돌면 하네스가 인증 없이 떠서 Not logged in 으로
+// 늦게 죽고, 그때는 임대와 예산을 이미 썼다. copyCredentials 가 치명인 이유와
+// 같다: 실패를 앞으로 당긴다.
+func WriteHookSettings(home string, self string, a HookArgs, auth AuthSettings) ([]string, error) {
 	settings := map[string]any{}
 	// self 가 비면 hooks 키 자체를 안 쓴다 (application-design.md 4.2)
 	//
@@ -349,9 +354,19 @@ func WriteHookSettings(home string, self string, a HookArgs) ([]string, error) {
 	// 화이트리스트에 있는 것으로 충분했다. 그런데 사내 인증 게이트웨이를
 	// 거치는 환경은 인증 자체가 설정 파일의 필드(apiKeyHelper · env)로
 	// 되어 있어서 그 실측이 안 맞았다 (보드 노드 실측, 2026-09-01/02).
-	// gatewayAuthFields() 가 그 두 필드만 골라 우리 settings 에 얹는다 —
+	// readAuthFields() 가 그 두 필드만 골라 우리 settings 에 얹는다 —
 	// 나머지(권한·훅·모델 오버라이드 등)는 여전히 사람 설정에서 안 읽는다.
-	for k, v := range gatewayAuthFields() {
+	//
+	// 어느 파일을 읽을지는 노드가 정한다 (local.yaml 의 harness_auth).
+	// 거르는 쪽이 여전히 우리라, 그 자리를 옮길 수 있게 된 것이 노드 주인에게
+	// 권한·훅·모델을 열어주지 않는다.
+	fields, err := readAuthFields(auth)
+	if err != nil {
+		// 조기 반환한다 — 이것은 보조가 아니라 치명이다 (이 함수 머리).
+		// 훅만 빠진 채로 도는 것과 인증이 빠진 채로 도는 것은 다르다.
+		return nil, err
+	}
+	for k, v := range fields {
 		settings[k] = v
 	}
 	b, err := json.Marshal(settings)
@@ -371,8 +386,7 @@ func WriteHookSettings(home string, self string, a HookArgs) ([]string, error) {
 	return []string{"--settings", path}, nil
 }
 
-// gatewayAuthFields 는 사람의 ~/.claude/settings.json 에서 인증에 쓰이는
-// 필드만 골라 돌려준다 — apiKeyHelper 와 env 뿐이다.
+// authFieldNames 는 settings 파일에서 길어올 필드다 — apiKeyHelper 와 env 뿐이다.
 //
 // 왜 이 두 개인가 — 사내 인증 게이트웨이를 거치는 환경에서 인증은 프로세스
 // 환경변수가 아니라 이 두 필드로 온다. apiKeyHelper 는 키를 매 요청마다
@@ -382,29 +396,58 @@ func WriteHookSettings(home string, self string, a HookArgs) ([]string, error) {
 // 스크립트가 인증 모드를 잘못 판단해 재시도만 반복하다 타임아웃한다.
 // 둘 다 있어야만 캐시된 키를 즉시 찾는다.
 //
-// 못 읽으면 조용히 빈 채로 돈다 — 파일이 없는 것은 흔한 정상 상태다
-// (개인 구독·Bedrock·Vertex 는 이 파일에 인증을 안 둔다).
-func gatewayAuthFields() map[string]any {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil
+// 목록이 여기 있는 것이 이 설계가 안전한 자리다. 노드 주인이 가리키는 것은
+// 파일이지 무엇을 읽을지가 아니다 — 권한 · 훅 · 모델 오버라이드는 그 파일에
+// 적혀 있어도 안 읽힌다.
+var authFieldNames = []string{"apiKeyHelper", "env"}
+
+// defaultAuthSettings 는 아무것도 안 적었을 때 볼 자리다.
+const defaultAuthSettings = "settings.json"
+
+// readAuthFields 는 settings 파일에서 인증에 쓰이는 필드만 골라 돌려준다.
+//
+// 두 자리가 이 함수를 쓴다 — 광고의 Usable() 과 실행의 계장이다. 한 함수라
+// 둘이 같은 파일을 같은 규칙으로 본다. 갈리면 광고는 A 로 재고 실행은 B 로
+// 도는 것이 되고, 그것이 「매칭은 통과하고 실행 시점에 죽는다」다 (ADR-059).
+//
+// 없음의 등급이 자리마다 다르다
+//
+//	기본 자리 (auth 가 빈 값)   없는 것이 흔한 정상이다 — 개인 구독 · Bedrock ·
+//	                           Vertex 는 이 파일에 인증을 안 둔다.  조용히 빈 채로 돈다
+//	사람이 가리킨 자리          없으면 오류다.  적은 사람은 그것으로 돌릴 셈이었고,
+//	                           조용히 무시하면 다른 갈래로 도는 것을 아무도 모른다
+func readAuthFields(auth AuthSettings) (map[string]any, error) {
+	path, explicit := string(auth), auth != ""
+	if !explicit {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			// 홈을 모르는 노드에 이 파일이 있을 수 없다.
+			// copyCredentials 가 같은 판단을 한다.
+			return nil, nil
+		}
+		path = filepath.Join(home, ".claude", defaultAuthSettings)
 	}
-	b, err := os.ReadFile(filepath.Join(home, ".claude", "settings.json"))
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		if !explicit {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("cannot read the harness auth settings %s: %w", path, err)
 	}
-	var personal map[string]any
-	if json.Unmarshal(b, &personal) != nil {
-		return nil
+	var settings map[string]any
+	if err := json.Unmarshal(b, &settings); err != nil {
+		if !explicit {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("the harness auth settings %s is not valid json: %w", path, err)
 	}
 	out := map[string]any{}
-	if v, ok := personal["apiKeyHelper"]; ok {
-		out["apiKeyHelper"] = v
+	for _, k := range authFieldNames {
+		if v, ok := settings[k]; ok {
+			out[k] = v
+		}
 	}
-	if v, ok := personal["env"]; ok {
-		out["env"] = v
-	}
-	return out
+	return out, nil
 }
 
 // shellJoin 은 훅 명령을 한 줄로 만든다. 하네스가 셸에 넘기기 때문이다.
