@@ -1527,3 +1527,27 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: Construction · U6 · Functional Design 답 수집(Step 5)과 산출물 생성(Step 6). 승인 대기.
 
 ---
+## Construction · U6 `panel-past` · Functional Design 승인 · Code Generation Part 1
+**Timestamp**: 2026-09-17T04:10:00Z
+**User Input**: "승인. 코드 써라."
+**AI Response**: Functional Design 을 승인으로 닫았다. **NFR Requirements · NFR Design · Infrastructure Design 은 SKIP** 이다 — `unit-of-work.md` 10절이 U6 을 스킵으로 걸었고 근거가 「출처만 바뀐다 · 기존 do() 를 탄다」다. 앞의 U4 · U5 · U8 과 달리 이 스킵은 어긋남이 아니다. 「코드 써라」는 단계 착수의 지시로 받고 **Part 2 는 계획 승인 뒤에 연다** (W-a 에서 같은 모양으로 적었다).
+
+계획을 냈다 — `construction/plans/panel-past-code-generation-plan.md`. **Step 여덟 · 체크박스 쉰셋 · 물음 0.**
+
+**계획을 짓기 전에 코드를 읽었고 실측이 다섯을 찾았다. 앞의 셋이 설계 문서의 줄을 고친다.**
+
+**① 봉투 하나가 두 읽기에서 나오면 R69 가 봉인 전에 깨진다.** 설계가 단계마다 `as=events` 와 `as=raw` 를 따로 부르기로 적었는데 그 둘은 다른 읽기다. 봉인 뒤는 파일이 불변이라 안 아프고 **봉인 전은 진행 파일이 자라서 사건 열과 원문이 다른 창을 보인다.** U5 의 `liveBody` 주석이 같은 자리를 이미 이름으로 적어 뒀다. 고치는 법 — 단계마다 `as=raw` 를 **한 번** 부르고 제어판이 `transcript.Parse(body, false)` 를 부른다. 서버의 `as=events` 가 하는 일이 정확히 그것이고 (`log.go` 가 같은 `sl.body` 를 Parse 에 넣는다), `?from=` 을 안 쓰므로 `headCut` 이 거짓이라 **글자까지 같은 답**이다. 덤으로 요청이 2N+1 에서 **1+N** 으로 준다 — 설계 1.1 의 산수(「3단계면 4」)가 그 수였다. 두 줄이 어긋나 있었다.
+
+**② `sealed` 를 제어판이 낼 독립된 출처가 없다.** `source` 에서 유도하면 「같은 답을 내야 한다」가 자동으로 참이라 재는 값이 0 이고, `Terminal(state)` 로 내면 **봉인 창에서 거짓말을 한다** (`log.go` 의 주석이 그 창을 적는다 — 종료 상태인데 Seal 이 아직 안 돈 동안 진행 파일이 아직 있다). 봉투에서 `sealed` 를 빼고 Run 의 `state` 를 싣는다. 봉인 전과 뒤는 **단계마다의 `source` 하나가 말한다** — R73 · R74 가 이미 단계 단위다.
+
+**③ 한 응답 상한 1 MiB 가 지난 것에도 걸린다.** 폴링하는 U8 은 `?from=` 으로 이어 받지만 이 유닛은 한 번 읽고 끝이라 **나머지가 영영 안 온다.** 봉인된 로그가 1 MiB 를 넘으면 `capped` 헤더도 안 붙는다 (그것은 진행 파일 쪽 값이다). 화면이 `total` 과 받은 길이를 견주어 「처음 N 바이트만 왔다」를 적는다.
+
+**④ 커버리지 여유** — 표준 측정 명령으로 `internal/panel` 86.0% (221/257) · `internal/runctl` 97.1% (100/103). DB 없이 재면 store 5.6% · api 20.6% 로 나오는데 그 둘은 testdb.sh 없이 스킵되는 것이고 이 유닛과 무관하다.
+
+**⑤ 기존 시험 둘이 tar 를 짓는다.** `TestHandleRecordExtractsLogs` 를 지우지 않고 다시 짓는다 — 재던 것이 없어지고 재는 것이 바뀐다.
+
+**변이 일곱 중 ⑥ 이 이 유닛의 값을 지키는 줄이다** — 「`data` 를 두 번째 읽기로 채운다」. 나머지 여섯은 화면이 무엇을 말하는가를 재고 ⑥ 은 봉투 하나가 한 읽기에서 나오는가를 잰다.
+**Context**: CONSTRUCTION · U6 · Functional Design 승인 · NFR 셋 SKIP 기록 · Code Generation Part 1. 승인 대기
+
+---
+
