@@ -44,18 +44,55 @@ test('every parser kind is drawn and an unknown type never reaches the card', ()
   renderEvents(box, [
     ev('init', { info: { model: 'claude', version: '2.1', tools: 7 } }),
     ev('text', { text: '읽는 중' }),
-    ev('text', { sub: 'thinking', text: '생각' }),
     ev('tool_use', { name: 'Read', id: 't1', text: '{"path":"a"}' }),
     ev('tool_result', { name: 'Read', id: 't1', text: '결과 본문' }),
     ev('result', { info: { reason: 'success', turns: 3, cost_usd: 0.12 } }),
     ev('capped', { info: { bytes: 10485760 } }),
     ev('raw', { sub: 'system', text: '{"type":"system"}' }),
   ], {});
-  assert.equal(box.children.length, 8);
+  assert.equal(box.children.length, 7);
   const drawn = text(box);
-  for (const want of ['시작', '말', '생각', '도구', '결과', '끝', '상한', 'raw']) assert.ok(drawn.includes(want), want);
+  for (const want of ['시작', 'Agent', '도구', '결과', '끝', '상한', 'raw']) assert.ok(drawn.includes(want), want);
   assert.ok(drawn.includes('claude'), 'init carries its values');
   assert.ok(drawn.includes('턴 3'), 'result carries its values');
+});
+
+// 읽을 값이 없는 셋은 카드에 안 오른다 (ADR-071).
+//
+// 지우는 것이 아니라 안 그리는 것이다 - 원문 토글이 그 줄을 언제나 낸다.
+// 사건 배열을 그대로 두고 그리는 자리에서만 거르는 것이 그 뜻이다.
+test('what has nothing to read does not take a row', () => {
+  const box = element('div');
+  renderEvents(box, [
+    ev('text', { sub: 'thinking', text: '생각한 것' }),
+    ev('text', { text: '' }),
+    ev('raw', { sub: 'system/thinking_tokens', text: '{"estimated_tokens":50}' }),
+    ev('text', { text: '남는 줄' }),
+  ], {});
+  assert.equal(box.children.length, 1, 'only the line with something to read is drawn');
+  const drawn = text(box);
+  assert.ok(drawn.includes('남는 줄'), 'the readable line survived');
+  assert.ok(!drawn.includes('생각한 것'), 'thinking is not drawn');
+  assert.ok(!drawn.includes('thinking_tokens'), 'the token counter is not drawn');
+});
+
+// 도구 인자는 JSON 원문이 아니라 사람이 읽는 한 줄이다.
+test('tool arguments are read as values, not as json', () => {
+  const box = element('div');
+  renderEvents(box, [ev('tool_use', { name: 'Bash', text: '{"command":"date","description":"print it"}' })], {});
+  const drawn = text(box);
+  assert.ok(drawn.includes('date'), 'the primary value stands first');
+  assert.ok(drawn.includes('description=print it'), 'the rest keeps its name');
+  assert.ok(!drawn.includes('{"'), 'no json punctuation reaches the card');
+});
+
+// 잘린 인자도 읽힌다 - 파서가 표시 상한에서 자르므로 이쪽이 흔한 경로다.
+test('an argument cut in the middle still reads as values', () => {
+  const box = element('div');
+  renderEvents(box, [ev('tool_use', { name: 'Write', text: '{"file_path":"/tmp/x.json","content":"{\\"a' })], {});
+  const drawn = text(box);
+  assert.ok(drawn.includes('/tmp/x.json'), 'the complete pair was read');
+  assert.ok(!drawn.includes('{"file_path"'), 'the raw json did not fall through');
 });
 
 test('raw stays one line and its body never reaches the card', () => {

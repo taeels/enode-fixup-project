@@ -90,13 +90,51 @@ export function activeTool(events) {
 }
 
 function label(e) {
-  if (e.kind === 'text') return e.sub === 'thinking' ? '생각' : '말';
+  if (e.kind === 'text') return e.sub === 'thinking' ? '생각' : 'Agent';
   if (e.kind === 'tool_use') return '도구';
   if (e.kind === 'tool_result') return e.ok === false ? '결과(실패)' : '결과';
   if (e.kind === 'init') return '시작';
   if (e.kind === 'result') return '끝';
   if (e.kind === 'capped') return '상한';
   return 'raw';
+}
+
+// 인자의 기본 값이 먼저 선다. 도구마다 그 하나가 사람이 읽는 것이다 —
+// Bash 는 command 이고 Read 는 file_path 다.
+const PRIMARY = ['command', 'file_path', 'path', 'pattern', 'query', 'url', 'prompt'];
+
+// 완결된 "키": 값 짝 하나. 잘린 JSON 에서도 앞쪽 짝들은 온전하다.
+const PAIR = /"([A-Za-z_][\w.]*)"\s*:\s*("(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?|true|false|null)/g;
+
+function short(v) {
+  const t = typeof v === 'string' ? v : JSON.stringify(v);
+  return t.length > 80 ? t.slice(0, 80) + '…' : t;
+}
+
+function fromPairs(pairs) {
+  const first = PRIMARY.find(k => k in pairs);
+  const out = [];
+  if (first) out.push(short(pairs[first]));
+  for (const k of Object.keys(pairs)) if (k !== first) out.push(`${k}=${short(pairs[k])}`);
+  return out.join(' · ');
+}
+
+// toolArgs 는 도구 인자를 사람이 읽는 한 줄로 만든다.
+//
+// 원문 JSON 을 그대로 그리면 중괄호와 따옴표가 화면의 절반을 먹는다. 그리고
+// 파서가 인자를 표시 상한에서 자르므로 JSON.parse 가 대체로 실패한다 - 그래서
+// 짝 단위로 훑는 길을 함께 둔다. 훑어서 아무것도 못 찾으면 원문 그대로다.
+function toolArgs(text) {
+  if (!text) return '';
+  try {
+    const o = JSON.parse(text);
+    if (o && typeof o === 'object' && !Array.isArray(o)) return fromPairs(o);
+  } catch { /* 잘린 JSON 이다. 아래에서 짝을 훑는다 */ }
+  const pairs = {};
+  for (const m of text.matchAll(PAIR)) {
+    try { pairs[m[1]] = JSON.parse(m[2]); } catch { /* 이 짝은 건너뛴다 */ }
+  }
+  return Object.keys(pairs).length ? fromPairs(pairs) : text;
 }
 
 function summary(e) {
@@ -106,14 +144,33 @@ function summary(e) {
   }
   if (e.kind === 'result') {
     const r = e.info || {};
-    return [r.reason, r.turns ? `턴 ${r.turns}` : '', r.cost_usd ? `$${r.cost_usd}` : ''].filter(Boolean).join(' · ');
+    // 달러는 자리를 묶는다 - 부동소수가 그대로 나오면 $0.016518900000000003 이
+    // 되어 카드 한 줄의 절반을 먹는다. 네 자리면 한 단계의 비용이 다 들어간다.
+    const cost = r.cost_usd ? `$${Number(r.cost_usd).toFixed(4)}` : '';
+    return [r.reason, r.turns ? `턴 ${r.turns}` : '', cost].filter(Boolean).join(' · ');
   }
   if (e.kind === 'capped') return `진행 파일이 상한에 닿았다 (${(e.info || {}).bytes || 0} 바이트)`;
   // raw 는 한 줄이다. 본문 JSON 을 여기 그리면 카드가 장부가 된다 - CB1 에서
   // 도는 동안 사건 29 중 16 이 raw 였다 (system/thinking_tokens 가 토큰
   // 델타마다 한 줄씩 온다). 버리지는 않는다. 줄 전체는 원문 토글이 낸다 (R40).
   if (e.kind === 'raw') return [e.sub, `${(e.text || '').length} 바이트`].filter(Boolean).join(' · ');
+  if (e.kind === 'tool_use') return toolArgs(e.text);
   return e.text || '';
+}
+
+// drawable 은 그릴 값이 있는 사건인가다 (ADR-071).
+//
+// 셋을 안 그린다. 버리는 것이 아니라 카드에 안 올리는 것이고, 줄 전체는
+// 원문 토글이 언제나 낸다.
+//
+//   생각                  ADR-071 이 봉인에서 안 남기기로 한 것이다. 도는 동안에만
+//                         보였다가 봉인 뒤 사라지면 같은 카드가 두 얼굴이 된다
+//   본문 없는 말           생각만 한 턴이 남기는 빈 줄이다. 읽을 것이 0 인데 자리를 먹는다
+//   system/thinking_tokens 토큰 델타마다 한 줄씩 온다. 세는 값이지 읽는 값이 아니다
+function drawable(e) {
+  if (e.kind === 'text') return e.sub !== 'thinking' && !!e.text;
+  if (e.kind === 'raw') return e.sub !== 'system/thinking_tokens';
+  return true;
 }
 
 // row 는 사건 하나를 줄 하나로 만든다.
@@ -161,7 +218,7 @@ export function renderEvents(container, events, { open = new Set(), onToggle = (
   // 위로 올려 읽는 중이면 따라가지 않는다 (R53 · U5 의 R21) - 앞 판은
   // 무조건 따라가서 도는 동안 스크롤백을 읽을 수 없었다.
   const stuck = container.scrollHeight - container.scrollTop - container.clientHeight < 24;
-  const list = Array.isArray(events) ? events : [];
+  const list = (Array.isArray(events) ? events : []).filter(drawable);
   const rows = list.map(e => row(e, open, onToggle));
   if (!rows.length) {
     const none = document.createElement('div');
