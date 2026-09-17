@@ -1499,3 +1499,15 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: Construction · U8 · 게이트 측정 (CB4 · CB6 · CB1 재확인).
 
 ---
+
+## Construction · U6 `panel-past` 를 연다 — Functional Design Part 1
+**Timestamp**: 2026-09-17T03:30:00Z
+**User Input**: "U6이 먼데" / "그래"
+**AI Response**: U6 을 설명하고 돌릴지 물었더니 승인했다. 브랜치 `unit/panel-past` 를 **`unit/fleet-card` 에서** 땄다 (물음 1 의 권장 자리다 — 아니면 다시 딴다). 계획 `construction/plans/panel-past-functional-design-plan.md` · 실측 여덟 · 물음 여섯.
+
+**무거운 것 둘** — ① `page.go` 의 `loadRecord` 가 바이트를 그대로 `<pre>` 에 붓는다. 출처만 바꾸면 화면이 안 바뀌므로 **CB2 의 「같은 파서의 같은 모양이다」가 안 선다.** 유닛 정본의 경로 줄에 `page.go` 가 없다. ② **U6 의 의존이 설계 변경으로 바뀌었다** — U8 이 렌더러를 `window.enodeCard` 로 옮겨 놨으므로 U6 이 그것을 부르면 그리는 코드가 0 줄이다. 의존 행렬에 U8 칸이 없는 것은 그 행렬이 2026-09-17 의 「그리는 것이 한 벌」 변경보다 앞서기 때문이다.
+
+**실측이 낸 숫자 하나** — `cb4-card-4` 의 `survey` 는 진행 파일 127,117 바이트 대 봉인된 로그 11,553 바이트로 **9%** 이고, 걷힌 양이 `enode.elided` 한 줄에 `{"events":98,"bytes":408989}` 로 있다. 봉인된 것은 도는 동안 본 것과 다른 물건이고, 화면이 그 말을 안 하면 읽는 사람이 같은 물건으로 읽는다.
+**Context**: Construction · U6 · Functional Design Part 1. 답 대기.
+
+---
