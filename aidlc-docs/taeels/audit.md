@@ -1473,3 +1473,11 @@ NFR Requirements 와 NFR Design 을 **SKIP** 으로 적는다. 회차 계획 9�
 **Context**: Construction · U8 · Code Generation Part 2 완료. 승인 대기.
 
 ---
+
+## Construction · U8 `fleet-card` · Code Generation 승인 · 게이트 측정 착수
+**Timestamp**: 2026-09-17T00:25:00Z
+**User Input**: "하자"
+**AI Response**: Code Generation 을 승인으로 닫고 게이트 측정에 들어간다. CB4 · CB6 · CB1 재확인 셋이다. 측정 나무를 따로 만든다 — main + U5(병합됨) + U7(`unit/chunk-push`) + U8 이 한 나무에 있어야 하고, U7 을 `unit/fleet-card` 에 합치면 U8 의 PR 이 U7 의 커밋을 싣게 되므로 브랜치를 따로 판다.
+**Context**: Construction · U8 · Code Generation 승인(Step 6·7) · 게이트 측정 착수.
+
+---
