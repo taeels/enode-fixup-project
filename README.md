@@ -120,6 +120,21 @@ Engineering 과 승인된 Inception 을 읽고 담당별 Construction 을 이어
 `aidlc-docs/construction-roster.md` 를 따른다. 디렉터리 안내는
 `aidlc-docs/README.md` 에 있다.
 
+## 3.1 설계 정본은 **여기서 안 고친다**
+
+`enode-design/` 은 서브모듈이라 **이 저장소가 가리키는 것은 커밋 하나**다. 그
+커밋이 이 저장소에서 「이긴다」고 한 정본이고, 여기서 파일을 고치면 정본이 두
+벌이 된다 — `CONVENTIONS.md` 1.4 의 「도구는 두 벌로 두지 않는다」와 같은 실패다.
+
+```text
+   고치는 곳    enode-design 을 따로 클론한 작업 사본.  거기서 브랜치를 따고 PR 을 낸다
+   이 저장소     그 PR 이 main 에 들어간 뒤 핀을 옮긴다 — 평범한 커밋에 실어서
+   확인          git ls-tree HEAD enode-design 의 해시 대 그 저장소의 origin/main
+```
+
+**핀을 안 옮기면 갈린다.** 정본이 앞서 가고 이 저장소는 옛 커밋을 읽는데,
+서브모듈은 조용히 옛것을 체크아웃하므로 **어긋난 것이 화면에 안 뜬다.**
+
 **`requirements/` 는 이번 회차의 요구이고 AI-DLC 가 그것을 입력으로 읽는다.**
 `design/` 은 그 화면이다 — `enode-ux.pen` 이 원본, `exports/` 가 거기서 내보낸
 그림, `index.html` 이 모아 보는 페이지, `design/README.md` 가 그리는 규칙이다.
