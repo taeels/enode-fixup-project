@@ -429,11 +429,13 @@ func (k StepKind) String() string {
 	return "unknown"
 }
 
-// Workspace 는 이 단계가 어느 저장소의 어느 리비전 위에 서는가다 (ADR-017).
+// Workspace 는 이 단계가 어느 저장소 위에 서는가다 (ADR-017 결정 5 · ADR-072).
 // 저장소는 옮기지 않는다 — 노드가 이미 갖고 있고 그것이 매칭 조건이었다.
+//
+// 리비전은 없다. 정합 단위가 커밋이 아니라 노드가 광고하는 IR 태그로
+// 올라갔으므로(ADR-072 결정 1) 계약이 가리킬 것이 없다.
 type Workspace struct {
 	Repo string `json:"repo"` // canonical id: lower(host)/path
-	Rev  string `json:"rev"`
 }
 
 // Step 은 계약이 요청 시점에 전부 선언하는 단계 하나다.

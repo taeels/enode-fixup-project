@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/taeels/enode/internal/contract"
@@ -27,14 +26,14 @@ func git(t *testing.T, dir string, args ...string) string {
 	return string(out)
 }
 
-// 순서가 셋이고 뒤바꾸면 안 된다 (ADR-017 결정 4 + ADR-021)
+// 순서가 둘이고 뒤바꾸면 안 된다 (ADR-017 결정 4 + ADR-021 · ADR-072)
 //
-//	① reset --hard  추적 변경을 버린다 — 안 하면 checkout 이 거절된다
-//	② checkout      목표 리비전으로
-//	③ clean -df     목표 리비전의 .gitignore 로 청소한다
+//	① reset --hard  추적 변경을 버린다.  .gitignore 도 여기서 돌아온다
+//	② clean -df     되돌아온 .gitignore 로 청소한다
 //
-// ③ 을 ② 앞에 두면 이전 리비전의 무시 규칙으로 청소하게 되고,
+// ② 를 ① 앞에 두면 더럽혀진 무시 규칙으로 청소하게 되고,
 // 데워둔 빌드 캐시가 날아간다. 실측에서 밟았다.
+// 원래 둘 사이에 checkout 이 있었는데 ADR-072 가 뽑았다.
 func TestPrepareKeepsBuildCacheDropsJunk(t *testing.T) {
 	dir := t.TempDir()
 	git(t, dir, "init", "-q")
@@ -47,8 +46,6 @@ func TestPrepareKeepsBuildCacheDropsJunk(t *testing.T) {
 	}
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-qm", "parent")
-	rev := strings.TrimSpace(git(t, dir, "rev-parse", "HEAD"))
-
 	// 워크스페이스를 더럽힌다
 	os.WriteFile(filepath.Join(dir, "drv.o"), []byte("warm cache"), 0o644) // 무시됨 — 살아야 한다
 	os.WriteFile(filepath.Join(dir, "junk.c"), []byte("junk"), 0o644)      // 추적 안 됨 — 죽어야 한다
@@ -57,7 +54,7 @@ func TestPrepareKeepsBuildCacheDropsJunk(t *testing.T) {
 	w := &Worker{Local: Local{Workspace: dir}}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if _, err := w.Prepare(context.Background(),
-		&WorkspaceSpec{Repo: "gerrit.corp/kernel/linux", Rev: rev}, log); err != nil {
+		&WorkspaceSpec{Repo: "gerrit.corp/kernel/linux"}, log); err != nil {
 		t.Fatal(err)
 	}
 
