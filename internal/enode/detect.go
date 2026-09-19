@@ -139,7 +139,7 @@ type Fingerprinter interface {
 // ADR-035 §4.2 는 셋째로 toolchain 을 들었는데 여기는 repo 다 — 크로스
 // 툴체인 탐지(detectArch)는 프로세스를 안 띄우고 호출 수도 상수라 값싼 쪽에
 // 이미 앉아 있다 (decisions.md 6절 ⑤).
-var fingerprinters = []Fingerprinter{harnessFP{}, repoFP{}, mcpFP{}}
+var fingerprinters = []Fingerprinter{harnessFP{}, repoFP{}, mcpFP{}, overlayFP{}}
 
 // harnessFP 는 추론 하네스를 잰다 — Usable() 이 곧 executable resolve 다 (R3).
 //
