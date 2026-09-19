@@ -61,9 +61,19 @@ func cheapAttrs(l Local, log *slog.Logger) map[string]string {
 	}
 
 	// 빌드 능력 — 툴체인이 있고 디스크가 남아 있을 때만 광고한다.
-	if arch := detectArch(l); arch != "" {
+	if archs := detectArchs(l); len(archs) > 0 {
 		if ok, free := hasRoom(l, log); ok {
-			attrs["arch"] = arch
+			// arch 는 값이 하나라 둘 이상을 말하지 못한다. 예전 어휘로 남기되
+			// archToolchains 의 고정 순서에서 첫째를 쓴다 — 뒤집히지 않는다.
+			attrs["arch"] = archs[0]
+			// 집합은 값이 아니라 키다. 할 줄 아는 것 하나에 키 하나를 낸다.
+			//
+			// 값에 담아 합치면(arm64,armv7) 부분집합 비교가 문자열 같음이라
+			// 어느 요구와도 안 맞는다. 키로 펴면 계약이 필요한 것만 적고
+			// 둘을 적으면 그것이 곧 AND 다 — 매처가 한 줄도 안 바뀐다.
+			for _, a := range archs {
+				attrs[archPrefix+a] = "yes"
+			}
 		} else {
 			log.Warn("not enough free disk; dropping build capability from the advertisement",
 				"free_gb", free, "min_gb", l.MinFreeGB)
@@ -260,6 +270,13 @@ func capabilities(l Local, log *slog.Logger, parts ...map[string]string) []contr
 	// 배치 위험이 닫힌다. 새 코드 0 개인 방어다.
 	if l.Orchestration {
 		delete(attrs, "arch")
+		// 편 키도 같이 지운다 — 하나라도 남으면 빌드 계약이 그 키로 이 노드를
+		// 고르고, 위 문단이 닫은 배치 위험이 조용히 다시 열린다.
+		for k := range attrs {
+			if strings.HasPrefix(k, archPrefix) {
+				delete(attrs, k)
+			}
+		}
 		if !hasCapability(attrs) {
 			warnMCPWithoutCapability(l, log)
 			return nil // 하네스도 없으면 오케스트레이션도 못 한다
@@ -311,19 +328,42 @@ func warnMCPWithoutCapability(l Local, log *slog.Logger) {
 	}
 }
 
-func detectArch(l Local) string {
+// archPrefix 는 할 줄 아는 아키텍처 하나를 키 하나로 펼 때의 접두다.
+//
+// 점은 계층이 아니라 그냥 글자다 — 매처는 평평한 맵이고 이 문자열을 쪼개
+// 보지 않는다. mcp. 가 이미 같은 모양으로 쓰이고 있다.
+const archPrefix = "arch."
+
+// archToolchains 는 탐지하는 크로스 툴체인이고 순서가 고정이다.
+//
+// 맵을 그대로 돌면 안 된다 — Go 가 순회 순서를 섞으므로 툴체인이 둘 다 깔린
+// 기계는 광고할 때마다 arch 가 뒤집힌다. 그러면 arch=arm64 를 요구한 계약이
+// 어떤 하트비트에서는 맞고 어떤 하트비트에서는 안 맞는다. 조용히 후보가 0 이
+// 되는 종류다. agent.go 의 attrLine 이 프롬프트에 대해 같은 것을 이미 고쳤다.
+var archToolchains = []struct{ arch, cc string }{
+	{"arm64", "aarch64-linux-gnu-gcc"},
+	{"armv7", "arm-linux-gnueabihf-gcc"},
+}
+
+// detectArchs 는 이 기계가 빌드할 수 있는 아키텍처 전부다.
+//
+// 하나만 내면 둘 다 깔린 기계가 나머지를 영영 안 광고한다 — 할 수 있는데
+// 못 한다고 말하는 것이고, 그 노드는 그 계약의 후보에서 말없이 빠진다.
+//
+// 설정의 arch 가 있으면 그것만 쓴다. 여기는 repo 와 반대로 사람이 이긴다 —
+// 탐지가 아는 툴체인 목록이 좁아서(Zephyr SDK 를 모른다) 설정이 메우는
+// 자리이기 때문이다. setup 의 도움말이 그렇게 적혀 있다.
+func detectArchs(l Local) []string {
 	if l.Arch != "" {
-		return l.Arch
+		return []string{l.Arch}
 	}
-	for arch, cc := range map[string]string{
-		"armv7": "arm-linux-gnueabihf-gcc",
-		"arm64": "aarch64-linux-gnu-gcc",
-	} {
-		if _, err := exec.LookPath(cc); err == nil {
-			return arch
+	var archs []string
+	for _, t := range archToolchains {
+		if _, err := exec.LookPath(t.cc); err == nil {
+			archs = append(archs, t.arch)
 		}
 	}
-	return ""
+	return archs
 }
 
 func hasRoom(l Local, log *slog.Logger) (bool, uint64) {
