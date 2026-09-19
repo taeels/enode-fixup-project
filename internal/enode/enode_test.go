@@ -181,10 +181,12 @@ func TestDetectEmpty(t *testing.T) {
 	if caps := Detect(context.Background(), Local{}, log); len(caps) != 0 {
 		// claude 가 설치된 기계에서는 harness 가 잡힐 수 있다 — 그건 정상이다.
 		// U3 부터 같은 사실이 harness.<이름> 으로도 실린다 (ADR-035 §4.3).
+		// machine 도 무조건 실린다 — os · host_arch 와 같은 기계 사실이다
+		// (ADR-070 §2.2). 능력이 아니므로 hasCapability 가 안 센다.
 		for _, c := range caps {
 			for k := range c.Attrs {
 				switch {
-				case k == "harness", k == "os", k == "host_arch":
+				case k == "harness", k == "os", k == "host_arch", k == "machine":
 				case strings.HasPrefix(k, "harness."):
 				default:
 					t.Fatalf("empty config yet %s was advertised: %+v", k, caps)
@@ -200,7 +202,7 @@ func TestDetectEmpty(t *testing.T) {
 // 가진 것처럼 보일 수 있다. 광고가 곧 능력이다 (ADR-012) — 그 뜻을 지킨다.
 func TestMachineFactsAloneDoNotAdvertise(t *testing.T) {
 	if hasCapability(map[string]string{"os": "linux", "host_arch": "amd64",
-		"ws": "/w"}) {
+		"ws": "/w", "machine": "builder1"}) {
 		t.Fatal("machine facts alone were reported as a capability")
 	}
 	if !hasCapability(map[string]string{"os": "linux", "harness": "claude"}) {

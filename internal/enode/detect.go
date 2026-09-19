@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
 	"os/exec"
 	"runtime"
 	"strings"
@@ -49,6 +50,23 @@ func cheapAttrs(l Local, log *slog.Logger) map[string]string {
 	// 있으면 그 아키텍처를 광고한다). 이것은 이 프로세스가 도는 기계다.
 	attrs["os"] = runtime.GOOS
 	attrs["host_arch"] = runtime.GOARCH
+
+	// 어느 기계 위인가 (ADR-070 §2.2) — 같은 기계의 노드를 셀 수 있어야 한다.
+	//
+	// hostname 은 node_id 안에 이미 있는데 그것은 해시라 계약도 매처도 못
+	// 읽는다. 「한 기계에 노드 셋」이 보이지 않으면 기계마다 굽는 창을
+	// 어긋나게 둘 수 없다 (ADR-070 §5.5).
+	//
+	// 탐지값이라 labels 가 못 덮는다 — 아래의 라벨 병합이 이미 그 규칙이다.
+	// 컨테이너 안에서는 hostname 이 그 컨테이너 것이므로 띄우는 쪽이 기계
+	// 이름을 박는다(--hostname). 사람이 아니라 인프라가 적는 값이라 위 규칙과
+	// 어긋나지 않는다.
+	if host, err := os.Hostname(); err == nil && host != "" {
+		attrs["machine"] = host
+	} else if err != nil {
+		log.Warn("cannot read the hostname; this node will not say which machine it is",
+			"err", err)
+	}
 
 	if l.Workspace != "" {
 		// 워크스페이스가 어디인가 (ADR-055) — 계획이 「파일을 어디에
@@ -289,7 +307,7 @@ func capabilities(l Local, log *slog.Logger, parts ...map[string]string) []contr
 
 // hasCapability 는 이 속성 묶음이 무언가 할 줄 안다고 말하는가다.
 //
-// os · host_arch · ws 는 어느 기계에나 있는 사실이지 능력이 아니다.
+// os · host_arch · ws · machine 은 어느 기계에나 있는 사실이지 능력이 아니다.
 // 이것들만 남으면 "아무것도 못 한다" 이고, 그때는 광고하지 않는다 —
 // 광고가 곧 능력이라는 ADR-012 의 뜻을 지킨다.
 //
@@ -304,7 +322,7 @@ func capabilities(l Local, log *slog.Logger, parts ...map[string]string) []contr
 func hasCapability(attrs map[string]string) bool {
 	for k := range attrs {
 		switch {
-		case k == "os", k == "host_arch", k == "ws":
+		case k == "os", k == "host_arch", k == "ws", k == "machine":
 		case strings.HasPrefix(k, "mcp."):
 		default:
 			return true
