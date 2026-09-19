@@ -9,11 +9,15 @@ var guest = (function () {
 
   var adjectives = [
     "선명한", "조용한", "경쾌한", "다정한", "날쌘",
-    "꾸준한", "슬기로운", "용감한", "차분한", "밝은"
+    "꾸준한", "슬기로운", "용감한", "차분한", "밝은",
+    "포근한", "잔잔한", "맑은", "든든한", "온화한",
+    "씩씩한", "반가운", "유쾌한", "따스한", "여유로운"
   ];
   var nouns = [
     "수달", "매", "단풍", "항구", "불씨",
-    "삼나무", "왜가리", "들판", "산등성이", "혜성"
+    "삼나무", "왜가리", "들판", "산등성이", "혜성",
+    "여우", "두루미", "소나무", "별빛", "갈대",
+    "시냇물", "구름", "산새", "노을", "바람"
   ];
   var previousAdjectives = ["vivid", "quiet", "brisk", "gentle", "swift", "steady", "keen", "bold", "calm", "bright"];
   var previousNouns = ["otter", "falcon", "maple", "harbor", "ember", "cedar", "heron", "meadow", "ridge", "comet"];
