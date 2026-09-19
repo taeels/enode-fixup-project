@@ -13,9 +13,12 @@ import (
 )
 
 // WorkspaceSpec 은 계약의 steps[].workspace 다 (ADR-017 결정 5).
+//
+// rev 가 없다 — ADR-072 가 뽑았다. 있던 이유는 하나였다: agent 노드와 build
+// 노드가 같은 바닥 위에 서야 diff 가 붙는다. 그 바닥에 이제 이름이 있고
+// (IR 태그) 노드가 그것을 광고하므로, 맞추는 일을 계약이 아니라 매칭이 한다.
 type WorkspaceSpec struct {
 	Repo string `json:"repo"`
-	Rev  string `json:"rev"`
 }
 
 // Prepare 는 ①사출의 앞부분이다 — 작업공간을 그 리비전으로 세운다.
@@ -54,28 +57,22 @@ func (w *Worker) Prepare(ctx context.Context, spec *WorkspaceSpec, log *slog.Log
 		return PrepNone, fmt.Errorf("workspace repository mismatch: node has %q, contract wants %q", got, spec.Repo)
 	}
 
-	// 순서가 셋이고 뒤바꾸면 안 된다
+	// 순서가 둘이고 뒤바꾸면 안 된다
 	//
-	//	① reset --hard   추적 파일의 변경을 버린다 — 안 하면 checkout 이 거절된다
-	//	② checkout       목표 리비전으로 옮긴다
-	//	③ clean -df      목표 리비전의 .gitignore 로 청소한다
+	//	① reset --hard   추적 파일의 변경을 버린다.  .gitignore 도 여기서 돌아온다
+	//	② clean -df      되돌아온 .gitignore 로 청소한다
 	//
-	// ③ 을 ② 앞에 두면 이전 리비전의 무시 규칙으로 청소 하게 되고,
-	// 그 리비전에 .gitignore 가 없거나 다르면 데워둔 빌드 캐시가 날아간다.
-	// 실측에서 밟았다 — ADR-017 이 -x 를 뺀 이유가 순서에도 걸려 있었다.
+	// ②를 ① 앞에 두면 더럽혀진 무시 규칙으로 청소하게 되고, 데워둔 빌드
+	// 캐시가 날아간다. 실측에서 밟았다 — ADR-017 이 -x 를 뺀 이유가 순서에도
+	// 걸려 있었다. 원래 둘 사이에 checkout 이 있었는데 ADR-072 가 뽑았다.
 	start := time.Now()
 	if err := w.reset(ctx, dir); err != nil {
 		return PrepNone, err
 	}
-	if spec.Rev != "" {
-		if err := w.checkout(ctx, dir, spec.Rev, log); err != nil {
-			return PrepNone, err
-		}
-	}
 	if err := w.clean(ctx, dir); err != nil {
 		return PrepNone, err
 	}
-	log.Info("workspace prepared", "repo", spec.Repo, "rev", spec.Rev,
+	log.Info("workspace prepared", "repo", spec.Repo,
 		"took", time.Since(start).Round(time.Millisecond))
 	return PrepClean, nil
 }
@@ -89,11 +86,11 @@ type Prep string
 
 const (
 	PrepNone       Prep = ""           // 워크스페이스를 안 쓰는 단계
-	PrepClean      Prep = "clean"      // reset · checkout · clean 을 마쳤다
+	PrepClean      Prep = "clean"      // reset 과 clean 을 마쳤다
 	PrepUnprepared Prep = "unprepared" // 되돌리지 않았다 — 저장소가 없다
 )
 
-// reset 은 추적 파일의 변경을 버린다. checkout 이 거절되지 않게 하는 것이 목적이다.
+// reset 은 추적 파일의 변경을 버린다. clean 이 되돌아온 .gitignore 를 쓰게 한다.
 func (w *Worker) reset(ctx context.Context, dir string) error {
 	if isRepo(dir) {
 		return run(ctx, dir, "repo", "forall", "-c", "git reset --hard")
@@ -124,27 +121,6 @@ func (w *Worker) clean(ctx context.Context, dir string) error {
 func isRepo(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, ".repo"))
 	return err == nil
-}
-
-// checkout 은 그 리비전으로 세운다. 로컬에 없으면 받아온다.
-//
-// ADR-017 이 [미정] 으로 남긴 자리다 — 새 패치는 로컬에 없는 것이 정상이므로
-// 실패시키면 본편 시나리오가 아예 안 돈다. 대신 시간이 드는데,
-// 임대가 그 시간을 묶는다 (not_after).
-func (w *Worker) checkout(ctx context.Context, dir, rev string, log *slog.Logger) error {
-	if err := run(ctx, dir, "git", "rev-parse", "--verify", rev+"^{commit}"); err != nil {
-		log.Info("revision not present locally; fetching", "rev", rev)
-		if err := run(ctx, dir, "git", "fetch", "--quiet", "origin", rev); err != nil {
-			// 브랜치명이나 태그일 수도 있다. 전체 fetch 로 한 번 더.
-			if err2 := run(ctx, dir, "git", "fetch", "--quiet", "--all"); err2 != nil {
-				return fmt.Errorf("cannot fetch revision %s: %w", rev, err)
-			}
-		}
-	}
-	if err := run(ctx, dir, "git", "checkout", "--quiet", "--detach", rev); err != nil {
-		return fmt.Errorf("checkout %s: %w", rev, err)
-	}
-	return nil
 }
 
 func run(ctx context.Context, dir string, name string, args ...string) error {
