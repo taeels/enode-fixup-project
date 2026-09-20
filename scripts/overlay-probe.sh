@@ -155,7 +155,13 @@ else
         [ "$RESULT" = "none" ] && { RESULT="userns"; MOUNT_MS="$ms"; } ;;
     11) say "FAIL   네임스페이스는 열렸는데 마운트가 거절됐다 — ${err:-}" ;;
     1[2-4]) say "FAIL   마운트는 됐는데 층이 안 갈린다 (rc=$rc)" ;;
-    *)  say "FAIL   네임스페이스를 못 연다 — ${err:-rc=$rc}" ;;
+    *)  say "FAIL   네임스페이스를 못 연다 — ${err:-rc=$rc}"
+        # 24.04 의 기본값이 1 이고 그것이 uid_map 쓰기를 막는다.  맨 VM 에서 이 칸이
+        # 닫히는 가장 흔한 이유라 값을 그 자리에서 보여준다.
+        if [ "$(sysctl_of kernel.apparmor_restrict_unprivileged_userns)" = "1" ]; then
+          say "         apparmor_restrict_unprivileged_userns 가 1 이다 (24.04 의 기본값)"
+          say "         이 칸은 그 기계의 보안 정책이 정한다 — 우리가 바꿀 자리가 아니다"
+        fi ;;
   esac
 fi
 
@@ -164,7 +170,8 @@ printf '  %-8s ' "fuse"
 if [ ! -c /dev/fuse ]; then
   say "SKIP   /dev/fuse 가 없다 — 컨테이너 재생성 없이는 못 만든다"
 elif ! command -v fuse-overlayfs >/dev/null 2>&1; then
-  say "SKIP   fuse-overlayfs 가 안 깔려 있다 (/dev/fuse 는 있다)"
+  say "SKIP   fuse-overlayfs 를 깔면 열린다 — /dev/fuse 는 이미 있다"
+  say "         sudo apt install fuse-overlayfs.  특권도 커널 설정 변경도 필요 없다"
 else
   prepare_dirs
   t0=$(date +%s%N)
@@ -253,5 +260,11 @@ case "$RESULT" in
           say "하네스를 그 안에서 돌린다 — 정리는 프로세스가 죽으면 자동이다" ;;
   fuse)   say "FUSE 로 된다. 커널 마운트보다 느리므로 빌드 성능을 따로 재야 한다" ;;
   none)   say "이 환경에서는 오버레이를 못 세운다. 이 노드는 overlay 를 광고하지"
-          say "않고, 오버레이를 요구하는 계약의 후보에서 빠진다" ;;
+          say "않고, 오버레이를 요구하는 계약의 후보에서 빠진다"
+          say ""
+          say "여는 길은 환경마다 다르다"
+          say "  VM · 베어메탈   fuse-overlayfs 를 깐다.  /dev/fuse 가 이미 있으면 그것뿐이다"
+          say "                 또는 그 유닛에 CAP_SYS_ADMIN 을 준다"
+          say "  컨테이너        /dev/fuse 도 CAP_SYS_ADMIN 도 생성 때 정해진다."
+          say "                 띄우는 쪽이 고쳐야 하고 안에서는 못 넘는다" ;;
 esac
