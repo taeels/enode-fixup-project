@@ -559,7 +559,7 @@ func TestUploadProduced_AdapterLeavingsAreNotArtifacts(t *testing.T) {
 	writeFile(t, filepath.Join(out, ".enode-prompt.md"), "what we asked")
 	writeFile(t, filepath.Join(out, "artifact"), "the real thing")
 
-	got := w.uploadProduced(context.Background(), runStep(), out, Stamp{}, discardLog())
+	got := w.uploadProduced(context.Background(), runStep(), out, HarvestResult{}, discardLog())
 
 	if len(got) != 1 || got[0] != "artifact" {
 		t.Fatalf("the adapter's own leavings were harvested as artifacts: %v", got)
@@ -581,7 +581,7 @@ func TestUploadProduced_ARejectedNameIsNotListedAsProduced(t *testing.T) {
 	writeFile(t, filepath.Join(out, "plan.json"), `{"steps":[]}`)
 	writeFile(t, filepath.Join(out, "notes.txt"), "kept")
 
-	got := w.uploadProduced(context.Background(), runStep(), out, Stamp{}, discardLog())
+	got := w.uploadProduced(context.Background(), runStep(), out, HarvestResult{}, discardLog())
 
 	for _, n := range got {
 		if n == "plan.json" {
@@ -605,7 +605,13 @@ func TestUploadProduced_ACollectFailureIsWrittenDownNotThrown(t *testing.T) {
 	step.Collect = map[string]string{"artifact": "arch/arm/boot/zImage"}
 	step.Out = []string{"artifact"}
 
-	got := w.uploadProduced(context.Background(), step, out, Stamp{}, discardLog())
+	result, err := (&nativeSession{}).Harvest(context.Background(), HarvestSpec{
+		Workspace: w.Local.Workspace, Out: out, Collect: step.Collect,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := w.uploadProduced(context.Background(), step, out, result, discardLog())
 
 	note, ok := m.blob(changedName)
 	if !ok {

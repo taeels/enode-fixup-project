@@ -269,6 +269,41 @@ func TestHook_MergesGatewayAuthFieldsFromPersonalSettings(t *testing.T) {
 	}
 }
 
+func TestHookRewritesOnlyTheTypedCredentialHelperProjection(t *testing.T) {
+	personalHome := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(personalHome, ".claude"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	personal := `{"apiKeyHelper":"/host/auth-helper","env":{"OIDC_CLIENT_ID":"abc"}}`
+	if err := os.WriteFile(filepath.Join(personalHome, ".claude", "settings.json"), []byte(personal), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", personalHome)
+	home := t.TempDir()
+	_, err := WriteHookSettings(home, "/run/enode/bin/enode", HookArgs{
+		Out: "/run/enode/out", CredentialHelperSource: "/host/auth-helper",
+		CredentialHelperTarget: "/run/enode/bin/auth-helper",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(filepath.Join(home, hookSettingsName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["apiKeyHelper"] != "/run/enode/bin/auth-helper" {
+		t.Fatalf("credential helper kept a host-only path: %v", got)
+	}
+	env, _ := got["env"].(map[string]any)
+	if env["OIDC_CLIENT_ID"] != "abc" {
+		t.Fatalf("projection rewrote unrelated authentication fields: %v", got)
+	}
+}
+
 // 개인 설정 파일이 없으면(개인 구독 · Bedrock · Vertex 는 흔히 없다)
 // 조용히 아무것도 병합하지 않는다 — 지금까지의 동작 그대로다.
 func TestHook_NoPersonalSettingsIsFine(t *testing.T) {

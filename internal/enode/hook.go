@@ -85,6 +85,11 @@ type HookArgs struct {
 	Plan string
 	// Roles 는 uses 에 쓸 수 있는 이름이다 (ADR-045). 비면 역할 검사를 건너뛴다.
 	Roles []string
+
+	// framework projection이 personal settings의 apiKeyHelper를 runtime-visible
+	// fixed target으로 다시 쓸 때만 쓴다. contract surface가 아니다.
+	CredentialHelperSource string
+	CredentialHelperTarget string
 }
 
 // RunStopHook 은 `enode hook stop` 의 본체다.
@@ -352,6 +357,11 @@ func WriteHookSettings(home string, self string, a HookArgs) ([]string, error) {
 	// gatewayAuthFields() 가 그 두 필드만 골라 우리 settings 에 얹는다 —
 	// 나머지(권한·훅·모델 오버라이드 등)는 여전히 사람 설정에서 안 읽는다.
 	for k, v := range gatewayAuthFields() {
+		if k == "apiKeyHelper" && a.CredentialHelperTarget != "" {
+			if source, ok := v.(string); ok && source == a.CredentialHelperSource {
+				v = a.CredentialHelperTarget
+			}
+		}
 		settings[k] = v
 	}
 	b, err := json.Marshal(settings)
@@ -405,6 +415,11 @@ func gatewayAuthFields() map[string]any {
 		out["env"] = v
 	}
 	return out
+}
+
+func gatewayAuthHelperPath() string {
+	v, _ := gatewayAuthFields()["apiKeyHelper"].(string)
+	return v
 }
 
 // shellJoin 은 훅 명령을 한 줄로 만든다. 하네스가 셸에 넘기기 때문이다.

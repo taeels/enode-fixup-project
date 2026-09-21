@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -143,23 +144,45 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		return nil, HarnessResult{Reason: ReasonError, Message: err.Error()}
 	}
 
+	session := j.Session
+	if session == nil {
+		session = &nativeSession{spec: RuntimeSpec{Dir: j.IO.Dir, In: j.IO.In, Out: j.IO.Out}}
+	}
+	runtimePaths := session.Paths()
+	runtimeIO := IOPaths{Dir: runtimePaths.Dir, In: runtimePaths.In, Out: runtimePaths.Out}
+
 	// ③
-	args := h.Argv(j.Params, j.IO)
+	args := h.Argv(j.Params, runtimeIO)
 
 	// ④ 계장. self 가 비어도 부른다 — 오늘은 os.Executable() 하나가 허용목록까지
 	// 떨어뜨렸다. 훅 블록만 그것에 달린다 (WriteHookSettings).
 	self, _ := os.Executable()
-	a := HookArgs{Out: j.IO.Out, Workspace: j.IO.Dir, Expect: j.Expect,
-		Plan: j.Plan, Roles: j.Roles}
+	helper := gatewayAuthHelperPath()
+	projection, projectErr := session.Project(ctx, FrameworkProjectionSpec{
+		HarnessExecutable: bin,
+		EnodeExecutable:   self,
+		Instrumentation:   tmp,
+		CredentialHelper:  helper,
+	})
+	if projectErr != nil {
+		return nil, HarnessResult{Reason: ReasonError,
+			Message: "cannot project framework runtime: " + projectErr.Error()}
+	}
+	a := HookArgs{Out: runtimeIO.Out, Workspace: runtimeIO.Dir, Expect: j.Expect,
+		Plan: j.Plan, Roles: j.Roles,
+		CredentialHelperSource: helper, CredentialHelperTarget: projection.CredentialHelper}
 	// 훅은 별도 프로세스라 기준 시각을 파일로 넘긴다.
 	// 워크스페이스 밖(계장 임시 폴더)에 둔다 — 안에 두면 자기가 걷힌다.
 	if !j.Stamp.At.IsZero() {
 		p := filepath.Join(tmp, "stamp")
 		if writeStamp(p, j.Stamp) == nil {
-			a.Stamp = p
+			a.Stamp = projectedPath(p, tmp, projection.Instrumentation)
 		}
 	}
-	flags, err := h.Instrument(tmp, self, a, c)
+	flags, err := h.Instrument(tmp, projection.EnodeExecutable, a, c)
+	for i := range flags {
+		flags[i] = strings.ReplaceAll(flags[i], tmp, projection.Instrumentation)
+	}
 	// 오류에도 이미 얻은 플래그를 붙인다 — 보조 실패 하나가 격리의 겹을
 	// 함께 떨어뜨리면 안 된다.
 	args = append(args, flags...)
@@ -174,9 +197,9 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 
 	// ⑤ 우리가 못 박는 값 — 구조적인 것(OUT·IN)과 하네스가 정하는 것(Fixed)을
 	// 한 자리에서 합친다. Fixed 는 재현성용이고 OUT·IN 과 이름이 겹칠 일이 없다.
-	fixed := map[string]string{"OUT": j.IO.Out, "IN": j.IO.In}
+	fixed := map[string]string{"OUT": runtimeIO.Out, "IN": runtimeIO.In}
 	for k, v := range h.Fixed(tmp) {
-		fixed[k] = v
+		fixed[k] = projectedPath(v, tmp, projection.Instrumentation)
 	}
 	env := harnessEnv(h.Env(), fixed, j.Inject)
 
@@ -208,12 +231,8 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		sinks = append(sinks, j.Transcript)
 	}
 	sinks = append(sinks, emitter)
-	session := j.Session
-	if session == nil {
-		session = &nativeSession{}
-	}
 	code, runErr := session.Run(ctx, ProcessSpec{
-		Argv: append([]string{bin}, args...), Dir: j.IO.Dir, Env: env, Stdin: strings.NewReader(j.Prompt),
+		Argv: append([]string{projection.HarnessExecutable}, args...), Dir: runtimeIO.Dir, Env: env, Stdin: strings.NewReader(j.Prompt),
 		Stdout: io.MultiWriter(sinks...), Stderr: &stderr,
 	})
 	err = runErr
@@ -299,6 +318,20 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	}
 	// logs/ 는 허용목록이다 — 아는 것만 남는다 (ADR-005 의 logs/).
 	return selectLogs(stdout.Bytes(), stderr.Bytes()), res
+}
+
+func projectedPath(value, sourceRoot, targetRoot string) string {
+	if value == "" || sourceRoot == "" || targetRoot == "" {
+		return value
+	}
+	rel, err := filepath.Rel(sourceRoot, value)
+	if err != nil || rel == ".." || strings.HasPrefix(filepath.ToSlash(rel), "../") {
+		return value
+	}
+	if rel == "." {
+		return targetRoot
+	}
+	return path.Join(targetRoot, filepath.ToSlash(rel))
 }
 
 // openPack 은 $IN 의 팩을 연다 (R1 · R2).

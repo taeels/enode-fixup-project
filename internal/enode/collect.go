@@ -34,14 +34,14 @@ import (
 // 남는 값 하나는 출처가 기록에 남는다는 것이다 — cp 는 스크립트 안에 숨어
 // Record 만 봐선 blob 이 어디서 왔는지 모른다 (ADR-005 성질 4).
 
-// collectNote 는 왜 못 걷었는지다. 판정이 아니라 사실이다.
-type collectNote struct{ Name, Why string }
+// HarvestNote는 왜 못 걷었는지다. 판정이 아니라 사실이다.
+type HarvestNote struct{ Name, Why string }
 
 // collectDeclared 는 계약이 적은 경로를 $OUT 으로 옮긴다.
 //
 // 새 실패 경로를 만들지 않는다 — 못 걷으면 produced 가 불만족이 되고
 // 판정은 success_when 이 한다 (ADR-004 · I3). 여기서는 이유만 남긴다.
-func collectDeclared(ws, out string, spec map[string]string) (got []string, notes []collectNote) {
+func collectDeclared(ws, out string, spec map[string]string) (got []string, notes []HarvestNote) {
 	if ws == "" || len(spec) == 0 {
 		return nil, nil
 	}
@@ -54,7 +54,7 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 	for _, name := range names {
 		pat := spec[name]
 		if why := badPattern(pat); why != "" {
-			notes = append(notes, collectNote{name, why})
+			notes = append(notes, HarvestNote{name, why})
 			continue
 		}
 		// 이미 있으면 안 덮어쓴다 — 스크립트가 직접 낸 것이 우선. collect 는 보조다.
@@ -65,13 +65,13 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 
 		hits, err := filepath.Glob(filepath.Join(ws, pat))
 		if err != nil {
-			notes = append(notes, collectNote{name, "invalid glob: " + err.Error()})
+			notes = append(notes, HarvestNote{name, "invalid glob: " + err.Error()})
 			continue
 		}
 		hits = onlyRegularInside(ws, hits)
 		switch {
 		case len(hits) == 0:
-			notes = append(notes, collectNote{name,
+			notes = append(notes, HarvestNote{name,
 				fmt.Sprintf("no file matches %q", pat)})
 		case len(hits) > 1:
 			// 하나의 blob 이름에 여럿을 넣지 않는다 — 소비자가 예측을 못 한다
@@ -83,12 +83,12 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 			if len(rel) > 6 {
 				rel = append(rel[:6], fmt.Sprintf("and %d more", len(hits)-6))
 			}
-			notes = append(notes, collectNote{name,
+			notes = append(notes, HarvestNote{name,
 				fmt.Sprintf("%q matches %d files (%s); narrow it to exactly one",
 					pat, len(hits), strings.Join(rel, ", "))})
 		default:
 			if err := copyFile(hits[0], dst); err != nil {
-				notes = append(notes, collectNote{name, "cannot move: " + err.Error()})
+				notes = append(notes, HarvestNote{name, "cannot move: " + err.Error()})
 				continue
 			}
 			got = append(got, name)

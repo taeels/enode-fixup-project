@@ -202,7 +202,7 @@ func TestCollect_DoesNotHarvestDirectories(t *testing.T) {
 func TestCollect_TheNoteReachesTheRecord(t *testing.T) {
 	out := t.TempDir()
 	writeChangedNote(out, []string{"artifact"}, Stamp{},
-		[]collectNote{{"artifact", `no file matches "arch/arm/boot/zImage"`}}, testLog())
+		[]HarvestNote{{"artifact", `no file matches "arch/arm/boot/zImage"`}}, testLog())
 
 	b, err := os.ReadFile(filepath.Join(out, changedName))
 	if err != nil {

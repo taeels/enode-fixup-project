@@ -642,8 +642,9 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	}
 	session = manageSession(session)
 	defer session.Close() //nolint:errcheck // 명시 Close가 오류를 결과로 옮긴다
+	runtimePaths := session.Paths()
 	if step.Kind == "agent" {
-		w.runAgentStep(runCtx, ctx, step, dir, in, out, stamp, prep, missingIn, session, log)
+		w.runAgentStep(runCtx, ctx, step, dir, in, out, runtimePaths, stamp, prep, missingIn, session, log)
 		return
 	}
 
@@ -652,7 +653,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// 셸을 안 거치므로 그대로 두면 리터럴로 넘어간다. 이게 풀려야
 	// `make modules_install INSTALL_MOD_PATH=$OUT` 처럼 빌드가 직접 $OUT 에
 	// 놓게 시킬 수 있고, 그러면 아무도 산출물 경로를 미리 몰라도 된다.
-	argv := expandIO(step.Run, IOPaths{Dir: dir, In: in, Out: out})
+	argv := expandIO(step.Run, IOPaths{Dir: runtimePaths.Dir, In: runtimePaths.In, Out: runtimePaths.Out})
 	if left := unexpandedVars(argv); len(left) > 0 {
 		// 조용히 틀리게 두지 않는다 — 셸이 없어 안 풀린 이름을 알려준다.
 		// 막지는 않는다: 판정은 success_when 몫이다 (ADR-004 · I3).
@@ -670,7 +671,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// 자격증명이 Run Record 에 봉인되는 일이 없다.
 	// $OUT 에 이름별 파일로 배출한다 (ADR-013).
 	processEnv := harnessEnv(append(commandEnv, step.Env...),
-		map[string]string{"OUT": out, "IN": in}, nil)
+		map[string]string{"OUT": runtimePaths.Out, "IN": runtimePaths.In}, nil)
 	var buf bytes.Buffer
 	// 명령 단계 stdout/stderr 도 링과 업로더로 tee 한다 (unit-of-work §6).
 	// 로그 업로드·판정은 그대로 buf 를 읽는다.
@@ -685,15 +686,23 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	}
 	start := time.Now()
 	code, runErr := session.Run(runCtx, ProcessSpec{
-		Argv: argv, Dir: dir, Env: processEnv, Stdout: sink, Stderr: sink,
+		Argv: argv, Dir: runtimePaths.Dir, Env: processEnv, Stdout: sink, Stderr: sink,
 	})
+	harvested, harvestErr := session.Harvest(ctx, HarvestSpec{
+		Workspace: dir, Out: out, RecordDiff: w.Local.Workspace != "" && len(step.Workspace) > 0,
+		Discover: true, Collect: step.Collect, Check: step.CheckChanged, Stamp: stamp,
+	})
+	logHarvest(harvested, log)
 
 	res := Result{Node: w.Ident.NodeID, Workspace: prep,
-		Produced: w.uploadProduced(ctx, step, out, stamp, log),
-		Changed:  CheckChanged(stamp, step.CheckChanged), Environment: session.Environment()}
+		Changed: harvested.Changed, Environment: session.Environment()}
+	if harvestErr != nil {
+		res.Error = "runtime harvest: " + harvestErr.Error()
+	}
 	if closeErr := session.Close(); closeErr != nil {
 		res.Error = "runtime cleanup: " + closeErr.Error()
 	}
+	res.Produced = w.uploadProduced(ctx, step, out, harvested, log)
 
 	// 꼬리를 비우는 것이 UploadLog(선별본)보다 먼저다 - 뒤집으면 봉인 직전의
 	// 마지막 줄이 중앙 화면에 안 뜬다.
@@ -730,7 +739,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 // ①사출은 위에서 이미 했다 ($IN + 프롬프트 조립).
 // missingIn 은 계약이 요청했는데 이 Run 에 없던 입력 이름들이다 (ADR-058).
 // 부재를 값으로 나른다 — 프롬프트가 그것을 적어준다.
-func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, prep Prep, missingIn []string, session StepSession, log *slog.Logger) {
+func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, runtimePaths RuntimePaths, stamp Stamp, prep Prep, missingIn []string, session StepSession, log *slog.Logger) {
 	report := func(res Result) {
 		res.Environment = session.Environment()
 		if closeErr := session.Close(); closeErr != nil {
@@ -803,7 +812,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	log.Debug("preparing agent step", "attempt", step.Attempt,
 		"feedback_names", step.Feedback, "feedback_got", len(feedback),
 		"out", step.Out, "schema", len(step.Schema))
-	prompt := buildPrompt(step.In.Prompt, out, step.Out, step.Schema, feedback,
+	prompt := buildPrompt(step.In.Prompt, runtimePaths.Out, step.Out, step.Schema, feedback,
 		step.Attempt, step.Expands, step.Roles, step.RoleAttrs, step.Owed,
 		step.Standing, step.Rejected, missingIn, step.Goal, step.EnvelopeKey)
 	writePromptFile(out, prompt)
@@ -864,8 +873,21 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	stopTee()
 	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
+	harvestSpec := HarvestSpec{Workspace: dir, Out: out, Check: step.CheckChanged, Stamp: stamp}
+	if h.Reason.Completed() {
+		harvestSpec.RecordDiff = w.Local.Workspace != "" && len(step.Workspace) > 0
+		harvestSpec.Discover = true
+		harvestSpec.Collect = step.Collect
+	}
+	harvested, harvestErr := session.Harvest(ctx, harvestSpec)
+	logHarvest(harvested, log)
 	res := Result{Node: w.Ident.NodeID, Harness: &h, Workspace: prep,
-		Changed: CheckChanged(stamp, step.CheckChanged)}
+		Changed: harvested.Changed}
+	if harvestErr != nil {
+		res.Error = "runtime harvest: " + harvestErr.Error()
+		report(res)
+		return
+	}
 	if !h.Reason.Completed() {
 		// 크래시는 완주가 아니다 — 반쯤 쓴 파일을 믿을 수 없다
 		res.Error = "harness: " + string(h.Reason) + " " + h.Message
@@ -874,7 +896,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		return
 	}
 	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
-	res.Produced = w.uploadProduced(ctx, step, out, stamp, log)
+	res.Produced = w.uploadProduced(ctx, step, out, harvested, log)
 	log.Info("agent step finished", "reason", h.Reason, "turns", h.Turns,
 		"cost_usd", h.CostUSD, "produced", res.Produced)
 	report(res)
@@ -884,54 +906,8 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 //
 // 올라간 것만 produced 다 — 스키마를 어긴 것은 422 로 거절되어
 // 저장되지 않았고, 어긴 산출물은 산출물이 아니다 (ADR-020).
-func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, stamp Stamp, log *slog.Logger) []string {
-	var collectNotes []collectNote
-	// R5② — 워크스페이스 변경을 걷는다 (ADR-017 결정 6)
-	//
-	// 여기 두는 이유 — agent 단계와 명령 단계가 둘 다 이 함수를 지난다.
-	// 처음엔 agent 쪽에만 붙였는데, 그건 ADR 문장의 「에이전트 산출물」을
-	// 그대로 조건문으로 옮긴 것이었다. 명령 단계도 `git apply` 를 하거나
-	// make 가 추적 파일을 재생성하면 같은 흔적을 남긴다.
-	//
-	// $OUT 에 놓으면 아래 수확이 그대로 걷는다 — 새 전송 경로가 없다.
-	//
-	// 실패해도 단계를 죽이지 않는다 — 판정은 success_when 이 한다
-	// (ADR-004 · I3). 기록 수단이 정규 경로를 무너뜨리면 안 된다.
-	if w.Local.Workspace != "" && len(step.Workspace) > 0 {
-		switch n, err := writeWorkspaceDiff(ctx, w.Local.Workspace, out, maxBlobBytes); {
-		case err != nil:
-			log.Warn("cannot collect workspace diff", "err", err)
-		case n > 0:
-			log.Info("workspace diff", "bytes", n)
-		}
-	}
-
-	// 기록이 스스로 설명하게 한다 (R5②')
-	//
-	// 명령 단계에는 훅이 없다 — 되물을 상대가 스크립트다. 그런데 빌드·플래시가
-	// 전부 명령 단계이고, ADR-019 로 그것들이 같은 노드의 cap 아래 들어왔다.
-	// agent 단계는 훅이 모델에게 되묻지만, 명령 단계는 기록이 말해야 한다:
-	//
-	//	"vmlinux 와 .ko 12개를 만들었는데 계약이 요구한 artifact 는 $OUT 에 없다"
-	//
-	// 이 한 문장이 없으면 사람이 로그를 뒤져 스스로 이어붙여야 하고,
-	// 그건 우리가 없애려던 바로 그 상태다 (ADR-005 이유 2).
-	//
-	// diff 로는 안 된다 — .gitignore 가 빌드 산출물을 정확히 가려서
-	// 빌드 단계는 diff 만 보면 아무 일도 안 한 것처럼 보인다.
-	// collect 가 먼저다 — 계약이 적은 경로를 $OUT 으로 옮긴 뒤라야
-	// "요구했는데 없는 것" 이 정확해진다.
-	if got, notes := collectDeclared(w.Local.Workspace, out, step.Collect); len(got) > 0 || len(notes) > 0 {
-		if len(got) > 0 {
-			log.Info("collected", "names", got)
-		}
-		for _, n := range notes {
-			log.Warn("collect failed", "name", n.Name, "why", n.Why)
-		}
-		collectNotes = notes
-	}
-
-	writeChangedNote(out, step.Out, stamp, collectNotes, log)
+func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, result HarvestResult, log *slog.Logger) []string {
+	writeHarvestNote(out, step.Out, result, log)
 
 	var produced []string
 	for _, name := range harvest(out) {
@@ -952,11 +928,37 @@ func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, sta
 	return produced
 }
 
+func logHarvest(result HarvestResult, log *slog.Logger) {
+	switch {
+	case result.DiffError != "":
+		log.Warn("cannot collect workspace diff", "err", result.DiffError)
+	case result.DiffBytes > 0:
+		log.Info("workspace diff", "bytes", result.DiffBytes)
+	}
+	if len(result.Collected) > 0 {
+		log.Info("collected", "names", result.Collected)
+	}
+	for _, n := range result.Notes {
+		log.Warn("collect failed", "name", n.Name, "why", n.Why)
+	}
+}
+
 // writeChangedNote 는 「무엇을 만들었고 무엇을 안 냈나」를 한 파일로 남긴다.
 //
 // 판정하지 않는다 — 판정은 success_when 이 한다 (ADR-004 · I3).
 // 여기서는 사실만 적는다. 실패해도 단계를 죽이지 않는다.
-func writeChangedNote(out string, want []string, stamp Stamp, cnotes []collectNote, log *slog.Logger) {
+func writeChangedNote(out string, want []string, stamp Stamp, cnotes []HarvestNote, log *slog.Logger) {
+	result := HarvestResult{Notes: cnotes}
+	if stamp.Root != "" {
+		var err error
+		if result.Workspace, result.WorkspaceN, err = changedSince(stamp, 2000); err != nil {
+			result.ChangedError = err.Error()
+		}
+	}
+	writeHarvestNote(out, want, result, log)
+}
+
+func writeHarvestNote(out string, want []string, result HarvestResult, log *slog.Logger) {
 	have := map[string]bool{}
 	for _, n := range harvest(out) {
 		have[n] = true
@@ -968,15 +970,11 @@ func writeChangedNote(out string, want []string, stamp Stamp, cnotes []collectNo
 		}
 	}
 
-	var found []Changed
-	var total int
-	if stamp.Root != "" {
-		var err error
-		if found, total, err = changedSince(stamp, 2000); err != nil {
-			log.Warn("cannot collect change list", "err", err)
-		}
+	found, total := result.Workspace, result.WorkspaceN
+	if result.ChangedError != "" {
+		log.Warn("cannot collect change list", "err", result.ChangedError)
 	}
-	if total == 0 && len(missing) == 0 && len(cnotes) == 0 {
+	if total == 0 && len(missing) == 0 && len(result.Notes) == 0 {
 		return // 적을 것이 없다
 	}
 
@@ -989,9 +987,9 @@ func writeChangedNote(out string, want []string, stamp Stamp, cnotes []collectNo
 	}
 	// collect 가 왜 못 걷었는지 — 이게 없으면 "요구했는데 없다" 만 남고
 	// 사람이 계약과 트리를 대조해 스스로 알아내야 한다.
-	if len(cnotes) > 0 {
+	if len(result.Notes) > 0 {
 		b.WriteString("collect could not gather:\n")
-		for _, n := range cnotes {
+		for _, n := range result.Notes {
 			b.WriteString("  " + n.Name + " — " + n.Why + "\n")
 		}
 		b.WriteString("\n")
