@@ -235,7 +235,7 @@ config["process"]["args"] = ["/bin/bash", "-lc", wrapper]
 config["mounts"] = [
     mount
     for mount in config["mounts"]
-    if mount.get("destination") not in ("/sys", "/sys/fs/cgroup", mount_at)
+    if mount.get("destination") not in ("/sys", "/sys/fs/cgroup", mount_at, "/tmp")
 ]
 config["mounts"].append(
     {
@@ -255,6 +255,14 @@ if ssh_dir:
             "options": ["rbind", "ro", "nosuid", "nodev", "noexec"],
         }
     )
+config["mounts"].append(
+    {
+        "destination": "/tmp",
+        "type": "tmpfs",
+        "source": "tmpfs",
+        "options": ["nosuid", "nodev", "mode=1777", "size=256m"],
+    }
+)
 config["linux"]["uidMappings"] = [
     {"containerID": 0, "hostID": 1, "size": 1000},
     {"containerID": 1000, "hostID": 0, "size": 1},
