@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # userns overlay와 runc를 한 덩어리로 세워 uid 1000 쓰기와 실제 명령을 잰다.
 #
-#   scripts/nested-runc-overlay-probe.sh [--mount-at PATH] ROOTFS LOWER SCRATCH [COMMAND]
+#   scripts/nested-runc-overlay-probe.sh [--mount-at PATH] [--ssh-config PATH] ROOTFS LOWER SCRATCH [COMMAND]
 #
-# ROOTFS  Ubuntu rootfs. /bin/bash와 --mount-at으로 지정한 디렉터리가 있어야 한다.
+# ROOTFS  Ubuntu rootfs. /bin/bash, uid/gid 1000 계정, --mount-at 디렉터리가 있어야 한다.
 # LOWER   읽기 전용 아래 층으로 쓸 준비된 워크스페이스.
 # SCRATCH upper/work/merged와 결과를 둘 디렉터리. Docker overlay2가 아닌
 #         호스트 bind volume을 줘야 한다.
@@ -15,11 +15,14 @@ set -Eeuo pipefail
 
 usage() {
   cat <<'EOF'
-usage: nested-runc-overlay-probe.sh [--mount-at PATH] ROOTFS LOWER SCRATCH [COMMAND]
+usage: nested-runc-overlay-probe.sh [--mount-at PATH] [--ssh-config PATH] ROOTFS LOWER SCRATCH [COMMAND]
 
 --mount-at PATH  runc 안에서 merged workspace를 보일 절대 경로 (기본 /work).
                  BitBake가 마지막으로 기록한 TOPDIR/TMPDIR의 상위 경로여야 한다.
                  ROOTFS 안에 이 디렉터리를 미리 만들어야 한다.
+--ssh-config PATH 호스트의 SSH config 파일. rootfs uid 1000 사용자의
+                  ~/.ssh/config에 읽기 전용으로 탑재한다. 키와 known_hosts는 탑재하지 않는다.
+                  ROOTFS 안에 대상 빈 파일을 미리 만들어야 한다.
 
 example:
   scripts/nested-runc-overlay-probe.sh \
@@ -31,6 +34,10 @@ example:
   scripts/nested-runc-overlay-probe.sh --mount-at /srv/workspaces/product \
     "$HOME/rootfs" /srv/workspaces/product "$HOME/ovl-probe" \
     'source /srv/workspaces/product/poky/oe-init-build-env /srv/workspaces/product/build >/dev/null && bitbake -C compile virtual/kernel'
+
+# SSH host alias가 필요한 private repo:
+  scripts/nested-runc-overlay-probe.sh --ssh-config "$HOME/.ssh/config" \
+    "$HOME/rootfs" /srv/yocto "$HOME/ovl-probe"
 EOF
 }
 
@@ -40,11 +47,17 @@ fail() {
 }
 
 MOUNT_AT="/work"
+SSH_CONFIG=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --mount-at)
       [ "$#" -ge 2 ] || fail "--mount-at 뒤에 경로가 필요하다"
       MOUNT_AT="$2"
+      shift 2
+      ;;
+    --ssh-config)
+      [ "$#" -ge 2 ] || fail "--ssh-config 뒤에 경로가 필요하다"
+      SSH_CONFIG="$2"
       shift 2
       ;;
     -h|--help)
@@ -78,6 +91,12 @@ ROOTFS="$(realpath "$1")"
 LOWER="$(realpath "$2")"
 mkdir -p "$3" || fail "scratch를 만들 수 없다: $3"
 SCRATCH="$(realpath "$3")"
+
+if [ -n "$SSH_CONFIG" ]; then
+  SSH_CONFIG="$(realpath "$SSH_CONFIG")" || fail "SSH config 경로를 해석할 수 없다"
+  [ -f "$SSH_CONFIG" ] || fail "SSH config가 일반 파일이 아니다: $SSH_CONFIG"
+  [ -r "$SSH_CONFIG" ] || fail "SSH config를 읽을 수 없다: $SSH_CONFIG"
+fi
 
 case "$MOUNT_AT" in
   /*) ;;
@@ -132,12 +151,25 @@ mkdir -p "$BUNDLE" "$STATE" "$UPPER" "$OVERLAY_WORK" "$MERGED" "$LOWER_RO"
 
 rootfs_user="$(awk -F: '$3 == 1000 { print $1; exit }' "$ROOTFS/etc/passwd" 2>/dev/null || true)"
 rootfs_home="$(awk -F: '$3 == 1000 { print $6; exit }' "$ROOTFS/etc/passwd" 2>/dev/null || true)"
-rootfs_user="${rootfs_user:-user}"
-rootfs_home="${rootfs_home:-/tmp}"
+rootfs_group="$(awk -F: '$3 == 1000 { print $1; exit }' "$ROOTFS/etc/group" 2>/dev/null || true)"
+[ -n "$rootfs_group" ] || fail "rootfs에 gid 1000 그룹이 없다: sudo chroot '$ROOTFS' /usr/sbin/groupadd -g 1000 enode"
+[ -n "$rootfs_user" ] || fail "rootfs에 uid 1000 사용자가 없다: sudo chroot '$ROOTFS' /usr/sbin/useradd -u 1000 -g 1000 -m -s /bin/bash enode"
+[ -n "$rootfs_home" ] || fail "rootfs uid 1000 사용자의 home이 비어 있다"
+SSH_CONFIG_DEST=""
+if [ -n "$SSH_CONFIG" ]; then
+  case "$rootfs_home" in
+    /*) ;;
+    *) fail "rootfs uid 1000의 home이 절대 경로가 아니다: $rootfs_home" ;;
+  esac
+  SSH_CONFIG_DEST="$rootfs_home/.ssh/config"
+  [ -f "$ROOTFS$SSH_CONFIG_DEST" ] || fail "rootfs에 SSH config 대상이 없다: sudo install -d -m 700 '$ROOTFS$rootfs_home/.ssh' && sudo install -m 600 /dev/null '$ROOTFS$SSH_CONFIG_DEST'"
+fi
 
 PROBE_ROOTFS="$ROOTFS" \
 PROBE_MERGED="$MERGED" \
 PROBE_MOUNT_AT="$MOUNT_AT" \
+PROBE_SSH_CONFIG="$SSH_CONFIG" \
+PROBE_SSH_CONFIG_DEST="$SSH_CONFIG_DEST" \
 PROBE_COMMAND="$RUN_COMMAND" \
 PROBE_USER="$rootfs_user" \
 PROBE_HOME="$rootfs_home" \
@@ -190,6 +222,16 @@ config["mounts"].append(
         "options": ["rbind", "rw"],
     }
 )
+ssh_config = os.environ["PROBE_SSH_CONFIG"]
+if ssh_config:
+    config["mounts"].append(
+        {
+            "destination": os.environ["PROBE_SSH_CONFIG_DEST"],
+            "type": "bind",
+            "source": ssh_config,
+            "options": ["rbind", "ro", "nosuid", "nodev", "noexec"],
+        }
+    )
 config["linux"]["uidMappings"] = [
     {"containerID": 0, "hostID": 1, "size": 1000},
     {"containerID": 1000, "hostID": 0, "size": 1},
@@ -208,6 +250,7 @@ PY
 printf '== 환경\n'
 printf 'uid=%s gid=%s user=%s\n' "$(id -u)" "$(id -g)" "$(id -un)"
 printf 'rootfs=%s\nlower=%s\nmount_at=%s\nscratch=%s\n' "$ROOTFS" "$LOWER" "$MOUNT_AT" "$SCRATCH"
+printf 'ssh_config=%s\n' "$([ -n "$SSH_CONFIG" ] && echo mounted-ro || echo absent)"
 printf 'lower_fs=%s scratch_fs=%s\n' "$(stat -f -c %T "$LOWER")" "$scratch_fs"
 printf 'subuid=%s\n' "$(grep -E "^$(id -un):" /etc/subuid 2>/dev/null | paste -sd, - || true)"
 printf 'subgid=%s\n' "$(grep -E "^$(id -un):" /etc/subgid 2>/dev/null | paste -sd, - || true)"
