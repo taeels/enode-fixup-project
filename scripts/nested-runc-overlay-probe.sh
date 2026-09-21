@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # userns overlay와 runc를 한 덩어리로 세워 uid 1000 쓰기와 실제 명령을 잰다.
 #
-#   scripts/nested-runc-overlay-probe.sh [--mount-at PATH] [--ssh-config PATH] ROOTFS LOWER SCRATCH [COMMAND]
+#   scripts/nested-runc-overlay-probe.sh [--mount-at PATH] [--ssh-config PATH] [--ssh-known-hosts PATH] ROOTFS LOWER SCRATCH [COMMAND]
 #
 # ROOTFS  Ubuntu rootfs. /bin/bash, uid/gid 1000 계정, --mount-at 디렉터리가 있어야 한다.
 # LOWER   읽기 전용 아래 층으로 쓸 준비된 워크스페이스.
@@ -15,14 +15,16 @@ set -Eeuo pipefail
 
 usage() {
   cat <<'EOF'
-usage: nested-runc-overlay-probe.sh [--mount-at PATH] [--ssh-config PATH] ROOTFS LOWER SCRATCH [COMMAND]
+usage: nested-runc-overlay-probe.sh [--mount-at PATH] [--ssh-config PATH] [--ssh-known-hosts PATH] ROOTFS LOWER SCRATCH [COMMAND]
 
 --mount-at PATH  runc 안에서 merged workspace를 보일 절대 경로 (기본 /work).
                  BitBake가 마지막으로 기록한 TOPDIR/TMPDIR의 상위 경로여야 한다.
                  ROOTFS 안에 이 디렉터리를 미리 만들어야 한다.
 --ssh-config PATH 호스트의 SSH config 파일. rootfs uid 1000 사용자의
-                  ~/.ssh/config에 읽기 전용으로 탑재한다. 키와 known_hosts는 탑재하지 않는다.
+                  ~/.ssh/config에 읽기 전용으로 탑재한다. 같은 디렉터리의 known_hosts도 함께 탑재한다.
                   ROOTFS 안에 uid/gid 1000 소유의 대상 빈 파일을 미리 만들어야 한다.
+--ssh-known-hosts PATH  --ssh-config와 다른 known_hosts 파일을 쓸 때 지정한다.
+                         private key와 SSH agent는 탑재하지 않는다.
 
 example:
   scripts/nested-runc-overlay-probe.sh \
@@ -38,6 +40,11 @@ example:
 # SSH host alias가 필요한 private repo:
   scripts/nested-runc-overlay-probe.sh --ssh-config "$HOME/.ssh/config" \
     "$HOME/rootfs" /srv/yocto "$HOME/ovl-probe"
+
+# known_hosts가 다른 곳에 있을 때:
+  scripts/nested-runc-overlay-probe.sh --ssh-config "$HOME/.ssh/config" \
+    --ssh-known-hosts /etc/ssh/ssh_known_hosts \
+    "$HOME/rootfs" /srv/yocto "$HOME/ovl-probe"
 EOF
 }
 
@@ -46,8 +53,19 @@ fail() {
   exit 1
 }
 
+require_ssh_target() {
+  local ssh_target="$1"
+  local ssh_target_dir
+
+  ssh_target_dir="$(dirname "$ssh_target")"
+  [ -f "$ssh_target" ] && [ -x "$ssh_target_dir" ] && [ -r "$ssh_target" ] && \
+    [ -O "$ssh_target_dir" ] && [ -G "$ssh_target_dir" ] && [ -O "$ssh_target" ] && [ -G "$ssh_target" ] || \
+    fail "rootfs SSH 대상은 uid/gid 1000 소유의 접근 가능한 빈 파일이어야 한다: sudo install -d -o 1000 -g 1000 -m 700 '$ssh_target_dir' && sudo install -o 1000 -g 1000 -m 600 /dev/null '$ssh_target_dir/config' '$ssh_target_dir/known_hosts'"
+}
+
 MOUNT_AT="/work"
 SSH_CONFIG=""
+SSH_KNOWN_HOSTS=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --mount-at)
@@ -58,6 +76,11 @@ while [ "$#" -gt 0 ]; do
     --ssh-config)
       [ "$#" -ge 2 ] || fail "--ssh-config 뒤에 경로가 필요하다"
       SSH_CONFIG="$2"
+      shift 2
+      ;;
+    --ssh-known-hosts)
+      [ "$#" -ge 2 ] || fail "--ssh-known-hosts 뒤에 경로가 필요하다"
+      SSH_KNOWN_HOSTS="$2"
       shift 2
       ;;
     -h|--help)
@@ -96,6 +119,12 @@ if [ -n "$SSH_CONFIG" ]; then
   SSH_CONFIG="$(realpath "$SSH_CONFIG")" || fail "SSH config 경로를 해석할 수 없다"
   [ -f "$SSH_CONFIG" ] || fail "SSH config가 일반 파일이 아니다: $SSH_CONFIG"
   [ -r "$SSH_CONFIG" ] || fail "SSH config를 읽을 수 없다: $SSH_CONFIG"
+  SSH_KNOWN_HOSTS="${SSH_KNOWN_HOSTS:-$(dirname "$SSH_CONFIG")/known_hosts}"
+fi
+if [ -n "$SSH_KNOWN_HOSTS" ]; then
+  SSH_KNOWN_HOSTS="$(realpath "$SSH_KNOWN_HOSTS")" || fail "SSH known_hosts 경로를 해석할 수 없다"
+  [ -f "$SSH_KNOWN_HOSTS" ] || fail "SSH known_hosts가 일반 파일이 아니다: $SSH_KNOWN_HOSTS"
+  [ -r "$SSH_KNOWN_HOSTS" ] || fail "SSH known_hosts를 읽을 수 없다: $SSH_KNOWN_HOSTS"
 fi
 
 case "$MOUNT_AT" in
@@ -156,17 +185,20 @@ rootfs_group="$(awk -F: '$3 == 1000 { print $1; exit }' "$ROOTFS/etc/group" 2>/d
 [ -n "$rootfs_user" ] || fail "rootfs에 uid 1000 사용자가 없다: sudo chroot '$ROOTFS' /usr/sbin/useradd -u 1000 -g 1000 -m -s /bin/bash enode"
 [ -n "$rootfs_home" ] || fail "rootfs uid 1000 사용자의 home이 비어 있다"
 SSH_CONFIG_DEST=""
-if [ -n "$SSH_CONFIG" ]; then
+SSH_KNOWN_HOSTS_DEST=""
+if [ -n "$SSH_CONFIG$SSH_KNOWN_HOSTS" ]; then
   case "$rootfs_home" in
     /*) ;;
     *) fail "rootfs uid 1000의 home이 절대 경로가 아니다: $rootfs_home" ;;
   esac
+fi
+if [ -n "$SSH_CONFIG" ]; then
   SSH_CONFIG_DEST="$rootfs_home/.ssh/config"
-  ssh_config_target="$ROOTFS$SSH_CONFIG_DEST"
-  ssh_config_dir="$(dirname "$ssh_config_target")"
-  [ -f "$ssh_config_target" ] && [ -x "$ssh_config_dir" ] && [ -r "$ssh_config_target" ] && \
-    [ -O "$ssh_config_dir" ] && [ -G "$ssh_config_dir" ] && [ -O "$ssh_config_target" ] && [ -G "$ssh_config_target" ] || \
-    fail "rootfs SSH config 대상은 uid/gid 1000 소유의 접근 가능한 빈 파일이어야 한다: sudo install -d -o 1000 -g 1000 -m 700 '$ssh_config_dir' && sudo install -o 1000 -g 1000 -m 600 /dev/null '$ssh_config_target'"
+  require_ssh_target "$ROOTFS$SSH_CONFIG_DEST"
+fi
+if [ -n "$SSH_KNOWN_HOSTS" ]; then
+  SSH_KNOWN_HOSTS_DEST="$rootfs_home/.ssh/known_hosts"
+  require_ssh_target "$ROOTFS$SSH_KNOWN_HOSTS_DEST"
 fi
 
 PROBE_ROOTFS="$ROOTFS" \
@@ -174,6 +206,8 @@ PROBE_MERGED="$MERGED" \
 PROBE_MOUNT_AT="$MOUNT_AT" \
 PROBE_SSH_CONFIG="$SSH_CONFIG" \
 PROBE_SSH_CONFIG_DEST="$SSH_CONFIG_DEST" \
+PROBE_SSH_KNOWN_HOSTS="$SSH_KNOWN_HOSTS" \
+PROBE_SSH_KNOWN_HOSTS_DEST="$SSH_KNOWN_HOSTS_DEST" \
 PROBE_COMMAND="$RUN_COMMAND" \
 PROBE_USER="$rootfs_user" \
 PROBE_HOME="$rootfs_home" \
@@ -236,6 +270,16 @@ if ssh_config:
             "options": ["rbind", "ro", "nosuid", "nodev", "noexec"],
         }
     )
+ssh_known_hosts = os.environ["PROBE_SSH_KNOWN_HOSTS"]
+if ssh_known_hosts:
+    config["mounts"].append(
+        {
+            "destination": os.environ["PROBE_SSH_KNOWN_HOSTS_DEST"],
+            "type": "bind",
+            "source": ssh_known_hosts,
+            "options": ["rbind", "ro", "nosuid", "nodev", "noexec"],
+        }
+    )
 config["linux"]["uidMappings"] = [
     {"containerID": 0, "hostID": 1, "size": 1000},
     {"containerID": 1000, "hostID": 0, "size": 1},
@@ -255,6 +299,7 @@ printf '== 환경\n'
 printf 'uid=%s gid=%s user=%s\n' "$(id -u)" "$(id -g)" "$(id -un)"
 printf 'rootfs=%s\nlower=%s\nmount_at=%s\nscratch=%s\n' "$ROOTFS" "$LOWER" "$MOUNT_AT" "$SCRATCH"
 printf 'ssh_config=%s\n' "$([ -n "$SSH_CONFIG" ] && echo mounted-ro || echo absent)"
+printf 'ssh_known_hosts=%s\n' "$([ -n "$SSH_KNOWN_HOSTS" ] && echo mounted-ro || echo absent)"
 printf 'lower_fs=%s scratch_fs=%s\n' "$(stat -f -c %T "$LOWER")" "$scratch_fs"
 printf 'subuid=%s\n' "$(grep -E "^$(id -un):" /etc/subuid 2>/dev/null | paste -sd, - || true)"
 printf 'subgid=%s\n' "$(grep -E "^$(id -un):" /etc/subgid 2>/dev/null | paste -sd, - || true)"
