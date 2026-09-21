@@ -95,6 +95,13 @@ type Local struct {
 	// 매칭 조건이 아니라 광고 조건이다 — "할 수 있는가" 는 노드가 판단한다.
 	MinFreeGB int `yaml:"min_free_gb,omitempty"`
 
+	// Environment는 공유 profile과 이 node의 로컬 store/scratch binding이다.
+	// profile 내용은 복제하지 않고 경로만 둔다 (ADR-073).
+	Environment *EnvironmentBinding `yaml:"environment,omitempty"`
+
+	// Credentials는 공유 profile에 넣을 수 없는 로컬 비밀의 출처다.
+	Credentials CredentialBinding `yaml:"credentials,omitempty"`
+
 	// Orchestration 은 이 노드가 계약을 짓는 자리 라는 선언이다 (ADR-022 §5).
 	//
 	// 사람이 적는 이유 — 기계가 알아낼 수 없다. 하네스가 있다는 사실만으로는
@@ -102,6 +109,16 @@ type Local struct {
 	// 노드 소유자의 결정이다. ADR-012 가 "포트에 무엇이 달렸는지는 기계가
 	// 모른다 — 그 기계에만 적는다" 로 board 를 다룬 것과 같은 자리다.
 	Orchestration bool `yaml:"orchestration,omitempty"`
+}
+
+type EnvironmentBinding struct {
+	Profile string `yaml:"profile"`
+	Store   string `yaml:"store"`
+	Scratch string `yaml:"scratch"`
+}
+
+type CredentialBinding struct {
+	SSHDir string `yaml:"ssh_dir,omitempty"`
 }
 
 type Board struct {

@@ -48,6 +48,8 @@ func main() {
 		err = cmdList()
 	case "setup":
 		err = cmdSetup(args)
+	case "env":
+		err = cmdEnvironment(args)
 	case "id":
 		err = cmdID(args)
 	case "start":
@@ -80,6 +82,8 @@ func usage() {
 	fmt.Print(`enodectl — manage the enode instances on one machine.
 
   enodectl setup <name>        create a node config and check it against the mediator
+  enodectl env check <name>    inspect the YAML-derived environment plan without changing it
+  enodectl env apply <name>    execute that plan and publish a prepared environment
   enodectl list                a config is a node. what exists and what runs
   enodectl id <name>           compute node_id ahead of time
   enodectl start <name> [args…]
@@ -223,6 +227,17 @@ func cmdStart(args []string) error {
 	}
 	if pid := pidOf(n); pid > 0 {
 		return fmt.Errorf("already running (pid=%d); enode's flock rejects the second one", pid)
+	}
+	// enode를 떼어내기 전에 같은 read-only preflight를 한 번 보인다. 직접
+	// enode를 실행해도 그쪽이 다시 검사하므로 우회는 없다.
+	if local, err := enode.LoadLocal(conf); err != nil {
+		return err
+	} else if local.Environment != nil {
+		check := exec.Command(bin, "env", "check", "--config", conf)
+		check.Stdout, check.Stderr = os.Stdout, os.Stderr
+		if err := check.Run(); err != nil {
+			return errors.New("execution environment is not ready; run enodectl env apply " + n)
+		}
 	}
 	// PATH 에 claude 가 있는지 본다 — 맥에서 가장 잘 밟는 자리다.
 	// launchd 로 띄우면 PATH 가 최소 집합이라 claude 를 못 찾고, 그러면

@@ -23,6 +23,7 @@ import (
 
 	"github.com/taeels/enode/internal/build"
 	"github.com/taeels/enode/internal/enode"
+	execenv "github.com/taeels/enode/internal/environment"
 )
 
 func main() { os.Exit(run()) }
@@ -55,6 +56,11 @@ func run() int {
 	// 제어판의 net/http 표면을 enodectl.exe 밖에 두는 것이 이 갈래의 요점이다.
 	if len(os.Args) > 1 && os.Args[1] == "panel" {
 		return runPanelCmd(os.Args[2:])
+	}
+	// 환경 준비는 설정을 읽지만 노드를 띄우지 않는다. enodectl env가 이 좁은
+	// helper로 위임해 enodectl의 링크 표면을 유지한다 (ADR-073).
+	if len(os.Args) > 1 && os.Args[1] == "env" {
+		return runEnvironmentCmd(os.Args[2:])
 	}
 	// --version 은 플래그 파싱보다 앞이다 (ADR-056) — 설정 파일이 없어도
 	// 답해야 한다. 자기 갱신이 받아온 것이 무엇인지를 이것으로 판정한다.
@@ -113,6 +119,39 @@ func run() int {
 	if err != nil {
 		log.Error("cannot read config", "path", confPath, "err", err)
 		return 1
+	}
+	// start는 환경을 고치지 않는다. profile이 설정된 node는 이미 준비된
+	// manifest와 지금 host fact가 모두 ready여야 한다 (ADR-073).
+	var stepRuntime enode.StepRuntime
+	var runtimeRecord *execenv.Record
+	if local.Environment != nil {
+		doc, binding, err := enode.LoadExecutionEnvironment(confPath, local)
+		if err != nil {
+			log.Error("cannot load execution environment", "err", err)
+			return 1
+		}
+		report := execenv.Check(context.Background(), doc, binding, nil)
+		if report.State != execenv.StateReady {
+			log.Error("execution environment is not ready; run enodectl env check and apply",
+				"state", report.State, "profile_sha256", report.ProfileSHA256)
+			return 1
+		}
+		manifest, err := execenv.CurrentManifest(binding.Store, doc.Profile.Name)
+		if err != nil {
+			log.Error("cannot read prepared environment manifest", "err", err)
+			return 1
+		}
+		record := execenv.RecordFor(doc, manifest)
+		runtimeRecord = &record
+		switch doc.Profile.Runtime.Driver {
+		case "native":
+			stepRuntime = enode.NativeRuntime{}
+		case "runc-overlay":
+			// fail closed until the mount namespace implementation consumes the
+			// prepared rootfs. Falling through to native would forge the Record.
+			log.Error("runc-overlay is prepared but not executable in this build")
+			return 1
+		}
 	}
 	if *mediator != "" {
 		local.Mediator = *mediator
@@ -228,7 +267,8 @@ func run() int {
 			}
 		}
 	}
-	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log}
+	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log,
+		Runtime: stepRuntime, RuntimeRecord: runtimeRecord}
 
 	// 고루틴이 셋이다 (ADR-016 의 둘에 ADR-068 이 하나를 더한다)
 	//   claim    롱폴 — 일을 기다린다. 서버가 대기 시간을 정한다

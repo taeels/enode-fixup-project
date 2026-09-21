@@ -10,12 +10,12 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/taeels/enode/internal/contract"
+	execenv "github.com/taeels/enode/internal/environment"
 )
 
 // Step 은 claim 이 돌려주는 할 일 하나다.
@@ -239,6 +239,8 @@ type Result struct {
 	// Error 는 완주하지 못한 경우에만 채운다.
 	// 종료코드가 0 이 아닌 것은 완주다 — 그게 성공인지는 success_when 이 판정한다.
 	Error string `json:"error,omitempty"`
+	// Environment는 이 단계를 실제로 실행한 준비 산출물과 runtime policy다.
+	Environment *execenv.Record `json:"environment,omitempty"`
 }
 
 func (c *Client) Report(ctx context.Context, runID string, seq int, res Result) error {
@@ -299,6 +301,10 @@ type Worker struct {
 	// 신원을 넣을 때 이 필드만 갈아끼운다.
 	Creds Credentials
 
+	// Runtime은 agent와 command가 함께 지나는 실행 경계다. nil이면 native다.
+	Runtime       StepRuntime
+	RuntimeRecord *execenv.Record
+
 	// drainingNoted 는 「안 집는다」를 이미 찍었는가다 — 광고 주기마다 다시 안 찍는다.
 	drainingNoted bool
 
@@ -350,6 +356,9 @@ func (w *Worker) transcript(step *Step) (io.Writer, func()) {
 // 임대가 죽을 때까지 던진다. 임대가 죽으면 회수가 Run 을 정리하므로
 // 유실된 보고도 함께 정리된다 — 여기서도 시간이 감시자다 (ADR-008).
 func (w *Worker) report(ctx context.Context, step *Step, res Result) {
+	if res.Environment == nil {
+		res.Environment = w.RuntimeRecord
+	}
 	for {
 		err := w.Client.Report(ctx, step.RunID, step.Seq, res)
 		if err == nil || ctx.Err() != nil {
@@ -613,13 +622,28 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 
 	// 단계는 두 종류다 (ADR-019 결정 3) — 노드는 합쳤지만 단계는 안 합쳤다.
 	// agent 단계는 produced 로, 명령 단계는 exit_code 로 판정한다.
-	if step.Kind == "agent" {
-		w.runAgentStep(runCtx, ctx, step, dir, in, out, stamp, prep, missingIn, log)
-		return
-	}
-	if len(step.Run) == 0 {
+	if step.Kind != "agent" && len(step.Run) == 0 {
 		w.report(ctx, step, Result{
 			Node: w.Ident.NodeID, Error: "run step has an empty argv"})
+		return
+	}
+	runtimeImpl := w.Runtime
+	if runtimeImpl == nil {
+		runtimeImpl = NativeRuntime{}
+	}
+	session, err := runtimeImpl.Open(runCtx, RuntimeSpec{
+		RunID: step.RunID, StepID: step.StepID, Dir: dir, In: in, Out: out,
+		Record: w.RuntimeRecord,
+	})
+	if err != nil {
+		w.report(ctx, step, Result{Node: w.Ident.NodeID, Workspace: prep,
+			Error: "runtime open: " + err.Error()})
+		return
+	}
+	session = manageSession(session)
+	defer session.Close() //nolint:errcheck // 명시 Close가 오류를 결과로 옮긴다
+	if step.Kind == "agent" {
+		w.runAgentStep(runCtx, ctx, step, dir, in, out, stamp, prep, missingIn, session, log)
 		return
 	}
 
@@ -635,8 +659,6 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		log.Warn("argv contains unexpanded variables; no shell is used", "names", left)
 	}
 
-	cmd := child(exec.CommandContext(runCtx, argv[0], argv[1:]...))
-	cmd.Dir = dir
 	// 명령 단계도 화이트리스트다 (R1)
 	//
 	// 처음엔 agent 쪽만 고쳤는데, 계약은 노드 주인이 아닌 사람이 낼 수 있고
@@ -647,7 +669,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// 나머지는 계약이 이름으로 선언한다 (steps[].env) — 값이 아니라 이름이라
 	// 자격증명이 Run Record 에 봉인되는 일이 없다.
 	// $OUT 에 이름별 파일로 배출한다 (ADR-013).
-	cmd.Env = harnessEnv(append(commandEnv, step.Env...),
+	processEnv := harnessEnv(append(commandEnv, step.Env...),
 		map[string]string{"OUT": out, "IN": in}, nil)
 	var buf bytes.Buffer
 	// 명령 단계 stdout/stderr 도 링과 업로더로 tee 한다 (unit-of-work §6).
@@ -661,15 +683,17 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	if cmdTee != nil {
 		sink = io.MultiWriter(&buf, cmdTee)
 	}
-	cmd.Stdout, cmd.Stderr = sink, sink
-
 	start := time.Now()
-	runErr := cmd.Run()
-	code := cmd.ProcessState.ExitCode()
+	code, runErr := session.Run(runCtx, ProcessSpec{
+		Argv: argv, Dir: dir, Env: processEnv, Stdout: sink, Stderr: sink,
+	})
 
 	res := Result{Node: w.Ident.NodeID, Workspace: prep,
 		Produced: w.uploadProduced(ctx, step, out, stamp, log),
-		Changed:  CheckChanged(stamp, step.CheckChanged)}
+		Changed:  CheckChanged(stamp, step.CheckChanged), Environment: session.Environment()}
+	if closeErr := session.Close(); closeErr != nil {
+		res.Error = "runtime cleanup: " + closeErr.Error()
+	}
 
 	// 꼬리를 비우는 것이 UploadLog(선별본)보다 먼저다 - 뒤집으면 봉인 직전의
 	// 마지막 줄이 중앙 화면에 안 뜬다.
@@ -706,10 +730,17 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 // ①사출은 위에서 이미 했다 ($IN + 프롬프트 조립).
 // missingIn 은 계약이 요청했는데 이 Run 에 없던 입력 이름들이다 (ADR-058).
 // 부재를 값으로 나른다 — 프롬프트가 그것을 적어준다.
-func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, prep Prep, missingIn []string, log *slog.Logger) {
+func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, stamp Stamp, prep Prep, missingIn []string, session StepSession, log *slog.Logger) {
+	report := func(res Result) {
+		res.Environment = session.Environment()
+		if closeErr := session.Close(); closeErr != nil {
+			res.Error = "runtime cleanup: " + closeErr.Error()
+		}
+		w.report(ctx, step, res)
+	}
 	p, err := parseAgentParams(step.Agent)
 	if err != nil {
-		w.report(ctx, step, Result{
+		report(Result{
 			Node: w.Ident.NodeID, Error: err.Error()})
 		return
 	}
@@ -723,7 +754,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	if !ok {
 		// 조용히 claude 로 떨어뜨리지 않는다 — 계약이 요구한 하네스가
 		// 아닌 것으로 돌면 Record 가 거짓을 남긴다.
-		w.report(ctx, step, Result{
+		report(Result{
 			Node: w.Ident.NodeID, Error: "unknown harness: " + name})
 		return
 	}
@@ -786,7 +817,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	if err != nil {
 		// 자격증명을 못 만들었으면 안 돌린다 — 조용히 없는 채로 돌리면
 		// 하네스가 엉뚱한 신원으로 붙거나 알 수 없는 이유로 실패한다.
-		w.report(ctx, step, Result{
+		report(Result{
 			Node: w.Ident.NodeID, Error: "cannot prepare credentials: " + err.Error()})
 		return
 	}
@@ -826,6 +857,7 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		Inject:     inject,
 		Emit:       func(e Event) { log.Debug("harness event", "kind", e.Kind) },
 		Transcript: tee, // 하네스 stdout 을 링과 업로더로 tee
+		Session:    session,
 	})
 	// 꼬리를 비우는 것이 UploadLog(선별본)보다 먼저다 - 뒤집으면 봉인 직전의
 	// 마지막 문장이 중앙 화면에 안 뜬다.
@@ -838,14 +870,14 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		// 크래시는 완주가 아니다 — 반쯤 쓴 파일을 믿을 수 없다
 		res.Error = "harness: " + string(h.Reason) + " " + h.Message
 		log.Warn("harness did not complete", "reason", h.Reason, "msg", h.Message)
-		w.report(ctx, step, res)
+		report(res)
 		return
 	}
 	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
 	res.Produced = w.uploadProduced(ctx, step, out, stamp, log)
 	log.Info("agent step finished", "reason", h.Reason, "turns", h.Turns,
 		"cost_usd", h.CostUSD, "produced", res.Produced)
-	w.report(ctx, step, res)
+	report(res)
 }
 
 // uploadProduced 는 ④수확이다 — $OUT 을 걷어 올린다.

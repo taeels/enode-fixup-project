@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/taeels/enode/internal/contract"
-	"io"
-	"strings"
+	execenv "github.com/taeels/enode/internal/environment"
 )
 
 // LeaseRow 는 enode 에게 내려보내는 허가 아티팩트다 (ADR-010).
@@ -731,6 +732,8 @@ type StepResult struct {
 	// Error 는 완주하지 못한 경우다 — 프로세스를 못 띄웠거나 임대가 끝나
 	// 중단됐거나. 비어 있으면 완주한 것이고, 종료코드가 무엇이든 DONE 이다.
 	Error string `json:"error,omitempty"`
+	// Environment는 실제 실행한 profile/prepared/runtime의 식별자다.
+	Environment *execenv.Record `json:"environment,omitempty"`
 }
 
 // ReportStep 은 단계를 끝낸다.

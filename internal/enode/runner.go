@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -78,6 +77,10 @@ type Job struct {
 	// HarnessResult 를 안 타고 나가서 단계 오류의 꼴이 경로마다 달라진다.
 	WorkspaceMCPErr error
 
+	// Session은 agent와 command가 공유하는 단계 실행 경계다. nil이면 기존
+	// native 실행을 써서 단독 runner 호출의 호환성을 지킨다.
+	Session StepSession
+
 	// Log 는 Components.Notes 가 나갈 자리다 (U4).
 	//
 	// logs/ 에는 안 싣는다 — 그 파일은 허용목록이고 첫 줄이 system/init 이어야
@@ -86,7 +89,7 @@ type Job struct {
 	Log *slog.Logger
 }
 
-// runHarness 는 ②기동이다. 유일한 exec 지점.
+// runHarness 는 ②기동이다. 프로세스 실행은 전달받은 StepSession 경계를 지난다.
 //
 // 치명이 전부 exec 앞에 모인다 (components.md 3절)
 //
@@ -177,12 +180,6 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	}
 	env := harnessEnv(h.Env(), fixed, j.Inject)
 
-	cmd := child(exec.CommandContext(ctx, bin, args...))
-	cmd.Dir = j.IO.Dir
-	cmd.Stdin = strings.NewReader(j.Prompt)
-	// 화이트리스트로 조립된 것만 넘어간다 — os.Environ() 을 얹지 않는다.
-	cmd.Env = env
-
 	var stdout, stderr bytes.Buffer
 	// ⑥ 하네스 단계의 tee 를 되살린다 (FR-2 · 이 회차의 질문 2 = A)
 	//
@@ -211,9 +208,15 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		sinks = append(sinks, j.Transcript)
 	}
 	sinks = append(sinks, emitter)
-	cmd.Stdout = io.MultiWriter(sinks...)
-	cmd.Stderr = &stderr
-	err = cmd.Run()
+	session := j.Session
+	if session == nil {
+		session = &nativeSession{}
+	}
+	code, runErr := session.Run(ctx, ProcessSpec{
+		Argv: append([]string{bin}, args...), Dir: j.IO.Dir, Env: env, Stdin: strings.NewReader(j.Prompt),
+		Stdout: io.MultiWriter(sinks...), Stderr: &stderr,
+	})
+	err = runErr
 
 	// 배출기를 Decode 앞에서 닫는다.
 	//
@@ -224,10 +227,6 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		j.Log.Warn("harness events dropped", "lines", dropped)
 	}
 
-	code := -1
-	if cmd.ProcessState != nil {
-		code = cmd.ProcessState.ExitCode()
-	}
 	// ⑦ 판정한다. Decode 가 내는 사건 중 봉투 하나만 통과시킨다.
 	//
 	// Decode 도 줄마다 사건을 낸다. 그대로 j.Emit 에 이으면 한 단계의 줄
