@@ -22,7 +22,7 @@ usage: nested-runc-overlay-probe.sh [--mount-at PATH] [--ssh-config PATH] ROOTFS
                  ROOTFS 안에 이 디렉터리를 미리 만들어야 한다.
 --ssh-config PATH 호스트의 SSH config 파일. rootfs uid 1000 사용자의
                   ~/.ssh/config에 읽기 전용으로 탑재한다. 키와 known_hosts는 탑재하지 않는다.
-                  ROOTFS 안에 대상 빈 파일을 미리 만들어야 한다.
+                  ROOTFS 안에 uid/gid 1000 소유의 대상 빈 파일을 미리 만들어야 한다.
 
 example:
   scripts/nested-runc-overlay-probe.sh \
@@ -162,7 +162,11 @@ if [ -n "$SSH_CONFIG" ]; then
     *) fail "rootfs uid 1000의 home이 절대 경로가 아니다: $rootfs_home" ;;
   esac
   SSH_CONFIG_DEST="$rootfs_home/.ssh/config"
-  [ -f "$ROOTFS$SSH_CONFIG_DEST" ] || fail "rootfs에 SSH config 대상이 없다: sudo install -d -m 700 '$ROOTFS$rootfs_home/.ssh' && sudo install -m 600 /dev/null '$ROOTFS$SSH_CONFIG_DEST'"
+  ssh_config_target="$ROOTFS$SSH_CONFIG_DEST"
+  ssh_config_dir="$(dirname "$ssh_config_target")"
+  [ -f "$ssh_config_target" ] && [ -x "$ssh_config_dir" ] && [ -r "$ssh_config_target" ] && \
+    [ -O "$ssh_config_dir" ] && [ -G "$ssh_config_dir" ] && [ -O "$ssh_config_target" ] && [ -G "$ssh_config_target" ] || \
+    fail "rootfs SSH config 대상은 uid/gid 1000 소유의 접근 가능한 빈 파일이어야 한다: sudo install -d -o 1000 -g 1000 -m 700 '$ssh_config_dir' && sudo install -o 1000 -g 1000 -m 600 /dev/null '$ssh_config_target'"
 fi
 
 PROBE_ROOTFS="$ROOTFS" \
