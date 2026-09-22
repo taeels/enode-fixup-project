@@ -79,6 +79,14 @@ func TestApplyExecutesThePlanAndPublishesManifestLast(t *testing.T) {
 	if err != nil || got.PreparedEnvironmentID != manifest.PreparedEnvironmentID {
 		t.Fatalf("profile index does not select the manifest: %+v %v", got, err)
 	}
+	exported, err := CurrentManifest(binding.Store, doc.Profile.Name)
+	if err != nil || exported.PreparedEnvironmentID != manifest.PreparedEnvironmentID {
+		t.Fatalf("exported manifest lookup: %+v %v", exported, err)
+	}
+	record := RecordFor(doc, manifest)
+	if record.ProfileSHA256 != doc.SHA256 || record.PreparedEnvironment != manifest.PreparedEnvironmentID || record.Runtime != "runc-overlay" {
+		t.Fatalf("unexpected environment record: %+v", record)
+	}
 	joined := strings.Join(runner.calls, "\n")
 	for _, forbidden := range []string{"add-apt-repository", "software-properties-common", "/etc/subuid", "/etc/subgid"} {
 		if strings.Contains(joined, forbidden) {
@@ -106,6 +114,23 @@ func TestApplyDoesNotPublishAFailedBuild(t *testing.T) {
 		if !strings.HasPrefix(entry.Name(), ".build-") {
 			t.Fatalf("failed build escaped the diagnostic temporary namespace: %s", entry.Name())
 		}
+	}
+}
+
+func TestApplyDoesNotPublishARootFSThatFailsTheRuntimeSmoke(t *testing.T) {
+	doc, _ := Parse([]byte(validProfile))
+	binding := testBinding(t)
+	verifier := &fakeRuntimeVerifier{err: errors.New("runc smoke failed")}
+	_, err := (Preparer{Inspector: readyInspector(), Runner: &applyRunner{}, Verifier: verifier}).
+		Apply(context.Background(), doc, binding)
+	if err == nil || !strings.Contains(err.Error(), "runtime smoke") {
+		t.Fatalf("apply did not report runtime smoke failure: %v", err)
+	}
+	if verifier.calls != 1 {
+		t.Fatalf("runtime smoke calls=%d, want 1", verifier.calls)
+	}
+	if _, statErr := os.Stat(profileIndexPath(binding.Store, doc.Profile.Name)); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("runtime-incompatible rootfs was published: %v", statErr)
 	}
 }
 
@@ -137,6 +162,80 @@ func TestTwoNodeBindingsShareOnePreparedRootFS(t *testing.T) {
 	r := Check(context.Background(), doc, other, readyInspector())
 	if r.State != StateReady || len(r.Operations) != 0 {
 		t.Fatalf("second node did not reuse %s: %s %+v", manifest.PreparedEnvironmentID, r.State, r.Operations)
+	}
+}
+
+func TestApplyInstallsAMissingHostPackageWithoutRebuildingAReadyRootFS(t *testing.T) {
+	doc, _ := Parse([]byte(validProfile))
+	binding := testBinding(t)
+	manifest, err := (Preparer{Inspector: readyInspector(), Runner: &applyRunner{}}).
+		Apply(context.Background(), doc, binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inspector := readyInspector()
+	inspector.installed["uidmap"] = false
+	runner := &applyRunner{after: func(call string) {
+		if strings.Contains(call, "apt-get install") {
+			inspector.installed["uidmap"] = true
+		}
+	}}
+	got, err := (Preparer{Inspector: inspector, Runner: runner}).Apply(context.Background(), doc, binding)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PreparedEnvironmentID != manifest.PreparedEnvironmentID {
+		t.Fatalf("host repair rebuilt immutable rootfs: got %s want %s", got.PreparedEnvironmentID, manifest.PreparedEnvironmentID)
+	}
+	for _, call := range runner.calls {
+		if strings.HasPrefix(call, "debootstrap ") {
+			t.Fatalf("host-only repair rebuilt rootfs: %s", call)
+		}
+	}
+}
+
+func TestApplyRechecksExternalUserNSPolicyAfterInstallingHelpersAndBeforeRootFS(t *testing.T) {
+	doc, _ := Parse([]byte(validProfile))
+	binding := testBinding(t)
+	inspector := readyInspector()
+	inspector.installed["uidmap"] = false
+	inspector.paths["newuidmap"] = false
+	inspector.userNSErr = errors.New("nested uid_map denied")
+	runner := &applyRunner{after: func(call string) {
+		if strings.Contains(call, "apt-get install") {
+			inspector.installed["uidmap"] = true
+			inspector.paths["newuidmap"] = true
+		}
+	}}
+	_, err := (Preparer{Inspector: inspector, Runner: runner}).Apply(context.Background(), doc, binding)
+	if err == nil || !strings.Contains(err.Error(), "external-blocked after host apply") {
+		t.Fatalf("post-install userns block was not reported: %v", err)
+	}
+	for _, call := range runner.calls {
+		if strings.HasPrefix(call, "debootstrap ") {
+			t.Fatalf("rootfs build started before the host smoke was ready: %s", call)
+		}
+	}
+	if _, statErr := os.Stat(binding.Store); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("blocked host created an environment store: %v", statErr)
+	}
+}
+
+func TestApplyDoesNotBuildRootFSWhenHostInstallLeavesADeclaredPackageMissing(t *testing.T) {
+	doc, _ := Parse([]byte(validProfile))
+	binding := testBinding(t)
+	inspector := readyInspector()
+	inspector.installed["uidmap"] = false
+	inspector.paths["newuidmap"] = false
+	runner := &applyRunner{}
+	_, err := (Preparer{Inspector: inspector, Runner: runner}).Apply(context.Background(), doc, binding)
+	if err == nil || !strings.Contains(err.Error(), "host.package.uidmap is installable after host apply") {
+		t.Fatalf("unresolved host package was not reported: %v", err)
+	}
+	for _, call := range runner.calls {
+		if strings.HasPrefix(call, "debootstrap ") {
+			t.Fatalf("rootfs build started with an unresolved host package: %s", call)
+		}
 	}
 }
 
@@ -203,5 +302,67 @@ func TestResolvedPackagesIncludesTheInstalledDependencyClosure(t *testing.T) {
 	joined := strings.Join(runner.calls, "\n")
 	if strings.Contains(joined, " -- ") {
 		t.Fatalf("dpkg-query was narrowed to declared package names: %s", joined)
+	}
+}
+
+func TestHostOperationsAndExecRunnerUseArgvBoundaries(t *testing.T) {
+	runner := &applyRunner{}
+	for _, op := range []Operation{
+		{Kind: "host.apt.update"},
+		{Kind: "host.apt.ensure-packages"},
+		{Kind: "host.apt.ensure-packages", Packages: []string{"runc", "uidmap"}},
+	} {
+		if err := executeHostOperation(context.Background(), runner, op); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := executeHostOperation(context.Background(), runner, Operation{Kind: "host.unknown"}); err == nil {
+		t.Fatal("accepted an unknown host operation")
+	}
+	joined := strings.Join(runner.calls, "\n")
+	if !strings.Contains(joined, "apt-get install -y -- runc uidmap") {
+		t.Fatalf("packages were not passed after argv separator:\n%s", joined)
+	}
+	execRunner := ExecRunner{}
+	if out, err := execRunner.Run(context.Background(), "sh", "-c", "printf ok"); err != nil || string(out) != "ok" {
+		t.Fatalf("exec output=%q err=%v", out, err)
+	}
+	if _, err := execRunner.Run(context.Background(), "sh", "-c", "printf bad >&2; exit 7"); err == nil || !strings.Contains(err.Error(), "bad") {
+		t.Fatalf("exec failure lost output: %v", err)
+	}
+}
+
+func TestApplyHelpersCoverSafeCleanupAndDistributionDefaults(t *testing.T) {
+	store := t.TempDir()
+	build := filepath.Join(store, ".build-test")
+	if err := os.MkdirAll(build, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := discardBuild(context.Background(), &applyRunner{}, store, build); err != nil {
+		t.Fatal(err)
+	}
+	if err := discardBuild(context.Background(), &applyRunner{}, store, store); err == nil {
+		t.Fatal("cleanup accepted the store root")
+	}
+	if _, err := beneath(store, "relative"); err == nil {
+		t.Fatal("accepted a relative rootfs target")
+	}
+	if _, err := beneath(store, "/"); err == nil {
+		t.Fatal("accepted the rootfs root as a target")
+	}
+	if got, err := beneath(store, "/run/enode"); err != nil || got != filepath.Join(store, "run/enode") {
+		t.Fatalf("beneath=%q err=%v", got, err)
+	}
+	cases := map[string]string{
+		"noble": "http://archive.ubuntu.com/ubuntu", "jammy": "http://archive.ubuntu.com/ubuntu",
+		"bookworm": "http://deb.debian.org/debian", "unknown": "distribution-default",
+	}
+	for release, want := range cases {
+		if got := effectiveMirror(RootFSProfile{Release: release}); got != want {
+			t.Fatalf("release %s mirror=%s want=%s", release, got, want)
+		}
+	}
+	if got := effectiveMirror(RootFSProfile{Release: "noble", Mirror: "https://mirror.example"}); got != "https://mirror.example" {
+		t.Fatalf("explicit mirror was lost: %s", got)
 	}
 }

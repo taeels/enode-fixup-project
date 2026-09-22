@@ -1,7 +1,9 @@
 package environment
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -28,6 +30,36 @@ func TestManifestIdentityExcludesTimeAndSortsPackages(t *testing.T) {
 	}
 	if one != two {
 		t.Fatalf("volatile time or package order changed identity: %s %s", one, two)
+	}
+}
+
+func TestManifestRejectsMissingInvalidAndTamperedFiles(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := ReadManifest(filepath.Join(dir, "missing.json")); err == nil {
+		t.Fatal("read a missing manifest")
+	}
+	invalid := filepath.Join(dir, "invalid.json")
+	if err := os.WriteFile(invalid, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadManifest(invalid); err == nil {
+		t.Fatal("read invalid JSON")
+	}
+	empty := filepath.Join(dir, "empty.json")
+	if err := os.WriteFile(empty, []byte(`{"schema":"wrong"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadManifest(empty); err == nil {
+		t.Fatal("read an unsupported manifest")
+	}
+	m := Manifest{Schema: ManifestSchema, Profile: ManifestProfile{Name: "p", SHA256: "x"}}
+	id, err := m.Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.PreparedEnvironmentID = id + "tampered"
+	if err := WriteManifest(filepath.Join(dir, "tampered.json"), m); err == nil || !strings.Contains(err.Error(), "identity") {
+		t.Fatalf("wrote a tampered identity: %v", err)
 	}
 }
 

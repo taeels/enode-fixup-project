@@ -12,6 +12,10 @@ import (
 )
 
 func runEnvironmentCmd(args []string) int {
+	return runEnvironmentCmdWith(args, nil, enode.ExecutionRuntimeVerifier{})
+}
+
+func runEnvironmentCmdWith(args []string, inspector execenv.Inspector, verifier execenv.RuntimeVerifier) int {
 	if len(args) == 0 || (args[0] != "check" && args[0] != "apply") {
 		fmt.Fprintln(os.Stderr, "usage: enode env check|apply --config PATH [--json]")
 		return 2
@@ -40,14 +44,14 @@ func runEnvironmentCmd(args []string) int {
 		return 1
 	}
 	if action == "check" {
-		report := execenv.Check(context.Background(), doc, binding, nil)
+		report := execenv.CheckWithRuntime(context.Background(), doc, binding, inspector, verifier)
 		printEnvironmentValue(report, *jsonOutput)
 		if report.State != execenv.StateReady {
 			return 2
 		}
 		return 0
 	}
-	manifest, err := (execenv.Preparer{}).Apply(context.Background(), doc, binding)
+	manifest, err := (execenv.Preparer{Inspector: inspector, Verifier: verifier}).Apply(context.Background(), doc, binding)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1

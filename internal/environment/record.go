@@ -1,5 +1,7 @@
 package environment
 
+import "path/filepath"
+
 type Record struct {
 	ProfileSHA256       string `json:"profile_sha256,omitempty"`
 	PreparedEnvironment string `json:"prepared_environment_id,omitempty"`
@@ -25,4 +27,10 @@ func RecordFor(doc Document, manifest Manifest) Record {
 
 func CurrentManifest(store, name string) (Manifest, error) {
 	return currentManifest(store, name)
+}
+
+// PreparedRootFS는 immutable prepared environment의 rootfs 위치다. runtime은
+// store 내부 배치를 재구현하지 않고 이 함수로만 경계를 건넌다.
+func PreparedRootFS(store, preparedEnvironmentID string) string {
+	return filepath.Join(environmentDir(store, preparedEnvironmentID), "rootfs")
 }

@@ -42,6 +42,11 @@ func main() { os.Exit(run()) }
 // 같고, 달라지는 것은 푸는 주체다. entrypoint_unix_test.go 가 그 계약을
 // 프로세스 경계에서 잡고 있다.
 func run() int {
+	// runtime-helper는 runc-overlay가 unshare 안에서 다시 실행하는 private
+	// entrypoint다. 일반 flag/config 경로를 지나면 namespace protocol이 깨진다.
+	if len(os.Args) > 1 && os.Args[1] == "runtime-helper" {
+		return enode.RunRuncOverlayHelper(os.Stdin, os.Stdout, os.Stderr)
+	}
 	// 하위 명령이 하나 있다 — `enode hook stop` (R5③ · R6).
 	// 훅을 별도 스크립트로 두지 않고 enode 자신이 되는 이유는 hook.go 에 적었다.
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
@@ -130,7 +135,8 @@ func run() int {
 			log.Error("cannot load execution environment", "err", err)
 			return 1
 		}
-		report := execenv.Check(context.Background(), doc, binding, nil)
+		verifier := enode.ExecutionRuntimeVerifier{}
+		report := execenv.CheckWithRuntime(context.Background(), doc, binding, nil, verifier)
 		if report.State != execenv.StateReady {
 			log.Error("execution environment is not ready; run enodectl env check and apply",
 				"state", report.State, "profile_sha256", report.ProfileSHA256)
@@ -147,10 +153,11 @@ func run() int {
 		case "native":
 			stepRuntime = enode.NativeRuntime{}
 		case "runc-overlay":
-			// fail closed until the mount namespace implementation consumes the
-			// prepared rootfs. Falling through to native would forge the Record.
-			log.Error("runc-overlay is prepared but not executable in this build")
-			return 1
+			stepRuntime, err = enode.NewRuncOverlayRuntime(doc, binding, manifest)
+			if err != nil {
+				log.Error("cannot construct runc-overlay runtime", "err", err)
+				return 1
+			}
 		}
 	}
 	if *mediator != "" {

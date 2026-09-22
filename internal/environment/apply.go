@@ -33,6 +33,7 @@ type Preparer struct {
 	Inspector Inspector
 	Runner    CommandRunner
 	Now       func() time.Time
+	Verifier  RuntimeVerifier
 }
 
 func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Manifest, error) {
@@ -48,7 +49,7 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 	if now == nil {
 		now = time.Now
 	}
-	report := Check(ctx, doc, binding, inspector)
+	report := CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
 	switch report.State {
 	case StateInvalid, StateUnsupported, StateExternalBlocked, StateAdminRequired:
 		return Manifest{}, fmt.Errorf("environment is %s; run env check and resolve its blocking facts", report.State)
@@ -56,6 +57,7 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 		return currentManifest(binding.Store, doc.Profile.Name)
 	}
 
+	didHostApply := false
 	for _, op := range report.Operations {
 		if err := ensureProfileUnchanged(doc); err != nil {
 			return Manifest{}, err
@@ -67,7 +69,43 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 			if err := executeHostOperation(ctx, runner, op); err != nil {
 				return Manifest{}, err
 			}
+			didHostApply = true
 		}
+	}
+	if didHostApply {
+		refreshed := CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
+		switch refreshed.State {
+		case StateInvalid, StateUnsupported, StateExternalBlocked, StateAdminRequired:
+			return Manifest{}, fmt.Errorf("environment is %s after host apply; run env check", refreshed.State)
+		case StateReady:
+			return currentManifest(binding.Store, doc.Profile.Name)
+		}
+		for _, fact := range refreshed.Facts {
+			// 새 rootfs가 아직 없거나 profile이 바뀐 것은 바로 아래 build가
+			// 닫는다. 그 밖의 installable fact가 남았다는 것은 host install이
+			// 성공을 보고했지만 선언한 표면을 만들지 못했다는 뜻이다.
+			if fact.Name != "prepared_environment" && fact.State != StateReady {
+				return Manifest{}, fmt.Errorf("environment fact %s is %s after host apply; run env check",
+					fact.Name, fact.State)
+			}
+		}
+	}
+	needsRootFS := false
+	for _, op := range report.Operations {
+		if strings.HasPrefix(op.Kind, "rootfs.") {
+			needsRootFS = true
+			break
+		}
+	}
+	if !needsRootFS {
+		// prepared rootfs는 ready이고 host package만 빠졌던 경우다. host를
+		// 고친 뒤 빈 build directory에서 rootfs 절차를 흉내 내지 않고 같은
+		// prepared identity를 실제 runtime smoke로 다시 확인한다.
+		refreshed := CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
+		if refreshed.State != StateReady {
+			return Manifest{}, fmt.Errorf("environment is %s after host apply; run env check", refreshed.State)
+		}
+		return currentManifest(binding.Store, doc.Profile.Name)
 	}
 
 	if err := os.MkdirAll(binding.Store, 0o755); err != nil {
@@ -126,6 +164,11 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 	}
 	if _, err := runPrivileged(ctx, runner, "chmod", "-R", "a-w", rootfs); err != nil {
 		return Manifest{}, fmt.Errorf("seal rootfs: %w; incomplete build kept at %s", err, buildDir)
+	}
+	if p.Verifier != nil {
+		if err := p.Verifier.Verify(ctx, doc, binding, rootfs, manifest); err != nil {
+			return Manifest{}, fmt.Errorf("runtime smoke from /runtime/driver: %w; complete build kept at %s", err, buildDir)
+		}
 	}
 
 	destination := environmentDir(binding.Store, id)
@@ -210,6 +253,13 @@ func executeRootFSOperation(ctx context.Context, runner CommandRunner, rootfs st
 		}
 		if _, err := runPrivileged(ctx, runner, "install", "-d", "-o", fmt.Sprint(op.User.UID),
 			"-g", fmt.Sprint(op.User.GID), "-m", "0755", target); err != nil {
+			return err
+		}
+		runtimeDir, err := beneath(rootfs, "/run/enode")
+		if err != nil {
+			return err
+		}
+		if _, err := runPrivileged(ctx, runner, "install", "-d", "-m", "0755", runtimeDir); err != nil {
 			return err
 		}
 		_, err = runPrivileged(ctx, runner, "install", "-d", "-o", fmt.Sprint(op.User.UID),

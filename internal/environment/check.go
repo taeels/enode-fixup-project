@@ -76,14 +76,21 @@ type Inspector interface {
 	SmokeUserNS(ctx context.Context) error
 }
 
+// RuntimeVerifier는 준비된 rootfs와 profile binding을 실제 product runtime으로
+// 한 번 여닫는다. package environment가 StepRuntime 구현을 알지 않도록 이 좁은
+// seam만 두며, check와 apply가 같은 smoke를 사용한다.
+type RuntimeVerifier interface {
+	Verify(context.Context, Document, Binding, string, Manifest) error
+}
+
 type OSInspector struct{}
 
 func (OSInspector) GOOS() string { return runtime.GOOS }
 
 // RuntimeDriverAvailable은 이 product build가 실제 StepRuntime adapter를
 // 연결했는지를 답한다. runc binary가 설치됐다는 사실과 product wiring을 섞지
-// 않는다. adapter가 구현되기 전에는 env check/apply/start가 모두 닫혀야 한다.
-func (OSInspector) RuntimeDriverAvailable(name string) bool { return name == "native" }
+// 않는다.
+func (OSInspector) RuntimeDriverAvailable(name string) bool { return runtimeDriverAvailable(name) }
 
 func (OSInspector) CurrentUser() (string, error) {
 	u, err := user.Current()
@@ -133,10 +140,24 @@ func (OSInspector) SubordinateRange(path, username string) (int, error) {
 }
 
 func (OSInspector) SmokeUserNS(ctx context.Context) error {
-	return exec.CommandContext(ctx, "unshare", "--user", "--map-root-user", "true").Run()
+	// 실제 runc-overlay helper와 같은 mapping을 연다. --map-root-user만 되지만
+	// subordinate range를 newuidmap/newgidmap으로 붙일 수 없는 중첩 userns를
+	// ready로 광고하면 Open에서 뒤늦게 죽는다.
+	b, err := exec.CommandContext(ctx, "unshare", "--user", "--map-root-user", "--map-auto", "true").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w: %s", err, strings.TrimSpace(string(b)))
+	}
+	return nil
 }
 
 func Check(ctx context.Context, doc Document, binding Binding, inspector Inspector) Report {
+	return CheckWithRuntime(ctx, doc, binding, inspector, nil)
+}
+
+// CheckWithRuntime은 선언과 host/prepared fact를 읽은 뒤, 모두 ready일 때만 실제
+// runtime smoke를 수행한다. verifier가 nil인 호출은 순수 environment package
+// 시험과 embedding을 위한 것이며 제품 CLI는 항상 verifier를 넘긴다.
+func CheckWithRuntime(ctx context.Context, doc Document, binding Binding, inspector Inspector, verifier RuntimeVerifier) Report {
 	if inspector == nil {
 		inspector = OSInspector{}
 	}
@@ -169,6 +190,7 @@ func Check(ctx context.Context, doc Document, binding Binding, inspector Inspect
 			Remediation: "install on a supported Debian or Ubuntu host"})
 	} else {
 		var missing []string
+		installedPackages := make(map[string]bool, len(doc.Profile.Host.Packages))
 		for _, name := range doc.Profile.Host.Packages {
 			installed, err := inspector.PackageInstalled(ctx, name)
 			if err != nil {
@@ -176,6 +198,7 @@ func Check(ctx context.Context, doc Document, binding Binding, inspector Inspect
 					Required: "installed", Observed: err.Error(), State: StateUnsupported})
 				continue
 			}
+			installedPackages[name] = installed
 			state, observed := StateReady, "installed"
 			if !installed {
 				state, observed = StateInstallable, "missing"
@@ -189,6 +212,28 @@ func Check(ctx context.Context, doc Document, binding Binding, inspector Inspect
 				Operation{Kind: "host.apt.update", Source: "/host/packages", Mutates: true},
 				Operation{Kind: "host.apt.ensure-packages", Source: "/host/packages", Mutates: true,
 					Packages: missing})
+		}
+		surfaces := map[string][]string{
+			"debootstrap": {"debootstrap"},
+			"runc":        {"runc"},
+			"uidmap":      {"newuidmap", "newgidmap"},
+			"util-linux":  {"unshare", "mount", "umount", "findmnt", "mountpoint"},
+		}
+		for _, packageName := range doc.Profile.Host.Packages {
+			for _, executable := range surfaces[packageName] {
+				state, observed, remediation := StateReady, "found", ""
+				if !inspector.LookPath(executable) {
+					observed = "not found"
+					if installedPackages[packageName] {
+						state = StateUnsupported
+						remediation = "repair or reinstall the declared host package " + packageName
+					} else {
+						state = StateInstallable
+					}
+				}
+				add(Fact{Name: "host.executable." + executable, Source: "/host/packages",
+					Required: packageName, Observed: observed, State: state, Remediation: remediation})
+			}
 		}
 	}
 
@@ -218,9 +263,16 @@ func Check(ctx context.Context, doc Document, binding Binding, inspector Inspect
 	}
 
 	if doc.Profile.Host.Require.UnprivilegedUserNS {
-		if !inspector.LookPath("unshare") {
+		var missingUserNSTools []string
+		for _, name := range []string{"unshare", "newuidmap", "newgidmap"} {
+			if !inspector.LookPath(name) {
+				missingUserNSTools = append(missingUserNSTools, name)
+			}
+		}
+		if len(missingUserNSTools) > 0 {
 			add(Fact{Name: "host.unprivileged_userns", Source: "/host/require/unprivileged_userns",
-				Required: "smoke succeeds", Observed: "unshare not found", State: StateInstallable})
+				Required: "smoke succeeds", Observed: strings.Join(missingUserNSTools, ", ") + " not found", State: StateInstallable,
+				Remediation: "install the declared uidmap and util-linux host packages"})
 		} else if err := inspector.SmokeUserNS(ctx); err != nil {
 			add(Fact{Name: "host.unprivileged_userns", Source: "/host/require/unprivileged_userns",
 				Required: "smoke succeeds", Observed: err.Error(), State: StateExternalBlocked,
@@ -236,6 +288,20 @@ func Check(ctx context.Context, doc Document, binding Binding, inspector Inspect
 		Observed: observed, State: preparedState})
 	if preparedState != StateReady {
 		r.Operations = append(r.Operations, rootFSOperations(doc.Profile)...)
+	} else if r.State == StateReady && verifier != nil {
+		manifest, err := currentManifest(binding.Store, doc.Profile.Name)
+		rootfs := PreparedRootFS(binding.Store, manifest.PreparedEnvironmentID)
+		if err == nil {
+			err = verifier.Verify(ctx, doc, binding, rootfs, manifest)
+		}
+		if err != nil {
+			add(Fact{Name: "runtime.smoke", Source: "/runtime/driver",
+				Required: "open/run/close succeeds", Observed: err.Error(), State: StateExternalBlocked,
+				Remediation: "resolve the reported namespace, mount, or runc failure and run env check again"})
+		} else {
+			add(Fact{Name: "runtime.smoke", Source: "/runtime/driver",
+				Required: "open/run/close succeeds", Observed: "ready", State: StateReady})
+		}
 	}
 	return r
 }

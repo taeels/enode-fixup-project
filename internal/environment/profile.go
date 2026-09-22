@@ -187,6 +187,15 @@ func (p Profile) Validate() error {
 	if err := validateSortedSet("host.packages", p.Host.Packages, packagePattern); err != nil {
 		return err
 	}
+	requiredHostPackages := []string{"debootstrap"}
+	if p.Runtime.Driver == "runc-overlay" {
+		requiredHostPackages = append(requiredHostPackages, "runc", "uidmap", "util-linux")
+	}
+	for _, name := range requiredHostPackages {
+		if i := sort.SearchStrings(p.Host.Packages, name); i >= len(p.Host.Packages) || p.Host.Packages[i] != name {
+			return fmt.Errorf("host.packages must declare %s for the selected builder/runtime", name)
+		}
+	}
 	if p.Host.Require.SubUIDSize <= 0 || p.Host.Require.SubGIDSize <= 0 {
 		return errors.New("host.require subuid_size and subgid_size must be positive")
 	}
@@ -230,6 +239,9 @@ func (p Profile) Validate() error {
 		}
 		if !p.Host.Require.UnprivilegedUserNS {
 			return errors.New("runc-overlay requires host.require.unprivileged_userns")
+		}
+		if p.RootFS.User.UID >= p.Host.Require.SubUIDSize || p.RootFS.User.GID >= p.Host.Require.SubGIDSize {
+			return errors.New("rootfs.user uid/gid must fit inside the declared subordinate id ranges")
 		}
 	}
 	if err := validateSortedSet("verify.executables", p.Verify.Executables, tokenPattern); err != nil {

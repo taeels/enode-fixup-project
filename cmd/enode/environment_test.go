@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -9,6 +10,18 @@ import (
 
 	execenv "github.com/taeels/enode/internal/environment"
 )
+
+type unlinkedCLIInspector struct{}
+
+func (unlinkedCLIInspector) GOOS() string                       { return "linux" }
+func (unlinkedCLIInspector) RuntimeDriverAvailable(string) bool { return false }
+func (unlinkedCLIInspector) CurrentUser() (string, error)       { return "builder", nil }
+func (unlinkedCLIInspector) LookPath(string) bool               { return true }
+func (unlinkedCLIInspector) PackageInstalled(context.Context, string) (bool, error) {
+	return true, nil
+}
+func (unlinkedCLIInspector) SubordinateRange(string, string) (int, error) { return 65536, nil }
+func (unlinkedCLIInspector) SmokeUserNS(context.Context) error            { return nil }
 
 const cliEnvironmentProfile = `api_version: enode.dev/v1alpha1
 kind: execution-environment
@@ -56,7 +69,7 @@ func TestEnvironmentCheckReportsAnUnlinkedProductRuntime(t *testing.T) {
 	config, _ := writeEnvironmentCLIConfig(t)
 	var code int
 	stdout, _ := captureOutput(t, func() {
-		code = runEnvironmentCmd([]string{"check", "--config", config, "--json"})
+		code = runEnvironmentCmdWith([]string{"check", "--config", config, "--json"}, unlinkedCLIInspector{}, nil)
 	})
 	if code != 2 {
 		t.Fatalf("want non-ready exit 2, got %d: %s", code, stdout)
@@ -83,12 +96,36 @@ func TestEnvironmentApplyDoesNotMutateWhenTheRuntimeIsUnlinked(t *testing.T) {
 	config, store := writeEnvironmentCLIConfig(t)
 	var code int
 	_, stderr := captureOutput(t, func() {
-		code = runEnvironmentCmd([]string{"apply", "--config", config})
+		code = runEnvironmentCmdWith([]string{"apply", "--config", config}, unlinkedCLIInspector{}, nil)
 	})
 	if code != 1 || !strings.Contains(stderr, "unsupported") {
 		t.Fatalf("want fail-closed apply, code=%d stderr=%q", code, stderr)
 	}
 	if _, err := os.Stat(store); !os.IsNotExist(err) {
 		t.Fatalf("unsupported apply mutated the store: %v", err)
+	}
+}
+
+func TestEnvironmentCommandWrapperAndHumanOutput(t *testing.T) {
+	var code int
+	_, stderr := captureOutput(t, func() { code = runEnvironmentCmd(nil) })
+	if code != 2 || !strings.Contains(stderr, "usage:") {
+		t.Fatalf("usage code=%d stderr=%q", code, stderr)
+	}
+	report := execenv.Report{State: execenv.StateInstallable, ProfileSHA256: "profile",
+		Facts:      []execenv.Fact{{Name: "host.package.uidmap", State: execenv.StateInstallable, Observed: "missing", Remediation: "install it"}},
+		Operations: []execenv.Operation{{Kind: "host.apt.ensure-packages", Source: "/host/packages"}}}
+	stdout, _ := captureOutput(t, func() { printEnvironmentValue(report, false) })
+	for _, want := range []string{"state: installable", "host.package.uidmap", "install it", "host.apt.ensure-packages"} {
+		if !strings.Contains(stdout, want) {
+			t.Fatalf("human report missing %q:\n%s", want, stdout)
+		}
+	}
+	stdout, _ = captureOutput(t, func() {
+		printEnvironmentValue(execenv.Manifest{PreparedEnvironmentID: "sha256:id",
+			Profile: execenv.ManifestProfile{SHA256: "profile"}}, false)
+	})
+	if !strings.Contains(stdout, "prepared_environment_id: sha256:id") {
+		t.Fatalf("human manifest output=%q", stdout)
 	}
 }
