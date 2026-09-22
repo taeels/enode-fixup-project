@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	execenv "github.com/taeels/enode/internal/environment"
 )
@@ -127,5 +128,17 @@ func TestEnvironmentCommandWrapperAndHumanOutput(t *testing.T) {
 	})
 	if !strings.Contains(stdout, "prepared_environment_id: sha256:id") {
 		t.Fatalf("human manifest output=%q", stdout)
+	}
+	stdout, stderr = captureOutput(t, func() {
+		printEnvironmentApplyProgress(execenv.ApplyProgress{
+			Stage: "rootfs.debootstrap", Source: "/rootfs/builder", Phase: execenv.ApplyProgressStarted,
+		})
+		printEnvironmentApplyProgress(execenv.ApplyProgress{
+			Stage: "rootfs.debootstrap", Phase: execenv.ApplyProgressCompleted, Elapsed: 1500 * time.Millisecond,
+		})
+	})
+	if stdout != "" || !strings.Contains(stderr, "starting rootfs.debootstrap from /rootfs/builder") ||
+		!strings.Contains(stderr, "completed rootfs.debootstrap in 1.5s") {
+		t.Fatalf("progress stdout=%q stderr=%q", stdout, stderr)
 	}
 }

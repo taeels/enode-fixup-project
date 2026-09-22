@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/taeels/enode/internal/enode"
 	execenv "github.com/taeels/enode/internal/environment"
@@ -51,13 +52,30 @@ func runEnvironmentCmdWith(args []string, inspector execenv.Inspector, verifier 
 		}
 		return 0
 	}
-	manifest, err := (execenv.Preparer{Inspector: inspector, Verifier: verifier}).Apply(context.Background(), doc, binding)
+	manifest, err := (execenv.Preparer{
+		Inspector: inspector, Verifier: verifier, Progress: printEnvironmentApplyProgress,
+	}).Apply(context.Background(), doc, binding)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 	printEnvironmentValue(manifest, *jsonOutput)
 	return 0
+}
+
+func printEnvironmentApplyProgress(event execenv.ApplyProgress) {
+	source := ""
+	if event.Source != "" {
+		source = " from " + event.Source
+	}
+	switch event.Phase {
+	case execenv.ApplyProgressStarted:
+		fmt.Fprintf(os.Stderr, "env apply: starting %s%s\n", event.Stage, source)
+	case execenv.ApplyProgressCompleted:
+		fmt.Fprintf(os.Stderr, "env apply: completed %s in %s\n", event.Stage, event.Elapsed.Round(time.Millisecond))
+	case execenv.ApplyProgressFailed:
+		fmt.Fprintf(os.Stderr, "env apply: failed %s after %s\n", event.Stage, event.Elapsed.Round(time.Millisecond))
+	}
 }
 
 func printEnvironmentValue(value any, asJSON bool) {

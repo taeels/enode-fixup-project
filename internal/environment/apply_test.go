@@ -61,9 +61,11 @@ func TestApplyExecutesThePlanAndPublishesManifestLast(t *testing.T) {
 	}
 	binding := testBinding(t)
 	runner := &applyRunner{}
+	var progress []ApplyProgress
 	manifest, err := (Preparer{
 		Inspector: readyInspector(), Runner: runner,
-		Now: func() time.Time { return time.Unix(123, 0) },
+		Now:      func() time.Time { return time.Unix(123, 0) },
+		Progress: func(event ApplyProgress) { progress = append(progress, event) },
 	}).Apply(context.Background(), doc, binding)
 	if err != nil {
 		t.Fatal(err)
@@ -93,13 +95,34 @@ func TestApplyExecutesThePlanAndPublishesManifestLast(t *testing.T) {
 			t.Fatalf("apply ran a hidden or administrator operation %q:\n%s", forbidden, joined)
 		}
 	}
+	wantStages := []string{
+		"environment.check",
+		"rootfs.debootstrap", "rootfs.apt.ensure-packages", "rootfs.locale.ensure",
+		"rootfs.user.ensure", "rootfs.runtime-targets.ensure", "rootfs.verify",
+		"rootfs.packages.resolve", "rootfs.builder-version.read",
+		"prepared-environment.manifest.write", "prepared-environment.seal",
+		"prepared-environment.publish",
+	}
+	if len(progress) != len(wantStages)*2 {
+		t.Fatalf("progress events=%d want=%d: %+v", len(progress), len(wantStages)*2, progress)
+	}
+	for i, stage := range wantStages {
+		started, completed := progress[i*2], progress[i*2+1]
+		if started.Stage != stage || started.Phase != ApplyProgressStarted ||
+			completed.Stage != stage || completed.Phase != ApplyProgressCompleted {
+			t.Fatalf("stage %d progress=(%+v, %+v), want started/completed %s", i, started, completed, stage)
+		}
+	}
 }
 
 func TestApplyDoesNotPublishAFailedBuild(t *testing.T) {
 	doc, _ := Parse([]byte(validProfile))
 	binding := testBinding(t)
 	runner := &applyRunner{failAt: "apt-get install"}
-	_, err := (Preparer{Inspector: readyInspector(), Runner: runner}).Apply(context.Background(), doc, binding)
+	var progress []ApplyProgress
+	_, err := (Preparer{Inspector: readyInspector(), Runner: runner,
+		Progress: func(event ApplyProgress) { progress = append(progress, event) },
+	}).Apply(context.Background(), doc, binding)
 	if err == nil {
 		t.Fatal("apply succeeded after a rootfs operation failed")
 	}
@@ -114,6 +137,13 @@ func TestApplyDoesNotPublishAFailedBuild(t *testing.T) {
 		if !strings.HasPrefix(entry.Name(), ".build-") {
 			t.Fatalf("failed build escaped the diagnostic temporary namespace: %s", entry.Name())
 		}
+	}
+	if len(progress) == 0 {
+		t.Fatal("failed apply emitted no progress")
+	}
+	last := progress[len(progress)-1]
+	if last.Stage != "rootfs.apt.ensure-packages" || last.Phase != ApplyProgressFailed {
+		t.Fatalf("failed operation progress=%+v", last)
 	}
 }
 
@@ -180,7 +210,10 @@ func TestApplyInstallsAMissingHostPackageWithoutRebuildingAReadyRootFS(t *testin
 			inspector.installed["uidmap"] = true
 		}
 	}}
-	got, err := (Preparer{Inspector: inspector, Runner: runner}).Apply(context.Background(), doc, binding)
+	var progress []ApplyProgress
+	got, err := (Preparer{Inspector: inspector, Runner: runner,
+		Progress: func(event ApplyProgress) { progress = append(progress, event) },
+	}).Apply(context.Background(), doc, binding)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,6 +224,16 @@ func TestApplyInstallsAMissingHostPackageWithoutRebuildingAReadyRootFS(t *testin
 		if strings.HasPrefix(call, "debootstrap ") {
 			t.Fatalf("host-only repair rebuilt rootfs: %s", call)
 		}
+	}
+	var started []string
+	for _, event := range progress {
+		if event.Phase == ApplyProgressStarted {
+			started = append(started, event.Stage)
+		}
+	}
+	want := "environment.check,host.apt.update,host.apt.ensure-packages,environment.recheck"
+	if strings.Join(started, ",") != want {
+		t.Fatalf("host repair progress=%v want=%s", started, want)
 	}
 }
 

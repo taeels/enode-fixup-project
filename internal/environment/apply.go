@@ -29,11 +29,27 @@ func (ExecRunner) Run(ctx context.Context, name string, args ...string) ([]byte,
 	return b, nil
 }
 
+type ApplyProgressPhase string
+
+const (
+	ApplyProgressStarted   ApplyProgressPhase = "started"
+	ApplyProgressCompleted ApplyProgressPhase = "completed"
+	ApplyProgressFailed    ApplyProgressPhase = "failed"
+)
+
+type ApplyProgress struct {
+	Stage   string
+	Source  string
+	Phase   ApplyProgressPhase
+	Elapsed time.Duration
+}
+
 type Preparer struct {
 	Inspector Inspector
 	Runner    CommandRunner
 	Now       func() time.Time
 	Verifier  RuntimeVerifier
+	Progress  func(ApplyProgress)
 }
 
 func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Manifest, error) {
@@ -49,7 +65,11 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 	if now == nil {
 		now = time.Now
 	}
-	report := CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
+	var report Report
+	_ = p.runStage("environment.check", "", func() error {
+		report = CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
+		return nil
+	})
 	switch report.State {
 	case StateInvalid, StateUnsupported, StateExternalBlocked, StateAdminRequired:
 		return Manifest{}, fmt.Errorf("environment is %s; run env check and resolve its blocking facts", report.State)
@@ -66,14 +86,20 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 			return Manifest{}, fmt.Errorf("operation %s has no profile source", op.Kind)
 		}
 		if strings.HasPrefix(op.Kind, "host.") {
-			if err := executeHostOperation(ctx, runner, op); err != nil {
+			if err := p.runStage(op.Kind, op.Source, func() error {
+				return executeHostOperation(ctx, runner, op)
+			}); err != nil {
 				return Manifest{}, err
 			}
 			didHostApply = true
 		}
 	}
 	if didHostApply {
-		refreshed := CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
+		var refreshed Report
+		_ = p.runStage("environment.recheck", "", func() error {
+			refreshed = CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
+			return nil
+		})
 		switch refreshed.State {
 		case StateInvalid, StateUnsupported, StateExternalBlocked, StateAdminRequired:
 			return Manifest{}, fmt.Errorf("environment is %s after host apply; run env check", refreshed.State)
@@ -101,7 +127,11 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 		// prepared rootfs는 ready이고 host package만 빠졌던 경우다. host를
 		// 고친 뒤 빈 build directory에서 rootfs 절차를 흉내 내지 않고 같은
 		// prepared identity를 실제 runtime smoke로 다시 확인한다.
-		refreshed := CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
+		var refreshed Report
+		_ = p.runStage("environment.recheck", "", func() error {
+			refreshed = CheckWithRuntime(ctx, doc, binding, inspector, p.Verifier)
+			return nil
+		})
 		if refreshed.State != StateReady {
 			return Manifest{}, fmt.Errorf("environment is %s after host apply; run env check", refreshed.State)
 		}
@@ -124,17 +154,29 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 		if err := ensureProfileUnchanged(doc); err != nil {
 			return Manifest{}, fmt.Errorf("%w; incomplete build kept at %s", err, buildDir)
 		}
-		if err := executeRootFSOperation(ctx, runner, rootfs, op); err != nil {
+		if err := p.runStage(op.Kind, op.Source, func() error {
+			return executeRootFSOperation(ctx, runner, rootfs, op)
+		}); err != nil {
 			return Manifest{}, fmt.Errorf("%s from %s: %w; incomplete build kept at %s",
 				op.Kind, op.Source, err, buildDir)
 		}
 	}
 
-	packages, err := resolvedPackages(ctx, runner, rootfs)
+	var packages []ManifestPackage
+	err = p.runStage("rootfs.packages.resolve", "/rootfs", func() error {
+		var resolveErr error
+		packages, resolveErr = resolvedPackages(ctx, runner, rootfs)
+		return resolveErr
+	})
 	if err != nil {
 		return Manifest{}, fmt.Errorf("read resolved package versions: %w; incomplete build kept at %s", err, buildDir)
 	}
-	versionOut, err := runner.Run(ctx, "debootstrap", "--version")
+	var versionOut []byte
+	err = p.runStage("rootfs.builder-version.read", "/rootfs/builder", func() error {
+		var versionErr error
+		versionOut, versionErr = runner.Run(ctx, "debootstrap", "--version")
+		return versionErr
+	})
 	if err != nil {
 		return Manifest{}, fmt.Errorf("read debootstrap version: %w; incomplete build kept at %s", err, buildDir)
 	}
@@ -159,34 +201,64 @@ func (p Preparer) Apply(ctx context.Context, doc Document, binding Binding) (Man
 	if err := ensureProfileUnchanged(doc); err != nil {
 		return Manifest{}, fmt.Errorf("%w; complete build kept at %s", err, buildDir)
 	}
-	if err := WriteManifest(filepath.Join(buildDir, "manifest.json"), manifest); err != nil {
+	if err := p.runStage("prepared-environment.manifest.write", "", func() error {
+		return WriteManifest(filepath.Join(buildDir, "manifest.json"), manifest)
+	}); err != nil {
 		return Manifest{}, fmt.Errorf("write manifest: %w; incomplete build kept at %s", err, buildDir)
 	}
-	if _, err := runPrivileged(ctx, runner, "chmod", "-R", "a-w", rootfs); err != nil {
+	if err := p.runStage("prepared-environment.seal", "", func() error {
+		_, sealErr := runPrivileged(ctx, runner, "chmod", "-R", "a-w", rootfs)
+		return sealErr
+	}); err != nil {
 		return Manifest{}, fmt.Errorf("seal rootfs: %w; incomplete build kept at %s", err, buildDir)
 	}
 	if p.Verifier != nil {
-		if err := p.Verifier.Verify(ctx, doc, binding, rootfs, manifest); err != nil {
+		if err := p.runStage("runtime.smoke", "/runtime/driver", func() error {
+			return p.Verifier.Verify(ctx, doc, binding, rootfs, manifest)
+		}); err != nil {
 			return Manifest{}, fmt.Errorf("runtime smoke from /runtime/driver: %w; complete build kept at %s", err, buildDir)
 		}
 	}
 
 	destination := environmentDir(binding.Store, id)
-	if _, err := os.Stat(destination); err == nil {
-		if err := discardBuild(ctx, runner, binding.Store, buildDir); err != nil {
-			return Manifest{}, fmt.Errorf("prepared environment already exists but duplicate build cleanup failed: %w", err)
+	if err := p.runStage("prepared-environment.publish", "", func() error {
+		if _, statErr := os.Stat(destination); statErr == nil {
+			if cleanupErr := discardBuild(ctx, runner, binding.Store, buildDir); cleanupErr != nil {
+				return fmt.Errorf("prepared environment already exists but duplicate build cleanup failed: %w", cleanupErr)
+			}
+		} else if !errors.Is(statErr, os.ErrNotExist) {
+			return statErr
+		} else if renameErr := os.Rename(buildDir, destination); renameErr != nil {
+			return fmt.Errorf("publish prepared environment: %w; complete build kept at %s", renameErr, buildDir)
 		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return Manifest{}, err
-	} else if err := os.Rename(buildDir, destination); err != nil {
-		return Manifest{}, fmt.Errorf("publish prepared environment: %w; complete build kept at %s", err, buildDir)
-	}
 
-	index := profileIndex{Name: doc.Profile.Name, ProfileSHA256: doc.SHA256, PreparedEnvironmentID: id}
-	if err := writeJSON(profileIndexPath(binding.Store, doc.Profile.Name), index); err != nil {
-		return Manifest{}, fmt.Errorf("publish profile index: %w", err)
+		index := profileIndex{Name: doc.Profile.Name, ProfileSHA256: doc.SHA256, PreparedEnvironmentID: id}
+		if writeErr := writeJSON(profileIndexPath(binding.Store, doc.Profile.Name), index); writeErr != nil {
+			return fmt.Errorf("publish profile index: %w", writeErr)
+		}
+		return nil
+	}); err != nil {
+		return Manifest{}, err
 	}
 	return manifest, nil
+}
+
+func (p Preparer) runStage(stage, source string, run func() error) error {
+	started := time.Now()
+	p.reportProgress(ApplyProgress{Stage: stage, Source: source, Phase: ApplyProgressStarted})
+	err := run()
+	phase := ApplyProgressCompleted
+	if err != nil {
+		phase = ApplyProgressFailed
+	}
+	p.reportProgress(ApplyProgress{Stage: stage, Source: source, Phase: phase, Elapsed: time.Since(started)})
+	return err
+}
+
+func (p Preparer) reportProgress(event ApplyProgress) {
+	if p.Progress != nil {
+		p.Progress(event)
+	}
 }
 
 func executeHostOperation(ctx context.Context, runner CommandRunner, op Operation) error {
