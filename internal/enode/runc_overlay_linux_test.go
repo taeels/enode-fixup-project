@@ -182,6 +182,19 @@ func TestRuncOverlayConstructorFailsClosed(t *testing.T) {
 	}
 }
 
+func TestRuncOverlayHelperDoesNotCreateAnOuterPIDNamespace(t *testing.T) {
+	argv := runcOverlayHelperArgv("/bin/enode")
+	joined := strings.Join(argv, " ")
+	if strings.Contains(joined, "--pid") {
+		t.Fatalf("outer PID namespace would leave runc with the wrong /proc: %s", joined)
+	}
+	for _, want := range []string{"--user", "--map-auto", "--mount", "--kill-child", "/bin/enode", "runtime-helper"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("helper argv is missing %s: %s", want, joined)
+		}
+	}
+}
+
 func TestRuntimeInputAndProjectionValidation(t *testing.T) {
 	if _, err := readRuntimeStdin(bytes.NewReader(make([]byte, maxRuntimeStdin+1))); err == nil {
 		t.Fatal("accepted oversized runtime stdin")
@@ -327,6 +340,23 @@ func TestRuntimeHelperWritersAndValidation(t *testing.T) {
 	}
 	if !pathsOverlap(directory, filepath.Join(directory, "child")) || pathsOverlap(directory, t.TempDir()) {
 		t.Fatal("path overlap classification is inconsistent")
+	}
+}
+
+func TestRuntimeHelperCleanupIsIdempotent(t *testing.T) {
+	runRoot := filepath.Join(t.TempDir(), "run")
+	if err := os.MkdirAll(runRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	h := &overlayRuntimeHelper{open: &runtimeWireOpen{RunRoot: runRoot}}
+	if err := h.cleanup(); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.cleanup(); err != nil {
+		t.Fatalf("second cleanup failed: %v", err)
+	}
+	if _, err := os.Stat(runRoot); !os.IsNotExist(err) {
+		t.Fatalf("runtime scratch remains: %v", err)
 	}
 }
 

@@ -148,8 +148,8 @@ func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSe
 	if r.command != nil {
 		cmd = child(r.command())
 	} else {
-		cmd = child(exec.Command("unshare", "--user", "--map-root-user", "--map-auto",
-			"--mount", "--pid", "--fork", "--kill-child", "--", r.helper, "runtime-helper"))
+		argv := runcOverlayHelperArgv(r.helper)
+		cmd = child(exec.Command(argv[0], argv[1:]...))
 	}
 	// parent node가 crash해도 unshare supervisor가 고아로 남지 않는다.
 	// --kill-child가 이어서 helper/runc namespace를 거둔다.
@@ -202,6 +202,14 @@ func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSe
 		return nil, fmt.Errorf("open runtime namespace: %s", response.Error)
 	}
 	return s, nil
+}
+
+func runcOverlayHelperArgv(helper string) []string {
+	// 바깥 helper에는 PID namespace를 열지 않는다. 새 PID namespace와 기존
+	// /proc를 함께 쓰면 runc가 nsexec child의 uid_map을 찾을 수 없다. 실제
+	// workload의 PID namespace는 OCI config가 만들고 helper는 수명만 지킨다.
+	return []string{"unshare", "--user", "--map-root-user", "--map-auto",
+		"--mount", "--fork", "--kill-child", "--", helper, "runtime-helper"}
 }
 
 type lockedRuntimeBuffer struct {
@@ -413,7 +421,12 @@ func (s *runcOverlaySession) Close() error {
 		select {
 		case err := <-wait:
 			if err != nil {
-				errs = append(errs, fmt.Errorf("runtime helper exit: %w", err))
+				detail := s.helperErr.String()
+				if detail == "" {
+					errs = append(errs, fmt.Errorf("runtime helper exit: %w", err))
+				} else {
+					errs = append(errs, fmt.Errorf("runtime helper exit: %w: %s", err, detail))
+				}
 			}
 		case <-time.After(3 * time.Second):
 			if s.cmd.Process != nil {
@@ -968,33 +981,43 @@ func (h *overlayRuntimeHelper) harvest(spec HarvestSpec) (HarvestResult, error) 
 }
 
 func (h *overlayRuntimeHelper) cleanup() error {
+	merged, lowerRO, inRO, sshRO := h.merged, h.lowerRO, h.inRO, h.sshRO
+	runRoot := ""
+	if h.open != nil {
+		runRoot = h.open.RunRoot
+	}
+	// close request와 helper의 최종 방어 경로가 모두 cleanup을 부른다.
+	// 첫 호출이 소유권을 가져가야 두 번째 호출이 삭제된 mount path를 다시
+	// unmount하고 helper를 실패로 끝내지 않는다.
+	h.merged, h.lowerRO, h.inRO, h.sshRO = "", "", "", ""
+	h.open = nil
+
 	var errs []error
-	if h.merged != "" {
-		if err := unix.Unmount(h.merged, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
+	if merged != "" {
+		if err := unix.Unmount(merged, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
 			errs = append(errs, fmt.Errorf("unmount merged workspace: %w", err))
 		}
 	}
-	if h.lowerRO != "" {
-		if err := unix.Unmount(h.lowerRO, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
+	if lowerRO != "" {
+		if err := unix.Unmount(lowerRO, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
 			errs = append(errs, fmt.Errorf("unmount lower workspace: %w", err))
 		}
 	}
-	if h.inRO != "" {
-		if err := unix.Unmount(h.inRO, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
+	if inRO != "" {
+		if err := unix.Unmount(inRO, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
 			errs = append(errs, fmt.Errorf("unmount $IN projection: %w", err))
 		}
 	}
-	if h.sshRO != "" {
-		if err := unix.Unmount(h.sshRO, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
+	if sshRO != "" {
+		if err := unix.Unmount(sshRO, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
 			errs = append(errs, fmt.Errorf("unmount SSH projection: %w", err))
 		}
 	}
-	if h.open != nil {
-		if err := os.RemoveAll(h.open.RunRoot); err != nil {
+	if runRoot != "" {
+		if err := os.RemoveAll(runRoot); err != nil {
 			errs = append(errs, fmt.Errorf("remove runtime scratch: %w", err))
 		}
 	}
-	h.open = nil
 	return errors.Join(errs...)
 }
 
