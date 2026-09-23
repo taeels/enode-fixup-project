@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: INCEPTION - User Stories (착수 — Part 1 Planning)
+- **Current Stage**: INCEPTION - Workflow Planning (착수)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` (CLAUDE.md 의 회차별 layering)
@@ -111,7 +111,7 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Workspace Detection — 2026-09-23T13:49:57Z
 - [x] Reverse Engineering — 전면 갱신 2026-09-23T14:03:35Z · 승인 2026-09-23T14:12:44Z
 - [x] Requirements Analysis — 착수 2026-09-23T14:20:56Z. 답 14:35:56Z · 재질문 답 14:41:53Z. `requirements.md` 완료 14:50:03Z · 승인 2026-09-23T14:56:31Z
-- [ ] User Stories — 돈다 (requirements.md 9절 — 새 사용자 기능 · 워크플로 변경 · 여러 페르소나)
+- [x] User Stories — 판정 · 계획 · 질문 다섯 2026-09-23T15:00:55Z. 답(권장대로) 23:42:13Z. 페르소나 넷 · 스토리 열아홉 · 완료 조건 열. 승인 2026-09-23T23:54:49Z
 - [ ] Workflow Planning
 - [ ] Application Design
 - [ ] Units Generation

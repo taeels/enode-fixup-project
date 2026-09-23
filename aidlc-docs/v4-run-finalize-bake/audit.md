@@ -91,3 +91,35 @@
 **Context**: INCEPTION — Requirements Analysis 승인. 단계 종료
 
 ---
+
+## User Stories — Part 1 계획 · 질문
+**Timestamp**: 2026-09-23T15:02:36Z
+**User Input**: (없음 — Requirements 승인으로 자동 진행)
+**AI Response**: Step 1 판정을 `inception/plans/user-stories-assessment.md` 에 냈다 — 실행 · 깊이 minimal. 조각 0 ~ 12 를 하나씩 대 보니 이 팩은 기다림을 만들고(finalizing · waiting · drain · not ready · bake_in_progress), 조각은 상태 전이를 거의 다 재는데 기다리게 된 사람이 어느 기다림인지 아는지는 거의 안 잰다. 둘째 빈자리는 계약도 설정도 안 고친 사람의 동작이 바뀌는 것이다(명령 단계의 workspace.diff · 여유 부족 시 노드 전체 drain · scratch 다른 filesystem · checkpoint 기본 on-failure). 실측으로 받쳤다 — drain 노드를 busy 에 합친다(`queue.go:233`) · StepView 에 대기 사유 칸 없음(`observe.go:21`) · 정책 파일에서 데몬이 읽는 것은 drain 하나(`policy.go:22`) · ADR-077 §7 의 Record 와 lower 의 갈림. `inception/plans/story-generation-plan.md` 에 질문 다섯을 냈다 — Q1 굽기 담당 페르소나 · Q2 범위 · Q3 묶는 법 · Q4 새 요구의 자리 · Q5 노드 소유자가 굽기를 받을지 정하는 자리. 권장은 1=B · 2=B · 3=A · 4=A · 5=A. 표기 검사 exit 0. Step 7 에서 답을 기다린다.
+**Context**: INCEPTION — User Stories Part 1. 질문 대기
+
+---
+
+## User Stories — 답 · 계획 승인
+**Timestamp**: 2026-09-23T23:42:13Z
+**User Input**: "권장대로"
+**AI Response**: 질문 다섯을 권장값으로 닫았다 — 1 = B(P4 굽기 담당) · 2 = B(기다림의 이유와 바뀐 기본값) · 3 = A(Persona-Based) · 4 = A(NC 로 지고 requirements.md 안 고침) · 5 = A(누가 바꿨는지만 · 받을지 정하는 자리는 순연). 계획 파일의 `[Answer]:` 에 적었다. 계획에서 승인할 것이 답 말고 없으므로 계획 승인으로도 읽었다(앞 회차와 같은 읽기). Step 9 모호함 분석 — 추가 질문 없음. Part 2 로 간다.
+**Context**: INCEPTION — User Stories. Part 1 종료 · Part 2 착수
+
+---
+
+## User Stories — Part 2 완료 · 승인 요청
+**Timestamp**: 2026-09-23T23:48:09Z
+**User Input**: (없음)
+**AI Response**: `inception/user-stories/personas.md` 와 `stories.md` 를 냈다. 페르소나 넷 — 앞 회차의 셋(P1 노드 소유자 · P2 계약 작성자 · P3 진행자)의 네 칸을 이 팩에 대고 다시 썼고 P4 굽기 담당을 더했다. 스토리 열아홉(P1 여섯 · P2 다섯 · P3 셋 · P4 다섯), 갈래는 기다림 · 부재 · 기본값 · 집행. 새 완료 조건 열 — QUEUED 의 점유와 drain 구별(Mediator 변경), merge waiting 의 상대와 남은 상한, FAILED 굽기 Run 의 재개 여부를 노드 기계 밖에서, 바뀐 기본값 다섯을 겪는 사람이 읽는 자리에(`packaging/macos/examples/*.yaml` 넷의 「빌드 능력을 광고에서 뺀다」가 거짓이 된다) 등. 순연 행 4-15(노드 소유자가 굽기를 받을지 정하는 정책 — ADR-063 §2.1 의 대여 대상)를 stories.md 3절에 지었다. 스토리 없는 페르소나 0 · FR 0 · 확인 열 빈 스토리 0. 앞 회차의 두 글자 약칭 대신 「완료 조건 N」으로 풀어 썼다 — 푼 말이 저장소에 없고(GLOSSARY.md 없음) 그 1 ~ 6 번이 `aidlc-docs/taeels/` 에서 이미 쓰인다. 계획 파일에 그 고침을 적었다. 표기 검사 exit 0. 승인을 요청한다 — 「Request Changes」 또는 「Approve & Continue」(다음은 Workflow Planning).
+**Context**: INCEPTION — User Stories. 승인 대기
+
+---
+
+## User Stories — 승인
+**Timestamp**: 2026-09-23T23:54:49Z
+**User Input**: "승인."
+**AI Response**: 페르소나 넷 · 스토리 열아홉 · 완료 조건 열 · 순연 행 4-15 의 승인으로 읽었다. 상태 파일에 단계 완료를 적고 이 단계의 산출물(plans/ 둘 · user-stories/ 둘)과 상태 · 감사 파일을 한 커밋으로 넣는다 (CONVENTIONS 3.3). 다음은 Workflow Planning 이다.
+**Context**: INCEPTION — User Stories 승인. 단계 종료
+
+---
