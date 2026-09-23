@@ -64,9 +64,8 @@
 
 - 이 팩이 넓히는 ADR-073 구현은 `unit/runtime-environment-profile`에만 있다. 상위 저장소에서
   `origin/main`보다 18 커밋 앞서 있고 충돌 없이 합쳐진다(2026-09-23 확인).
-- 회차 브랜치 `v4-run-finalize-bake`는 `main`에서 땄다(`CONVENTIONS.md` 3.1). **Workspace
-  Detection 전에 그 코드가 회차 브랜치에 있어야 한다.** 길은 둘이다.
-  - `unit/runtime-environment-profile`을 `main`에 PR로 먼저 병합하고 회차 브랜치가 `main`을 합친다.
-  - 회차 브랜치에 그 브랜치를 직접 합친다.
+- 회차 브랜치 `v4-run-finalize-bake`는 `main`에서 땄다(`CONVENTIONS.md` 3.1). Workspace
+  Detection이 코드가 없는 자리를 보지 않도록 그 브랜치를 회차 브랜치에 직접 합쳤다(`b5659ae`).
+  먼저 `main`에 PR로 병합하는 쪽을 고르면 이 합치기를 되돌리고 `main`을 합친다.
 - enode-design에서도 ADR-075~077은 `unit/runtime-environment-profile`에만 있다. 회차 브랜치의
   서브모듈은 그 머리 `369270a`를 가리킨다.

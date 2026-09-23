@@ -43,9 +43,8 @@
 
 **이 팩이 넓히는 코드는 아직 `main`에 없다.** ADR-073의 실행 환경 구현(profile, `env
 check`/`env apply`, runc-overlay `StepRuntime`, 제품 경로 연결)은 브랜치
-`unit/runtime-environment-profile`(상위 `0a67716`)에만 있다. 이 팩의 줄 번호와 파일 경로는
-그 브랜치 기준이다. 회차가 Workspace Detection을 돌기 전에 그 코드가 회차 브랜치에 있어야
-한다(`constraints.md` 4절).
+`unit/runtime-environment-profile`(상위 `0a67716`)에만 있고, 회차 브랜치가 그것을 합쳤다(`b5659ae`). 이 팩의 줄 번호와 파일
+경로는 그 브랜치 기준이다(`constraints.md` 4절).
 
 ## 1.4 정본
 
