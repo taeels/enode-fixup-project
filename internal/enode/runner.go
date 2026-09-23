@@ -8,7 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -78,6 +78,10 @@ type Job struct {
 	// HarnessResult 를 안 타고 나가서 단계 오류의 꼴이 경로마다 달라진다.
 	WorkspaceMCPErr error
 
+	// Session은 agent와 command가 공유하는 단계 실행 경계다. nil이면 기존
+	// native 실행을 써서 단독 runner 호출의 호환성을 지킨다.
+	Session StepSession
+
 	// Log 는 Components.Notes 가 나갈 자리다 (U4).
 	//
 	// logs/ 에는 안 싣는다 — 그 파일은 허용목록이고 첫 줄이 system/init 이어야
@@ -86,7 +90,7 @@ type Job struct {
 	Log *slog.Logger
 }
 
-// runHarness 는 ②기동이다. 유일한 exec 지점.
+// runHarness 는 ②기동이다. 프로세스 실행은 전달받은 StepSession 경계를 지난다.
 //
 // 치명이 전부 exec 앞에 모인다 (components.md 3절)
 //
@@ -140,23 +144,45 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		return nil, HarnessResult{Reason: ReasonError, Message: err.Error()}
 	}
 
+	session := j.Session
+	if session == nil {
+		session = &nativeSession{spec: RuntimeSpec{Dir: j.IO.Dir, In: j.IO.In, Out: j.IO.Out}}
+	}
+	runtimePaths := session.Paths()
+	runtimeIO := IOPaths{Dir: runtimePaths.Dir, In: runtimePaths.In, Out: runtimePaths.Out}
+
 	// ③
-	args := h.Argv(j.Params, j.IO)
+	args := h.Argv(j.Params, runtimeIO)
 
 	// ④ 계장. self 가 비어도 부른다 — 오늘은 os.Executable() 하나가 허용목록까지
 	// 떨어뜨렸다. 훅 블록만 그것에 달린다 (WriteHookSettings).
 	self, _ := os.Executable()
-	a := HookArgs{Out: j.IO.Out, Workspace: j.IO.Dir, Expect: j.Expect,
-		Plan: j.Plan, Roles: j.Roles}
+	helper := gatewayAuthHelperPath()
+	projection, projectErr := session.Project(ctx, FrameworkProjectionSpec{
+		HarnessExecutable: bin,
+		EnodeExecutable:   self,
+		Instrumentation:   tmp,
+		CredentialHelper:  helper,
+	})
+	if projectErr != nil {
+		return nil, HarnessResult{Reason: ReasonError,
+			Message: "cannot project framework runtime: " + projectErr.Error()}
+	}
+	a := HookArgs{Out: runtimeIO.Out, Workspace: runtimeIO.Dir, Expect: j.Expect,
+		Plan: j.Plan, Roles: j.Roles,
+		CredentialHelperSource: helper, CredentialHelperTarget: projection.CredentialHelper}
 	// 훅은 별도 프로세스라 기준 시각을 파일로 넘긴다.
 	// 워크스페이스 밖(계장 임시 폴더)에 둔다 — 안에 두면 자기가 걷힌다.
 	if !j.Stamp.At.IsZero() {
 		p := filepath.Join(tmp, "stamp")
 		if writeStamp(p, j.Stamp) == nil {
-			a.Stamp = p
+			a.Stamp = projectedPath(p, tmp, projection.Instrumentation)
 		}
 	}
-	flags, err := h.Instrument(tmp, self, a, c)
+	flags, err := h.Instrument(tmp, projection.EnodeExecutable, a, c)
+	for i := range flags {
+		flags[i] = strings.ReplaceAll(flags[i], tmp, projection.Instrumentation)
+	}
 	// 오류에도 이미 얻은 플래그를 붙인다 — 보조 실패 하나가 격리의 겹을
 	// 함께 떨어뜨리면 안 된다.
 	args = append(args, flags...)
@@ -171,17 +197,11 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 
 	// ⑤ 우리가 못 박는 값 — 구조적인 것(OUT·IN)과 하네스가 정하는 것(Fixed)을
 	// 한 자리에서 합친다. Fixed 는 재현성용이고 OUT·IN 과 이름이 겹칠 일이 없다.
-	fixed := map[string]string{"OUT": j.IO.Out, "IN": j.IO.In}
+	fixed := map[string]string{"OUT": runtimeIO.Out, "IN": runtimeIO.In}
 	for k, v := range h.Fixed(tmp) {
-		fixed[k] = v
+		fixed[k] = projectedPath(v, tmp, projection.Instrumentation)
 	}
 	env := harnessEnv(h.Env(), fixed, j.Inject)
-
-	cmd := child(exec.CommandContext(ctx, bin, args...))
-	cmd.Dir = j.IO.Dir
-	cmd.Stdin = strings.NewReader(j.Prompt)
-	// 화이트리스트로 조립된 것만 넘어간다 — os.Environ() 을 얹지 않는다.
-	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
 	// ⑥ 하네스 단계의 tee 를 되살린다 (FR-2 · 이 회차의 질문 2 = A)
@@ -211,9 +231,11 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		sinks = append(sinks, j.Transcript)
 	}
 	sinks = append(sinks, emitter)
-	cmd.Stdout = io.MultiWriter(sinks...)
-	cmd.Stderr = &stderr
-	err = cmd.Run()
+	code, runErr := session.Run(ctx, ProcessSpec{
+		Argv: append([]string{projection.HarnessExecutable}, args...), Dir: runtimeIO.Dir, Env: env, Stdin: strings.NewReader(j.Prompt),
+		Stdout: io.MultiWriter(sinks...), Stderr: &stderr,
+	})
+	err = runErr
 
 	// 배출기를 Decode 앞에서 닫는다.
 	//
@@ -224,10 +246,6 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		j.Log.Warn("harness events dropped", "lines", dropped)
 	}
 
-	code := -1
-	if cmd.ProcessState != nil {
-		code = cmd.ProcessState.ExitCode()
-	}
 	// ⑦ 판정한다. Decode 가 내는 사건 중 봉투 하나만 통과시킨다.
 	//
 	// Decode 도 줄마다 사건을 낸다. 그대로 j.Emit 에 이으면 한 단계의 줄
@@ -300,6 +318,20 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 	}
 	// logs/ 는 허용목록이다 — 아는 것만 남는다 (ADR-005 의 logs/).
 	return selectLogs(stdout.Bytes(), stderr.Bytes()), res
+}
+
+func projectedPath(value, sourceRoot, targetRoot string) string {
+	if value == "" || sourceRoot == "" || targetRoot == "" {
+		return value
+	}
+	rel, err := filepath.Rel(sourceRoot, value)
+	if err != nil || rel == ".." || strings.HasPrefix(filepath.ToSlash(rel), "../") {
+		return value
+	}
+	if rel == "." {
+		return targetRoot
+	}
+	return path.Join(targetRoot, filepath.ToSlash(rel))
 }
 
 // openPack 은 $IN 의 팩을 연다 (R1 · R2).
