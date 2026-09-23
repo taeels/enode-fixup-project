@@ -1,0 +1,227 @@
+//go:build linux && integration
+
+package enode
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"testing"
+	"time"
+
+	execenv "github.com/taeels/enode/internal/environment"
+)
+
+func TestRuncOverlayRuntimeIntegration(t *testing.T) {
+	rootfs := os.Getenv("ENODE_RUNC_ROOTFS")
+	testRoot := os.Getenv("ENODE_RUNC_TEST_ROOT")
+	helper := os.Getenv("ENODE_RUNC_HELPER")
+	if rootfs == "" || testRoot == "" || helper == "" {
+		t.Skip("set ENODE_RUNC_ROOTFS, ENODE_RUNC_TEST_ROOT, and ENODE_RUNC_HELPER for the real namespace gate")
+	}
+	subIDSize := 65536
+	if value := os.Getenv("ENODE_RUNC_SUBID_SIZE"); value != "" {
+		var err error
+		subIDSize, err = strconv.Atoi(value)
+		if err != nil || subIDSize <= 1000 {
+			t.Fatalf("invalid ENODE_RUNC_SUBID_SIZE %q", value)
+		}
+	}
+	doc, err := execenv.Parse([]byte(fmt.Sprintf(`api_version: enode.dev/v1alpha1
+kind: execution-environment
+name: runc-integration
+host:
+  provider: apt
+  packages: [debootstrap, runc, uidmap, util-linux]
+  require: {subuid_size: %d, subgid_size: %d, unprivileged_userns: true}
+rootfs:
+  builder: debootstrap
+  release: noble
+  arch: amd64
+  apt: {components: [main], packages: [bash]}
+  locale: C.UTF-8
+  user: {name: sunny, uid: 1000, gid: 1000}
+runtime:
+  driver: runc-overlay
+  workspace_target: /work
+  tmp: {size: 64MiB, executable: true}
+  credentials: {ssh: readonly}
+verify: {executables: [bash], locale: C.UTF-8}
+`, subIDSize, subIDSize)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := execenv.Binding{
+		Scratch: filepath.Join(testRoot, "scratch"), Workspace: filepath.Join(testRoot, "workspace"),
+		Store: filepath.Join(testRoot, "store"), SSHDir: filepath.Join(testRoot, "ssh"),
+	}
+	instrumentation := filepath.Join(testRoot, "instrumentation")
+	for _, dir := range []string{binding.Scratch, binding.Workspace, binding.SSHDir, instrumentation} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(binding.SSHDir, "config"), []byte("gate\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	manifest := execenv.Manifest{Profile: execenv.ManifestProfile{Name: doc.Profile.Name, SHA256: doc.SHA256}}
+	runtimeImpl, err := newRuncOverlayRuntime(doc, binding, manifest, rootfs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeImpl.helper = helper
+	in, out := filepath.Join(testRoot, "in"), filepath.Join(testRoot, "out")
+	for _, dir := range []string{in, out} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	probeInput := filepath.Join(in, "probe")
+	_ = os.Remove(probeInput)
+	if err := os.WriteFile(probeInput, []byte("input\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	session, err := runtimeImpl.Open(context.Background(), RuntimeSpec{Dir: binding.Workspace, In: in, Out: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	concrete := session.(*runcOverlaySession)
+	defer session.Close() //nolint:errcheck
+	projection, err := session.Project(context.Background(), FrameworkProjectionSpec{
+		HarnessExecutable: helper, EnodeExecutable: helper,
+		Instrumentation: instrumentation, CredentialHelper: helper,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code, runErr := session.Run(context.Background(), ProcessSpec{
+		Argv: []string{"/bin/sh", "-c", `set -eu
+test "$(id -u)" = 1000
+test "$(id -g)" = 1000
+test "$PWD" = /work
+test "$(cat "$IN/probe")" = input
+! (printf bad > "$IN/probe") 2>/dev/null
+test "$(cat "$HOME/.ssh/config")" = gate
+! (printf bad > "$HOME/.ssh/config") 2>/dev/null
+"$HARNESS" --version >/dev/null
+test -x "$CREDENTIAL"
+printf instrument > "$INSTRUMENTATION/probe"
+printf workspace > .gate-marker
+printf output > "$OUT/probe"
+printf '#!/bin/sh\nexit 0\n' > /tmp/gate-exec
+chmod +x /tmp/gate-exec
+/tmp/gate-exec
+`},
+		Env: []string{
+			"IN=" + runtimeInTarget, "OUT=" + runtimeOutTarget,
+			"HARNESS=" + projection.HarnessExecutable,
+			"CREDENTIAL=" + projection.CredentialHelper,
+			"INSTRUMENTATION=" + projection.Instrumentation,
+		},
+		Dir: "/work", Stdout: &stdout, Stderr: &stderr,
+	})
+	if runErr != nil || code != 0 {
+		_ = session.Close()
+		t.Fatalf("run code=%d err=%v stdout=%q stderr=%q", code, runErr, stdout.String(), stderr.String())
+	}
+	if _, err := os.Stat(filepath.Join(binding.Workspace, ".gate-marker")); !os.IsNotExist(err) {
+		_ = session.Close()
+		t.Fatalf("overlay write reached the original workspace: %v", err)
+	}
+	if b, err := os.ReadFile(filepath.Join(out, "probe")); err != nil || string(b) != "output" {
+		_ = session.Close()
+		t.Fatalf("$OUT projection body=%q err=%v", b, err)
+	}
+	if b, err := os.ReadFile(filepath.Join(instrumentation, "probe")); err != nil || string(b) != "instrument" {
+		t.Fatalf("instrumentation projection body=%q err=%v", b, err)
+	}
+	_ = os.Remove(filepath.Join(out, "gate-artifact"))
+	harvested, err := session.Harvest(context.Background(), HarvestSpec{
+		Collect: map[string]string{"gate-artifact": ".gate-marker"},
+	})
+	if err != nil || len(harvested.Collected) != 1 || harvested.Collected[0] != "gate-artifact" {
+		t.Fatalf("merged harvest=%+v err=%v", harvested, err)
+	}
+	if b, err := os.ReadFile(filepath.Join(out, "gate-artifact")); err != nil || string(b) != "workspace" {
+		t.Fatalf("harvested artifact body=%q err=%v", b, err)
+	}
+
+	cancelCtx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	code, runErr = session.Run(cancelCtx, ProcessSpec{Argv: []string{"/bin/sh", "-c", "sleep 60"}, Dir: "/work"})
+	if cancelCtx.Err() == nil || runErr == nil || code == 0 {
+		t.Fatalf("canceled run code=%d err=%v context=%v", code, runErr, cancelCtx.Err())
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("canceled runtime took %s", elapsed)
+	}
+	if err := session.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(concrete.runRoot); !os.IsNotExist(err) {
+		t.Fatalf("runtime session state remains at %s: %v", concrete.runRoot, err)
+	}
+
+	record := &execenv.Record{
+		ProfileSHA256: doc.SHA256, PreparedEnvironment: "integration-rootfs", Runtime: "runc-overlay",
+	}
+	t.Run("worker command", func(t *testing.T) {
+		m := newMediator(t)
+		w := newWorker(m)
+		w.Local.Workspace = binding.Workspace
+		w.Runtime, w.RuntimeRecord = runtimeImpl, record
+		holdLease(w)
+		step := runStep("/bin/sh", "-c", `printf 'command result\n' > "$OUT/command"`)
+		step.Out = []string{"command"}
+		w.execute(context.Background(), step)
+		result := m.only(t)
+		if result.Error != "" || result.ExitCode == nil || *result.ExitCode != 0 {
+			t.Fatalf("command result=%+v", result)
+		}
+		if body, ok := m.blob("command"); !ok || string(body) != "command result\n" {
+			t.Fatalf("command artifact=%q present=%v", body, ok)
+		}
+		if result.Environment == nil || result.Environment.ProfileSHA256 != record.ProfileSHA256 ||
+			result.Environment.PreparedEnvironment != record.PreparedEnvironment ||
+			result.Environment.Runtime != record.Runtime {
+			t.Fatalf("command runtime record=%+v", result.Environment)
+		}
+	})
+
+	t.Run("worker agent", func(t *testing.T) {
+		m := newMediator(t)
+		w := newWorker(m)
+		w.Local.Workspace = binding.Workspace
+		w.Local.HarnessBin = stubHarness(t, `cat >/dev/null
+printf 'agent result\n' > "$OUT/plan.json"
+printf '{"type":"result","subtype":"success","num_turns":1}\n'
+`)
+		w.Runtime, w.RuntimeRecord = runtimeImpl, record
+		holdLease(w)
+		step := agentStep(`{}`)
+		step.Out = []string{"plan.json"}
+		w.execute(context.Background(), step)
+		result := m.only(t)
+		if result.Error != "" || result.Harness == nil || result.Harness.Reason != ReasonOK {
+			t.Fatalf("agent result=%+v", result)
+		}
+		if body, ok := m.blob("plan.json"); !ok || string(body) != "agent result\n" {
+			t.Fatalf("agent artifact=%q present=%v", body, ok)
+		}
+		if result.Environment == nil || result.Environment.ProfileSHA256 != record.ProfileSHA256 ||
+			result.Environment.PreparedEnvironment != record.PreparedEnvironment ||
+			result.Environment.Runtime != record.Runtime {
+			t.Fatalf("agent runtime record=%+v", result.Environment)
+		}
+	})
+
+	left, err := filepath.Glob(filepath.Join(binding.Scratch, "enode-runc-*"))
+	if err != nil || len(left) != 0 {
+		t.Fatalf("runtime scratch remains after Worker scenes: %v err=%v", left, err)
+	}
+}
