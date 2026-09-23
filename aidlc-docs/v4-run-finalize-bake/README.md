@@ -9,8 +9,8 @@ AI-DLC는 Workspace Detection으로 브라운필드임을 확인하고, 공용 R
 |---|---|
 | 팩 | `requirements/finalize-bake/` 다섯 파일 |
 | 출발 | 2026-09-21~23 설계 검토. 사내 증상 「결정론적 BitBake는 끝났는데 임대가 안 풀린다」 |
-| 정본 | 서브모듈 `enode-design` `369270a`. ADR-075(결정), ADR-076(초안), ADR-077(초안) |
-| 코드 기준선 | `unit/runtime-environment-profile`(상위 `0a67716`)을 이 브랜치에 합쳤다(`b5659ae`). `main`에는 아직 없다 |
+| 정본 | 서브모듈 `enode-design` `a2c4ac6`(enode-design `main`, #15). ADR-075(결정), ADR-076(초안), ADR-077(초안) |
+| 코드 기준선 | `main` `826b40f`. `unit/runtime-environment-profile`이 #59로 `main`에 들어갔고 이 브랜치가 그것을 합쳤다(`4facffb`) |
 | Office Task | `f806768d` |
 | 문서 루트 | 여기. 상태 파일과 감사 로그도 여기(`CLAUDE.md`의 회차별 layering) |
 
@@ -23,6 +23,11 @@ AI-DLC는 Workspace Detection으로 브라운필드임을 확인하고, 공용 R
 
 `unit/runtime-environment-profile`이 나중에 PR로 `main`에 따로 병합되면 이 회차의 PR에서 그만큼이
 빠진다. 먼저 `main`에 병합하는 쪽을 고르면 이 합치기를 되돌리고 `main`을 합친다.
+
+**2026-09-23에 먼저 `main`에 병합하는 쪽으로 닫았다** (Requirements 재질문의 답 A). 정본은
+enode-design #15(`a2c4ac6`), 구현은 #59(`826b40f`)로 둘 다 병합 커밋으로 들어갔다. 병합
+커밋이라 `b5659ae`를 되돌리지 않고 `main`을 합쳤다(`4facffb`) — 나무가 한 줄도 안 바뀐다.
+핀은 README 3.1대로 enode-design `main`인 `a2c4ac6`으로 옮겼다. `369270a`와 나무가 같다.
 
 ## 낡은 산출물을 미리 실어 두지 않는다
 
