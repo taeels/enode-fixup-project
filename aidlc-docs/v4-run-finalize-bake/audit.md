@@ -35,3 +35,59 @@
 **Context**: INCEPTION — Reverse Engineering 승인. 단계 종료
 
 ---
+
+## Requirements Analysis — 착수
+**Timestamp**: 2026-09-23T14:20:56Z
+**User Input**: (없음 — 위 승인으로 자동 진행)
+**AI Response**: `requirements-analysis.md` Step 1 ~ 6 을 돌았다. 공용 R/E 의 architecture · component-inventory · technology-stack 과 팩 다섯 파일을 읽고, R/E 의 측정값 여섯을 코드에 한 번 더 댔다 — `detect.go:82 · :387`(hasRoom) · `store/claim.go:321 · :782`(claimed_instance · ReportStep) · `runc_overlay_linux.go`(runRoot 삭제 다섯) · `advertise.go:53`(Lease) · `config.go:117`(scratch) · `run-contract.md:392 · :413`(workspace.changed 권고) · `.coverage-contract.yml`(하한 80). **여섯 중 결정은 하나**(① min_free_gb — 「광고에서 빠진다」와 「새 기제는 없다」가 코드에서 갈린다)이고 나머지 다섯은 팩의 뜻 안에서 닫힌다. 팩을 대며 넷을 더 찾았다 — 기능 1 이 끄는 걷기를 정본 계약 문서가 저자에게 권한다, 합치기 표에 종류가 바뀐 항목(`EISDIR`)이 없다, 임대가 Run 의 effect 를 모른다, scratch 를 다른 filesystem 에 둔 노드가 not ready 가 된다. `inception/requirements/requirement-verification-questions.md` 에 질문 여섯(범위 하나 · 운영 둘 · 확장 opt-in 셋)과 확인된 사실 아홉을 냈다. 권장은 1=A · 2=B · 3=A · 4=A · 5=B · 6=C. 표기 검사 exit 0. Step 6 게이트에서 멈춘다.
+**Context**: INCEPTION — Requirements Analysis. 질문 대기
+
+---
+
+## Requirements Analysis — 답
+**Timestamp**: 2026-09-23T14:35:56Z
+**User Input**: "답했다." — `requirement-verification-questions.md` 의 답 원문: 질문 1 "A. \"arch\" 광고가 빌드 기능과 강하게 결합되어 있나보네. 극 초반 설계에서 arch를 넣어놨기 때문에 그것이 퍼진 것이 아닌가 싶은데 이제 이런 단순 조건문은 제거되어야 한다." / 질문 2 "B." / 질문 3 "병합을 안 하면 회차 진행에 문제가 되는지?" / 질문 4 "B" / 질문 5 "B" / 질문 6 "X. 기존 테스트 컨벤션을 따른다."
+**AI Response**: 여섯 답을 분석해 질문 파일 끝 「답」 절에 적었다. 재질문은 질문 3 하나다 — 선택이 아니라 되물음이라 먼저 답했다(진행은 안 막히고 Inception PR · 유닛 PR · 서브모듈 포인터 세 자리에서 걸린다). `requirement-clarification-questions.md` 에 그 답과 재질문 하나(권장 C — Inception PR 직전까지 미룬다)를 냈다. 질문 1 의 덧붙인 말은 조건문의 출처가 ADR-017 결정 3(확정 2026-08-19, 코드 `1249c35`)임을 확인하고 범위로 받았다 — arch 키를 디스크에서 떼고 여유 하한을 노드 drain 계기로 옮기며, ADR-017 결정 3 · ADR-068 §3.3 · ADR-076 §4.1 을 정본 되돌림 목록에 더한다. 질문 4 = B 는 권장을 벗어났다. 근거를 묻지 않았고 팩의 보안 표는 팩의 요구로 남는다고 적었다. 질문 6 = X 는 저장소의 테스트 규약으로 읽어 PBT 확장을 끔으로 기록했다. Extension Configuration 표를 상태 파일에 적었다 — 셋 다 No 라 전체 규칙 파일을 싣지 않는다. Step 6 게이트에서 다시 멈춘다.
+**Context**: INCEPTION — Requirements Analysis. 재질문 대기
+
+---
+
+## Requirements Analysis — 되물음
+**Timestamp**: 2026-09-23T14:39:18Z
+**User Input**: "runtime-environment-profile 브랜치에 코드 변경량이 있다고?"
+**AI Response**: `origin/main...origin/unit/runtime-environment-profile` 을 쟀다. 19 커밋 중 코드를 싣는 것은 다섯(`d7e21e3` · `1a52bab` · `3247b63` · `1117fcc` · `8be73d2`)이고 열넷은 enode-design 서브모듈 포인터만 바꾼다. 비테스트 24 파일 +3,326 -118(`runc_overlay_linux.go` 1,285 · `internal/environment` 1,400) · 테스트 15 파일 +2,292 -4. `origin/main` 에는 `internal/environment` 도 `runc_overlay_linux.go` 도 없다. 원 질문 3 의 「19 커밋의 코드」가 부풀린 말이었음을 재질문 파일에 바로잡고 이 측정값을 실었다.
+**Context**: INCEPTION — Requirements Analysis. 재질문 대기
+
+---
+
+## Requirements Analysis — 재질문의 답
+**Timestamp**: 2026-09-23T14:41:53Z
+**User Input**: "그럼 먼저 main에 기준선을 병합하고 진행하도록 하지."
+**AI Response**: 재질문(원 질문 3)의 A 로 읽었다 — 실행 환경 브랜치를 먼저 자기 PR 로 main 에 올린다. 재질문 파일의 `[Answer]:` 에 채팅 답으로 적었다. README 3.1 의 절차대로 enode-design 의 같은 이름 브랜치를 enode-design main 에 먼저 PR 로 병합하고(병합 커밋 — 369270a 가 main 에서 닿게), 그 뒤 이 저장소의 `unit/runtime-environment-profile` 을 PR 로 병합한다(CI 초록 뒤, 병합 커밋 — 회차 브랜치의 b5659ae 를 안 되돌려도 된다). 끝으로 회차 브랜치가 main 을 합치고 핀을 enode-design main 으로 옮긴다. 이 답으로 Requirements 의 모든 질문이 닫혔다.
+**Context**: INCEPTION — Requirements Analysis. 기준선 병합 착수
+
+---
+
+## Requirements Analysis — 기준선 병합
+**Timestamp**: 2026-09-23T14:50:03Z
+**User Input**: (없음 — 14:41:53Z 의 「그럼 먼저 main에 기준선을 병합하고 진행하도록 하지.」를 집행)
+**AI Response**: README 3.1 순서로 병합했다. enode-design PR #15(`unit/runtime-environment-profile` -> main, 20 커밋 앞 · 0 뒤)를 열고 표기 검사 통과 뒤 병합 커밋 `a2c4ac6` 으로 합쳤다 — `369270a` 가 enode-design main 에서 닿고 나무가 같다. 이 저장소 PR #59 를 열고 CI 셋(test 3m43s · cross · bounded-demo)이 초록이고 충돌이 없음을 확인한 뒤 병합 커밋 `826b40f` 로 합쳤다. 회차 브랜치가 main 을 합쳤고(`4facffb`, 나무 변화 0) 핀을 `a2c4ac6` 으로 옮기며 회차 README 의 기준선 기록을 고쳤다(`afcdc71`). 앞서 `gh api repos/taeels/enode` 로 조회한 저장소 설정은 이 저장소의 원격(`taeels/enode-fixup-project`)이 아니어서 버리고 다시 쟀다. `requirements.md` 3절에 이 결과를 적었다.
+**Context**: INCEPTION — Requirements Analysis. 기준선 병합 완료
+
+---
+
+## Requirements Analysis — 완료 · 승인 요청
+**Timestamp**: 2026-09-23T14:50:03Z
+**User Input**: (없음)
+**AI Response**: `inception/requirements/requirements.md` 를 냈다 (Comprehensive). 의도 분석 · 착수 전 실측 열 · 사용자 결정 일곱 · FR-1 ~ FR-13(팩의 기능 번호) · 비기능 일곱 절 · 수용 기준(바뀐 조각 일곱) · 범위 · Application Design 이 닫을 것 열셋 · 회차 운영 · decisions.md 에 더할 행 열둘 · 정본 되돌림 열둘. 팩에 더한 요구 — bounded discovery 를 FR-1 로 당김, 재지 않은 변경 목록을 「바뀐 파일이 없다」로 쓰지 않음, 종료 보고의 인스턴스 대조, runRoot 삭제 다섯 자리, 여유 하한의 노드 drain 과 arch 키의 디스크 분리, 종류가 바뀐 항목의 합치기 규칙, 첫 단계 전 lower 불변. User Stories 는 돈다. 승인을 요청한다.
+**Context**: INCEPTION — Requirements Analysis. 승인 대기
+
+---
+
+## Requirements Analysis — 승인
+**Timestamp**: 2026-09-23T14:56:31Z
+**User Input**: "승인. 넘어가자"
+**AI Response**: `requirements.md`(Comprehensive · FR-1 ~ FR-13)와 질문 파일 둘의 승인으로 읽었다. 상태 파일에 단계 완료를 적고 이 단계의 산출물과 이 회차의 상태 · 감사 파일을 한 커밋으로 넣는다 (CONVENTIONS 3.3). 다음은 User Stories 다 — `requirements.md` 9절이 돈다고 적었다.
+**Context**: INCEPTION — Requirements Analysis 승인. 단계 종료
+
+---

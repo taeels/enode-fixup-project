@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: INCEPTION - Requirements Analysis (착수)
+- **Current Stage**: INCEPTION - User Stories (착수 — Part 1 Planning)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` (CLAUDE.md 의 회차별 layering)
@@ -17,8 +17,8 @@
 - **Workspace Root**: /home/sunny/enode-fixup-v4 (git worktree)
 - **Go 소스**: 263 파일 (비테스트 132 · 비테스트 31,551 줄)
 - **Mediator 라우트**: 27 (`internal/api/*.go` 의 `mux.HandleFunc` + `mux.Handle(`)
-- **enode-design 핀**: `369270a` (enode-design `unit/runtime-environment-profile` 머리. ADR-075~077 이 여기에만 있다)
-- **회차 브랜치 기준선**: `195a5d0`. `origin/main`(`073f5f1`) 위에 `unit/runtime-environment-profile` 을 합쳤다(`b5659ae`)
+- **enode-design 핀**: `a2c4ac6` (enode-design `main`. #15 가 `unit/runtime-environment-profile` 을 병합 커밋으로 합쳤다. `369270a` 와 나무가 같다)
+- **회차 브랜치 기준선**: `main` `826b40f` (#59 — 실행 환경 구현이 main 에 들어갔다). 회차 브랜치가 그것을 합쳤다(`4facffb`, 나무 변화 0). R/E 의 측정 기준 `195a5d0` 과 코드가 같다
 
 ## Reverse Engineering — 낡았다. 이 회차가 갱신한다
 공용이다 — `aidlc-docs/inception/reverse-engineering/` (CLAUDE.md). 회차가
@@ -96,15 +96,22 @@ Requirements Analysis 가 이것을 입력으로 받는다. 값이 아니라 결
 - `requirements/finalize-bake/constraints.md` — 제외 · 구조 불변식 · 접점 · 코드 기준선
 
 ## Extension Configuration
-Requirements Analysis 가 묻는다 (`decisions.md` 5절의 권장: 앞 회차들처럼 security-baseline 켬).
+Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋 다 꺼져 있으므로
+전체 규칙 파일을 싣지 않는다.
+
+| Extension | Enabled | Decided At |
+|---|---|---|
+| security-baseline | No | Requirements Analysis 질문 4 = B. 팩의 보안 표(features.md 3절)는 팩의 요구로 남는다 |
+| resiliency-baseline | No | Requirements Analysis 질문 5 = B |
+| property-based-testing | No | Requirements Analysis 질문 6 = X 「기존 테스트 컨벤션을 따른다」 |
 
 ## Stage Progress
 
 ### INCEPTION PHASE
 - [x] Workspace Detection — 2026-09-23T13:49:57Z
 - [x] Reverse Engineering — 전면 갱신 2026-09-23T14:03:35Z · 승인 2026-09-23T14:12:44Z
-- [ ] Requirements Analysis
-- [ ] User Stories
+- [x] Requirements Analysis — 착수 2026-09-23T14:20:56Z. 답 14:35:56Z · 재질문 답 14:41:53Z. `requirements.md` 완료 14:50:03Z · 승인 2026-09-23T14:56:31Z
+- [ ] User Stories — 돈다 (requirements.md 9절 — 새 사용자 기능 · 워크플로 변경 · 여러 페르소나)
 - [ ] Workflow Planning
 - [ ] Application Design
 - [ ] Units Generation
