@@ -576,7 +576,8 @@ reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
 
 ```text
    Inception      aidlc-docs/v4-run-finalize-bake/.  브랜치 v4-run-finalize-bake
-   Construction   aidlc-docs/taeels/.  유닛마다 unit/<유닛> 브랜치를 회차 브랜치에서 딴다
+   Construction   aidlc-docs/v4-run-finalize-bake/construction/.  유닛마다 unit/<유닛> 브랜치를
+                  회차 브랜치에서 딴다.  처음 판은 aidlc-docs/taeels/ 였다 (2026-09-24 에 바꿨다)
    손             하나 (taeels).  앞 두 회차와 같은 모양이다
    병합           둘 다 PR 로 main.  유닛은 그 유닛의 장면 게이트가 초록인 뒤에
    바닥           실행 환경 구현이 main 에 먼저 갔다 (#59 · 826b40f).  회차 브랜치가 main 을

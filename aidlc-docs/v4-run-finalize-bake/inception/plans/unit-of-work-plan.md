@@ -16,7 +16,8 @@
 **묻지 않는다.** 앞 단계가 닫았다.
 
 ```text
-   담당        한 손 (taeels).  질문 2 = B.  Construction 문서 루트는 aidlc-docs/taeels/
+   담당        한 손 (taeels).  질문 2 = B.  Construction 문서 루트는 이 회차 폴더의 construction/
+               (처음 판은 aidlc-docs/taeels/.  2026-09-24 에 바꿨다)
    브랜치      유닛마다 unit/<유닛>.  v4-run-finalize-bake 에서 딴다.  PR 로 main
    경로        새 셋 (internal/lower · merge · scratch) 과 책임이 느는 여덟 ·
                packaging/macos/examples.  application-design/components.md 가 적는다
@@ -561,7 +562,8 @@ contract-grammar 와 bake 의 Functional Design 몫이다.
    4   산출물 넷을 낸다.  배정 안 된 스토리 · 완료 조건 · 조각이 0 임을 마지막에 센다
    5   확장 준수 요약을 붙인다 (셋 다 꺼짐)
    6   승인을 받고 커밋한다.  Inception 이 거기서 닫힌다 — 회차 브랜치를 PR 로 main 에 올리고,
-       다음은 Construction 이며 문서 루트가 aidlc-docs/taeels/ 로 바뀐다
+       다음은 Construction 이다.  처음 판은 문서 루트가 aidlc-docs/taeels/ 로 바뀐다고
+       적었고, 2026-09-24 에 회차 폴더의 construction/ 으로 바꿨다
 ```
 
 ---

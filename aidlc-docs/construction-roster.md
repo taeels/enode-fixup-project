@@ -1,7 +1,8 @@
 # Construction 배정 — handle 과 회차별 배정
 
-**1절의 handle 표가 살아 있는 값이다.** `CLAUDE.md` 가 문서 루트
-`aidlc-docs/<handle>/` 를 여기서 읽는다.
+**1절의 handle 표가 살아 있는 값이다** — 누가 누구인지를 적는다. 문서 루트는
+handle 이 아니라 회차다 (`CLAUDE.md` 의 문서 루트 규약 · 2026-09-24 부터). 앞 회차의
+Construction 기록은 `aidlc-docs/<handle>/` 에 남아 있다.
 
 **2 ~ 6절은 `v1-run-dhseo` 회차(대회)의 배정 기록이고 그 회차는 끝났다.** 배정은
 회차마다 다르므로 여기 이월하지 않는다 — 새 회차의 배정은 그 회차 문서 루트의

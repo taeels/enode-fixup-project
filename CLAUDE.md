@@ -55,29 +55,35 @@
 
 회차마다 브랜치를 따로 돌리므로, **AI-DLC 산출물 문서 루트는
 `aidlc-docs/<브랜치 이름>/`** 다 (예: `aidlc-docs/v3-run-harness-components/`).
-상태 파일과 감사 로그도 회차마다 그 아래 따로 둔다 — `aidlc-docs/<브랜치>/aidlc-state.md` ·
-`aidlc-docs/<브랜치>/audit.md`. **루트 `aidlc-docs/` 에 상태·감사·단계 문서를
-다시 쓰지 않는다** — 그러면 회차끼리 같은 파일을 두고 부딪친다.
+**Inception 과 Construction 이 같은 루트를 쓴다.** 상태 파일과 감사 로그도 회차마다
+하나다 — `aidlc-docs/<브랜치>/aidlc-state.md` · `aidlc-docs/<브랜치>/audit.md`.
+**루트 `aidlc-docs/` 에 상태·감사·단계 문서를 다시 쓰지 않는다** — 그러면 회차끼리
+같은 파일을 두고 부딪친다.
 
 공용은 하나다 — Reverse Engineering 분석은 회차와 무관하게 참이라
 `aidlc-docs/inception/reverse-engineering/` 에 공용으로 둔다.
 
 `aidlc-state.md` 와 `design/*.pen` 은 통째로 다시 쓰거나 자동 병합할 수 없는
-파일이다. **`aidlc-state.md` 는 그 문서 루트의 소유자가 고친다** — 회차 것은 그
-회차의 진행자가, Construction 것은 그 담당이. 소유자가 하나라 병합에서 안
-부딪친다. `design/*.pen` 은 루트가 갈리지 않으므로 **진행자 한 사람이** 고치고,
+파일이다. **`aidlc-state.md` 는 그 회차의 진행자가 고친다.** 소유자가 하나라 병합에서
+안 부딪친다. `design/*.pen` 은 회차마다 나뉘지 않으므로 **진행자 한 사람이** 고치고,
 시안은 회차마다 새 `.pen` 파일로 만든다. 이어 붙이는 `audit.md` 는
 `.gitattributes` 의 `merge=union` 으로 git 이 합친다. `CONVENTIONS.md` 3.2 가 이
 layering 위에서 부딪히는 자리를 적는다 — 남는 것은 `design/` 하나다.
 
-**Construction 은 담당별로 나눈다.** Construction 산출물의 문서 루트는 담당
-handle 로 **`aidlc-docs/<handle>/`** 다 (예: `aidlc-docs/taeels/`). 각자 자기 유닛의
-functional-design · nfr · code 요약과 자기 `aidlc-state.md` · `audit.md` 를 거기 쓴다.
-유닛은 `unit/<유닛>` 브랜치에서 돌고 **PR 로 `main` 에 병합**한다 — 그 유닛의 장면
-게이트가 초록인 뒤에만 (`CONVENTIONS.md` 3.1 · 3.3 이 브랜치 이름과 시점의 정본이다).
-배정과 handle 은 `aidlc-docs/construction-roster.md`.
+**Construction 도 회차 루트에 쓴다.** 유닛의 functional-design · nfr · code 요약은
+`aidlc-docs/<브랜치>/construction/<유닛>/`, 단계 계획은 `.../construction/plans/<유닛>-*`,
+Build and Test 는 `.../construction/build-and-test/` 다. 유닛은 `unit/<유닛>` 브랜치에서
+돌고 **PR 로 `main` 에 병합**한다 — 그 유닛의 장면 게이트가 초록인 뒤에만
+(`CONVENTIONS.md` 3.1 · 3.3 이 브랜치 이름과 시점의 정본이다). 누가 어느 유닛을 맡는지는
+그 회차의 Units Generation 산출물이 적고, handle 은 `aidlc-docs/construction-roster.md` 에 있다.
 
-**가르는 기준은 사람 수가 아니라 소유자다.** 대회 때는 넷이 동시에 돌아서 handle
-루트가 생겼지만, 한 손이 도는 회차도 handle 루트를 쓴다 — 그래야 회차가 바뀌어도
-그 사람의 Construction 산출물 주소가 안 바뀐다. 문서 루트는 언제나 그 산출물의
-소유자 하나로 갈린다 — Inception 회차는 회차(브랜치) 이름, Construction 은 담당 handle.
+**한 회차의 문서는 한 폴더에 모은다.** Construction 은 Inception 의 유닛 정의 · 요구 ·
+설계를 계속 읽고, 도중의 되물음이 Inception 문서를 고치기도 한다. 루트가 둘이면 한 회차를
+읽으려고 두 폴더를 오가고, 상태 파일 둘이 서로를 가리켜야 한다. 굽기 회차
+(`v4-run-finalize-bake`, 2026-09-24)에서 이렇게 바꿨다.
+
+**담당 루트 `aidlc-docs/<handle>/` 는 앞 회차의 기록이다.** v1 ~ v3 회차의
+Construction 이 거기 있다. 옮기지 않고, 새로 쓰지도 않는다. 대회 때 넷이 한 회차를
+동시에 돌면서 상태 파일 한 장을 두고 부딪쳐 생긴 자리다. **여럿이 한 회차의 Construction
+을 동시에 돌면 회차의 `aidlc-state.md` 가 다시 부딪친다** — 그런 회차가 오면 그 회차의
+Workflow Planning 이 상태를 나눌 자리를 정한다.

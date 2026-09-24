@@ -455,3 +455,24 @@
 **Context**: INCEPTION 닫힘 — 회차 브랜치를 올리기 전의 정리
 
 ---
+## Construction · U1 `contract-grammar` · Functional Design 착수
+**Timestamp**: 2026-09-24T12:45:25Z
+**User Input**: "승인" (위 Units Generation 승인 — 그 승인이 Construction 으로 넘어가라는 뜻이다)
+**AI Response**: 회차 브랜치 d421e81 에서 unit/contract-grammar 를 땄다. 코드를 먼저 읽었다 — 단계 종류는 판별 칸이 정한다(contract.go:798) · exit_code 는 「run 이 아니면」 400 이라 build · merge 도 저절로 막힌다 · Verify 에는 「단계가 성공으로 끝났다」는 값이 없다 · success_when 이 비면 lint 경고뿐이다 · SunnyVM 의 poky 는 repo 가 아니라 git 으로 받았고 poky 에 공개 태그 yocto-5.0.1 ~ 5.0.20 이 있다. 계획과 물음 일곱을 냈다 — 1 굽기 Run 의 성공 판정 · 2 effect 와 budget 을 받는 종류 · 3 굽기 계약의 모양 · 4 구울 IR 칸의 이름과 문자와 환경 변수 · 5 discover 문법 · 6 계획이 새 칸을 쓸 수 있나 · 7 공개 굽기 예시와 IR 대조. 처음에는 그때의 규약대로 담당 루트(aidlc-docs/taeels/)에 계획 · 상태 절 · 이 항목을 적었다. 아래 결정으로 이 회차 폴더로 옮겼다.
+**Context**: Construction · U1 contract-grammar · Functional Design Step 1 ~ 4
+
+---
+## 되물음 — 문서 루트가 왜 바뀌나
+**Timestamp**: 2026-09-24T12:55:29Z
+**User Input**: "지금까지 inception은 v4-run-finalize-bake 에 적었다가 왜 갑자기 taeels/ 로 옮김?"
+**AI Response**: Inception 문서는 옮기지 않았고 새 Construction 산출물만 담당 루트에 쓴 것이라고 답했다. 근거는 CLAUDE.md 의 문서 루트 규약(Inception 은 회차 이름, Construction 은 담당 handle)이고, 앞 회차들도 aidlc-docs/taeels/ 에 Construction 을 쌓았다. 폴더를 바꾸는 순간에 이유를 말하지 않은 것은 잘못이었다고 적었다. 회차 폴더에 두려면 CLAUDE.md 를 함께 고치거나 예외로 적어야 한다고 했다.
+**Context**: Construction 착수 직후의 되물음
+
+---
+## 결정 — Construction 도 회차 폴더에 쓴다 (규약 변경)
+**Timestamp**: 2026-09-24T12:55:29Z
+**User Input**: "md 고치고 회차 디렉토리로 옮기자."
+**AI Response**: 문서 루트 규약을 바꿨다 — Inception 과 Construction 이 aidlc-docs/<브랜치>/ 하나를 쓰고, Construction 은 그 아래 construction/ 에 쌓는다. 상태와 감사도 회차마다 하나다. 담당 루트 aidlc-docs/<handle>/ 는 앞 회차(v1 ~ v3)의 기록으로 남기고 옮기지도 새로 쓰지도 않는다. 여럿이 한 회차의 Construction 을 동시에 돌면 회차 상태 파일이 다시 부딪치므로, 그런 회차가 오면 그 회차의 Workflow Planning 이 자리를 정한다고 적었다. 고친 파일 — CLAUDE.md(문서 루트 절) · CONVENTIONS.md(3.2 · 3.4) · AGENTS.md(Codex 용 · 영어) · README.md(Codex 재개 예시) · aidlc-docs/README.md(폴더 그림과 규칙) · construction-roster.md(머리말) · .gitattributes(주석). 이 회차의 문서 넷(aidlc-state.md · execution-plan.md · requirements.md 9절 · unit-of-work-plan.md)에서 「Construction 루트는 aidlc-docs/taeels/」 줄을 고치고 처음 판이 무엇이었는지 옆에 남겼다. 감사 로그의 지난 항목은 고치지 않았다. 옮긴 것 — 계획 파일을 aidlc-docs/v4-run-finalize-bake/construction/plans/ 로, 담당 루트에 적은 상태 절과 감사 항목은 되돌리고 이 회차 폴더에 다시 적었다(커밋 전이었다). 규약 변경은 회차 브랜치(PR #60)에 싣고, 유닛 브랜치를 그 위로 맞춘다.
+**Context**: Construction · 규약 변경 (CLAUDE.md 문서 루트)
+
+---

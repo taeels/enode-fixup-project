@@ -3,10 +3,10 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: INCEPTION 닫힘 (2026-09-24T12:31:50Z). 다음은 CONSTRUCTION — 첫 유닛 contract-grammar 의 Functional Design. 문서 루트 `aidlc-docs/taeels/` · 브랜치 `unit/contract-grammar`
+- **Current Stage**: CONSTRUCTION — U1 contract-grammar 의 Functional Design (브랜치 `unit/contract-grammar`). Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
-- **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` (CLAUDE.md 의 회차별 layering)
+- **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
 - **Office Task**: `f806768d` (회차 README 가 지목한다. 설계 검토와 같은 원장)
 
 ## Workspace State

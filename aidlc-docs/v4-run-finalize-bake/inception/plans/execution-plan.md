@@ -7,8 +7,8 @@
 단계의 승인이다 (`requirements.md` 9절).
 
 - **회차 브랜치**: `v4-run-finalize-bake` · HEAD `7a7ec85`
-- **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` (Inception) · `aidlc-docs/taeels/`
-  (Construction · 질문 2 = B)
+- **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` (Inception 과 Construction). 처음 판은
+  Construction 을 `aidlc-docs/taeels/` 에 두었다 (2026-09-24 에 바꿨다 — CLAUDE.md 의 문서 루트 규약)
 - **작성 시각**: 2026-09-23T23:57:36Z
 
 **앞 회차와 갈리는 자리 셋을 먼저 적는다.** 계획의 뼈대는 같아 보이지만 아래 셋이
@@ -262,8 +262,9 @@ flowchart TD
 
 ### CONSTRUCTION PHASE
 
-담당은 `taeels` 하나다 (질문 2 = B). 문서 루트는 `aidlc-docs/taeels/` 이고 유닛마다
-`unit/<유닛>` 을 회차 브랜치에서 딴다.
+담당은 `taeels` 하나다 (질문 2 = B). 문서 루트는 이 회차 폴더의 `construction/` 이고
+유닛마다 `unit/<유닛>` 을 회차 브랜치에서 딴다. 처음 판은 `aidlc-docs/taeels/` 였다
+(2026-09-24 에 바꿨다 — CLAUDE.md 의 문서 루트 규약).
 
 - [ ] Functional Design — **EXECUTE** (유닛마다)
   - **근거**: 이 회차가 만드는 것의 절반이 **규칙**이다. 글로 먼저 닫지 않으면 코드가
