@@ -139,7 +139,6 @@ type Source struct {
 	RepoID      string    `json:"repo_id"`
 	Head        string    `json:"head"`
 	IR          *string   `json:"ir"`                   // 없으면 null
-	IRReason    string    `json:"ir_reason,omitempty"`  // no_ir_tag | ambiguous_ir_tag (완료 조건 10)
 	Pinned      *Pinned   `json:"pinned"`
 	SyncCommand string    `json:"sync_command"`
 	SyncedAt    time.Time `json:"synced_at"`
@@ -170,8 +169,9 @@ func ReadMetadata(lowerRoot string) (*Metadata, error) // 없으면 nil 과 nil
 func WriteMetadata(lowerRoot string, m Metadata) error
 ```
 
-`ir_reason` 은 결정 3-16 의 필드 목록에 없는 칸이다. 완료 조건 10(유도하지 못한 이유를
-본다)의 자리라 더한다. 정본 되돌림에 붙인다.
+처음 판은 여기에 `ir_reason`(IR 을 유도하지 못한 이유)을 더했다. Units Generation 2.3 이
+IR 을 계약이 적게 바꿔 없앴다 — build 가 대조에 성공해야 합치므로 `ir` 은 늘 계약의 값이다.
+어긋난 이유(HEAD 의 태그와 커밋)는 build 단계 결과가 담는다 (완료 조건 10).
 
 ### 1.5 env check 의 확인 셋
 
@@ -397,7 +397,7 @@ func (c *Client) Exited(ctx context.Context, runID string, seq int, e Exited) er
 //   Checkpoint  *scratch.Capture       // receipt 의 checkpoint_capture
 //   Changeset   *ChangesetDescriptor
 //   Build       *BuildManifest         // build 단계
-//   Merge       *MergeResult           // merge 단계 — ir · ir_reason · resumed · 셈
+//   Merge       *MergeResult           // merge 단계 — ir · resumed · 셈
 ```
 
 ```go
@@ -478,7 +478,7 @@ const (
 //   Budget   *Budget   `json:"budget,omitempty"`
 //   Sync     string    `json:"sync,omitempty"`
 //   Builds   []Build   `json:"builds,omitempty"`
-//   IRTag    string    `json:"ir_tag,omitempty"`   // RE2.  비면 사내 형식 (Q7)
+//   IR       string    `json:"ir,omitempty"`       // 구울 IR 태그의 값.  prepare 단계에 필수 (Units Generation 2.3 · 칸 이름은 Functional Design)
 //   Merge    *Merge    `json:"merge,omitempty"`
 //   Discover *Discover `json:"discover,omitempty"`
 //   Produce  *Produce  `json:"produce,omitempty"`

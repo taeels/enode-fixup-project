@@ -65,8 +65,9 @@ agent 단계는 오늘 그대로다 — 수확을 안 좁히고(FR-1) exited 는
    builds                     적힌 순서대로.  항목마다 같은 기록
      하나라도 0 이 아니면       upper 를 trash 로 · last_attempt · 상태 committed · 굽기 잠금 놓음 ·
                               build 단계 실패로 보고.  합치지 않는다 (결정 3-18)
-   IR 유도                    세션 안에서 manifest HEAD 에 정확히 붙은 태그를 ir_tag 로 가린다 (Q7).
-                              하나면 그것 · 0 이면 null(no_ir_tag) · 둘 이상이면 null(ambiguous_ir_tag)
+   IR 대조                    계약의 IR 을 sync 와 builds 에 환경 변수로 넘긴다. sync 뒤 manifest HEAD 에
+                              그 태그가 정확히 붙었는지 본다. 다르면 upper 를 trash 로 · 상태 committed ·
+                              굽기 잠금 놓음 · build 단계 실패 (Units Generation 2.3 이 고쳤다)
    pinned manifest            repo manifest -r 을 워크스페이스에 떠 둔다 — upper 에 남아 합쳐진다
    Finalize                   결과는 파일 목록이 아니라 build manifest 다 (ADR-075 §5 의 prepare 줄)
    닫기                       Keep{Upper: 대기 자리} — upper 만 <scratch>/pending/<run> 으로 rename.
@@ -99,7 +100,7 @@ agent 단계는 오늘 그대로다 — 수확을 안 좁히고(FR-1) exited 는
    합치기                      merge-helper (namespace 안) -> merge.Apply.  lower 에서 없앨 것은 trash 로
    metadata                  합치기의 마지막 동작.  bake.run · merged_at · resumed=false · previous_ir
    상태 committed             대기 upper 자리를 지우고 굽기 잠금 · 배타 잠금 놓음
-   보고                       merge 단계 DONE.  ir · ir_reason · 셈을 싣는다
+   보고                       merge 단계 DONE.  ir · 셈을 싣는다
    보고 뒤                     삭제자 Kick
 ```
 

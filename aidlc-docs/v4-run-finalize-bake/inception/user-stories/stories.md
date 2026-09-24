@@ -52,7 +52,7 @@
 | US-7 | 계약 작성자로서 내 Run 이 QUEUED 에 오래 있을 때 **후보가 점유돼서인지 drain 중이라서인지** 알고 싶다. 오늘은 둘이 밖에서 같다(`queue.go:233`). 모르면 Mediator 가 멈춘 줄 알고 취소하고 다시 낸다 | 기다림 | FR-4 · FR-8 | 완료 조건 4 |
 | US-8 | 계약 작성자로서 내 단계가 finalizing 에 오래 있을 때 **언제까지 기다리면 되는지** 알고 싶다 — `phase_since` 에 Finalize 예산과 업로드 예산을 더한 시각이 상한이다 | 기다림 | FR-2 · FR-3 | 조각 2 (`phase_since`) · 조각 3 |
 | US-9 | 계약 작성자로서 effect 를 안 적은 내 명령 단계가 **어제 내던 `workspace.diff` 와 변경 목록을 오늘 안 낸다**는 것을 알고 싶다. formatter · codegen 처럼 source 를 고치는 명령이면 `effect: edit` 를 적어야 한다 | 기본값 | FR-1 | 조각 1 (「바뀐 파일이 없다」가 없다) · 완료 조건 3 ④ |
-| US-10 | 계약 작성자로서 agent 단계의 훅이 읽던 `workspace.changed` 가 **Git changeset adapter 가 선 뒤 무엇으로 바뀌는지** 알고 싶다. 그날 agent 단계의 걷기도 꺼진다 | 기본값 | FR-1 · FR-11 | 완료 조건 3 ⑤ |
+| US-10 | 계약 작성자로서 agent 단계가 **어제 내던 `workspace.changed` 를 오늘 안 낸다**는 것을 알고 싶다. 바뀐 파일을 봐야 하면 bounded discovery 를 켜야 한다 (Units Generation Q7 = A 로 고침 · 처음 판은 Git changeset adapter 뒤의 일로 적었다) | 기본값 | FR-1 | 완료 조건 3 ⑤ |
 | US-11 | 계약 작성자로서 receipt 에 `captured` 와 ID 가 있을 때 **그 보존본이 어디에 있고 누가 열 수 있고 언제 사라지는지** 알고 싶다. 모르면 다른 노드에서 복원하거나 내려받을 수 있다고 기대한다 | 부재 | FR-10 | 완료 조건 7 |
 
 **US-9 가 이 회차에서 가장 조용한 변화다.** 명령 단계의 `workspace.diff` 는 사람이
@@ -77,7 +77,7 @@
 | US-16 | 굽기 담당으로서 `bake_in_progress` 로 곧바로 실패한 굽기가 **계기가 다음 주기에 다시 내면 되는 거절**이라는 것을 빌드 실패와 구별하고 싶다 | 기다림 | FR-8 | 조각 8 (사유 코드) |
 | US-17 | 굽기 담당으로서 `merge_wait_timeout` 으로 끝난 굽기가 **빌드는 성공했고 합치기만 버려졌다**는 것을 알고 싶다. 모르면 멀쩡한 빌드를 고친다 | 부재 | FR-6 · FR-8 | 완료 조건 9 |
 | US-18 | 굽기 담당으로서 FAILED 로 봉인된 내 굽기 Run 이 **재개로 lower 에 합쳐졌는지** 노드 기계에 들어가지 않고 알고 싶다. 모르면 이미 새 IR 에 선 lower 를 옛 IR 로 믿고 같은 굽기를 다시 낸다 | 기다림 | FR-8 · FR-9 | 완료 조건 6 |
-| US-19 | 굽기 담당으로서 굽기가 성공했는데 `ir` 이 광고되지 않으면 **manifest HEAD 에 IR 태그가 없어서인지** 알고 싶다. 모르면 합치기가 실패한 줄 안다 | 부재 | FR-9 | 조각 6 (`ir` 이 null) · 완료 조건 10 |
+| US-19 | 굽기 담당으로서 굽기가 IR 대조로 실패하면 **sync 가 실제로 어디에 닿았는지**(HEAD 의 태그와 커밋) 알고 싶다. 모르면 빌드가 깨진 줄 안다 (Units Generation 이 고쳤다 — 처음 판은 「`ir` 이 광고되지 않는 이유」였다) | 부재 | FR-9 | 조각 6 · 완료 조건 10 |
 
 **US-18 이 이 문서를 짓게 한 스토리다.** 정본이 그 갈림을 이미 적었다 — 「Record 는
 merge 단계 실패를 말하는데 lower 는 새 `ir` 에 선다」(ADR-077 §7). 잇는 흔적은
@@ -112,7 +112,7 @@ Application Design 이 닫는다. `requirements.md` 8절에 이미 넘긴 항목
 | 7 | 계약 작성자가 `captured` 의 뜻을 안다 — 그 노드에만 있고, inspect-only 이고, 누가 열 수 있고, TTL 에 사라진다 | US-11 | ⑧ | 외부 descriptor 에 host 경로와 비밀을 싣지 않는다 (5.3) |
 | 8 | 진행자가 합치기 조각(6 · 7 · 8)의 명령을 돌리면 **굽기를 내기 전에 대상 노드의 lower 가 출력되고, 운영 lower 면 멈춘다** | US-13 | — | 자리는 조각의 스크립트다.  `scene-gates.md` 3절 「값은 시작값이다 — Code Generation 계획이 굳힌다」 |
 | 9 | 굽기 담당이 `merge_wait_timeout` 으로 끝난 굽기의 Record 에서 **build 단계의 성공과 merge 단계의 사유를 따로** 본다.  조각 8 의 확인에 이 한 줄을 더한다 | US-17 | — | Record 는 append-only 다.  새 기록 모양이 아니라 두 단계가 각자 제 결과를 갖는지를 잰다 |
-| 10 | 굽기 담당이 merge 결과에서 **`ir` 을 유도하지 못한 이유**를 본다 — HEAD 에 붙은 태그가 0 인지, 형식에 맞는 태그가 여럿인지 | US-19 | ⑩ | IR 은 계약 칸이 아니다 (FR-9).  이유를 적을 뿐 유도 규칙을 안 바꾼다 |
+| 10 | 굽기 담당이 build 단계 결과에서 **계약의 IR 과 sync 뒤 HEAD 가 어떻게 다른지** 본다 — HEAD 에 붙은 태그와 커밋 (Units Generation 이 고쳤다) | US-19 | ⑩ | 계약이 IR 을 적는다 (FR-9 · 결정 3-26).  제품은 태그 형식을 모른다 |
 
 ## 완료 조건 3 의 다섯 줄
 
@@ -127,8 +127,9 @@ Application Design 이 닫는다. `requirements.md` 8절에 이미 넘긴 항목
    ④   명령 단계의 effect 기본값     계약 작성자   없다.  workspace.diff 는 조용히 안 나온다
        build/test — diff 와 변경
        목록을 안 낸다
-   ⑤   agent 단계의 걷기가 Git      계약 작성자   없다.  그 훅은 workspace.changed 를 읽는다
-       changeset adapter 뒤에 꺼진다  (그 훅)
+   ⑤   agent 단계의 걷기가 이 회차에   계약 작성자   없다.  workspace.changed 는 조용히 안 나온다
+       꺼진다 — workspace.changed 를                (그 파일을 읽는 코드는 0 이다.  훅은 스스로
+       안 낸다 (Q7 = A 로 고침)                      걷는다 — hook.go:281)
 ```
 
 **① 이 이 표에서 유일하게 「있는 문장이 거짓이 되는」 줄이다.** 나머지 넷은 없던 문장을
@@ -207,10 +208,10 @@ Application Design 이 닫는다. `requirements.md` 8절에 이미 넘긴 항목
    FR-8    US-1 · US-4 · US-7 · US-12 · US-13 · US-15 · US-16 · US-17 · US-18
    FR-9    US-6 · US-18 · US-19
    FR-10   US-2 · US-5 · US-11
-   FR-11   US-10
+   FR-11   없음 — 순연 (Units Generation Q3 = A).  US-10 은 FR-1 로 옮겼다
    FR-12   US-14 (조각 11)
    FR-13   US-14 (조각 12)
-                  스토리 없는 FR 0
+                  스토리 없는 FR 0 (범위 안).  FR-11 은 순연이라 셈에서 뺀다
 ```
 
 **FR-12 · FR-13 은 US-14 하나로만 닿는다.** 둘은 사람이 확인하고 정본 문서를 고치는

@@ -247,3 +247,211 @@
 **Context**: INCEPTION — Application Design 닫힘 · Units Generation 착수
 
 ---
+## Units Generation — 계획 · 질문 넷
+**Timestamp**: 2026-09-24T06:50:29Z
+**User Input**: (없음 — Application Design 승인 「승인.」에 이어 착수)
+**AI Response**: `inception/plans/unit-of-work-plan.md` 를 냈다. 1절에 앞 단계가 닫은 제약(한 손 · unit/<유닛> 브랜치 · 합치기 규칙은 자기 유닛 · 재개 시험이 실제 lower 보다 먼저 · 직렬 병합 후보 여덟 · N1 ~ N3 각 한 유닛 · 보류 규칙)을, 1.2 에 설계가 답하는 것 아홉(N1 trash · N2 checkpoint · N3 finalize · FR-12 · FR-13 은 유닛 없음 · 상태 파일과 제어판은 출처를 들이는 유닛이 · 완료 조건 4 는 Mediator 유닛 · 조각 7 기계 부분은 merge-rules · 완료 조건 8 은 bake · 번호 약칭 안 씀)을 적었다. 질문 넷 — Q1 유닛 경계(권장 A 아홉 · contract-grammar · step-phase · finalize · trash · merge-rules · lower-state · bake · checkpoint · result-adapters) · Q2 조각을 병합에 거는 법(권장 A 마지막으로 완성하는 유닛이 진다 · 앞 회차를 잇는다) · Q3 FR-11 adapter 둘(권장 A 자른다 · 순연) · Q4 병렬(권장 A 웨이브로 병렬 · 코드 의존과 같은 파일). 규칙의 범주 여섯 중 Team Alignment 는 질문 2 = B 가 닫았고 Code Organization 은 해당 없음. 표기 검사 exit 0 · U+2605 0 · 새 약칭 0. 답을 요청한다.
+**Context**: INCEPTION — Units Generation Part 1 (Step 1 ~ 5). 답 대기
+
+---
+## Units Generation — Q4 답 · FR-11 되물음
+**Timestamp**: 2026-09-24T06:54:38Z
+**User Input**: "병렬이어야 할 이유는 없다. 혼자 작업하기 때문에. Fr11이 뭐지"
+**AI Response**: Q4 = B(한 줄 직렬)로 계획 파일의 [Answer]: 에 적었다. 의존 문서는 웨이브 표 대신 한 줄 순서를 낸다. FR-11 을 풀어 설명했다 — 결과 adapter 둘. Git changeset adapter 는 agent 단계의 결과를 정확한 base 가 붙은 patch 로 만들어 오늘의 전수 걷기(Discover)와 git diff 통째 담기(RecordDiff, claim.go:876 ~ :882)를 대신한다(ADR-075 §6). Yocto producer adapter 는 BitBake 의 deploy output 을 빌드 시스템에 물어 named output 으로 올린다(ADR-075 §7). 오늘은 계약 작성자가 $OUT 에 직접 두거나 collect 로 지목한다. 자르면 agent 단계는 오늘처럼 걷고 BitBake 산출물은 오늘처럼 계약이 지목한다 — 나빠지는 것은 없고 조각 10 이 빠진다. Q1 ~ Q3 은 답 대기.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q4 닫힘 · Q3 설명)
+
+---
+## Units Generation — Q3 되물음
+**Timestamp**: 2026-09-24T06:57:50Z
+**User Input**: "자른다는게 뭘 자른다는거"
+**AI Response**: 「자른다」는 이 회차의 범위에서 FR-11 을 빼는 것이라고 풀었다. 이 회차에 안 짓는 것 — result-adapters 유닛 · 계약의 produce 칸 · 광고 키 producer.<이름> · 조각 10. 함께 빠지는 것 — 완료 조건 3 ⑤ · US-10. 지우는 코드는 0 이다(아직 없는 것을 안 만든다). 요구는 없어지지 않고 순연 행으로 남는다 — 되살릴 조건을 달아 다음 회차가 집을 수 있게 한다. 팩의 features.md 기능 11 은 그대로다.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q3)
+
+---
+## Units Generation — Q3 되물음 둘 · 권장을 고침
+**Timestamp**: 2026-09-24T07:36:56Z
+**User Input**: "왜?"
+**AI Response**: 자르는 까닭을 답하려고 근거를 코드에 다시 댔고 하나가 틀렸다. agent 단계가 끝나면 Harvest 가 워크스페이스 전체를 걷는다 — runc-overlay 에서는 merged view(lower 와 upper 를 합친 트리)를 걷는다(runc_overlay_linux.go:979 -> runtime.go:145 changedSince). 300만 파일 Yocto 워크스페이스에서 agent 가 돌면 사내 증상과 같은 걷기가 임대 창에 남고, 그것을 끄는 길은 Git changeset adapter 하나다(결정 1-14). 앞서 든 「agent 단계는 나빠지지 않고 나아지지 않는다」는 그 비용을 빠뜨렸다. 권장을 A(둘 다 자름)에서 C(Git changeset 만 두고 Yocto producer 는 순연)로 고치고 계획 파일 Q3 에 고친 까닭을 남겼다. 자르는 까닭으로 남는 것은 범위와 사람 조각 하나다 — 장면 셋이 adapter 를 안 지나고, 아무 조각도 조각 10 을 딛지 않는다.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q3 권장 정정)
+
+---
+## Units Generation — Q3 지시 · 장면 4
+**Timestamp**: 2026-09-24T07:48:31Z
+**User Input**: "장면을 만들어 그럼. 어댑터 인터페이스는 있어?"
+**AI Response**: 인터페이스는 없다고 답했다 — 코드에는 결과 adapter 가 없고(오늘의 Harvest 가 RecordDiff · Discover 를 nativeSession 에 박아 둠), 설계는 둘을 FinalizeSpec 의 칸(Changeset bool · Produce *ProduceSpec)으로 박았고 ProduceSpec 과 등록표의 모양을 안 적었다. 정본 ADR-075 §15 의 검증 장면 셋(Yocto deploy output · exact base changeset · build junk 없음)이 이미 adapter 를 지나지만 팩의 장면 셋에는 그것을 끝까지 잇는 장면이 없었다. requirements.md 6.1 에 장면 4(agent 가 고친 것을 build 가 받는다 · ADR-017 결정 6 · ADR-072 §9 · ADR-075 §6 · §7)를 더했다. 조각 10 에 agent 단계의 걷지 않음을 더하고, 조각 12 가 조각 10 을 딛게 했다. 장면이 드러낸 빈자리 셋 — 받는 쪽(in.diff 는 자리만 있고 런타임이 안 읽음, contract.go:905) · base 의 뜻(repo 로 묶은 트리에서 어느 HEAD 인가) · adapter 인터페이스. 계획 Q3 에 지시와 바뀐 근거를 적었다. 팩의 scene-gates.md 에 옮기는 것은 팩을 고치는 쪽의 몫으로 남겼다.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q3). requirements.md 를 고쳤다 (승인된 문서 · 사용자 지시)
+
+---
+## Units Generation — 질문 둘을 더함
+**Timestamp**: 2026-09-24T07:48:31Z
+**User Input**: (없음 — 앞 항목의 지시에 이어)
+**AI Response**: 장면 4 의 빈자리 셋 중 결정인 둘을 계획 파일 2.1 에 더했다. Q5 받는 쪽(권장 A — 노드가 in.diff 를 읽어 base 를 대조하고 적용) · Q6 adapter 인터페이스의 자리(권장 A — Application Design 을 고쳐 인터페이스 둘과 등록표와 받는 쪽의 겉면을 더함). base 의 뜻은 규칙이라 그 유닛의 Functional Design 몫으로 적었다.
+**Context**: INCEPTION — Units Generation Part 1. 되묻는 질문 (Step 8)
+
+---
+## Units Generation — Harvest 를 셋으로 가른 결정 · 두 번째 정정
+**Timestamp**: 2026-09-24T07:52:00Z
+**User Input**: "일전에 harvest 에서 문제가 됐었고 그걸 고치기 위해서 3단계로 나누기로 하지 않았음 / 않았음?" · (작업 중 추가) "그래서 중간 단계는 ttl을 두고 버리는걸로 정했잖아"
+**AI Response**: 원장에서 확인했다 — EN-43c3e7d8(2026-09-23)이 단계 결과를 receipt · ephemeral checkpoint · published result 로 갈랐고 가운데를 TTL 로 두었다 버리기로 했다(ADR-076). 그 원칙에 대니 07:36:56Z 의 정정이 또 틀렸다. 「agent 단계의 걷기를 끄는 길은 Git changeset adapter 하나다」가 아니다 — 걷기(Discover)의 산물 workspace.changed 는 셋 중 어디에도 안 들고, agent 단계에 걷기를 남긴 근거 「훅이 workspace.changed 를 읽는다」(requirements.md FR-1 · 확인된 사실 6)는 거짓이다(읽는 코드 0 · 쓰는 곳만 claim.go:1005 · 훅은 hook.go:281 에서 스스로 걷는다). 사내 증상의 기제는 그 걷기다(EN-5390ec70) — 그러니 FR-1 에서 agent 단계까지 끌 수 있다. adapter 가 갈아 끼우는 것은 agent 결과인 RecordDiff 이고 그 값은 장면 4 다. 계획 파일 Q3 에 두 번째 정정을, 2.1 에 Q7(agent 단계의 Discover 를 FR-1 에서 함께 끄나 · 권장 A)을 더했다.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q3 정정 · Q7 추가)
+
+---
+## Units Generation — adapter 의 뜻 되물음
+**Timestamp**: 2026-09-24T08:22:21Z
+**User Input**: "그럼 이제 어댑터라는 것은 git changeset adapter같은 specific함이 없게 된 것인가?"
+**AI Response**: 그렇다 — 정본에서 adapter 는 처음부터 특정 도구가 아니라 자리였다. ADR-075 §5 의 표가 effect 마다 정상 commit set 을 적고(edit -> source changeset · build/test -> producer output · prepare -> manifest), adapter 는 published result 의 그 칸을 채우는 자리다. Git 과 Yocto 는 첫 구현이다(§6 filesystem changeset · §7 Bazel · CMake · Meson). 셋으로 가른 결정이 걷기를 빼냈을 뿐 adapter 의 자리는 안 바뀌었다. 다만 한 자리가 아니라 두 자리다 — source changeset 은 정확한 base 를 싣고 받는 쪽이 대조하며, producer 는 빌드 시스템에 묻는 typed query 이고 결과가 워크스페이스 밖으로 안 나간다. 계획 Q6 에 이것을 적었다.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q6)
+
+---
+## Units Generation — adapter 의 자리 되물음
+**Timestamp**: 2026-09-24T08:32:14Z
+**User Input**: "지금 설계 기준으로 어댑터가 서는 자리가 어디? published result?"
+**AI Response**: 뜻으로는 published result(commit set)이다. 설계에서의 자리는 명령 단계의 Finalize 구간이다(services.md 1절 — 명령 종료 뒤 · 닫기 전 · Finalize 예산 안). runc-overlay 면 오늘의 Harvest 처럼 runtime-helper 안에서 merged view 가 살아 있을 때 돈다. 코드 자리는 internal/enode 이고(components.md 3.1) 겉면은 FinalizeSpec 의 칸 둘(Changeset bool · Produce *ProduceSpec)과 FinalizeResult.Changeset 이다(component-methods.md 4.1). 결과는 result 의 changeset descriptor 와 patch blob, producer 가 $OUT 에 올린 named output 으로 나간다. 셋으로 가른 것과 맞추면 receipt 는 result 의 exit · finalize · upload · checkpoint_capture, checkpoint 는 닫기의 Keep(upper -> spool), published result 는 Finalize 가 만든 commit set 이고 adapter 는 마지막에만 선다. 설계의 빈자리 — 인터페이스가 아니라 칸으로 박힘 · ProduceSpec 미정 · 받는 쪽 없음(Q5 · Q6).
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q6)
+
+---
+## Units Generation — Q3 결정 (조건부) · 사내 조건
+**Timestamp**: 2026-09-24T09:06:19Z
+**User Input**: "git changeset 은 사내에서 쓸일이 없을듯. 사내 개발환경을 말해보면
+
+1. yocto 기반 리눅스 빌드
+2. [사내 내용 가림 — 모양: 여러 저장소를 repo manifest 하나로 묶은 mono repo]
+3. [사내 내용 가림 — 모양: 빌드 구성 셋에 페이지 크기 변형이 둘씩 있고, 변형 없는 시험 빌드가 하나 더 있다]
+4. [사내 내용 가림 — 모양: 빌드는 구성마다 따로 있는 사내 스크립트가 시작한다]
+
+
+이런 상황에서 어댑터를 순연해도 사내 동작에 아무 문제 없다면 순연으로 결정한다."
+**AI Response**: 사내 조건에 대 봤다. Git changeset — 사내 계약에 steps[].workspace 가 없어(EN-5390ec70) agent 단계의 diff 가 오늘도 안 나간다. producer — ADR-075 §7 의 output 확정 순서($OUT -> producer -> 저장소의 export 스크립트 -> collect)에서 커스텀 스크립트는 첫째나 셋째 자리이고, 구성 하나는 Yocto 가 아니라 Yocto producer 가 덮지 못한다. 굽기의 결과는 lower 자체라 producer 를 안 지난다(builds[] 이름 일곱 — 구성 셋 x 변형 둘 + 변형 없는 하나). 조각 12 는 오늘의 diff 경로로 돌아 adapter 를 안 딛는다. 남는 문제는 하나 — agent 단계의 Discover 걷기(claim.go:879)이고 Q7 = A 면 FR-1 이 끈다. 그래서 Q3 = A(둘 다 순연)로 적되 「문제 없음」은 Q7 = A 에 달렸다고 적었다. Q5 · Q6 은 해당 없음. 장면 4(requirements.md 6.1)는 순연으로 표시하고 되살릴 때 잴 장면과 설계 빚으로 남겼다. 조각 10 해당 없음 · 조각 12 는 조각 6 만 딛는다. 유닛은 여덟. FR-1 과 따로 확인할 것 하나 — 사내 계약이 산출물을 workspace.changed 로 찾았다면 FR-1 에서 그 목록이 없어진다(adapter 와 무관).
+**Context**: INCEPTION — Units Generation Part 1. Q3 · Q5 · Q6 닫힘. Q7 확인 대기
+
+---
+## Units Generation — 사내의 published result 되물음
+**Timestamp**: 2026-09-24T09:11:56Z
+**User Input**: "그러니까 published result를 사내에서 어떻게 거둬들이는지?"
+**AI Response**: adapter 없이 published result 가 되는 길은 셋이고 코드에 이미 있다(collect.go:12 ~ :35) — 빌드가 $OUT 에 직접 놓기 · 스크립트나 계약 명령이 $OUT 으로 옮기기 · 계약의 collect(워크스페이스 상대 경로 · 이름마다 파일 하나). 여기에 판정 증거인 success_when.changed(지목 경로 stat)가 있다. $OUT 은 runRoot 밖의 host 임시 디렉터리라(claim.go:492) trash 로 가지 않는다. 걸림은 운반이다 — $OUT 의 파일은 Mediator blob 으로 올라가고 기본 상한이 10 MiB 다(config max_blob_bytes · api.go:749). 넘으면 거절되고 produced 에 안 든다. 큰 artifact 는 ADR-075 §4 가 ADR-018(Mediator 는 열쇠만 발급)로 넘겼고 저장소 제품은 유예다. 그래서 사내 이미지(커널 · boot.img 등)는 기본값으로는 Mediator 로 못 나간다 — adapter 와 무관하고 오늘도 같다. 굽기의 결과는 lower 자체라 이 상한에 안 걸린다. 사내가 단계에서 무엇을 가져가야 하는지 물었다.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q3 의 뒤)
+
+---
+## Units Generation — Q1 결정
+**Timestamp**: 2026-09-24T09:18:59Z
+**User Input**: "남은 질문들 차례로 보자." · "A."
+**AI Response**: 남은 셋(Q1 · Q2 · Q7)을 차례로 보기로 하고 Q1 을 풀어 설명했다 — 유닛 하나가 브랜치 · PR 하나이고 되돌리는 단위와 사람 조각의 단위를 정한다는 것, A 여덟(Q3 = A 로 result-adapters 가 빠짐) · B 다섯 · C 열, 권장 A 의 근거 셋(lower-state 와 bake 의 되돌리기 분리 · 사람 조각 2 · 4 · 6 · 8 · 9 가 한 유닛에 하나씩 · contract.go · api.go · schema.sql 이 한 유닛만 만짐). Q1 = A 로 계획 파일의 [Answer]: 에 적었다. Q1 표의 result-adapters 줄을 순연으로 고쳤다. Q2 로 간다. 앞 턴의 되물음(사내가 단계에서 무엇을 가져가야 하나)은 답 없이 넘어갔다 — 설계를 안 바꾸는 확인이라 막지 않는다.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q1 닫힘 · Q2 착수)
+
+---
+## Units Generation — Q2 결정
+**Timestamp**: 2026-09-24T09:41:10Z
+**User Input**: "A"
+**AI Response**: Q2 를 풀어 설명했다 — 조각 하나가 유닛 여럿의 기능을 재므로(조각 6 이 contract-grammar · merge-rules · lower-state · bake 를 함께 잰다) 누가 그 조각을 기다리는지가 갈린다. A 로 하면 유닛마다의 병합 조건 표(앞선 유닛은 코드 게이트 · finalize 는 조각 1 · 2 · 3 · trash 는 4 · bake 는 5 · 6 · 7 · 8 · checkpoint 는 9 · 조각 11 · 12 는 Build and Test)와 착수 규칙(자기가 지는 조각이 딛는 앞 조각이 초록이거나 보류)을 보였다. Q2 = A 로 계획 파일에 적었다. Q7 로 간다.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q2 닫힘 · Q7 착수)
+
+---
+## Units Generation — Q7 되물음 (훅)
+**Timestamp**: 2026-09-24T09:42:55Z
+**User Input**: "훅이 뭘 거두는데"
+**AI Response**: 훅은 아무것도 거두지 않는다고 답했다 (hook.go). 훅은 enode 가 하네스(Claude Code)에 심는 Stop 훅 `enode hook stop` 이고, 모델이 끝내려 할 때 두 가지만 본다 — 계약이 요구한 이름이 $OUT 에 없으면 한 번 막고 빠진 이름과 참고로 기준 시각 뒤 바뀐 파일 요약(changedSince 걷기 · 상위 25)을 알린다. 계획 단계면 계획 문법을 검사해 틀린 곳을 알린다. 판정하지 않고, 결과에 아무것도 싣지 않으며, 한 단계에 다섯 번까지만 막는다. 걷기는 산출물이 빠졌을 때만 · 하네스가 도는 동안 · 이유마다 한 번 돈다. Q7 의 Discover 는 명령이 끝난 뒤 임대 창에서 매번 도는 걷기이고 그 산물을 읽는 곳이 0 이라 훅과 무관하게 끌 수 있다. Q7 은 답 대기.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q7)
+
+---
+## Units Generation — Q7 되물음 둘 (Discover 의 내력)
+**Timestamp**: 2026-09-24T09:46:44Z
+**User Input**: "디스커버는 그럼 lower upper 나누기 전부터 있던 walk 단계?"
+**AI Response**: 그렇다고 답했다. changedSince 는 71613b4(2026-08-20)에 native 노드 시절 들어왔고, overlay 는 한 달 뒤다(ea15a01 2026-09-19 오버레이 탐지 · 3247b63 2026-09-22 runc-overlay StepRuntime). 들어온 까닭은 git diff 가 .gitignore 안의 빌드 산출물을 가려 「무엇을 만들었나」가 안 보였기 때문이고, fanotify(CAP_SYS_ADMIN) · inotify(디렉터리마다 watch) · syscall 가로채기가 다 안 돼 mtime + 전체 걷기 한 번을 골랐다(커밋 본문). 1a52bab(2026-09-22)가 그것을 Harvest 의 Discover 칸으로 옮기며 overlay 에서는 merged view 를 걷게 했다 — ADR-075 §3.4 가 짚은 「새 경계 안으로 기존 수확 의미를 그대로 옮겼다」가 이 자리다. overlay 에서는 upper 가 곧 바뀐 것의 기록이라, 바뀐 것을 알려고 트리 전체를 걸을 까닭이 사라졌다. native 에는 upper 가 없어 걷기만이 길이고 그것이 FR-1 의 명시로 켜는 bounded discovery 다. Q7 은 답 대기.
+**Context**: INCEPTION — Units Generation Part 1. 질문 논의 (Q7)
+
+---
+## Units Generation — Q7 결정 · 답 분석 · 계획 승인 요청
+**Timestamp**: 2026-09-24T09:50:00Z
+**User Input**: "그래 a"
+**AI Response**: Q7 = A 로 적었다. 질문 일곱이 다 닫혔다 — Q1 A(여덟) · Q2 A · Q3 A(순연 · 조건 Q7 = A 충족) · Q4 B · Q5 · Q6 해당 없음 · Q7 A. Step 7 분석 — 짝 여섯을 대 봤고 추가 질문 0 (Q7 이 RecordDiff 를 남겨 조각 12 가 오늘의 diff 경로로 선다는 것을 확인). 답이 고친 앞 단계 문서 — requirements.md(FR-1 agent 줄 · FR-11 순연 · 6.1 장면 4 순연 표시 · 10절 1-14 좁힘 · 4-16 더함) · stories.md(US-10 · 완료 조건 3 ⑤ · FR-11 사상). 계획 5절에 답과 분석을 적었다. 답 없이 넘어간 확인 하나(사내가 단계에서 가져갈 것)는 막지 않는 것으로 적었다. 계획 승인을 요청한다.
+**Context**: INCEPTION — Units Generation Part 1. Step 7 ~ 9. 승인 대기
+
+---
+## Units Generation — 설명 덱 (계획 승인 전의 곁일)
+**Timestamp**: 2026-09-24T10:45:39Z
+**User Input**: "이제 이 요구 팩과 유닛 설계를 설명하는 html 덱을 만들어서 ~/gallery에 서빙해줘. “가른다”, “진다”, “잰다”, “선다”, “맨(bare)" 등 비문을 쓰지 말고 쉽게 설명한다. I1 등의 심볼을 언급할 때는 그것이 무엇을 말하는지를 옆에 적어라. As-is to-be대조를 이뤄 설명하고 풍부한 다이어그램을 첨부해라." · (작업 중) "불변식 뿐 아니라 이 단계에서 만든 심볼을 포함한 모든 단축 심볼을 말한 것" · (작업 중) "그래 adr 0xx의 $3.4 같은 언급도 포함이야"
+**AI Response**: ~/gallery/finalize-bake/deck.html 에 27장 덱을 냈다 (인라인 SVG 16장 · 외부 리소스 0). gallery 서버(serve_docs.py · 8989)가 곧바로 서빙한다 — http://192.168.219.203:8989/finalize-bake/deck.html. 흐름은 출발점(사내 증상과 실측) · 원인 넷과 정본 결정 셋 · overlay 배경 · 결과 세 칸 · 명령 단계의 끝 as-is/to-be · 진행 구간과 예산 · 공개 결과를 거두는 길과 10 MiB 상한 · trash 와 여유 · 체크포인트 · 굽기 as-is/to-be · 아래층 상태와 잠금 · 잠금 시점 · 합치기 규칙과 재개 · 사내 환경의 builds[] 일곱 · 어댑터 순연 · Mediator 와 코드 경계 · 사람이 보는 자리 · 유닛 여덟 · 순서 초안 · 검증 조각 · 병합 규칙 · 결정 일곱 · 범위 밖과 다음. ADR 번호와 절 · 불변식 · Q 번호 · 조각 번호 · 유닛 이름 · wire 값 · IR 에 옆 풀이를 붙였고 금지한 말투를 검사해 0 으로 만들었다. 브라우저로 27장을 렌더링해 넘침 0 · 글자 겹침을 고쳤다. 순서(23장)는 산출물 생성 때 확정한다고 초안으로 표시했다. gallery 첫 화면 목록에는 아직 없다 — 목록은 enode-design 저장소의 serve_docs.py 의 DOCS 에서 오고 서버 재시작이 필요해 묻기로 했다. 유닛 나누기 계획은 여전히 승인 대기다.
+**Context**: INCEPTION — Units Generation Part 1. 계획 승인 대기 중의 곁일
+
+---
+## Units Generation — 되물음 (steps[].workspace)
+**Timestamp**: 2026-09-24T11:10:15Z
+**User Input**: "steps[].workspace 가 뭐지"
+**AI Response**: 계약의 단계마다 두는 칸 { "repo": "<저장소 id>" } 로 「이 단계가 어느 저장소 위에서 도는가」를 적는다고 답했다 (contract.go:432 · ADR-017 결정 5). 켜지는 것 셋 — 시작 전 노드의 저장소가 맞는지 확인하고 reset --hard 와 clean -df 로 알려진 상태를 만든다(무시되는 빌드 캐시는 남긴다 · repo 트리면 repo forall) (workspace.go) · 끝난 뒤 RecordDiff(git add -N . 과 git diff --binary HEAD)로 workspace.diff 를 만든다(claim.go:692 · :878) · success_when.changed 를 쓸 수 있다(없으면 400, contract.go:1620). 리비전 칸은 ADR-072 가 뺐다. 칸이 없으면 단계는 노드 워크스페이스에서 되돌리기 없이 돌고 diff 도 없다 — 전체 훑기(Discover)는 이 칸과 무관하게 켜져 있었다. 사내 계약에는 이 칸이 없었다(EN-5390ec70).
+**Context**: INCEPTION — Units Generation Part 1. 계획 승인 대기 중의 되물음
+
+---
+## Units Generation — 되물음 (steps[].workspace 의 뜻이 바뀌나)
+**Timestamp**: 2026-09-24T11:38:10Z
+**User Input**: "우리가 이 요구팩을 구현하고 나면 steps[].workspace 의 의미가 바뀌는가"
+**AI Response**: 하나가 바뀐다고 답했다 — diff 를 만드는 조건이 「이 칸이 있으면」에서 「이 칸이 있고 effect 가 edit 이면」으로 옮겨 간다(FR-1 · ADR-075 §5). 명령 단계(기본 build)는 칸이 있어도 diff 를 안 낸다(완료 조건 3 ④ · US-9). agent 단계(기본 edit)는 그대로 낸다(Q7 = A 가 RecordDiff 를 남김). 굽기 build(prepare)는 manifest 가 결과라 diff 가 없다. 그대로인 것 — 시작 전 되돌리기(저장소 확인 · reset · clean)와 success_when.changed 의 조건. 칸과 무관하게 바뀌는 것 — 전체 훑기가 기본에서 빠진다(사내처럼 칸이 없던 계약도). 안 정한 것 — 명시로 켜는 bounded discovery 가 이 칸을 요구하는지(Functional Design). 곁에 본 것 — 정본 run-contract.md 의 예시가 ADR-072 가 뺀 rev 를 아직 적는다.
+**Context**: INCEPTION — Units Generation Part 1. 계획 승인 대기 중의 되물음
+
+---
+## Units Generation — 되물음 (굽기 계약을 제출자가 아는 법)
+**Timestamp**: 2026-09-24T11:52:52Z
+**User Input**: "```
+// 굽기 계약의 요약 (역할 정의 등은 뺐다)
+{ "steps": [
+  { "id": "build", "effect": "prepare",
+    "sync": "repo sync …",
+    "builds": [
+      [사내 내용 가림 — { "name", "command" } 일곱 줄. 이름은 사내 구성과 변형, 명령은 사내 스크립트] ] },
+  { "id": "merge", "needs": ["build"],
+    "merge": { "wait": "4h" } } ] }
+```
+
+이걸 계약 제출자가 알 수 있는 방법은?"
+**AI Response**: 계약 작성 도구(ADR-066 · runctl example · schema · lint · capabilities · dry-run · contract.Grammar)를 새 문법에 대 봤다. schema · lint(400) · capabilities · dry-run 은 저절로 보이고, 예시 · lint 의 조건 제안 · Grammar 문장은 손봐야 한다 — contract-grammar 유닛에 넣고 cmd/runctl/shape.go 를 그 유닛 파일로 들인다. 답을 찾다가 빈자리 하나를 찾았다 — 굽기 Run 의 성공 판정(success_when)이 팩 · ADR-077 · Inception 산출물 어디에도 없다. build · merge 는 명령 단계가 아니라 exit_code 를 못 건다(contract.go:1612). 후보 셋(단계 성공 조건 · fleet_has · manifest 를 produced 로)과 자리(contract-grammar 의 Functional Design · 정본 되돌림)를 계획 2.2 에 적었다.
+**Context**: INCEPTION — Units Generation Part 1. 계획 승인 대기 중의 되물음 · 계획 파일 2.2 추가
+
+---
+## Units Generation — 지적 (제품이 몰라야 하는 내용)
+**Timestamp**: 2026-09-24T11:57:06Z
+**User Input**: "저 예시 계약에 나온 명령어들은 우리 제품이 몰라야 하는 내용인데."
+**AI Response**: 맞다고 답했다 — 제품은 sync 와 builds[].command 를 해석하지 않는 문자열로만 알고 격리된 실행 환경에서 돌릴 뿐이며(FR-5 · 팩 보안 표의 「계약의 명령」), 명령의 내용은 계약을 쓰는 쪽의 것이다. 제품 저장소에서 사내 내용이 들어간 자리를 찾았다 — 계획 파일의 내 글(Q3 의 사내 대조)과 감사 로그의 사용자 원문 두 항목. 계획 파일은 사내 스크립트와 구성 이름을 빼고 제품이 알 필요가 있는 모양으로만 고쳤고, 2.2 에 「제품의 굽기 예시는 사내 명령을 담지 않고 공개 도구(poky)로 쓴다」를 더했다. gallery 덱 18장에 「이 계약은 사내가 쓰고 사내에 둔다」를 더했다. 감사 로그의 원문은 AI-DLC 규칙(원문 그대로)과 이 지적이 부딪혀 고치지 않고 사용자에게 물었다. ir_tag 의 기본값이 사내 태그 형식이라는 점도 같은 기준으로 물었다.
+**Context**: INCEPTION — Units Generation Part 1. 계획 승인 대기 중의 지적
+
+---
+## Units Generation — 결정 (ir_tag 는 제출자가 쓴다) · 되물음
+**Timestamp**: 2026-09-24T12:05:42Z
+**User Input**: "ir tag는 굽기 작업 제출자가 쓰게 하자. 생각해보면 ir_tag 가 없으면 무엇을 구워야 하는지 노드가 알수가 없는데"
+**AI Response**: 앞 문장은 결정으로 받았다 — 제품에 기본값(사내 형식)을 두지 않고 굽기 계약이 반드시 적는다. 이것은 Application Design Q7 의 「기본 사내 형식」을 고친다. 뒷문장은 지금 설계와 다르다는 것을 짚었다 — ADR-077 §5 는 무엇을 구울지를 계약의 sync 명령이 말하고(예: repo init -b refs/tags/IR…) IR 이름은 sync 뒤 manifest HEAD 의 태그에서 유도하며, 칸을 따로 두면 같은 사실이 두 곳에서 온다고 적었다. 지금 설계의 ir_tag 는 「무엇을 구울지」가 아니라 「구운 뒤 어느 태그가 IR 인지 알아보는 규칙(패턴)」이다. 두 갈래를 드리고 물었다 — 가) ir_tag 를 알아보는 규칙으로 두고 필수로만 바꾼다 · 나) 계약이 구울 IR 을 정확한 값으로 적고, 노드가 그 값을 sync 명령에 환경 변수로 넘기며, sync 뒤 HEAD 태그가 그 값과 같은지 확인한다(한 곳에서 오므로 ADR-077 의 반대 근거가 풀린다 · 정본 되돌림이 는다).
+**Context**: INCEPTION — Units Generation Part 1. Application Design Q7 을 고치는 결정 · 갈래 질문
+
+---
+## Units Generation — 결정 (IR 을 계약이 적는다 · 나) · 빌드 구성 논의 요청
+**Timestamp**: 2026-09-24T12:09:37Z
+**User Input**: "\"나\" 로 하고. 빌드구성을 어떻게 적을지에 대해 논의한 내용 가져와봐"
+**AI Response**: 나 로 적었다 — 굽기 계약의 build 단계가 구울 IR 태그를 정확한 값으로 적고(필수 · 제품에 기본값과 형식 규칙 없음), 노드가 그 값을 sync 와 builds 에 환경 변수로 넘기며, sync 뒤 HEAD 에 그 태그가 정확히 붙었는지 확인해 다르면 build 를 실패로 끝내고 합치지 않는다. 계획 2.3 에 적고, 고칠 문서 자리는 빌드 구성 논의가 닫힌 뒤 한 번에 고치기로 했다. 빌드 구성 표기 논의를 원장(EN-f92ca4ee · EN-bde53bef · EN-47157628 · EN-ce349ec8)과 정본(ADR-070 개정 2 · ADR-072 §6.4 · ADR-077 §2 · §9)과 팩(decisions 3-16 ~ 3-19 · 4-12)에서 모아 보였다.
+**Context**: INCEPTION — Units Generation Part 1. Application Design Q7 을 고치는 결정 · 논의 기록 요청
+
+---
+## Units Generation — 계획 승인
+**Timestamp**: 2026-09-24T12:14:10Z
+**User Input**: "아니. 없다. 승인한다."
+**AI Response**: 빌드 구성 표기는 바꾸지 않는다(「아니. 없다.」). 유닛 분해 계획(unit-of-work-plan.md · 답 일곱 · 2.2 · 2.3)을 승인으로 받았다 (Step 9 ~ 11). 정본 문서까지 「제품이 몰라야 한다」를 넓힐지의 곁 물음은 답이 없어 넓히지 않는다 — 코드와 제품 예시에만 건다. Part 2 로 간다 — 2.3 의 결정(IR 을 계약이 적는다)이 고칠 앞 단계 문서를 먼저 고치고, 3절의 체크박스대로 산출물 넷을 낸다.
+**Context**: INCEPTION — Units Generation Part 1 닫힘 · Part 2 착수
+
+---
+## Units Generation — 산출물 · 승인 요청
+**Timestamp**: 2026-09-24T12:22:43Z
+**User Input**: (없음 — 계획 승인 「아니. 없다. 승인한다.」에 이어 생성)
+**AI Response**: 계획 2.3 의 결정(굽기 계약이 구울 IR 을 값으로 적는다)으로 앞 단계 문서를 고쳤다 — requirements.md(FR-9 · FR-5 의 400 · 6절 조각 6 · 8절 ⑩ · 10절 3-26 과 1-14' · 11절 ADR-077 §5 · §11 과 굽기 판정) · stories.md(US-19 · 완료 조건 10) · application-design 다섯의 IR 줄들과 8절(Units Generation 이 고친 것 넷) · application-design-plan.md Q7 곁말. 산출물 넷을 냈다 — unit-of-work.md(유닛 여덟 · 유닛마다 하는 일 · 만지는 자리 · 하지 않는 것 · 맡는 조각 · 완료 조건과 스토리 · NFR 값 N1 trash · N2 checkpoint · N3 finalize · Functional Design 과 NFR 을 하나 건너뛰나 · 범위에서 뺀 것 · 크로스 빌드 · 확장 준수) · unit-of-work-dependency.md(의존 행렬 코드 · 파일 · 조각 · 한 줄 순서 · 시작 조건 · 사람 조각을 기다리는 동안 할 수 있는 것 · 조각이 통과하는 순서 · 실행 계획의 제약 둘 확인 · 되돌리기 단위) · unit-of-work-file-matrix.md(파일 행렬 · 여러 유닛이 고치는 파일 열하나와 병합 순서 · 실행 계획의 다섯 중 셋이 한 유닛만 고침 · 만지지 않는 것 · 커버리지 여유) · unit-of-work-story-map.md(스토리 열아홉 · 완료 조건 열과 다섯 줄 · FR 열셋 · 조각 열셋 · 배정 안 된 것 0). 계획 3절 체크박스를 채웠다. 검사 — 표기 검사 exit 0 · U+2605 0 · 펜스 짝 맞음 · 사용자가 싫어한 말투를 새 문서에서 지웠다. 승인을 요청한다 — Request Changes 또는 Approve & Continue (다음은 Construction · 문서 루트가 aidlc-docs/taeels/ 로 바뀐다).
+**Context**: INCEPTION — Units Generation Part 2 (Step 12 ~ 16). 승인 대기
+
+---
+## Units Generation — 승인
+**Timestamp**: 2026-09-24T12:31:50Z
+**User Input**: "승인"
+**AI Response**: 유닛 분해 산출물 넷(unit-of-work.md · unit-of-work-dependency.md · unit-of-work-file-matrix.md · unit-of-work-story-map.md)과 계획 2.3 의 결정으로 고친 앞 단계 문서를 승인으로 받았다 (Step 17 ~ 19). 상태 파일에 Units Generation 을 완료로 적고 Inception 을 닫았다. 새 약칭 확인 — N1 ~ N3 은 Workflow Planning 이 실행 계획에서 처음 쓰며 그 자리에서 풀어 적었으므로 이 단계가 들여온 것이 아니다. 이 단계의 산출물을 회차 브랜치에 커밋한다. 회차 브랜치를 올리는 일(CONVENTIONS 3.1)은 묻는다 — 저장소가 공개이고 감사 로그의 사용자 원문 두 항목(09:06:19Z 사내 조건 · 11:52:52Z 굽기 계약 요약)에 사내 스크립트와 구성 이름이 있다. 다음은 Construction — 첫 유닛 contract-grammar 의 Functional Design 이고 문서 루트가 aidlc-docs/taeels/ 로 바뀐다.
+**Context**: INCEPTION — Units Generation 승인 · Inception 닫힘
+
+---
+## Inception 닫힘 — 결정 (감사 로그의 사내 원문을 가린다)
+**Timestamp**: 2026-09-24T12:37:46Z
+**User Input**: "가리고 올린다 (권장)"
+**AI Response**: 질문(저장소가 공개이고 감사 로그의 사용자 원문 두 항목에 사내 내용이 있는데 어떻게 할까)에 대한 답이다. 09:06:19Z 항목의 사용자 원문 2 ~ 4번과 11:52:52Z 항목의 builds 일곱 줄을 「[사내 내용 가림 — 모양: …]」 표시로 바꿨다. 제품 설계에 필요한 모양(구성 셋 · 변형 둘 · 변형 없는 시험 빌드 하나 · 구성마다 사내 스크립트)은 남겼다. 09:06:19Z 의 AI 응답에서 구성 이름 둘도 같은 모양으로 바꿨다. 이것은 AI-DLC 의 「원문 그대로」 규칙을 이 두 자리에서만 어긴다 — 제품 저장소는 사내 내용을 적지 않는다는 원칙이 우선한다. 원문은 로컬 메모에만 있다. 가린 커밋은 아직 올리지 않았으므로 e0682a1 을 고친 커밋으로 바꿔 역사에도 남지 않게 했다. 그다음 회차 브랜치를 올리고 main 으로 PR 을 연다 (CONVENTIONS 3.1).
+**Context**: INCEPTION 닫힘 — 회차 브랜치를 올리기 전의 정리
+
+---

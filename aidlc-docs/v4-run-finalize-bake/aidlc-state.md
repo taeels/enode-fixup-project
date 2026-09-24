@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: INCEPTION - Units Generation (Part 1 계획 · 질문)
+- **Current Stage**: INCEPTION 닫힘 (2026-09-24T12:31:50Z). 다음은 CONSTRUCTION — 첫 유닛 contract-grammar 의 Functional Design. 문서 루트 `aidlc-docs/taeels/` · 브랜치 `unit/contract-grammar`
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` (CLAUDE.md 의 회차별 layering)
@@ -125,6 +125,15 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - **Mediator**: steps 칸 셋(phase · phase_since · exit) · POST .../exited 하나 · QUEUED 요구 줄의 후보 셋. match 불변
 - **정정**: SunnyVM 의 /srv 는 sunny 소유다. 결정 3-14 는 다른 근거 둘로 선다 (원장 EN-bb1a4a28)
 
+## Units Generation Summary
+`inception/application-design/unit-of-work*.md` 넷 (2026-09-24). 답 일곱과 결정 둘 — 계획 파일 5절 · 2.2 · 2.3.
+
+- **유닛 여덟 · 한 줄 순서**: contract-grammar · step-phase · finalize · trash · merge-rules · lower-state · bake · checkpoint
+- **병합**: 조각은 그 기능을 마지막으로 완성하는 유닛이 맡는다. 앞선 유닛은 코드 검사로 병합
+- **범위에서 뺀 것**: FR-11 결과 adapter 둘과 장면 4 (순연 4-16) · FR-12 · FR-13 은 유닛 없이 Build and Test
+- **앞 단계를 고친 것**: agent 단계의 전체 훑기를 끈다 (Q7) · 굽기 계약이 구울 IR 을 값으로 적는다 (2.3 · 제품에 사내 태그 형식 없음) · 계약 작성 도구와 굽기 Run 판정은 contract-grammar 가 닫는다 (2.2)
+- **원칙**: 제품 저장소에 사내 스크립트 · 구성 이름을 적지 않는다. 제품의 굽기 예시는 공개 도구로
+
 ## Stage Progress
 
 ### INCEPTION PHASE
@@ -134,7 +143,7 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] User Stories — 판정 · 계획 · 질문 다섯 2026-09-23T15:00:55Z. 답(권장대로) 23:42:13Z. 페르소나 넷 · 스토리 열아홉 · 완료 조건 열. 승인 2026-09-23T23:54:49Z
 - [x] Workflow Planning — 계획 2026-09-23T23:57:36Z · 승인 2026-09-24T01:14:24Z
 - [x] Application Design — 계획 · 질문 일곱 2026-09-24T01:23:48Z. 채팅 논의로 일곱 다 A (Q7 06:33:21Z). 산출물 다섯 2026-09-24T06:39:39Z · 승인 2026-09-24T06:42:48Z
-- [ ] Units Generation — EXECUTE. 착수 2026-09-24T06:42:48Z
+- [x] Units Generation — 착수 2026-09-24T06:42:48Z. 계획 · 질문 넷 2026-09-24T06:50:29Z. 채팅 논의로 일곱이 닫힘 2026-09-24T09:50:00Z (Q1 A · Q2 A · Q3 A 순연 · Q4 B · Q7 A). 계획 승인 2026-09-24T12:14:10Z. 산출물 넷 2026-09-24T12:22:43Z · 승인 2026-09-24T12:31:50Z
 
 ### CONSTRUCTION PHASE
 - [ ] Functional Design — EXECUTE (유닛마다)

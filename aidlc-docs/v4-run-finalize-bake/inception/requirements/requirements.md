@@ -139,9 +139,11 @@ FR 번호는 팩의 기능 번호와 같다. 팩의 문장을 되풀이하지 �
 - 계약 단계에 `effect` 필드를 둔다. 값은 ADR-075 §5 의 read/analyze · edit ·
   build/test · prepare 다. 명시가 없으면 명령 단계는 build/test, agent 단계는
   edit 다. prepare 는 굽기의 build 단계가 쓴다 (FR-5)
-- **agent 단계는 FR-11 의 Git changeset adapter 가 설 때까지 오늘 그대로다** —
-  `claim.go:876-882` 의 `RecordDiff` 와 `Discover` 를 안 끈다. 훅이
-  `workspace.changed` 를 읽는다
+- **agent 단계도 전수 `Discover` 를 끈다** (Units Generation Q7 = A · 2026-09-24T09:50:00Z). `RecordDiff`
+  는 FR-11 의 Git changeset adapter 가 설 때까지 그대로다 (`claim.go:876-882`).
+  처음 판은 둘 다 그대로 두었고 근거가 「훅이 `workspace.changed` 를 읽는다」였다. 그 파일을
+  읽는 코드는 0 이고 훅은 산출물이 빠졌을 때 스스로 걷는다 (`hook.go:281`). 걷기의 산물은
+  결과도 checkpoint 도 아니다 (원장 `EN-43c3e7d8` 의 세 갈래)
 - **명시적으로 켜는 bounded discovery 를 이 FR 에 둔다** (팩은 기능 11). 방문 수 ·
   시간 · 메모리 · 결과 크기에 상한이 있고, 상한에 닿으면 부분 관찰임을 적는다.
   정상 결과가 아니라 진단이다. 기능 1 이 끄는 걷기의 대체가 같은 때 서야 계약
@@ -211,7 +213,8 @@ FR 번호는 팩의 기능 번호와 같다. 팩의 문장을 되풀이하지 �
   ask 는 Mediator 쪽이고 **merge 는 노드 쪽**이다
 - `builds[]` 의 항목은 `name` 과 `command` 다. 이름은 굽기 계약을 쓰는 쪽이 짓는다
 - 계약 검증이 400 으로 막는 것 — prepare 단계 뒤에 같은 역할의 merge 단계가 없음,
-  구성 이름이 문자 규칙(소문자 · 숫자 · `-`)을 어김, 이름이 겹침
+  구성 이름이 문자 규칙(소문자 · 숫자 · `-`)을 어김, 이름이 겹침, **구울 IR 을 안 적음**
+  (FR-9 · Units Generation 이 더했다)
 - merge 대기 상한 기본 4시간. 계약의 merge 단계가 바꿀 수 있다
 - 계약이 노드 설정이나 host 경로를 지정하지 못한다
 
@@ -270,8 +273,12 @@ FR 번호는 팩의 기능 번호와 같다. 팩의 문장을 되풀이하지 �
   sync_command · synced_at) · `builds[]`(name · command · started_at · finished_at ·
   exit_code) · `environment` · `workspace_target` · `bake`(run · node · merged_at ·
   resumed · previous_ir)를 담는다
-- IR 은 계약 칸이 아니라 sync 뒤 `.repo/manifests` HEAD 에 정확히 붙은 태그에서
-  유도한다. 없으면 null 이고 `ir=` 을 광고하지 않는다
+- **굽기 계약의 build 단계가 구울 IR 태그를 정확한 값으로 적는다 (필수).** 노드는 그
+  값을 sync 와 builds 명령에 환경 변수로 넘기고, sync 뒤 `.repo/manifests` HEAD 에 그
+  태그가 정확히 붙었는지 확인한다. 다르면 build 단계가 실패하고 합치지 않는다. 제품에는
+  IR 태그의 기본 형식이 없다 — 사내 규약이라 제품이 모른다. Units Generation(2026-09-24)
+  이 고쳤다. 처음 판은 「IR 은 계약 칸이 아니라 sync 뒤 HEAD 태그에서 유도하고, 없으면
+  null」이었다
 - 광고 키 — `workspace.writes`(runc-overlay 면 `isolated`, native 면 `in-place`, 모든
   노드가 낸다) · `ir` · `repo.built.<name>=yes`. 평평한 문자열 키다
 
@@ -293,7 +300,11 @@ FR 번호는 팩의 기능 번호와 같다. 팩의 문장을 되풀이하지 �
 - 재시작 때 미완료 capture 와 만료 항목을 조정한다
 - 단계 outcome 과 commit set 은 capture 성패와 무관하다
 
-## FR-11 (기능 11) 결과 adapter
+## FR-11 (기능 11) 결과 adapter — 순연
+
+**순연 (Units Generation Q3 = A · 2026-09-24T09:06:19Z).** 사내는 Git changeset 을 쓸 일이 없고
+빌드는 커스텀 스크립트가 시작한다. 조각 10 은 해당 없음이다. 아래는 팩의 문장이고 되살릴 때의
+출발점이다. 설계 빚은 6.1 에 있다.
 
 - agent edit 를 위한 Git changeset adapter. 정확한 base identity 를 가진다. **이것이
   서면 agent 단계의 `RecordDiff` 와 전수 `Discover` 를 끈다** (FR-1)
@@ -424,6 +435,7 @@ reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
 |---|---|---|
 | 0 | 기동이 안 깨졌다 | 바닥이 `main` 이 된다(질문 3 = A). `grep -c 'mux.HandleFunc' internal/api/api.go` 가 **18 -> 19** 다 |
 | 1 | 걷지 않는다 | **잴 것이 는다.** bounded discovery 를 켠 단계가 상한에서 부분 관찰임을 적는다. 걷기를 안 켠 단계의 기록에 「바뀐 파일이 없다」가 없다 |
+| 6 | 굽기가 돈다 | **바뀐다** (Units Generation). 「manifest HEAD 에 IR 태그가 없으면 `ir` 은 null 이고 광고하지 않는다」 대신 — sync 가 계약의 IR 에 닿지 않으면 build 단계가 실패하고 합치지 않으며, 결과에 HEAD 의 태그와 커밋이 보인다 |
 | 2 | 보인다 | **잴 것이 는다.** 다른 인스턴스(같은 노드를 재시작한 뒤)가 보낸 종료 보고가 거절된다 |
 | 4 | trash | **재는 방법이 바뀐다.** 여유가 `min_free_gb` 아래면 그 노드가 `draining` 으로 후보에서 빠지고(`GET /v1/nodes`), trash 가 비면 풀린다. 그동안 `arch.<이름>` 키는 광고에 남는다. 다섯 자리 모두 trash 로 간다 |
 | 7 | 끊겨도 된다 | **잴 것이 는다.** 가짜 트리에 종류가 바뀐 항목이 있고, 그 시험이 기본 `go test` 에서 돈다 |
@@ -434,6 +446,55 @@ reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
 않는다.** 집행자는 그 유닛을 구현하지 않은 사람이다 — 이 회차에서 구현은 에이전트가
 하고 사람 조각은 사용자가 SunnyVM 과 사내 host 에서 돈다. SunnyVM 은 노트북 VM 이라
 꺼져 있을 수 있고, 그때 그 조각은 보류다.
+
+## 6.1 장면 4 — agent 가 고친 것을 build 가 받는다 (Units Generation 에서 더함 · 순연)
+
+**순연 (2026-09-24T09:06:19Z).** Units Generation 질문 3 = A 로 결과 adapter 둘을 순연했고
+이 장면도 함께 간다. 사내는 Git changeset 을 쓸 일이 없고 빌드는 커스텀 스크립트가 시작한다
+(`unit-of-work-plan.md` Q3 의 사내 대조). 이 절은 되살릴 때 잴 장면과 설계 빚으로 남긴다.
+아래 「재는 조각」의 두 줄은 적용하지 않는다 — 조각 10 은 해당 없음이고 조각 12 는 조각 6 만
+딛는다.
+
+**2026-09-24T07:48:31Z 사용자 지시로 더했다.** Units Generation 질문 3 이 FR-11 을 자를
+근거로 「장면 셋 어디도 adapter 를 안 지난다」를 들었고, 사용자가 그 자리에 장면을 만들라고
+했다. 팩의 `scene-gates.md` 1절에 옮기는 것은 팩을 고치는 쪽의 몫이다.
+
+정본은 ADR-017 결정 6 · ADR-072 §9 · ADR-075 §6 · §7 · §15 다. ADR-017 결정 6 이 이미
+그린 길(agent 노드가 고친 diff 를 같은 base 의 build 노드가 받아 짓는다)을, 이 팩이 바꾼
+결과 경계 위에서 끝까지 돈다.
+
+1. IR X 에 선 overlay 노드에 agent 단계(effect edit)를 낸다. agent 가 커널 소스의 파일을
+   추가 · 수정 · 삭제하고, 고친 것을 확인하려고 compiler 도 돌린다.
+2. 하네스가 끝나는 즉시 진행 조회에 `finalizing` 이 보인다. 결과 확정이 수백만 파일 트리를
+   걷지 않는다.
+3. 결과는 base 가 붙은 changeset 하나다. compiler 부산물이 없다.
+4. 다음 build 단계가 IR X 에 선 노드에 앉아 그 changeset 을 받아 적용하고 BitBake 로 짓는다.
+5. 계약이 경로를 적지 않아도 deploy output 만 commit set 에 봉인된다. intermediate 는 없다.
+6. base 가 다른 노드에서는 그 changeset 이 조용히 붙지 않는다.
+
+**재는 조각.**
+
+```text
+   조각 10    1 · 3 · 5 를 따로 잰다 (오늘의 확인 셋 그대로).  2 를 더한다 — 300만 파일
+              워크스페이스에서 agent 단계의 결과 확정이 빈 워크스페이스와 같은 수준이다
+   조각 12    1 ~ 6 을 한 Run 으로 끝까지 잰다.  먼저 서는 조각이 6 에서 6 · 10 으로 는다
+```
+
+**이 장면이 드러낸 빈자리 셋.** 팩과 앞 단계가 안 닫았다.
+
+```text
+   ①  받는 쪽      FR-11 은 changeset 을 만드는 쪽만 적는다.  받아 적용하는 쪽이 없다.
+                  계약의 in.diff 는 자리만 있고 런타임이 안 읽는다 (contract.go:905 ·
+                  run-contract.md:125 의 @work.patch_rev).  계약 명령의 git apply 로
+                  할지 노드가 적용할지 정해야 한다.  6 이 거기 달렸다
+   ②  base 의 뜻    Application Design 은 base 를 「git HEAD」로 적었다.  repo 로 여러 git
+                  저장소를 묶은 Yocto 트리에서 어느 저장소의 HEAD 인지, IR 과 어떻게
+                  맞물리는지가 안 정해졌다 (ADR-072 는 정합 단위를 IR 로 올렸다)
+   ③  인터페이스    adapter 가 끼울 자리가 코드에도 설계에도 없다.  설계는 둘을 FinalizeSpec
+                  의 칸(Changeset bool · Produce *ProduceSpec)으로 박았고 ProduceSpec 과
+                  등록표의 모양은 적지 않았다.  ADR-075 는 둘 다 구현이 느는 자리로 적는다 —
+                  Git 밖의 filesystem changeset adapter (§6), Bazel · CMake · Meson (§7)
+```
 
 ---
 
@@ -503,6 +564,7 @@ reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
    ⑧  checkpoint descriptor 와 조회 API, reason 의 wire 표기 (decisions.md 6절)
    ⑨  checkpoint 하나의 상한과 inode 한도 · 배경 삭제자가 한 번에 지우는 양
    ⑩  manifest HEAD 에 태그가 여럿일 때 IR 형식 규칙의 자리 (사내 형식 IR<YYMMDD>_<HHMMSS>)
+       — Units Generation 이 없앴다.  계약이 IR 을 정확한 값으로 적는다 (FR-9)
    ⑪  Git changeset 의 wire format 과 10 MiB 초과 정책, producer adapter 의 등록과 versioning
    ⑫  가짜 트리의 whiteout 과 opaque 를 특권 없이 만들 수 있는지 (5.6)
    ⑬  유닛 분해와 파일 행렬.  Units Generation 의 몫이다
@@ -533,7 +595,8 @@ reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
 이 회차가 실측과 답으로 정한 것이다. 번호는 팩의 절을 따라 붙인다.
 
 ```text
-   1-14   agent 단계의 RecordDiff · Discover 는 Git changeset adapter 까지 그대로   사실 6
+   1-14   agent 단계의 Discover 는 끈다.  RecordDiff 는 Git changeset adapter 까지   Q7 = A
+          그대로 (처음 판 「둘 다 그대로」의 근거가 거짓이었다)
    1-15   bounded discovery 를 기능 1 과 함께 세운다.  5절의 순서를 벗어난다       사실 6
    1-16   재지 않은 변경 목록을 「바뀐 파일이 없다」로 쓰지 않는다                  2절
    1-17   종료 보고는 노드와 claimed_instance 를 대조한다.  result 는 그대로       사실 1
@@ -545,6 +608,12 @@ reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
    3-25   env check 의 not ready 사유가 어긋난 것을 이름으로 말한다               사실 9
    5-·    확장 셋 모두 끔.  팩의 보안 표는 요구로 남는다                          질문 4 ~ 6
    5-·    실행 환경 구현을 먼저 main 에 병합한다                                 질문 3 = A
+   3-26   굽기 계약이 구울 IR 을 정확한 값으로 적는다.  노드가 환경 변수로 넘기고   Units Gen.
+          sync 뒤 HEAD 와 대조한다.  제품에 태그 형식의 기본값이 없다
+   1-14'  agent 단계의 Discover 는 끈다.  RecordDiff 는 adapter 까지 그대로        Units Gen. Q7
+   4-16   결과 adapter 둘(Git changeset · Yocto producer)과 장면 4 를 순연한다     Q3 = A
+          되살릴 조건 — agent 가 고친 것을 build 로 넘기는 계약이 생길 때, 또는
+          산출물 경로를 빌드 시스템에 물어야 하는 계약이 생길 때
 ```
 
 ---
@@ -571,4 +640,7 @@ reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
                         discovery 와 새 진단 자리로 (사실 6)
      ADR-071            머리의 「미구현」을 구현(70d6258)으로 (사실 5)
      mediator-api       exited 가 인스턴스까지 대조한다는 것과 result 와의 비대칭
+     ADR-077 §5 · §11   IR 을 계약 칸으로 싣는다 — 노드가 환경 변수로 sync 에 넘겨 사실이
+                        한 곳에서 온다.  형식 규칙의 자리는 없어진다 (결정 3-26)
+     ADR-077 · run-contract   굽기 Run 의 성공 판정(success_when) — 계약 문법 유닛이 닫는다
 ```

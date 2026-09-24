@@ -36,7 +36,7 @@ lower 를 모른 채 칸 셋과 라우트 하나만 는다. 사람이 읽는 자
 | ⑦ | phase 칸 | steps 에 phase · phase_since · exit | 계획 2절 · methods 7절 |
 | ⑧ | checkpoint descriptor 와 조회 · reason 표기 | receipt 의 `checkpoint_capture` 일곱 칸. 조회는 `enode checkpoint`. Mediator API 없음 | 계획 2절 · methods 3.2 |
 | ⑨ | checkpoint 상한 · 삭제자의 양 | 자리는 노드 설정. 값은 NFR N1 · N2 | 계획 2절 |
-| ⑩ | IR 태그 규칙의 자리 | 굽기 계약 build 단계의 `ir_tag`. 기본 사내 형식 | Q7 · services 2절 |
+| ⑩ | IR 태그 규칙의 자리 | **Units Generation 이 고쳤다** — 굽기 계약 build 단계가 구울 IR 을 정확한 값으로 적는다(필수 · 기본값 없음). 노드가 환경 변수로 넘기고 sync 뒤 대조한다. 처음 판은 `ir_tag`(규칙) · 기본 사내 형식 | Q7 · services 2절 |
 | ⑪ | Git changeset wire · 10 MiB · producer 등록 | descriptor(base · digest · size · complete) · 넘으면 complete=false 로 patch 안 올림 · 노드 바이너리의 등록표와 광고 `producer.<이름>=<판>` | 계획 2절 · methods 4.2 |
 | ⑫ | 가짜 whiteout · opaque 를 특권 없이 | 된다 — 이 기계에서 실측 | 계획 1.3 |
 | ⑬ | 유닛 분해 | Units Generation 몫. 7절에 넘길 것 | — |
@@ -67,7 +67,7 @@ lower 를 모른 채 칸 셋과 라우트 하나만 는다. 사람이 읽는 자
 | 7 | `captured` 의 뜻 | descriptor 가 scope · guarantee · node · expires_at 을 싣는다 (methods 3.2) |
 | 8 | 합치기 조각이 운영 lower 면 멈춘다 | 조각의 스크립트 — Build and Test 몫. 설계는 안 막는다 |
 | 9 | merge_wait_timeout 의 굽기에서 build 성공과 merge 사유가 따로 | 두 단계가 각자 result 를 갖는다 (services 2 · 3절) |
-| 10 | ir 을 못 유도한 이유 | metadata 의 `ir_reason` · merge 결과 (methods 1.4) |
+| 10 | 계약의 IR 과 sync 뒤 HEAD 가 어긋난 이유 | build 단계 결과 — HEAD 의 태그와 커밋 (Units Generation 이 고쳤다. 처음 판은 metadata 의 `ir_reason`) |
 
 ### 2.4 `decisions.md` 6절의 한 줄
 
@@ -125,7 +125,7 @@ x/sys 만)을 더한다 (`component-dependency.md` 2절).
 | 합치기 | `merge.Preflight` 가 같은 filesystem 을 본다. 합치는 경로가 lower 밖으로 안 나간다 (`merge.Apply`) |
 | 상태 자리 | `lower.Open` 이 노드 사용자 전용으로 만든다 |
 | spool | 소유자만 읽는다. descriptor 에 host 경로 없음. TTL 에 지운다 (`scratch.Store`) |
-| 계약의 명령 | sync 와 builds 는 build 단계의 세션 안에서 돈다. `ir_tag` 는 노드 설정도 host 경로도 아니다 (Q7) |
+| 계약의 명령 | sync 와 builds 는 build 단계의 세션 안에서 돈다. 구울 IR 값은 노드 설정도 host 경로도 아니다 (Q7) |
 | 정책 | 계약에 checkpoint 칸이 없다. TTL · 보존은 노드 설정만 |
 
 **잔여** — result 는 오늘처럼 노드만 대조한다 (5.3). 이 설계가 좁히지 않는다.
@@ -169,7 +169,7 @@ x/sys 만)을 더한다 (`component-dependency.md` 2절).
    lower 상태 기계            전이마다의 잠금 · 낡은 상태 정리 · 시작 전 확인이 어긋났을 때의 상태
    두 시계                   한 줄에 어느 시계를 쓰나 (실행 계획 7절 ②)
    예산의 경계               Finalize 예산이 닫기까지 · 업로드 예산이 로그까지 (services 1절)
-   같은 커밋의 IR 둘          null 인가 늦은 쪽인가 (계획 Q7 답)
+   IR 대조                   IR 칸 이름 · 환경 변수 이름 · 어긋났을 때의 원인 코드 (Units Generation 2.3)
    env check Fact 의 State   어긋났을 때 어느 State 로 적나
    CI 의 가짜 표시            ubuntu-latest 에서 한 번 더 잰다.  user xattr 이 없으면 실패 (계획 1.3)
 ```
@@ -191,9 +191,9 @@ x/sys 만)을 더한다 (`component-dependency.md` 2절).
 ```text
    ADR-077 §5        「부모가 root 소유인 기계(SunnyVM 의 /srv)」 -> /work 별칭의 부모 / (계획 1.10)
    ADR-077 §4        확인 넷 중 「마운트 0」은 배타 잠금이 증거를 진다 — Functional Design 이 확인하면
-   ADR-077 §5        metadata 에 ir_reason (완료 조건 10)
+   ADR-077 §5 · §11  IR 을 계약 칸으로 싣는다 · 형식 규칙의 자리 없음 (Units Generation 2.3)
    mediator-api.md   exited 절 제목의 경로를 표와 같게 (계획 1.8)
-   run-contract.md   effect 값 넷 · budget · merge.wait · ir_tag · discover · produce
+   run-contract.md   effect 값 넷 · budget · merge.wait · 구울 IR · discover (produce 는 순연)
 ```
 
 ### 7.2 `decisions.md` 에 더할 행과 고칠 문구
@@ -206,3 +206,24 @@ x/sys 만)을 더한다 (`component-dependency.md` 2절).
 
 옮기는 것은 팩을 고치는 쪽의 몫이다 — 이 문서는 행을 짓고 옮기지 않는다 (`stories.md`
 3절과 같은 규칙).
+
+---
+
+## 8. Units Generation 이 고친 것 (2026-09-24)
+
+Units Generation 의 답과 결정이 이 설계를 넷 고쳤다. 줄마다 「Units Generation 이 고쳤다」를
+적었고, 여기에 한데 모은다. 근거는 `plans/unit-of-work-plan.md` 5절 · 2.2 · 2.3 이다.
+
+```text
+   결과 adapter 순연 (Q3 = A)
+     FR-11 의 두 adapter 를 이번에 만들지 않는다.  그래서 아래 겉면은 만들지 않는다 —
+     FinalizeSpec 의 Changeset · Produce 칸, ChangesetDescriptor, 계약의 produce 칸,
+     광고 키 producer.<이름>.  2절 ⑪ 과 4절의 「결과 adapter 둘」 줄은 순연 행 4-16 으로 간다
+   agent 단계의 전체 훑기를 끈다 (Q7 = A)
+     4절 Worker agent 단계의 「오늘 그대로」가 바뀐다.  Discover 는 끄고 RecordDiff 는 둔다
+   굽기 계약이 구울 IR 을 적는다 (2.3)
+     ⑩ 의 ir_tag(규칙) · 기본 사내 형식을 거둔다.  계약이 IR 을 값으로 적고, 노드가 환경
+     변수로 넘기고, sync 뒤 HEAD 와 대조한다.  ir_reason 이 없어진다
+   계약 작성 도구 (2.2)
+     cmd/runctl 을 「안 만지는 것」에서 한 파일(shape.go · lint 의 조건 제안) 뺀다.
+     굽기 Run 의 성공 판정(success_when)을 계약 문법 유닛의 Functional Design 이 닫는다

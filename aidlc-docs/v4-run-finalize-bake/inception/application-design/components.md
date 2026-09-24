@@ -123,7 +123,7 @@ verifier(`internal/enode`)다. 그래야 `internal/lower` 가 Mediator 가 링�
    Worker 명령 단계         effect 에 따라 수확을 좁힌다 (claim.go:691 ~ :694).  exited 를 보낸다.
                           Finalize 예산과 업로드 예산을 context 로 건다.  진단을 result 로 (Q5)
    Worker agent 단계        오늘 그대로 (claim.go:876 ~ :882).  Git changeset adapter 가 서면 끈다
-   Worker build 단계        새로.  sync 뒤 builds 를 차례로 · 항목마다 시각과 exit · IR 유도(ir_tag) ·
+   Worker build 단계        새로.  sync 뒤 builds 를 차례로 · 항목마다 시각과 exit · IR 대조(계약의 값 · 환경 변수) ·
                           pinned manifest · upper 를 대기 자리로
    Worker merge 단계        새로.  배타 잠금을 기다리며 쥔 사람을 로그에 쓴다 (Q4) · merge-helper ·
                           metadata · 상태 확정
@@ -146,16 +146,16 @@ verifier(`internal/enode`)다. 그래야 `internal/lower` 가 Mediator 가 링�
 ```text
    effect           read · edit · build · prepare.  안 적으면 run 단계 build · agent 단계 edit
    budget           finalize · upload.  Go duration (ask.timeout.after 선례 · 1.5)
-   build 단계        effect: prepare · sync · builds[](name · command) · ir_tag.  종류 build
+   build 단계        effect: prepare · sync · builds[](name · command) · 구울 IR(필수).  종류 build
    merge 단계        merge: {wait}.  종류 merge.  명령이 아니라 노드의 내장 단계
    discover         명시로 켜는 bounded discovery (FR-1)
    produce          producer adapter 를 이름과 판으로 부른다 (⑪)
    검증 (400)        prepare 뒤 같은 역할의 merge 없음 · 이름 규칙(소문자 · 숫자 · -) · 이름 겹침 ·
-                    ir_tag 컴파일 실패 · 기간 형식 · finalize 1분 아래 · upload 와 wait 0 이하 (Q6)
+                    구울 IR 없음 · 기간 형식 · finalize 1분 아래 · upload 와 wait 0 이하 (Q6)
 ```
 
 **상한은 두지 않는다** (Q6). 계약이 노드 설정이나 host 경로를 지정하는 칸은 여전히 없다
-(5.3). `ir_tag` 는 값이 아니라 읽는 규칙이다 (Q7).
+(5.3). 구울 IR 은 규칙이 아니라 값이다. 제품은 태그 형식을 모른다 (Units Generation 2.3 이 고쳤다 — 처음 판은 읽는 규칙 `ir_tag` 였다).
 
 ### 3.3 `internal/store` — 종료 · phase · 대기 사유
 
