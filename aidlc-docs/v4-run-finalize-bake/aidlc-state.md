@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: INCEPTION - Workflow Planning (착수)
+- **Current Stage**: INCEPTION - Application Design (착수)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` (CLAUDE.md 의 회차별 layering)
@@ -105,6 +105,17 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 | resiliency-baseline | No | Requirements Analysis 질문 5 = B |
 | property-based-testing | No | Requirements Analysis 질문 6 = X 「기존 테스트 컨벤션을 따른다」 |
 
+## Execution Plan Summary
+`inception/plans/execution-plan.md` (2026-09-23T23:57:36Z · HEAD `7a7ec85`).
+
+- **실행**: Application Design · Units Generation · Functional Design · NFR Requirements(최소) ·
+  NFR Design(최소) · Code Generation · Build and Test
+- **스킵**: Infrastructure Design — 새 실행파일 · 포트 · 클라우드 자원 0.  새 디스크 자리는
+  노드 사용자의 scratch 와 home 아래이고 steps 칸은 자료 모형이다
+- **위험도**: High.  합치기는 되돌리기 Difficult — 시험은 버려도 되는 lower 에서만
+- **이 단계가 찾은 넷**: 업로드 예산과 요청마다의 30초(`cmd/enode/main.go:206`) · 두 시계 ·
+  env check 의 자리가 임포트 경계에 걸림 · 크로스 빌드 셋(linux/arm 포함)
+
 ## Stage Progress
 
 ### INCEPTION PHASE
@@ -112,6 +123,17 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Reverse Engineering — 전면 갱신 2026-09-23T14:03:35Z · 승인 2026-09-23T14:12:44Z
 - [x] Requirements Analysis — 착수 2026-09-23T14:20:56Z. 답 14:35:56Z · 재질문 답 14:41:53Z. `requirements.md` 완료 14:50:03Z · 승인 2026-09-23T14:56:31Z
 - [x] User Stories — 판정 · 계획 · 질문 다섯 2026-09-23T15:00:55Z. 답(권장대로) 23:42:13Z. 페르소나 넷 · 스토리 열아홉 · 완료 조건 열. 승인 2026-09-23T23:54:49Z
-- [ ] Workflow Planning
-- [ ] Application Design
-- [ ] Units Generation
+- [x] Workflow Planning — 계획 2026-09-23T23:57:36Z · 승인 2026-09-24T01:14:24Z
+- [ ] Application Design — EXECUTE
+- [ ] Units Generation — EXECUTE
+
+### CONSTRUCTION PHASE
+- [ ] Functional Design — EXECUTE (유닛마다)
+- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소)
+- [ ] NFR Design — EXECUTE (유닛마다 · 최소)
+- [ ] Infrastructure Design — SKIP
+- [ ] Code Generation — EXECUTE (유닛마다)
+- [ ] Build and Test — EXECUTE (조각 0 ~ 12)
+
+### OPERATIONS PHASE
+- [ ] Operations — PLACEHOLDER
