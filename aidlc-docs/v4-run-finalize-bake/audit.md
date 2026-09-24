@@ -138,3 +138,112 @@
 **Context**: INCEPTION — Workflow Planning 승인. 단계 종료
 
 ---
+## Application Design — 다른 세션의 전제 확인 요청
+**Timestamp**: 2026-09-24T01:27:24Z
+**User Input**: (사용자 입력 아님 — 다른 Claude 세션 agent-office 가 사용자의 요청으로 보낸 메시지. 요지: 원장 EN-8e9db691 · EN-82f57685 가 「sunnyvm 의 /srv 는 root:root 755 라 lower 옆에 잠금 파일을 만들 수 없다」를 certain 으로 적었는데 2026-09-23 00:57Z 에 다른 세션이 sudo chown sunny:sunny /srv 를 돌렸다. 잠금 위치를 굳히기 전에 지금 소유자를 재고, 결정 1b-1 이 다른 근거로도 서는지 보고, 두 항목을 대체하는 Correction 을 원장에 남겨 달라)
+**AI Response**: sunnyvm 에 ssh 로 쟀다(2026-09-24T01:26Z). /srv 와 /srv/yocto 는 sunny:sunny 755 다. /work 는 /srv/yocto 의 bind mount 이고(findmnt SOURCE /dev/sda2[/srv/yocto] · ino 6168147 · fsid b517932fee9168d5) 그 부모 / 는 root:root 755 다. 결정 3-14 는 별칭마다 부모가 갈린다는 근거와 /work 별칭의 부모가 root 소유라는 근거로 그대로 선다. 틀린 것은 ADR-077 §5 의 「SunnyVM 의 /srv」 구절이다. 원장에 정정 EN-bb1a4a28 을 남겨 두 항목을 대체했고, 계획 파일 1.10 에 적었으며, 정본 되돌림에 한 줄을 더한다. chown 자체는 이 세션이 확인하지 못했다.
+**Context**: INCEPTION — Application Design. 착수 전 실측
+
+---
+
+## Application Design — 계획 · 질문
+**Timestamp**: 2026-09-24T01:27:24Z
+**User Input**: (없음 — Workflow Planning 승인 「승인. application design 해라」로 진행)
+**AI Response**: `inception/plans/application-design-plan.md` 를 냈다. 착수 전 실측 열 — 임대는 매칭 때 생기고 노드는 나중에 안다(store/claim.go:305 · main.go:233 · api.go:299 · :335) · 합치기와 삭제는 subordinate uid 때문에 namespace helper 에서 돈다(runc_overlay_linux.go:1151 · :210) · 가짜 whiteout(mknod c 0 0)과 user.overlay.opaque 가 특권 없이 만들어진다(이 기계에서 실측, 8절 ⑫ 닫음) · env check 에 RuntimeVerifier 이음매가 있다(check.go:82) · 기간 표기와 단계 종류의 선례(contract.go:175 · :798) · workspace.changed 와 workspace.diff 가 produced 로 나간다(claim.go:913) · QUEUED 의 busy 와 draining 집합이 따로 있다(queue.go:229) · 정본 result wire 와 exited 경로의 갈림(mediator-api.md:286 · :446) · 업로드가 파일을 통째로 읽고 30초 client 를 쓴다(claim.go:919 · main.go:206) · /srv 소유자 정정. 설계가 답하는 것 열둘(effect 값 · 표기 · drain 세기 · phase 칸 · checkpoint descriptor · 상한 자리 · Git changeset 과 producer 등록 · 가짜 표시 · 업로드 client · env check 자리 · 크로스 빌드 · 준비 구간 phase 안 올림)을 적었다. 질문 일곱 — Q1 lower 공유 잠금 시점 · Q2 새 패키지 자리 · Q3 drain 출처와 trash 양을 보는 자리 · Q4 굽기 기다림과 재개를 노드 밖에서 보는 길 · Q5 build/test 의 진단 자리 · Q6 예산의 노드 쪽 상한 · Q7 IR 태그 규칙의 자리. 권장은 일곱 다 A. 표기 검사 exit 0. Step 7 에서 답을 기다린다.
+**Context**: INCEPTION — Application Design. 질문 대기
+
+---
+## Application Design — 질문을 채팅에서 논의
+**Timestamp**: 2026-09-24T02:34:03Z
+**User Input**: "Q1부터 여기서 논의후 결정할게"
+**AI Response**: 질문 일곱을 하나씩 채팅에서 논의하고 결정은 사용자가 내린다. 결정이 나면 계획 파일의 [Answer]: 에 채팅 답으로 적는다. Q1(lower 공유 잠금의 시점)부터 창이 생기는 순서 · 세 안의 차이 · A 의 대가(놓는 조건) · 시간으로 기다리는 안을 안 고른 이유를 설명했다.
+**Context**: INCEPTION — Application Design. 질문 논의 (Q1)
+
+---
+## Application Design — Q1 되물음
+**Timestamp**: 2026-09-24T04:17:03Z
+**User Input**: "매칭된 뒤 첫 단계? 해당 노드가 계약의 첫 단계라는 건지 해당 노드가 실제 일을 하는 단계라는건지"
+**AI Response**: 뒤쪽이다 — 그 노드가 그 Run 에서 처음 claim 하는 단계다. 근거는 결정 3-24 를 낳은 사실 8(requirement-verification-questions.md:327 ~ :334)의 「그것은 첫 claim 이 단계를 받을 때 안다」. 다만 지킬 불변식은 「매칭된 순간부터 그 노드가 그 Run 의 임대를 놓을 때까지 lower 가 안 바뀐다」이고 「첫 단계 전」은 Run 단위 잠금이 못 덮는 앞쪽 틈을 가리킨 말이다. 노드의 단계가 Run 의 뒤쪽이면 claim 은 needs 가 풀릴 때까지 안 돌아오므로(store/claim.go:269 의 PENDING 조건) 노드가 임대를 먼저 아는 것은 광고 응답이다. 앞 설명의 t4 를 그렇게 바로잡았다. 설계 문서에 불변식을 정확한 문장으로 적고 3-24 의 문구를 고칠 것을 제안했다.
+**Context**: INCEPTION — Application Design. 질문 논의 (Q1)
+
+---
+## Application Design — Q1 되물음 둘
+**Timestamp**: 2026-09-24T04:20:07Z
+**User Input**: "앞쪽 틈에서 merge를 한다는거야?"
+**AI Response**: 그렇다 — 정상 경로가 아니라 경쟁이다. merge 는 공유 잠금을 쥔 형제가 0 이 되는 순간 배타 잠금을 잡고, 매칭됐지만 아직 모르는 형제는 아무것도 안 쥐었으므로 merge 에게는 한가한 노드와 같다. 틈은 둘이다 — 합치는 동안 형제가 아직 drain 을 광고하기 전이라 매칭되는 경우, 합친 뒤 형제의 옛 광고(ir=X)가 최대 한 주기 남아 그것으로 매칭되는 경우. A 는 drain 이 받아 적히기 전까지 형제가 잠금을 쥐고, drain 을 풀 때 새 ir 로 광고하므로 둘 다 닫는다.
+**Context**: INCEPTION — Application Design. 질문 논의 (Q1)
+
+---
+## Application Design — Q1 결정
+**Timestamp**: 2026-09-24T04:36:54Z
+**User Input**: "알았어 권장안대로 하고 다음질문으로 가자"
+**AI Response**: Q1 = A(후보인 동안 공유 잠금을 쥔다)로 계획 파일의 [Answer]: 에 적었다. 논의가 더한 셋(불변식의 문장 · 틈 둘 · drain 을 푸는 광고가 새 ir 을 싣는 순서)을 같은 자리에 적었다. 놓는 조건의 울타리는 Functional Design 몫으로 남는다. Q2 논의로 간다.
+**Context**: INCEPTION — Application Design. 질문 논의 (Q1 닫힘 · Q2 착수)
+
+---
+## Application Design — Q2 결정
+**Timestamp**: 2026-09-24T04:41:39Z
+**User Input**: "다음"
+**AI Response**: Q2 설명(패키지 셋이 무엇을 알고 모르나 · 되돌리기 단위 · trash 는 굽기가 아님 · 커버리지 하한 · 둘로 나누는 사이 안 · 마운트 0 의 증거) 뒤의 「다음」을 반대 없이 넘어감으로 보고 권장 A(internal/lower · internal/merge · internal/scratch)로 적었다. 채팅에서 그 읽기를 밝혔다. 논의가 더한 둘(패키지 사이의 약속 · 마운트 0 의 증거)을 [Answer]: 자리에 적었다. Q3 논의로 간다. Q3 에 대고 찾은 것 — 제어판의 drain 표시는 정책 파일만 읽는다(panel/view.go:97).
+**Context**: INCEPTION — Application Design. 질문 논의 (Q2 닫힘 · Q3 착수)
+
+---
+## Application Design — Q3 결정
+**Timestamp**: 2026-09-24T04:44:47Z
+**User Input**: "그래 다음"
+**AI Response**: Q3 = A(상태 파일에 drain 의 출처와 scratch 의 양을 싣고 제어판이 그린다)로 적었다. 논의가 더한 셋(오늘의 제어판 drain 표시가 정책 파일만 읽어 거짓이 됨 · 상태 파일을 쓰는 조건 · trash 양은 늦은 값)을 [Answer]: 자리에 적었다. Q4 논의로 간다.
+**Context**: INCEPTION — Application Design. 질문 논의 (Q3 닫힘 · Q4 착수)
+
+---
+## Application Design — Q4 되물음
+**Timestamp**: 2026-09-24T05:55:27Z
+**User Input**: "대기   merge 가 waiting 일 때 형제의 어느 노드가 어느 Run 으로 lower 를 쥐고 있나.
+          대기 상한까지 얼마 남았나
+
+이 문장 이해가 안되는데 설명좀"
+**AI Response**: 굽기 Run 의 merge 단계가 형제 노드의 Run 이 끝나기를 기다리는 장면을 시각이 붙은 예로 풀었다. 「lower 를 쥐고 있다」는 형제가 공유 잠금을 들고 있다는 뜻이고, 밖에서는 waiting 한 단어만 보여 누구 때문에 언제까지 기다리는지 모른다는 것을 설명했다. 설계 문서에는 이 문장을 쉬운 말로 바꿔 적겠다고 했다.
+**Context**: INCEPTION — Application Design. 질문 논의 (Q4)
+
+---
+## Application Design — Q4 결정
+**Timestamp**: 2026-09-24T06:21:06Z
+**User Input**: "그래 다음"
+**AI Response**: Q4 = A(대기는 merge 단계의 실시간 로그 · 재개는 광고 정보 키 bake.run · bake.resumed)로 적었다. 논의가 더한 넷(풀어 쓴 뜻 · 후보도 보인다 · 마지막 굽기 하나만 보인다 · 상한 시각의 시계)을 [Answer]: 자리에 적었다. Q5 논의로 간다. Q5 에 대고 확인한 것 — 훅은 workspace.changed 파일을 안 읽고 같은 걷기(changedSince)를 스스로 돈다(hook.go:281 ~ :283).
+**Context**: INCEPTION — Application Design. 질문 논의 (Q4 닫힘 · Q5 착수)
+
+---
+## Application Design — Q5 결정
+**Timestamp**: 2026-09-24T06:25:26Z
+**User Input**: "그래 다음"
+**AI Response**: Q5 = A(build/test 의 누락 산출물과 collect 실패는 result 의 진단 칸과 단계 로그 끝에. workspace.changed 는 걷기가 돈 단계에만)로 적었다. 논의가 더한 셋(진단의 모양 · 훅은 안 걸린다 · in.from 으로 못 넘기는 것)을 [Answer]: 자리에 적었다. Q6 논의로 간다.
+**Context**: INCEPTION — Application Design. 질문 논의 (Q5 닫힘 · Q6 착수)
+
+---
+## Application Design — Q6 결정
+**Timestamp**: 2026-09-24T06:27:03Z
+**User Input**: "그래 다음"
+**AI Response**: Q6 = A(노드 쪽 상한 없음 · 계약 검증은 형식과 하한만)로 적었다. 논의가 더한 둘(검증의 모양 · merge.wait 가 형제의 drain 길이를 정한다는 성질과 그 노드 쪽 제한을 순연 4-15 에 붙인다는 것)을 [Answer]: 자리에 적었다. Q7 논의로 간다.
+**Context**: INCEPTION — Application Design. 질문 논의 (Q6 닫힘 · Q7 착수)
+
+---
+## Application Design — Q7 결정 · 답 분석
+**Timestamp**: 2026-09-24T06:33:21Z
+**User Input**: "그래"
+**AI Response**: Q7 = A(IR 태그 규칙은 굽기 계약 build 단계의 ir_tag · 기본 사내 형식)로 적었다. 일곱이 다 닫혔다(전부 A). Step 8 모순 · 모호 분석 — 짝 일곱을 대 봤고 추가 질문 0. 파생 결정 셋(합친 뒤 drain 을 푸는 광고가 새 ir 을 싣는 순서 · 상태 파일을 쓰는 조건 · 순연 4-15 에 merge 대기 제한)과 정본 되돌림에 더할 넷을 계획 파일 6절에 적었다. Step 10 산출물 생성으로 간다.
+**Context**: INCEPTION — Application Design. 질문 닫힘 · 산출물 생성 착수
+
+---
+## Application Design — 산출물 · 승인 요청
+**Timestamp**: 2026-09-24T06:39:39Z
+**User Input**: (없음 — Q7 「그래」로 질문이 닫혀 산출물 생성으로 진행)
+**AI Response**: `inception/application-design/` 에 다섯을 냈다 — components.md (새 패키지 셋 · 기존 여덟의 새 책임 · 실패 등급 · namespace 안과 밖) · component-methods.md (lower · merge · scratch · enode · contract · environment · store · api · record · panel · cmd/enode 의 겉면) · services.md (흐름 여섯과 예산 · 죽는 자리) · component-dependency.md (임포트 · 경계 시험의 금지 넷과 봉인 셋 · 프로세스와 공유 파일 · HTTP · 자료 흐름) · application-design.md (8절 ① ~ ⑬ · 실행 계획 7절 넷 · 완료 조건 열의 자리 · 5.2 · 5.3 · 5.5 대조 · 확장 준수 · 뒤 단계에 넘길 것 · 정본과 팩에 되돌릴 것). 계획 3절 체크박스를 채웠다. 검사 — 표기 검사 exit 0 · 금지 문자 0 · mux.HandleFunc 18 · cmd/mediator 내부 의존 12 (새 셋 없음). 승인을 요청한다 — Request Changes 또는 Approve & Continue (다음은 Units Generation).
+**Context**: INCEPTION — Application Design. 승인 대기
+
+---
+## Application Design — 승인
+**Timestamp**: 2026-09-24T06:42:48Z
+**User Input**: "승인."
+**AI Response**: Application Design 을 승인으로 닫았다. 커밋 전에 표기를 한 번 봤다 — 산출물 넷이 Functional Design 을 두 글자로 줄여 여섯 번 썼고(푼 말 없음), 실행 계획 1.1 의 한 줄이 Application Design 을 두 글자로 줄였다(앞 커밋 b7f7c7a 에서 들어옴). 저장소에 GLOSSARY.md 가 없고 이 둘은 단계 이름이라 새 글자로 둘 까닭이 없으므로 풀어 썼다. 계획 파일의 인용 한 줄을 그에 맞췄다. 뜻은 안 바뀐다. 상태 파일을 고치고 이 단계를 커밋한 뒤 Units Generation Part 1(계획과 질문)로 간다.
+**Context**: INCEPTION — Application Design 닫힘 · Units Generation 착수
+
+---

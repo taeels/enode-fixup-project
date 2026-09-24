@@ -40,7 +40,7 @@
                  internal/record · internal/environment · cmd/enode ·
                  노드 쪽 새 패키지 (자리는 Application Design ⑤) ·
                  packaging/macos/examples (완료 조건 3 ①)
-   AD 가 고르면   internal/panel — 완료 조건 1 · 2 의 노드 쪽 자리로 제어판을 고를 때
+   고르면         internal/panel — Application Design 이 완료 조건 1 · 2 의 노드 쪽 자리로 제어판을 고를 때
    안 만지는 곳   internal/match (매칭 규칙 안 바뀜 · 5.5) · internal/schema · internal/proc ·
                  internal/transcript · internal/transcriptui · internal/runctl · cmd/ 의
                  mediator · enodectl · runctl · iapadapter

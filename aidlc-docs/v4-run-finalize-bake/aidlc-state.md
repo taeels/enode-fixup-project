@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: INCEPTION - Application Design (착수)
+- **Current Stage**: INCEPTION - Units Generation (Part 1 계획 · 질문)
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` (CLAUDE.md 의 회차별 layering)
@@ -116,6 +116,15 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - **이 단계가 찾은 넷**: 업로드 예산과 요청마다의 30초(`cmd/enode/main.go:206`) · 두 시계 ·
   env check 의 자리가 임포트 경계에 걸림 · 크로스 빌드 셋(linux/arm 포함)
 
+## Application Design Summary
+`inception/application-design/` 다섯 (2026-09-24T06:39:39Z). 답 일곱 다 A — 계획 파일 6절.
+
+- **새 패키지 셋**: `internal/lower` · `internal/merge` · `internal/scratch`. 표준 라이브러리와 x/sys 만 · Mediator 가 링크 안 함
+- **lower 공유 잠금**: 노드가 매칭 후보인 동안 쥔다 (Q1). 놓는 울타리는 Functional Design
+- **사람이 읽는 자리**: 노드 소유자는 상태 파일과 제어판 (Q3) · 굽기 담당은 merge 단계 로그와 광고 키 bake.run (Q4) · 계약 작성자는 result 진단과 단계 로그 (Q5)
+- **Mediator**: steps 칸 셋(phase · phase_since · exit) · POST .../exited 하나 · QUEUED 요구 줄의 후보 셋. match 불변
+- **정정**: SunnyVM 의 /srv 는 sunny 소유다. 결정 3-14 는 다른 근거 둘로 선다 (원장 EN-bb1a4a28)
+
 ## Stage Progress
 
 ### INCEPTION PHASE
@@ -124,8 +133,8 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Requirements Analysis — 착수 2026-09-23T14:20:56Z. 답 14:35:56Z · 재질문 답 14:41:53Z. `requirements.md` 완료 14:50:03Z · 승인 2026-09-23T14:56:31Z
 - [x] User Stories — 판정 · 계획 · 질문 다섯 2026-09-23T15:00:55Z. 답(권장대로) 23:42:13Z. 페르소나 넷 · 스토리 열아홉 · 완료 조건 열. 승인 2026-09-23T23:54:49Z
 - [x] Workflow Planning — 계획 2026-09-23T23:57:36Z · 승인 2026-09-24T01:14:24Z
-- [ ] Application Design — EXECUTE
-- [ ] Units Generation — EXECUTE
+- [x] Application Design — 계획 · 질문 일곱 2026-09-24T01:23:48Z. 채팅 논의로 일곱 다 A (Q7 06:33:21Z). 산출물 다섯 2026-09-24T06:39:39Z · 승인 2026-09-24T06:42:48Z
+- [ ] Units Generation — EXECUTE. 착수 2026-09-24T06:42:48Z
 
 ### CONSTRUCTION PHASE
 - [ ] Functional Design — EXECUTE (유닛마다)
