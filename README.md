@@ -87,12 +87,13 @@ Codex 는 루트 `AGENTS.md` 에서 같은 규약과 AI-DLC v1.0.1 정본을 읽
 
 ```text
 AI-DLC v1을 이어가자. 내 역할은 runixs다.
-aidlc-docs/runixs/aidlc-state.md와 construction-roster.md를 읽고 재개해줘.
+aidlc-docs/<회차>/aidlc-state.md와 construction-roster.md를 읽고 재개해줘.
 ```
 
 같은 체크아웃에서 담당을 기억하려면 `local/aidlc-context.md` 에 handle 과
-문서 루트(`aidlc-docs/<handle>/`)를 적는다. 이 파일은 Git 에서 제외되고,
-대화에서 명시한 담당이 우선한다. Construction 기록은 담당별 디렉터리에 쌓는다.
+지금 도는 회차의 문서 루트(`aidlc-docs/<회차>/`)를 적는다. 이 파일은 Git 에서
+제외되고, 대화에서 명시한 담당이 우선한다. Construction 기록도 회차 디렉터리에
+쌓는다 (앞 회차의 것은 `aidlc-docs/<handle>/` 에 남아 있다).
 진행 상태와 선행 유닛을 확인한 뒤 기존 단계부터 이어간다.
 
 ---

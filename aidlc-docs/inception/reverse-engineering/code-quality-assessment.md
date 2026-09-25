@@ -1,17 +1,19 @@
 # 코드 품질 평가 — 오늘의 코드
 
-**2026-09-15 전면 재측정.** 커버리지와 스킵은 이 기계에서 실제로 돌려 잰 값이다 —
-2026-09-08 판이 계약 파일의 기준선을 인용한 것과 다르다.
+**2026-09-23 전면 재측정.** 기준 커밋 `195a5d0`. 커버리지와 스킵은 이 기계에서
+실제로 돌려 잰 값이다.
 
 ```text
    측정 명령    go test ./... -count=1 -coverpkg=./... -coverprofile=... -json
    환경         ENODE_TEST_DATABASE_URL 을 세우고 (scripts/testdb.sh)
-                .github/ci-stubs 를 PATH 앞에 둔다
-   결과         exit 0 · 패키지 18 · 스킵 0 · 전체 7,122/8,146 = 87.4%
+                .github/ci-stubs 를 PATH 앞에 둔다.  linux/amd64
+   결과         exit 0 · 패키지 21 (프로파일에 20) · 실패 0 · 스킵 0 ·
+                전체 8,963/10,509 = 85.3% · 벽시계 1분 20초
+   집계         CI 의 커버리지 스텝과 같은 awk (블록 키로 병합 · count 최댓값)
 ```
 
-이것은 `.coverage-contract.yml` 이 못 박은 바로 그 명령이다. 그 명령이 아닌
-측정치는 게이트 입력으로 안 쓴다.
+이것은 `.coverage-contract.yml` 이 못 박은 바로 그 명령이다. `integration` 태그는
+그 명령에 없다 — 그래서 아래 표에도 없다.
 
 ---
 
@@ -19,80 +21,95 @@
 
 ### 게이트는 패키지별 80% 바닥이다
 
-저장소 전체 합계가 아니라 **패키지마다 개별로** 넘어야 한다. 합계로 보면 0% 인
-패키지가 높은 패키지에 가려지고, 이 저장소가 실제로 그 모양이었다. 차단이다 —
-한 패키지라도 미달이면 CI 가 exit 1 이다.
+저장소 전체 합계가 아니라 **패키지마다 개별로** 넘어야 한다. 차단이다.
 
-### 오늘의 측정값 — 열여덟 전부 통과
+### 오늘의 측정값 — 스물 전부 통과
 
-| 패키지 | 덮은 것/문장 | 비율 |
-|---|---|---|
-| `internal/build` | 16/20 | 80.0% |
-| `internal/api` | 781/951 | 82.1% |
-| `internal/record` | 131/159 | 82.4% |
-| `internal/store` | 1455/1762 | 82.6% |
-| `cmd/enodectl` | 172/206 | 83.5% |
-| `internal/panel` | 191/225 | 84.9% |
-| `internal/config` | 103/121 | 85.1% |
-| `internal/enode` | 2013/2314 | 87.0% |
-| `internal/contract` | 526/589 | 89.3% |
-| `cmd/runctl` | 332/352 | 94.3% |
-| `cmd/iapadapter` | 701/728 | 96.3% |
-| `cmd/mediator` | 240/249 | 96.4% |
-| `internal/runctl` | 100/103 | 97.1% |
-| `cmd/enode` | 138/142 | 97.2% |
-| `internal/match` | 39/40 | 97.5% |
-| `internal/api/ui` | 61/62 | 98.4% |
-| `internal/proc` | 16/16 | 100.0% |
-| `internal/schema` | 107/107 | 100.0% |
+| 패키지 | 덮은 것/문장 | 비율 | 2026-09-15 |
+|---|---|---|---|
+| `internal/build` | 16/20 | 80.0% | 80.0% |
+| `internal/enode` | 2653/3256 | **81.5%** | 87.0% |
+| `internal/environment` | 480/584 | 82.2% | 신규 |
+| `internal/api` | 877/1065 | 82.3% | 82.1% |
+| `cmd/enodectl` | 187/227 | 82.4% | 83.5% |
+| `internal/store` | 1478/1792 | 82.5% | 82.6% |
+| `cmd/enode` | 186/224 | 83.0% | 97.2% |
+| `internal/record` | 391/463 | 84.4% | 82.4% |
+| `internal/config` | 103/121 | 85.1% | 85.1% |
+| `internal/panel` | 232/262 | 88.5% | 84.9% |
+| `internal/contract` | 526/589 | 89.3% | 89.3% |
+| `cmd/runctl` | 332/352 | 94.3% | 94.3% |
+| `internal/transcript` | 225/236 | 95.3% | 신규 |
+| `cmd/iapadapter` | 701/728 | 96.3% | 96.3% |
+| `cmd/mediator` | 240/249 | 96.4% | 96.4% |
+| `internal/runctl` | 110/113 | 97.3% | 97.1% |
+| `internal/match` | 39/40 | 97.5% | 97.5% |
+| `internal/api/ui` | 64/65 | 98.5% | 98.4% |
+| `internal/proc` | 16/16 | 100.0% | 100.0% |
+| `internal/schema` | 107/107 | 100.0% | 100.0% |
 
-**`internal/build` 가 정확히 80.0% 다.** 남은 넷은 이 프로젝트의 표준 명령
-(`-buildvcs` 미지정)에서 도달 불가라 산술 상한이고, 그 패키지에 문장 하나만 늘어도
-게이트가 빨개진다. 그때 할 일은 하한을 낮추는 것이 아니라 그 문장을 덮는 것이다.
+`internal/transcriptui` 는 문장이 0 이라 프로파일에 안 나온다 — 그 패키지의 주석이
+그것을 설계로 적는다.
 
-### 기준선 표가 낡았다 — 이것이 부채다
+### 여유가 얇아진 자리 — `internal/enode`
 
-`.coverage-contract.yml` 의 `packages:` 표는 **열다섯 줄**이다. 오늘 `go list ./...`
-는 열여덟을 낸다.
+87.0% 에서 **81.5%** 로 내려왔다. 하한까지 1.5%p — 덮이지 않은 문장이 약 60 개 더
+늘면(2653/3316) 하한 아래다. 파일별로 보면 새로 들어온 격리 실행 코드가 끌어내렸다.
 
 ```text
-   표에 없는 것    internal/panel · internal/proc · internal/api/ui
-   그래도 걸리나   걸린다.  CI 의 awk 가 프로파일에서 직접 세므로 표와 무관하다
-   무엇이 낡았나   measured_total_pct: 87.5 와 measured_at_commit: fa444f2b.
-                   오늘 같은 명령이 내는 값은 87.4% 다
+   overlay_linux.go           31/64    48.4%    overlay 탐침.  사다리 셋 중 CI 가 닿는 칸이 적다
+   runc_overlay_linux.go     387/636   60.8%    실제 mount · runc 경로는 integration 태그만 잰다
+   setup.go                  128/198   64.6%
+   diff.go                    38/56    67.9%    git diff 를 $OUT 에 담는 수확 재료
+   claim.go                  351/395   88.9%
+   runtime.go                 33/35    94.3%
 ```
 
-표가 게이트의 입력이 아니라서 빨개지지 않는다 — **조용히 낡는다.** 파일 자신이
-「브랜치가 main 으로 들어갈 때 이 값을 갱신한다」고 적었고 그 갱신이 안 됐다.
+**격리 경로를 넓히는 변경은 이 패키지에 문장을 더한다.** 기본 테스트가 가짜 helper
+프로세스로 돌 수 있는 부분(프로토콜 · 검증 · OCI config · 수확)은 덮이고, 실제
+namespace 를 여는 부분은 CI 밖이다. `cmd/enode` 도 97.2% 에서 83.0% 로 내려왔다 —
+`env` 하위명령과 기동 전 준비도 검사다.
+
+### 기준선 표가 더 낡았다 — 이것이 부채다
+
+`.coverage-contract.yml` 의 `packages:` 표는 **여전히 열다섯 줄**이다. 오늘
+`go list ./...` 는 스물하나를 낸다.
+
+```text
+   표에 없는 것    internal/panel · internal/proc · internal/api/ui (2026-09-15 판에도 없었다)
+                   internal/environment · internal/transcript · internal/transcriptui (신규)
+   그래도 걸리나   걸린다.  CI 의 awk 가 프로파일에서 직접 세므로 표와 무관하다
+   무엇이 낡았나   measured_total_pct: 87.5 와 measured_at_commit: fa444f2b.
+                   오늘 같은 명령이 내는 값은 85.3% 다
+```
 
 ### 스킵은 0 이 정본이다
 
-이 실행에서 스킵이 **0 건**이었다. `.ci-allowed-skips` 에 예순여덟 줄의 면제 목록이
-있지만 오늘은 하나도 안 쓰였다. 스킵 감시 스텝은 패키지 수까지 함께 세서
-「볼 것이 없었다」를 「스킵이 없다」로 읽지 않는다 — 감시 장치의 유일한 실패 양식이
-항진명제가 되는 것이라 그것을 막는다.
+이 실행에서 스킵이 **0 건**이었다. 패키지 스물하나가 전부 결과를 냈다
+(`transcriptui` 는 「테스트 파일 없음」의 skip 사건 하나 — 테스트 스킵이 아니다).
 
 ### 재는 값이 흔들리는 자리
 
 ```text
-   DB 가 없으면           internal/api 의 통합 테스트 일흔여덟이 스킵된다.
-                          그래도 go test 는 exit 0 이다
+   DB 가 없으면           internal/api 의 통합 테스트가 스킵된다.  그래도 exit 0 이다
    -coverpkg 가 없으면    다른 패키지의 테스트가 덮은 문장이 빠진다
-   하네스 스텁이 없으면    internal/enode 가 한 문장 낮게 읽힌다.  스킵 둘이 생긴다
-   플랫폼이 다르면        windows 빌드 태그 파일 셋이 리눅스 프로파일에 안 나온다
+   하네스 스텁이 없으면    internal/enode 가 낮게 읽힌다.  스킵 둘이 생긴다
+   플랫폼이 다르면        windows 빌드 태그 파일과 linux 전용 파일(overlay_linux ·
+                          runc_overlay_linux)이 분모를 바꾼다
+   integration 태그       runc_overlay_integration_test.go 가 CI 에서 컴파일조차 안 된다
 ```
-
-넷 다 종료코드로는 구별되지 않는다. 그래서 명령과 환경과 플랫폼을 계약이 고정한다.
 
 ### 테스트의 모양
 
 ```text
-   Go 테스트 함수    917
-   테스트 파일       101 (전체 198 중)
+   Go 테스트 함수    1,127  (func Test 로 시작하는 선언.  최상위 통과 사건은 1,114)
+   테스트 파일       131 (전체 263 중)
    별도 테스트 패키지  없다 — 전부 같은 패키지 안의 *_test.go
    브라우저 테스트    internal/api/ui/tests/*.test.mjs 열넷
    단언 라이브러리    없다.  표준 testing 만 쓴다
 ```
+
+2026-09-15 판의 「917」은 셈법이 적혀 있지 않아 오늘 값과 직접 비교하지 않는다.
 
 ---
 
@@ -100,7 +117,7 @@
 
 ### 빌드와 vet
 
-`go build ./...` 와 `go vet ./...` 가 이 기계에서 둘 다 exit 0 이다 (2026-09-15).
+`go build ./...` 와 `go vet ./...` 가 이 기계에서 둘 다 exit 0 이다 (2026-09-23).
 
 ### 차단되는 것과 경고만인 것이 갈린다
 
@@ -110,99 +127,98 @@
    경고    golangci-lint 하나.  CI 의 유일한 continue-on-error
 ```
 
-린트 설정은 재현성에 맞춰져 있다 — `default: none` 으로 시작해 다섯을 이름으로
-켠다(`errcheck` · `govet` · `ineffassign` · `staticcheck` · `unused`)고
-`.golangci.yml` 이 적고, 보고를 안 자른다(`max-same-issues: 0`). 경고 전용이라
-새 findings 가 조용히 쌓일 수 있다는 것이 이 정책의 약한 자리다. **이번 측정에서
-린트를 못 돌렸다** — 이 기계에 `golangci-lint` 가 없다. 그 값은 CI 에서만 읽힌다.
+**이번 측정에서도 린트를 못 돌렸다** — 이 기계에 `golangci-lint` 가 없다.
 
 ### 표기 규약이 기계 검사다
 
 ```text
-   U+2605 한 글자          grep -rlIP.  파일 수 상한 0.  이진 파일은 건너뛴다
-   출력 문자열의 장식 문자   별도 스텝.  위 한 글자 검사의 구멍을 메운다
+   U+2605 한 글자          grep -rlIP.  파일 수 상한 0
+   출력 문자열의 장식 문자   별도 스텝
    emphasis-check.py       밀도와 뭉침.  enode-design/scripts/ 에 한 벌만 둔다
 ```
 
-세 검사가 한 규약의 세 면이다. 첫 스텝은 한 글자만 보므로 「집행하는 것처럼
-보이면서 아무것도 집행하지 않는」 구멍이 있었고, 둘째가 그것을 메웠다. 그 사실이
-CI 파일 주석에 적혀 있다.
+### 주석이 설계 논거를 진다 — 언어가 갈리기 시작했다
 
-### 주석이 설계 논거를 진다
-
-이 저장소의 주석은 무엇을 하는지가 아니라 **왜 그렇게 골랐는지**를 적는다. 실측
-일자와 뒤집힌 결정이 그대로 남아 있다 (`claude.go` 의 권한 모드 1차 · 2차 · 3차,
-`transcript.go` 의 「윈도우가 이 설계를 정했다」). 한국어인 것이 규약이다 —
-`CONVENTIONS.md` 2.2 가 되먹임 경로에 안 실리는 것만 한국어로 남긴다.
+이 저장소의 주석은 **왜 그렇게 골랐는지**를 적는다 (`CONVENTIONS.md` 2.2 가 주석을
+한국어로 남긴다). 격리 실행 코드(`runtime.go` · `runc_overlay_linux.go` ·
+`internal/environment`)는 주석이 짧고 한국어에 영어 용어가 섞인 문체다 — 앞 코드가
+실측 일자와 뒤집힌 결정을 주석에 남긴 것과 결이 다르다. 규약 위반은 아니다.
 
 ---
 
 ## Technical Debt
 
-### 진행 중 하네스 출력을 읽을 표면이 없다
+### 명령 종료 뒤의 창이 크기에 비례하고 밖에서 안 보인다
 
-2026-09-08 판이 「whole-buffer 캡처가 라이브 트랜스크립트를 막는다」로 적은 자리가
-**반만 풀렸고 다른 쪽이 새로 닫혔다.**
-
-```text
-   풀린 것    Argv 가 이미 -p --output-format stream-json --verbose 다 (짝 팩 ⑮).
-              하네스가 도는 동안 사건 줄이 실제로 흐른다
-   안 풀린 것  Decode 가 아직 io.ReadAll 로 EOF 까지 읽고 final 사건 하나만 낸다
-   새로 닫힌 것 하네스 단계의 링 tee 를 껐다 (짝 팩 ⑲).  그래서 제어판 카드가
-              에이전트 단계 내내 비어 있다 — 옛 판의 「끝에 한 줄」보다 더 비었다
-   중앙        올리는 PUT 만 있고 내려받는 GET 이 없다.  PUT 도 단계 끝 한 번이다
-```
-
-이것이 `requirements/transcript/` 팩이 여는 자리다.
-
-### 봉인 로그가 원문이 아니게 됐다
-
-`selectLogs` 가 `logs/` 를 허용목록으로 거른다 (짝 팩 ⑱). 근거는 자격증명 누출이고
-사용자 결정이다 (⑰). 대가가 둘이다.
+단계의 명령이 끝나도 노드는 수확 · 세션 정리 · 업로드를 마친 뒤에야 결과를 보고하고,
+그동안 단계는 `CLAIMED` 이고 임대는 쥐어져 있다. 그 창의 비용이 결과가 아니라
+워크스페이스 크기를 따른다.
 
 ```text
-   ADR-005 의 「원문 그대로」    코드가 더는 그렇지 않다.  정본에 되돌려 올릴 자리다
-   사람이 읽을 것이 줄었다       도구 입력도 도구 결과도 assistant 의 text 도 안 남는다
+   Discover     command 단계는 언제나, agent 단계는 완주했을 때.  changedSince 가
+                워크스페이스 전체를 걷는다 (claim.go:693 · :879)
+   RecordDiff   워크스페이스 설정과 계약의 workspace 가 둘 다 있으면.  git diff --binary
+   RemoveAll    runc-overlay 세션을 닫을 때 runRoot 전체.  upper 의 항목 수에 비례
 ```
 
-### `AppendLog` 의 상한이 호출마다 걸린다
+진행 조회에 phase 가 없고, 결과에 종료 시각이 없고, `steps.ended_at` 은 result 가
+닿은 시각이다. 정본 ADR-075 · ADR-076 이 이 자리를 결정 · 초안으로 닫았고 코드는
+0 이다.
 
-`record.AppendLog` 는 `io.LimitReader(r, limit)` 로 **그 호출**을 자른다. 오늘은
-단계당 한 번만 부르므로 파일 상한과 같은 뜻이지만, 나눠 올리기 시작하면 파일
-전체는 상한을 넘는다. 반환값도 총 길이가 아니라 이번 호출이 쓴 바이트 수다.
+### runc-overlay 의 위층이 버려진다
 
-### 커버리지 기준선 표가 패키지 셋을 놓쳤다
+단계가 워크스페이스에 쓴 것은 upper 에 쌓이고 세션을 닫을 때 지워진다. 결과로 남는
+것은 `$OUT` 과 수확이 담은 diff · 변경 목록뿐이다. 굽기처럼 워크스페이스 자체를 바꾸는
+것이 목적인 일을 받을 경로가 없다 (ADR-077).
 
-위 「기준선 표가 낡았다」. 게이트는 안 뚫리지만 표가 진실이 아니다.
+### `min_free_gb` 가 가리는 것이 좁다
 
-### `cmd/enodectl/probe.lock` 을 테스트가 건드린다
+워크스페이스 경로의 여유만 재고, 모자라면 **빌드 능력 키(`arch` · `arch.<이름>`)만**
+광고에서 뺀다. 노드는 계속 광고하고 다른 계약을 받는다. runtime scratch 의 여유는
+안 잰다.
 
-체크인된 8 바이트 픽스처인데 테스트가 제자리에서 변형한다 (이번 측정에서도
-mtime 이 갱신됐다). dirty-tree 와 테스트 순서 취약성의 씨앗이다 — 임시 디렉터리로
-복사해 쓰는 것이 정석이다.
+### 경계 검사가 새 패키지 하나를 모른다
+
+`internal/environment` 가 금지 표에 없다. Mediator 쪽 `store` 가 결과 타입 하나 때문에
+그 패키지를 물어, `cmd/mediator` 가 apt-get · debootstrap 을 부르는 코드를 링크한다.
+
+### 결과 보고가 노드의 자기 신고로 걸러진다
+
+`ReportStep` 은 본문의 `node` 와 `state='CLAIMED'` 로만 거른다. 인스턴스를 안 본다.
+토큰이 하나라 노드를 가리는 자격이 따로 없다 — 이 설계가 I1 의 전제(열쇠가 하나)와
+묶여 있고, 새 노드 표면을 더하면 같은 모양을 물려받는다.
+
+### 정본이 코드보다 늦은 자리
+
+```text
+   ADR-071   정본은 「결정 · 미구현」이다.  코드는 70d6258 에서 구현했다
+   ADR-073   §11 「남은 것」이 E5(BitBake 완주)를 남은 것으로 적는다.
+             SunnyVM 제품 경로의 완주가 원장에 있다 (EN-bf4045e7)
+```
+
+### 커버리지 기준선 표가 여섯 패키지를 놓쳤다
+
+위 「기준선 표가 더 낡았다」. 게이트는 안 뚫리지만 표가 진실이 아니다.
+
+### `cmd/enodectl/probe.lock` 을 테스트가 건드린다 — 이번에도 재현했다
+
+체크인된 픽스처인데 테스트가 제자리에서 변형한다. 이번 측정 뒤 작업 트리가
+`M cmd/enodectl/probe.lock` 으로 더러워졌고 (내용 `1094256` 이 `3862989` 로), 손으로
+되돌렸다. 임시 디렉터리로 복사해 쓰는 것이 정석이다.
 
 ### 심볼 캡의 취약함 — avprobe 사건의 흉터
 
-Windows 크로스빌드 `enodectl.exe` 에 링커 도달 가능 `T` 심볼 상한이 걸려 있다 —
-`crypto/tls` 10 이하, `net/http` 50 이하.
+Windows 크로스빌드 `enodectl.exe` 에 링커 도달 가능 `T` 심볼 상한이 걸려 있다.
+`enodectl env` 가 형제 exec 로 이 규율을 지킨다.
+
+### 큰 파일 넷
 
 ```text
-   왜 있나    rc13 의 enodectl.exe 가 AhnLab 에, rc15 가 Defender 에 삭제됐다.
-              setup 이 internal/enode 전체를 링크하며 네트워크 스택을 끌어왔다
-   고침       enodectl setup 을 enode setup 으로 exec 위임.
-              enodectl serve 도 같은 규율로 enode panel 을 exec 한다
-   취약함     실수로 한 줄 임포트하면 상한이 깨진다.  CI 가 그것만 막는다
+   internal/contract/contract.go        1,799 줄.  계약 문법 전부가 한 파일이다
+   internal/enode/runc_overlay_linux.go 1,285 줄.  runtime · 세션 · helper · OCI · smoke
+   internal/api/api.go                  1,122 줄.  라우팅 + 핸들러
+   internal/enode/claim.go              1,030 줄.  Worker · 단계 실행 · 업로드 · 보고
 ```
-
-### 큰 파일 둘
-
-```text
-   internal/contract/contract.go   1,797 줄.  계약 문법 전부가 한 파일이다
-   internal/api/api.go             1,200 줄.  라우팅 + 핸들러 열일곱
-```
-
-둘 다 「한 곳에 두어 갈리지 않게 한다」가 근거이고 그 근거가 주석에 있다. 나누면
-규칙이 두 벌이 될 자리라 지금은 부채로만 적는다.
 
 ---
 
@@ -211,24 +227,25 @@ Windows 크로스빌드 `enodectl.exe` 에 링커 도달 가능 `T` 심볼 상�
 ### 지킬 만한 패턴
 
 ```text
-   허용목록으로 막는다      env · MCP 서버 · logs/ 사건.  지우는 쪽은 열리는 쪽으로 틀린다
-   결정을 순수 함수로       match · Argv · Validate.  시험이 싸고 dry-run 이 공짜다
-   가장자리를 한 자리로     exec 은 runHarness 하나.  SQL 은 internal/store 하나
-   실패를 앞으로 당긴다     계장 치명 검사가 전부 exec 앞이다.  자격증명 복사 실패도 치명
-   없음과 비어 있음을 가른다  lease 는 null, nodes 는 [].  화면이 「못 읽음」을 안다
-   두 벌로 안 둔다          answerRoute 하나가 등록과 알림 링크를 함께 낸다.
-                            emphasis-check 는 enode-design 에 한 벌
-   빌드 태그를 안 늘린다     링 파일이 회전을 포기해 윈도우와 유닉스가 같은 코드로 돈다
+   허용목록으로 막는다      env · MCP 서버.  지우는 쪽은 열리는 쪽으로 틀린다
+   결정을 순수 함수로       match · Argv · Validate · transcript.Parse · environment.Parse
+   가장자리를 한 자리로     하네스 exec 은 runHarness 하나.  단계 실행은 StepSession 하나.
+                            SQL 은 internal/store 하나
+   읽기와 고치기를 가른다    env check 와 env apply.  기동은 고치지 않는다
+   불변 산출물에 이름을      prepared_environment_id 가 단계 결과에 남는다
+   부모가 죽으면 자식도      Pdeathsig + unshare --kill-child.  고아 namespace 가 안 남는다
+   실패를 앞으로 당긴다     계장 치명 검사 · runtime open 의 경로 검증 · 투영 전 ELF 의존 확인
+   두 벌로 안 둔다          파서와 껍데기 짓기가 한 패키지.  카드 렌더러가 한 장
 ```
 
 ### 냄새 · 안티패턴
 
 ```text
    경고 전용 린트           새 findings 가 조용히 쌓인다.  이 기계에서는 아예 못 잰다
-   기준선 표의 수동 갱신     게이트 입력이 아니라 낡아도 안 빨개진다.  실제로 낡았다
-   체크인된 픽스처를 테스트가 쓴다   cmd/enodectl/probe.lock
-   한 파일에 몰린 문법       contract.go 1,797 줄
-   쓰이지 않는 상태 상수     RESOLVING · ALLOCATING 을 쓰는 코드가 없다.
-                            갤러리가 비교값으로 읽기만 하고 아무도 그 값을 안 쓴다
-   CI 주석의 낡은 수         「np=15 want=15」가 주석에 남아 있다.  오늘은 18 이다
+   기준선 표의 수동 갱신     게이트 입력이 아니라 낡아도 안 빨개진다.  두 번째로 낡았다
+   체크인된 픽스처를 테스트가 쓴다   cmd/enodectl/probe.lock.  이번에도 재현했다
+   임대 창의 크기 비례 일    Discover · RecordDiff · RemoveAll 이 보고 앞에 있다
+   CI 밖의 핵심 경로         runc-overlay 의 실제 namespace 경로는 integration 태그만 잰다
+   쓰이지 않는 상태 상수     RESOLVING · ALLOCATING
+   CI 주석의 낡은 수         「np=15 want=15」.  오늘은 21 이다
 ```

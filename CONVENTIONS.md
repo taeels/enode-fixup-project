@@ -105,20 +105,21 @@
 
 **에이전트가 커밋한다.** 3.1 의 두 브랜치 위에서 돈다.
 
-**레이어링이 부딪히는 자리를 셋에서 하나로 줄였다.** 상태와 감사가 소유자마다
-갈리기 때문이다 — 회차는 회차(브랜치) 이름으로, Construction 은 담당 handle 로
-(`CLAUDE.md` 의 문서 루트 규약).
+**레이어링이 부딪히는 자리를 셋에서 하나로 줄였다.** 상태와 감사가 회차마다 하나이고,
+Inception 과 Construction 이 그 회차의 문서 루트를 함께 쓰기 때문이다 (`CLAUDE.md` 의
+문서 루트 규약).
 
 ```text
    aidlc-docs/<회차>/aidlc-state.md      그 회차의 진행자가 고친다
-   aidlc-docs/<handle>/aidlc-state.md    그 담당이 고친다
    aidlc-docs/**/audit.md                이어 붙인다.  .gitattributes 의 merge=union
    design/                               남는 하나.  진행자만 고친다.  pen 을 안 건드린다
 ```
 
-유닛의 기록은 그 담당의 유닛 폴더(`aidlc-docs/<handle>/construction/<유닛>/**`)에
-적는다. **소유자가 하나라 병합에서 안 부딪친다.** 대회 때는 상태와 감사가 한 장씩이라
-진행자가 병합 뒤 옮겨야 했고, 그 옮기는 경로를 레이어링이 없앴다.
+유닛의 기록은 그 회차의 유닛 폴더(`aidlc-docs/<회차>/construction/<유닛>/**`)에
+적는다. **유닛 폴더는 주인이 하나라 병합에서 안 부딪친다.** 대회 때는 상태와 감사가 한
+장씩이라 진행자가 병합 뒤 옮겨야 했고, 그래서 담당마다 루트(`aidlc-docs/<handle>/`)를
+따로 두었다. 2026-09-24 부터 Construction 도 회차 루트에 쓴다 — 담당 루트는 앞 회차의
+기록으로 남는다. 여럿이 한 회차의 Construction 을 동시에 돌 때의 자리는 `CLAUDE.md` 가 적는다.
 
 ## 3.3 언제
 
@@ -142,16 +143,16 @@
 
 ```text
    싣는 것    그 단계 · 그 유닛이 만든 파일과 고친 파일
-              aidlc-docs/<handle>/construction/plans/<유닛>-*
-              aidlc-docs/<handle>/construction/<유닛>/**
-              자기 문서 루트의 aidlc-state.md 와 audit.md
+              aidlc-docs/<회차>/construction/plans/<유닛>-*
+              aidlc-docs/<회차>/construction/<유닛>/**
+              그 회차의 aidlc-state.md 와 audit.md
 
    안 싣는 것  design/           진행자가 고친다.  3.2 의 남는 하나
-              남의 문서 루트     다른 회차 · 다른 handle 의 상태와 감사
+              남의 문서 루트     다른 회차의 상태와 감사 · 앞 회차의 담당 루트
 ```
 
-**자기 상태 파일을 자기가 싣는다.** 대회 때는 안 실었다 — 한 장을 모두가 만졌기
-때문이다. 레이어링 뒤에는 그 파일의 소유자가 하나라 미룰 이유가 없다.
+**회차의 상태 파일을 그 단계의 커밋이 함께 싣는다.** 대회 때는 안 실었다 — 한 장을 모두가
+만졌기 때문이다. 한 사람이 도는 회차는 그 파일의 소유자가 하나라 미룰 이유가 없다.
 
 ## 3.5 끝나면
 

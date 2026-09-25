@@ -24,8 +24,10 @@ The user's stated handle takes precedence. If no handle is stated, read
 checkout's owner and source paths; it is not a second workflow or progress log.
 Do not infer the owner from Git author settings or another contributor's branch.
 
-Read `aidlc-docs/construction-roster.md`, then the owner's
-`aidlc-docs/<handle>/aidlc-state.md` and `audit.md` if present. Restore the existing
+Read `aidlc-docs/construction-roster.md`, then the current run's
+`aidlc-docs/<run-branch>/aidlc-state.md` and `audit.md`. Runs before 2026-09-24 kept
+Construction state under `aidlc-docs/<handle>/`; read that only to resume one of
+those runs. Restore the existing
 stage and decisions before producing artifacts. Setup and context restoration
 do not count as completing or approving a development stage.
 
@@ -47,13 +49,15 @@ Do not repeat approved stages because a historical summary is stale.
 
 ## Document ownership and inherited decisions
 
-- Construction artifacts, plans, state, and audit belong under
-  `aidlc-docs/<handle>/`. Inception artifacts belong to their run directory.
+- Inception and Construction artifacts, plans, state, and audit belong to the run
+  directory `aidlc-docs/<run-branch>/`. Construction goes under its `construction/`.
+  `aidlc-docs/<handle>/` holds Construction records of earlier runs and receives no
+  new writes.
 - Interpret generic `aidlc-docs/construction/`, `aidlc-docs/aidlc-state.md`, and
-  `aidlc-docs/audit.md` paths in the upstream rules relative to the owner's
+  `aidlc-docs/audit.md` paths in the upstream rules relative to the run's
   document root. Reverse engineering remains shared at its existing path.
-- Update only the owner's state. Append timestamped user input and decisions to
-  the owner's audit log; preserve the original input and existing entries.
+- Update only the current run's state. Append timestamped user input and decisions
+  to the run's audit log; preserve the original input and existing entries.
 - The facilitator owns shared/run state and `design/*.pen`. Follow the roster's
   branch-to-PR-to-main policy where older documents describe a previous policy.
 - Inherit extension choices from the run state and `requirements/decisions.md`:

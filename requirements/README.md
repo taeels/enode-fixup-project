@@ -19,9 +19,14 @@
 | 2026-09 기능 일곱 + 시연 다섯 | 루트 다섯 파일 | 열려 있다 — 3.3.1 · 3.2.3 이 남았다 | `v1-run-dhseo` · `v1-run-dhseo-cardnews` · `v2-run-shin_pen_drawing` |
 | harness-components — 하네스 구성요소 | `harness-components/` | 제안 (2026-09-11) | `v3-run-harness-components` |
 | transcript — 트랜스크립트 | `transcript/` | 제안 (2026-09-11) | `v3-run-transcript` |
+| finalize-bake — 단계 결과와 굽기 | `finalize-bake/` | 제안 (2026-09-23) | `v4-run-finalize-bake` |
 
-뒤의 둘은 **사내 실측(2026-09-11) 후속**이고 서로 독립이다. 한 팩이 아니라 둘로
-가른 근거는 각 팩의 `features.md` 1절에 있다.
+harness-components와 transcript는 **사내 실측(2026-09-11) 후속**이고 서로 독립이다. 한 팩이
+아니라 둘로 가른 근거는 각 팩의 `features.md` 1절에 있다.
+
+finalize-bake는 2026-09-21~23 설계 검토의 후속이다. 정본 ADR-075·076·077과 딸린 잔여를 제품
+코드로 옮긴다. 이 팩이 넓히는 코드는 `unit/runtime-environment-profile`에 있다
+(`finalize-bake/constraints.md` 4절).
 
 ## 다섯 파일의 역할
 
