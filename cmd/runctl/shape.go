@@ -76,6 +76,11 @@ func cmdLint(path string) int {
 
 // lintWarnings 는 유효하지만 뜻이 헐거운 자리를 찾는다.
 func lintWarnings(c contract.Contract) []string {
+	return append(conditionWarnings(c), bakeWarnings(c)...)
+}
+
+// conditionWarnings 는 판정 조건이 비었거나 어느 단계를 안 보는 자리를 찾는다.
+func conditionWarnings(c contract.Contract) []string {
 	var out []string
 
 	// ADR-066 의 출발점이다. success_when 이 비면 어떤 단계가 실패해도 Run 이
@@ -110,6 +115,13 @@ func lintWarnings(c contract.Contract) []string {
 // exit_code 는 명령 단계에만 쓸 수 있다 (ADR-019) — 하네스는 헛소리를 하고도
 // 0 으로 끝나므로 agent 단계에 걸면 판정이 아니라 장식이 된다.
 func suggestCondition(s contract.Step) string {
+	// 굽기 두 단계는 고정 산출물 하나로만 판정한다 — 다른 조건은 Validate 가 거절한다.
+	switch k, _ := s.Kind(); k {
+	case contract.KindBuild:
+		return fmt.Sprintf(`{ "step": "%s", "produced": ["%s"] }`, s.ID, contract.ArtifactManifest)
+	case contract.KindMerge:
+		return fmt.Sprintf(`{ "step": "%s", "produced": ["%s"] }`, s.ID, contract.ArtifactMerged)
+	}
 	produced := ""
 	if len(s.Out) > 0 {
 		quoted := make([]string, 0, len(s.Out))
@@ -125,6 +137,102 @@ func suggestCondition(s contract.Step) string {
 		return fmt.Sprintf(`{ "step": "%s", "produced": ["<artifact name>"] }`, s.ID)
 	}
 	return fmt.Sprintf(`{ "step": "%s"%s }`, s.ID, strings.TrimPrefix(produced, ", "))
+}
+
+// bakeWarnings 는 굽기 계약이 뜻대로 안 돌 자리를 찾는다.
+//
+// 둘 다 거절이 아니라 경고다.
+//
+// workspace.writes — 굽기는 공유 lower 위의 격리 runtime 에서만 돈다 (ADR-077 이
+// 「공유 lower 위에 native 굽기 노드」를 기각했다). Validate 가 이것을 막으면 광고
+// 어휘가 문법으로 들어와 매칭의 어휘와 두 벌이 된다. 그래서 여기서 짚는다.
+//
+// 계획이 지을 굽기 — 제출 때에는 굽기가 아직 없으므로 Validate 가 승인 규칙을
+// 못 건다. 계획이 굽기를 지어 붙이는 순간에야 거절되고, 그때는 계획 한 판이
+// 버려진 뒤다. success_when 이 약속한 이름에 manifest 나 merged 를 걸었으면
+// 굽기를 지을 것이라는 단서이고, 제출 때 볼 수 있는 셋을 미리 본다.
+func bakeWarnings(c contract.Contract) []string {
+	var out []string
+	required := map[string]contract.Require{}
+	for _, r := range c.Requires {
+		required[r.As] = r
+	}
+	for _, st := range c.Steps {
+		if st.Acquire != nil && st.Acquire.Want != nil {
+			required[st.Acquire.Want.As] = *st.Acquire.Want
+		}
+	}
+	for _, st := range c.Steps {
+		if k, _ := st.Kind(); k != contract.KindBuild {
+			continue
+		}
+		if r, ok := required[st.Uses]; ok && r.Attrs["workspace.writes"] != "isolated" {
+			out = append(out, fmt.Sprintf("warning: build step %q uses role %q, which does not require "+
+				"workspace.writes=isolated; a node that writes in place cannot bake", st.ID, st.Uses))
+			out = append(out, fmt.Sprintf(`  add "workspace.writes": "isolated" to requires[] entry %q`, st.Uses))
+		}
+	}
+
+	exists := map[string]bool{}
+	for _, st := range c.Steps {
+		exists[st.ID] = true
+	}
+	warned := map[string]bool{}
+	for _, cond := range c.SuccessWhen {
+		if exists[cond.Step] {
+			continue
+		}
+		artifact := ""
+		for _, p := range cond.Produced {
+			if p == contract.ArtifactManifest || p == contract.ArtifactMerged {
+				artifact = p
+				break
+			}
+		}
+		if artifact == "" {
+			continue
+		}
+		for _, plan := range c.Steps {
+			if !plan.Expands || warned[plan.ID] || !contains(plan.Produces, cond.Step) {
+				continue
+			}
+			if why := plannedBakeGap(c, plan); why != "" {
+				warned[plan.ID] = true
+				out = append(out, fmt.Sprintf("warning: the plan of step %q is expected to bake "+
+					"(success_when waits for %q), but %s; the plan will be rejected when it is attached",
+					plan.ID, artifact, why))
+			}
+		}
+	}
+	return out
+}
+
+// plannedBakeGap 은 계획이 지은 굽기를 승인하는 설정 가운데 제출 때 볼 수 있는
+// 셋에서 빠진 것 하나를 말한다. 넷째(build 가 그 ask 를 기다리나)는 계획이 짓는
+// build 의 needs 에 달려 있어 제출 때 모른다.
+func plannedBakeGap(c contract.Contract, plan contract.Step) string {
+	if plan.Adopt == contract.AdoptYolo {
+		return `it adopts the plan with adopt "yolo"`
+	}
+	for _, st := range c.Steps {
+		if st.Ask == nil || st.Ask.Adopts != plan.ID {
+			continue
+		}
+		if st.Ask.AdoptWhen == "" && st.Dispatch == nil {
+			return fmt.Sprintf("ask step %q does not set adopt_when", st.ID)
+		}
+		return ""
+	}
+	return "no ask step adopts it"
+}
+
+func contains(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }
 
 // cmdSchema 는 계약의 필드 어휘를 낸다.

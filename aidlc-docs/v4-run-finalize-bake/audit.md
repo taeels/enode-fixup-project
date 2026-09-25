@@ -476,3 +476,73 @@
 **Context**: Construction · 규약 변경 (CLAUDE.md 문서 루트)
 
 ---
+## Construction · U1 `contract-grammar` · Functional Design 답 · 되물음
+**Timestamp**: 2026-09-25T03:56:21Z
+**User Input**: "답했다." (계획 파일의 [Answer]: 1 「A.」 · 2 「A」 · 3 「A」 · 4 「A」 · 5 「A」 · 6 「B」 · 7 「C」)
+**AI Response**: 답 일곱을 확인했다 (Step 5). 모호한 답은 없고, 함께 성립하지 않는 자리 하나와 시험에 걸리는 자리 하나를 찾았다. 답 3 (굽기 계약은 build 와 merge 두 단계만, 다른 단계가 있으면 400)과 답 6 (계획도 굽기 단계를 짓는다)은 함께 쓰일 수 없다 — 계획은 계획 단계가 같은 계약에 붙이므로 계약이 셋 이상의 단계가 된다. 답 7 (굽기 예시의 명령을 자리표시로)은 예시 시험(TestExamples_ParseAndValidate)이 모든 예시에 Validate 를 돌리므로 ir 과 구성 이름까지 자리표시로 쓸 수 없다. 되물음 파일(construction/plans/contract-grammar-functional-design-clarification-questions.md)에 물음 셋을 냈다 — 1 답 3 과 6 의 충돌 · 2 계획이 지은 굽기를 사람이 승인해야 하나 · 3 자리표시 예시의 ir 과 이름. 답 7 = C 라 poky 예시와 「.repo 가 없으면 git HEAD 를 본다」가 빠지므로, SunnyVM 의 poky(git) 시험 lower 에서 IR 대조를 통과하는 길은 bake 유닛의 Functional Design 에 넘긴다고 적었다.
+**Context**: Construction · U1 contract-grammar · Functional Design Step 5 (답 분석 · 되물음)
+
+---
+## Construction · U1 `contract-grammar` · Functional Design 산출물 · 승인 요청
+**Timestamp**: 2026-09-25T04:08:26Z
+**User Input**: "권장대로." (되물음 셋 모두 A)
+**AI Response**: 되물음 파일의 [Answer] 셋에 A 를 적었다. 산출물 셋을 construction/contract-grammar/functional-design/ 에 냈다 — domain-entities.md(Step 의 새 칸 일곱 · 새 타입 · 종류 여섯 · 고정 산출물 이름 manifest · merged · ENODE_IR · 기본값 1분 · 3분 · 4시간 · 메서드 셋) · business-rules.md(종류마다 받는 칸 · effect 와 budget 표 · build 와 merge 의 허용 칸 · ir 문자 규칙 · 굽기 계약의 모양 · 계획이 짓는 굽기의 승인 규칙 · discover · 판정 조건 · 영어 거절 문구 전부 · lint 경고 둘) · business-logic-model.md(Validate 에 규칙이 들어가는 순서 · 굽기 판정 흐름 · 계획이 짓는 굽기의 흐름 · Grammar 와 PlanShape 문장 초안 · bake.json 예시 · 문법이 먼저 들어온 뒤의 창 · 넘기는 것 · 정본 되돌림). 되물음 2 의 전제를 코드에 맞게 고쳤다 — ask 의 adopts 는 계획을 붙일지가 아니라 계획이 제안한 success_when 을 채택할지를 정하고, 계획의 단계는 승인 전에 붙으며, 거절은 adopt_when 이나 dispatch 가 있을 때만 계획을 물린다(internal/store/ask.go:359). 그래서 「사람이 승인해야 굽는다」를 규칙 넷(yolo 아님 · 지목한 ask · adopt_when · build 가 ask 를 기다림)으로 적었다. 답에 없던 것 셋을 설계가 더했다 — ir 문자 규칙의 두 줄(git 참조 이름 규칙) · 구성 이름 64 자 · lint 의 workspace.writes 경고. 유닛 정의에 없던 일 하나를 찾았다 — 노드는 Claimed(internal/store/claim.go:66)의 칸만 받으므로 새 칸을 싣는 일이 필요하고, 그 파일은 step-phase 의 것이라 그 유닛에 넘긴다. 검사 — 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage (NFR 은 건너뛰고 Code Generation).
+**Context**: Construction · U1 contract-grammar · Functional Design Step 6 ~ 7. 승인 대기
+
+---
+## Construction · U1 `contract-grammar` · Functional Design 승인
+**Timestamp**: 2026-09-25T05:03:44Z
+**User Input**: "다음으로"
+**AI Response**: 앞 항목(04:08:26Z)의 두 갈래 가운데 Continue to Next Stage 로 받았다 (Step 8 ~ 9). 산출물 셋(domain-entities.md · business-rules.md · business-logic-model.md)과 계획 · 되물음 파일을 승인된 것으로 적고 상태 파일에 Functional Design 완료를 적었다. 이 단계의 커밋에 계획 파일의 vim 스왑 파일(.contract-grammar-functional-design-plan.md.swp)은 싣지 않는다 — 사용자의 편집기가 그 파일을 열고 있다. NFR Requirements 와 NFR Design 은 유닛 정의대로 건너뛴다. 다음은 Code Generation Part 1 (계획)이다.
+**Context**: Construction · U1 contract-grammar · Functional Design 닫힘 · NFR 둘 건너뜀
+
+---
+## Construction · U1 `contract-grammar` · Code Generation 계획 · 승인 요청
+**Timestamp**: 2026-09-25T05:08:10Z
+**User Input**: (없음 — Functional Design 승인 「다음으로」에 이어 계획을 냈다)
+**AI Response**: Code Generation Part 1 (Step 1 ~ 6). 계획 파일 construction/plans/contract-grammar-code-generation-plan.md 을 냈다 — 단계 열다섯(타입과 상수 · 종류 판별 · 종류마다 받는 칸과 값 · 굽기 모양과 계획이 짓는 굽기 · 판정 조건 · 기본값 메서드 · 단위 시험 · 계획 훅의 그루터기 · Grammar 와 PlanShape · 예시 bake.json · runctl lint · runctl schema 확인 · 코드 검사 · 코드 요약 · 상태와 커밋). 고치는 파일 열넷 가운데 행렬 밖이 넷이다 — effect.go · bake.go (새 파일 · contract.go 가 이미 1,799 줄이라 주제별로 나눈다) · planshape.go (Functional Design 이 굽기 모양 예시를 더했다) · checkplan.go. 설계에 없던 자리 하나를 찾았다 — CheckPlan 의 Stop 훅은 계획 밖 이름을 run 단계 그루터기로 build 앞에 채우므로, Functional Design 규칙(business-rules.md 5절)의 「build 앞에는 계획 단계만」을 그대로 넣으면 needs: ["approve"] 를 적은 맞는 굽기 계획을 틀린 이유로 거절한다. Validate 본문을 validate(stubs) 로 옮기고 CheckPlan 만 그루터기 이름을 넘겨 그 한 검사에서 빼는 것으로 골랐다 (계획 3절 · internal/contract/checkplan.go:42 CheckPlan · :89 stubsFor). 이 유닛이 완성하는 스토리는 0 이고 US-8 · US-9 · US-15 · US-19 를 받친다. 승인을 요청한다.
+**Context**: Construction · U1 contract-grammar · Code Generation Part 1. 승인 대기
+
+---
+## Construction · U1 `contract-grammar` · Code Generation 계획 승인
+**Timestamp**: 2026-09-25T05:14:18Z
+**User Input**: "승인."
+**AI Response**: 계획 전체(단계 열다섯 · 행렬 밖 파일 넷 · 3절의 그루터기 처리)를 승인으로 받았다 (Step 7 ~ 9). Part 2 로 간다 — 계획의 첫 체크박스부터 짓는다.
+**Context**: Construction · U1 contract-grammar · Code Generation Part 1 닫힘 · Part 2 착수
+
+---
+## Construction · U1 `contract-grammar` · Code Generation 완료 · 승인 요청
+**Timestamp**: 2026-09-25T05:29:37Z
+**User Input**: (없음 — 계획 승인 「승인.」에 이어 생성)
+**AI Response**: Code Generation Part 2 (Step 10 ~ 14). 계획의 단계 열넷을 체크했다 (열다섯째는 커밋 — 승인 뒤). 새 파일 다섯(internal/contract/effect.go · bake.go · effect_test.go · bake_test.go · examples/bake.json)과 고친 파일 아홉. Step 에 칸 일곱 · 단계 종류 여섯 · 거절 규칙과 문구는 Functional Design 규칙 표 그대로. 계획 3절의 그루터기 처리가 실제로 필요한 것을 확인했다 — CheckPlan 이 validate(nil) 을 부르게 바꾸면 새 시험이 "step \"approve\" comes before the bake but is not a planning step" 으로 깨진다. 설계를 다듬은 자리 넷 — 거절 문구의 관사(an ask) · Grammar 의 effect 절에서 finalize 유닛 전에는 거짓인 문장을 뺌(ADR-053) · PlanShape 의 자리표시 안내 한 줄 · lint 경고 밑의 붙여넣을 한 줄. 코드 검사 — gofmt · vet · build 통과, go test ./... 통과 1,891 · 실패 0 · 스킵 0, 스무 패키지 전부 80% 이상(전체 85.7%, internal/contract 92.3%), 크로스 빌드 셋, enodectl.exe 심볼 tls 1 · http 6, U+2605 0, glyphscan 0, TestImportBoundaries 통과. 측정이 바꾼 cmd/enodectl/probe.lock 은 되돌렸다. 병합 뒤 창 두 줄을 요약 7절에 더했다 — Grammar 의 굽기 절과 runctl example 목록의 "ready-to-run" 머리말. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage.
+**Context**: Construction · U1 contract-grammar · Code Generation Part 2 (Step 14). 승인 대기
+
+---
+## Construction · U1 `contract-grammar` · Code Generation 승인
+**Timestamp**: 2026-09-25T05:45:28Z
+**User Input**: "승인"
+**AI Response**: Continue to Next Stage 로 받았다 (Step 15 ~ 16). U1 의 Code Generation 을 완료로 적고, 계획의 마지막 체크박스(커밋)를 채워 코드 · 시험 · 계획 · 코드 요약 · 상태 · 감사를 한 커밋으로 넣는다. 병합 조건은 코드 검사이고 초록이다. unit/contract-grammar 를 올리고 main 으로 PR 을 여는 일은 외부로 나가는 일이라 묻는다. 다음 유닛은 step-phase 이고, 한 줄 순서라 U1 이 main 에 병합된 뒤 그 브랜치를 딴다.
+**Context**: Construction · U1 contract-grammar · Code Generation 닫힘
+
+---
+## Construction · U1 `contract-grammar` · 병합 순서 결정
+**Timestamp**: 2026-09-25T05:46:27Z
+**User Input**: "#60 먼저, 그다음 U1 (권장)" (질문 — 회차 브랜치 PR #60 이 아직 main 에 없어 지금 unit/contract-grammar -> main PR 을 열면 Inception 커밋 13 개가 함께 보인다. 어떻게 올릴까)
+**AI Response**: #60 이 main 에 병합된 뒤 unit/contract-grammar 를 올리고 main 으로 PR 을 연다. #60 의 병합은 사용자가 하거나 지시한다 — 지시 없이 병합하지 않는다. 이 항목은 PR 을 올리기 직전의 커밋에 싣는다.
+**Context**: Construction · U1 contract-grammar · 병합 대기
+
+---
+## Construction · U1 `contract-grammar` · #60 병합 · U1 PR
+**Timestamp**: 2026-09-25T06:46:48Z
+**User Input**: "60이 뭘 담고 있는데" 에 이어 "병합후 다음"
+**AI Response**: #60 의 내용을 답했다 — 요구 팩 다섯 · 회차 Inception 문서 · 공용 Reverse Engineering 여덟 문서 갱신 · 정본 핀 369270a -> a2c4ac6 · 문서 루트 규약 변경. Go 파일 0. 「병합후 다음」을 #60 병합 지시로 받아 병합 커밋으로 합쳤다 (cff1035 · 2026-09-25T06:46:23Z · #59 와 같은 방식). unit/contract-grammar 는 1367f0b 위에 있고 그것이 main 에 들어갔으므로 다시 맞추지 않는다 — main 과의 차이는 이 유닛의 커밋 둘이다. 브랜치를 올리고 main 으로 PR 을 연다. U1 PR 의 병합은 CI 가 초록인 뒤 묻는다.
+**Context**: Construction · U1 contract-grammar · 병합 단계
+
+---
+## Construction · U1 `contract-grammar` · PR #61 CI · 린트 경고 셋을 고침
+**Timestamp**: 2026-09-25T06:52:27Z
+**User Input**: (없음 — PR #61 의 CI 결과를 받아 이어서 했다)
+**AI Response**: PR #61 의 CI 가 초록이다 (bounded-demo · cross · test). 경고 전용 린트가 main 의 39 건에서 42 건으로 늘었다 — 이 유닛의 새 코드가 셋을 더했다: internal/contract/bake.go 의 드모르간 둘(QF1001)과 bake_test.go 의 reflect.Ptr 하나. 문자 판정을 함수 둘(buildNameRune · irRune)로 빼고 reflect.Pointer 로 바꿨다. 동작은 같고 시험이 그대로 지난다. 로컬 golangci-lint v2.13.2 로 두 패키지에 이 유닛의 경고 0 을 확인했다 (남은 넷은 기존 cmd/runctl 코드). 코드 요약 5절에 한 줄을 더했다. U1 의 병합은 묻는다.
+**Context**: Construction · U1 contract-grammar · 병합 전 정리
+
+---

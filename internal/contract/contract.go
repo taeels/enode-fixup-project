@@ -413,8 +413,18 @@ const (
 	// 산출물로 내므로 판정 계열이 produced 이고, 다른 것은 누가 실행하나 라는
 	// 별개의 축이다. 노드에 안 가므로 잡기 전에 uses 가 없어도 된다.
 	KindAcquire
+	// KindBuild 는 굽기의 짓기 단계다 (ADR-077 §2). 판별 칸은 sync 와 builds —
+	// 둘 다 있어야 하지만 어느 하나만 있어도 이 종류로 본다. 그래야 하나를 빠뜨린
+	// 계약이 「종류를 모른다」가 아니라 「build 단계에 sync 가 없다」를 받는다.
+	//
+	// 판정은 produced 계열이다 — 성공했을 때만 manifest 를 낸다.
+	KindBuild
+	// KindMerge 는 굽기의 합치기 단계다. 명령이 아니라 노드의 내장 단계이고,
+	// 합쳤을 때만 merged 를 낸다.
+	KindMerge
 )
 
+// String 의 값이 steps.kind 칸에 그대로 저장된다 (store.go · expand.go).
 func (k StepKind) String() string {
 	switch k {
 	case KindAgent:
@@ -425,6 +435,10 @@ func (k StepKind) String() string {
 		return "acquire"
 	case KindAsk:
 		return "ask"
+	case KindBuild:
+		return "build"
+	case KindMerge:
+		return "merge"
 	}
 	return "unknown"
 }
@@ -622,6 +636,33 @@ type Step struct {
 	// repeat 과 다른 물건이다 — repeat 은 같은 단계를 N 회 돌린다
 	// (run-contract §4.5, requires[].count 와 짝). 이쪽은 조건이 만족될 때까지다.
 	Loop *Loop `json:"loop,omitempty"`
+
+	// 아래 일곱은 굽기 회차가 더했다 (ADR-075 §5 · §8 · ADR-077 §2).
+	// 모두 omitempty 다 — 안 적은 계약은 오늘과 같은 JSON 이다. 규칙은 effect.go 와
+	// bake.go 에 있다. 노드가 이 칸을 읽고 하는 일은 뒤 유닛(finalize · bake)의 것이다.
+
+	// Effect 는 이 단계가 워크스페이스에 무엇을 하나다 — 노드가 결과로 무엇을
+	// 거두나를 이것이 정한다. 안 적으면 종류의 기본값이다 (EffectOrDefault).
+	Effect Effect `json:"effect,omitempty"`
+	// Budget 은 명령이 끝난 뒤 결과를 확정하고 올리는 구간의 시간 상한 둘이다.
+	// run · agent · build 만 받는다. 기본값은 Budgets 가 채운다.
+	Budget *Budget `json:"budget,omitempty"`
+	// Discover 는 워크스페이스에서 바뀐 것을 훑어 진단으로 싣는다 (ADR-075 §8).
+	// 명시로만 켠다. 상한은 노드가 정하므로 계약은 켜기만 한다 — 그래서 객체가
+	// 아니라 bool 이다. run · agent 만 받는다.
+	Discover bool `json:"discover,omitempty"`
+	// Sync 는 소스를 구울 IR 로 맞추는 명령 한 줄이다 (굽기 build 단계).
+	// 제품은 이 문자열을 해석하지 않는다. sync 나 builds 가 있으면 build 단계다.
+	Sync string `json:"sync,omitempty"`
+	// Builds 는 이름 붙은 빌드 명령들이다. 적힌 순서대로 돈다.
+	Builds []Build `json:"builds,omitempty"`
+	// IR 은 구울 IR 태그의 정확한 값이다. build 단계에 반드시 적는다 — 없으면
+	// 노드가 무엇을 구워야 하는지 모른다. 노드가 EnvIR 로 sync 와 builds 에
+	// 넘기고, sync 뒤 HEAD 에 이 태그가 붙었는지 대조한다. 한 곳에서만 오므로
+	// ADR-077 §5 가 칸을 따로 두지 않은 근거(같은 사실이 두 곳에서 온다)가 풀린다.
+	IR string `json:"ir,omitempty"`
+	// Merge 는 굽기 merge 단계의 표시이자 설정이다. "merge": {} 도 merge 단계다.
+	Merge *Merge `json:"merge,omitempty"`
 }
 
 // ancestors 는 i 번째 단계보다 확실히 앞서는 단계들이다 — needs 간선을
@@ -794,20 +835,23 @@ func NeedsOf(steps []Step, i int) []string {
 }
 
 // Kind 는 단계의 종류를 판별한다.
-// 둘 다 있거나 둘 다 없으면 계약이 틀린 것이다 — 암묵을 남기지 않는다.
+// 판별 칸이 둘 이상이거나 하나도 없으면 계약이 틀린 것이다 — 암묵을 남기지 않는다.
 func (s Step) Kind() (StepKind, error) {
 	hasAgent := s.Agent != nil
 	hasRun := len(s.Run) > 0
 	hasAcq := s.Acquire != nil
 	hasAsk := s.Ask != nil
+	hasBuild := s.Sync != "" || s.Builds != nil
+	hasMerge := s.Merge != nil
 	n := 0
-	for _, has := range []bool{hasAgent, hasRun, hasAcq, hasAsk} {
+	for _, has := range []bool{hasAgent, hasRun, hasAcq, hasAsk, hasBuild, hasMerge} {
 		if has {
 			n++
 		}
 	}
 	if n > 1 {
-		return KindUnknown, fmt.Errorf("step %q: more than one of agent, run, acquire, ask is set", s.ID)
+		return KindUnknown, fmt.Errorf("step %q: more than one of agent, run, ask, acquire, "+
+			"build (sync, builds), merge is set", s.ID)
 	}
 	switch {
 	case hasAgent:
@@ -818,8 +862,13 @@ func (s Step) Kind() (StepKind, error) {
 		return KindAcquire, nil
 	case hasAsk:
 		return KindAsk, nil
+	case hasBuild:
+		return KindBuild, nil
+	case hasMerge:
+		return KindMerge, nil
 	}
-	return KindUnknown, fmt.Errorf("step %q: none of agent, run, acquire, ask is set", s.ID)
+	return KindUnknown, fmt.Errorf("step %q: none of agent, run, ask, acquire, "+
+		"build (sync, builds), merge is set", s.ID)
 }
 
 // Loop 은 구간 반복 하나다 (ADR-026).
@@ -1010,6 +1059,9 @@ func contains(ss []string, want string) bool {
 	return false
 }
 
+// ErrExitOnAgent 의 이름은 처음 막은 자리(agent)에서 왔다. 문구는 「명령이
+// 아니면」으로 바꿨다 — ask · acquire · build · merge 에도 같은 값이 나가므로
+// 「agent step」이면 넷에서 틀린 말이 된다. errors.Is 로 부르는 쪽이 있어 이름은 둔다.
 var (
 	ErrNoRunID       = errors.New("run_id is missing")
 	ErrNoRequires    = errors.New("requires is empty")
@@ -1017,13 +1069,21 @@ var (
 	ErrUnknownCap    = errors.New("unknown capability")
 	ErrDupAs         = errors.New("duplicate requires[].as")
 	ErrDupStepID     = errors.New("duplicate steps[].id")
-	ErrExitOnAgent   = errors.New("exit_code condition is not allowed on an agent step")
+	ErrExitOnAgent   = errors.New("exit_code condition is allowed only on a run step")
 	ErrCondUnknownID = errors.New("success_when refers to an unknown step")
 )
 
 // Validate 는 계약이 문법적으로 성립하는지만 본다. 400 의 근거다.
 // 자원이 있는지(422)와 지금 비어 있는지(409)는 매처가 본다.
-func (c Contract) Validate() error {
+func (c Contract) Validate() error { return c.validate(nil) }
+
+// validate 는 Validate 의 본문이다.
+//
+// stubs 는 CheckPlan 이 참조만 성립시키려고 채운 그루터기 단계의 이름이다.
+// 그루터기의 종류는 진짜가 아니므로(언제나 run) 종류를 보는 규칙 하나 —
+// 굽기 앞에는 계획 단계만 — 가 그 이름을 건너뛴다. 권위 있는 검사는 늘어난
+// 계약에 Validate 를 다시 부르는 store.applyExpands 가 한다.
+func (c Contract) validate(stubs map[string]bool) error {
 	if c.RunID == "" {
 		return ErrNoRunID
 	}
@@ -1076,6 +1136,11 @@ func (c Contract) Validate() error {
 			return err
 		}
 		kinds[s.ID] = k
+		// 종류마다 받는 칸과 값 (굽기 회차). 역할 검사보다 앞이다 —
+		// uses 를 빠뜨린 build 단계에 「undeclared role ""」가 나가지 않게.
+		if err := checkStepFields(s, k); err != nil {
+			return err
+		}
 		// 획득·되묻기 단계는 uses 가 없다 — 노드가 수행하지 않는다.
 		if k != KindAcquire && k != KindAsk && !roles[s.Uses] {
 			return fmt.Errorf("step %q uses undeclared role %q", s.ID, s.Uses)
@@ -1567,6 +1632,13 @@ func (c Contract) Validate() error {
 		}
 	}
 
+	// 굽기 계약의 모양과 계획이 짓는 굽기의 승인 (ADR-077 §2).
+	// needs · dispatch · adopt 를 위의 덩어리가 먼저 확인한 뒤라야 여기서
+	// needs 를 믿고 쓴다.
+	if err := checkBake(c, kinds, stubs); err != nil {
+		return err
+	}
+
 	// 계획이 짓기로 약속한 이름은 아직 없어도 지목할 수 있다 (ADR-049).
 	// 그래야 사람이 계획보다 먼저 「무엇이 되면 끝인가」를 못 박는다 —
 	// 목표를 이루는 단계를 계획이 짓기 때문이다. (promised 는 위에서 만든다)
@@ -1611,6 +1683,10 @@ func (c Contract) Validate() error {
 		// 이 자리를 다시 안 고친다.
 		if cond.ExitCode != nil && k != KindRun {
 			return fmt.Errorf("%w: %q", ErrExitOnAgent, cond.Step)
+		}
+		// 굽기 두 단계는 고정 산출물 하나로만 판정한다.
+		if err := checkBakeCondition(cond, k); err != nil {
+			return err
 		}
 		// changed 는 워크스페이스를 쓰는 단계에만 (ADR-037) —
 		// 워크스페이스가 없으면 「바뀐 것」을 잴 기준이 없다. 조용히 참이 되면

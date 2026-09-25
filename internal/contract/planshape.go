@@ -56,4 +56,15 @@ name of the offending field.
     feedback   the text is already in the prompt. The agent cannot miss it
 
 Use feedback for what the step must read, in.from for what it may need.
+
+### The shape of a bake
+
+    { "id": "build", "uses": "baker", "effect": "prepare", "ir": "your-ir-tag",
+      "sync": "<sync command>",
+      "builds": [ { "name": "config-a", "command": "<build command>" } ] }
+
+    { "id": "merge", "uses": "baker", "needs": ["build"], "merge": { "wait": "4h" } }
+
+Angle brackets and your-ir-tag mark placeholders. Write the tag and the commands
+the task gives; do not invent them.
 `

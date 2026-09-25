@@ -230,3 +230,122 @@ func TestExamplePack_CarriesBothKeys(t *testing.T) {
 		t.Errorf("the example does not lay the blob down with %s", laid)
 	}
 }
+
+// lintContract 는 시험의 계약을 풀고, 유효한지부터 본다 — lint 는 Validate 를
+// 지난 계약에만 경고를 내므로 유효하지 않은 계약으로 경고를 시험하면 안 된다.
+func lintContract(t *testing.T, s string) contract.Contract {
+	t.Helper()
+	var c contract.Contract
+	if err := json.Unmarshal([]byte(s), &c); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("the test contract must be valid: %v", err)
+	}
+	return c
+}
+
+const lintBakeSteps = `
+	  {"id":"build","uses":"b","effect":"prepare","ir":"v1","sync":"s",
+	   "builds":[{"name":"a","command":"c"}]},
+	  {"id":"merge","uses":"b","merge":{}}`
+
+// 굽기 두 단계의 제안은 고정 산출물이다. 제안을 그대로 붙이면 계약이 지난다.
+func TestSuggestCondition_BakeSteps(t *testing.T) {
+	c := lintContract(t, `{"run_id":"t",
+	  "requires":[{"as":"b","capability":"agent.reason","workspace.writes":"isolated"}],
+	  "steps":[`+lintBakeSteps+`]}`)
+	want := map[string]string{
+		"build": `{ "step": "build", "produced": ["manifest"] }`,
+		"merge": `{ "step": "merge", "produced": ["merged"] }`,
+	}
+	for _, s := range c.Steps {
+		got := suggestCondition(s)
+		if got != want[s.ID] {
+			t.Fatalf("suggestCondition(%s) = %s, want %s", s.ID, got, want[s.ID])
+		}
+		var cond contract.Condition
+		if err := json.Unmarshal([]byte(got), &cond); err != nil {
+			t.Fatalf("the suggestion is not paste-ready JSON: %v", err)
+		}
+		c.SuccessWhen = append(c.SuccessWhen, cond)
+	}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("the contract with both suggestions pasted is rejected: %v", err)
+	}
+	if w := lintWarnings(c); len(w) > 0 {
+		t.Fatalf("warnings after pasting the suggestions:\n%s", strings.Join(w, "\n"))
+	}
+}
+
+// 굽기 역할이 격리 runtime 을 요구하지 않으면 짚는다 — 제자리에 쓰는 노드는 못 굽는다.
+func TestLintWarnings_BuildRoleWithoutIsolatedWrites(t *testing.T) {
+	when := `"success_when":[{"step":"build","produced":["manifest"]},{"step":"merge","produced":["merged"]}]`
+	bare := lintContract(t, `{"run_id":"t","requires":[{"as":"b","capability":"agent.reason"}],
+	  "steps":[`+lintBakeSteps+`],`+when+`}`)
+	got := strings.Join(lintWarnings(bare), "\n")
+	for _, want := range []string{
+		`build step "build" uses role "b", which does not require workspace.writes=isolated`,
+		`add "workspace.writes": "isolated" to requires[] entry "b"`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("warnings = %q, want %q", got, want)
+		}
+	}
+	isolated := lintContract(t, `{"run_id":"t",
+	  "requires":[{"as":"b","capability":"agent.reason","workspace.writes":"isolated"}],
+	  "steps":[`+lintBakeSteps+`],`+when+`}`)
+	if w := lintWarnings(isolated); len(w) > 0 {
+		t.Fatalf("warnings on an isolated role:\n%s", strings.Join(w, "\n"))
+	}
+}
+
+// 계획에 굽기를 맡긴 계약은 제출 때 승인 설정을 짚는다 — 안 짚으면 계획 한 판이
+// 다 지어진 뒤에야 거절된다.
+func TestLintWarnings_PlannedBakeSettings(t *testing.T) {
+	const (
+		plan = `{"id":"plan","uses":"p","expands":true,"agent":{},"in":{"prompt":"x"},"out":["plan"],
+		            "schema":{"plan":{"type":"object"}},"produces":["build","merge"]}`
+		approve = `{"id":"approve","ask":{"prompt":"?","adopts":"plan","adopt_when":"approve"},"out":["ok"],
+		            "schema":{"ok":{"type":"object","required":["verdict"],
+		              "properties":{"verdict":{"enum":["approve","reject"]}}}}}`
+		bakeWhen = `{"step":"build","produced":["manifest"]},{"step":"merge","produced":["merged"]}`
+	)
+	of := func(steps, when string) string {
+		return `{"run_id":"t","requires":[{"as":"p","capability":"agent.reason"}],
+		  "steps":[` + steps + `],"success_when":[{"step":"plan","produced":["plan"]},` + when + `]}`
+	}
+	cases := []struct {
+		name, contract, want string
+	}{
+		{"adopted with yolo",
+			of(strings.Replace(plan, `"expands":true,`, `"expands":true,"adopt":"yolo",`, 1), bakeWhen),
+			`the plan of step "plan" is expected to bake (success_when waits for "manifest"), ` +
+				`but it adopts the plan with adopt "yolo"; the plan will be rejected when it is attached`},
+		{"no ask adopts it", of(plan, bakeWhen), `but no ask step adopts it`},
+		{"the ask has no adopt_when",
+			of(plan+`,`+strings.Replace(approve, `,"adopt_when":"approve"`, "", 1),
+				`{"step":"approve","produced":["ok"]},`+bakeWhen),
+			`but ask step "approve" does not set adopt_when`},
+		{"a person adopts it", of(plan+`,`+approve, `{"step":"approve","produced":["ok"]},`+bakeWhen), ""},
+		{"the plan builds something else", of(plan, `{"step":"build","produced":["log"]}`), ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := strings.Join(bakeWarnings(lintContract(t, c.contract)), "\n")
+			if c.want == "" {
+				if got != "" {
+					t.Fatalf("warnings = %q, want none", got)
+				}
+				return
+			}
+			if !strings.Contains(got, c.want) {
+				t.Fatalf("warnings = %q, want %q", got, c.want)
+			}
+			// 같은 계획을 두 번 짚지 않는다 — 조건이 둘(manifest · merged)이어도 한 줄이다.
+			if n := strings.Count(got, "warning: the plan of step"); n != 1 {
+				t.Fatalf("the plan is warned %d times, want once:\n%s", n, got)
+			}
+		})
+	}
+}

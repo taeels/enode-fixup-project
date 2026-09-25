@@ -1,0 +1,33 @@
+{
+  "run_id": "example-bake",
+  "work": {
+    "id": { "system": "manual", "change_id": "example-bake" },
+    "system": "manual"
+  },
+  "requires": [
+    { "as": "baker", "capability": "agent.reason", "workspace.writes": "isolated" }
+  ],
+  "steps": [
+    {
+      "id": "build",
+      "uses": "baker",
+      "effect": "prepare",
+      "ir": "your-ir-tag",
+      "sync": "<your sync command; $ENODE_IR is the tag to bake>",
+      "builds": [
+        { "name": "config-a", "command": "<your build command for config-a>" },
+        { "name": "config-b", "command": "<your build command for config-b>" }
+      ]
+    },
+    {
+      "id": "merge",
+      "uses": "baker",
+      "needs": ["build"],
+      "merge": { "wait": "4h" }
+    }
+  ],
+  "success_when": [
+    { "step": "build", "produced": ["manifest"] },
+    { "step": "merge", "produced": ["merged"] }
+  ]
+}

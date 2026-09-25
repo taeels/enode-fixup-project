@@ -76,10 +76,18 @@ func CheckPlan(raw []byte, roles []string) error {
 	// 계획의 첫 단계는 보통 부모의 승인 단계를 needs 로 잡는다 — 그 단계는
 	// 여기 없다. 그것을 오류로 치면 정당한 계획을 막는다.
 	// 그루터기를 앞에 놓아 참조만 성립시키고, 실존 여부는 applyExpands 가 본다.
-	c.Steps = append(stubsFor(p.Steps, roles[0]), p.Steps...)
+	stubs := stubsFor(p.Steps, roles[0])
+	c.Steps = append(stubs, p.Steps...)
 	// success_when 도 계획 밖을 가리킬 수 있다 — 같은 이유로 그루터기가 받는다.
 
-	if err := c.Validate(); err != nil {
+	// 그루터기의 종류도 참조와 같은 부류다 — 진짜 단계는 부모의 승인 ask 인데
+	// 여기서는 run 이다. 그대로 두면 「굽기 앞에는 계획 단계만」이 맞는 굽기 계획을
+	// 틀린 이유로 거절하고, 그 문구가 모델에게 되먹여진다. 그 한 줄만 이름으로 뺀다.
+	names := make(map[string]bool, len(stubs))
+	for _, st := range stubs {
+		names[st.ID] = true
+	}
+	if err := c.validate(names); err != nil {
 		return err
 	}
 	return nil
