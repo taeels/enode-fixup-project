@@ -476,3 +476,24 @@
 **Context**: Construction · 규약 변경 (CLAUDE.md 문서 루트)
 
 ---
+## Construction · U1 `contract-grammar` · Functional Design 답 · 되물음
+**Timestamp**: 2026-09-25T03:56:21Z
+**User Input**: "답했다." (계획 파일의 [Answer]: 1 「A.」 · 2 「A」 · 3 「A」 · 4 「A」 · 5 「A」 · 6 「B」 · 7 「C」)
+**AI Response**: 답 일곱을 확인했다 (Step 5). 모호한 답은 없고, 함께 성립하지 않는 자리 하나와 시험에 걸리는 자리 하나를 찾았다. 답 3 (굽기 계약은 build 와 merge 두 단계만, 다른 단계가 있으면 400)과 답 6 (계획도 굽기 단계를 짓는다)은 함께 쓰일 수 없다 — 계획은 계획 단계가 같은 계약에 붙이므로 계약이 셋 이상의 단계가 된다. 답 7 (굽기 예시의 명령을 자리표시로)은 예시 시험(TestExamples_ParseAndValidate)이 모든 예시에 Validate 를 돌리므로 ir 과 구성 이름까지 자리표시로 쓸 수 없다. 되물음 파일(construction/plans/contract-grammar-functional-design-clarification-questions.md)에 물음 셋을 냈다 — 1 답 3 과 6 의 충돌 · 2 계획이 지은 굽기를 사람이 승인해야 하나 · 3 자리표시 예시의 ir 과 이름. 답 7 = C 라 poky 예시와 「.repo 가 없으면 git HEAD 를 본다」가 빠지므로, SunnyVM 의 poky(git) 시험 lower 에서 IR 대조를 통과하는 길은 bake 유닛의 Functional Design 에 넘긴다고 적었다.
+**Context**: Construction · U1 contract-grammar · Functional Design Step 5 (답 분석 · 되물음)
+
+---
+## Construction · U1 `contract-grammar` · Functional Design 산출물 · 승인 요청
+**Timestamp**: 2026-09-25T04:08:26Z
+**User Input**: "권장대로." (되물음 셋 모두 A)
+**AI Response**: 되물음 파일의 [Answer] 셋에 A 를 적었다. 산출물 셋을 construction/contract-grammar/functional-design/ 에 냈다 — domain-entities.md(Step 의 새 칸 일곱 · 새 타입 · 종류 여섯 · 고정 산출물 이름 manifest · merged · ENODE_IR · 기본값 1분 · 3분 · 4시간 · 메서드 셋) · business-rules.md(종류마다 받는 칸 · effect 와 budget 표 · build 와 merge 의 허용 칸 · ir 문자 규칙 · 굽기 계약의 모양 · 계획이 짓는 굽기의 승인 규칙 · discover · 판정 조건 · 영어 거절 문구 전부 · lint 경고 둘) · business-logic-model.md(Validate 에 규칙이 들어가는 순서 · 굽기 판정 흐름 · 계획이 짓는 굽기의 흐름 · Grammar 와 PlanShape 문장 초안 · bake.json 예시 · 문법이 먼저 들어온 뒤의 창 · 넘기는 것 · 정본 되돌림). 되물음 2 의 전제를 코드에 맞게 고쳤다 — ask 의 adopts 는 계획을 붙일지가 아니라 계획이 제안한 success_when 을 채택할지를 정하고, 계획의 단계는 승인 전에 붙으며, 거절은 adopt_when 이나 dispatch 가 있을 때만 계획을 물린다(internal/store/ask.go:359). 그래서 「사람이 승인해야 굽는다」를 규칙 넷(yolo 아님 · 지목한 ask · adopt_when · build 가 ask 를 기다림)으로 적었다. 답에 없던 것 셋을 설계가 더했다 — ir 문자 규칙의 두 줄(git 참조 이름 규칙) · 구성 이름 64 자 · lint 의 workspace.writes 경고. 유닛 정의에 없던 일 하나를 찾았다 — 노드는 Claimed(internal/store/claim.go:66)의 칸만 받으므로 새 칸을 싣는 일이 필요하고, 그 파일은 step-phase 의 것이라 그 유닛에 넘긴다. 검사 — 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage (NFR 은 건너뛰고 Code Generation).
+**Context**: Construction · U1 contract-grammar · Functional Design Step 6 ~ 7. 승인 대기
+
+---
+## Construction · U1 `contract-grammar` · Functional Design 승인
+**Timestamp**: 2026-09-25T05:03:44Z
+**User Input**: "다음으로"
+**AI Response**: 앞 항목(04:08:26Z)의 두 갈래 가운데 Continue to Next Stage 로 받았다 (Step 8 ~ 9). 산출물 셋(domain-entities.md · business-rules.md · business-logic-model.md)과 계획 · 되물음 파일을 승인된 것으로 적고 상태 파일에 Functional Design 완료를 적었다. 이 단계의 커밋에 계획 파일의 vim 스왑 파일(.contract-grammar-functional-design-plan.md.swp)은 싣지 않는다 — 사용자의 편집기가 그 파일을 열고 있다. NFR Requirements 와 NFR Design 은 유닛 정의대로 건너뛴다. 다음은 Code Generation Part 1 (계획)이다.
+**Context**: Construction · U1 contract-grammar · Functional Design 닫힘 · NFR 둘 건너뜀
+
+---

@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U1 contract-grammar 의 Functional Design (브랜치 `unit/contract-grammar`). Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U1 contract-grammar 의 Code Generation Part 1 (계획 · 브랜치 `unit/contract-grammar`). Functional Design 승인 2026-09-25T05:03:44Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -134,6 +134,41 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - **앞 단계를 고친 것**: agent 단계의 전체 훑기를 끈다 (Q7) · 굽기 계약이 구울 IR 을 값으로 적는다 (2.3 · 제품에 사내 태그 형식 없음) · 계약 작성 도구와 굽기 Run 판정은 contract-grammar 가 닫는다 (2.2)
 - **원칙**: 제품 저장소에 사내 스크립트 · 구성 이름을 적지 않는다. 제품의 굽기 예시는 공개 도구로
 
+## Construction — 유닛 여덟 · 한 줄 순서 (Units Generation Q4 = B)
+
+혼자 도므로 병렬 웨이브가 없다. 앞 유닛이 병합된 뒤 다음 유닛의 브랜치를 회차 브랜치
+(또는 병합된 main)에서 딴다. 산출물은 이 폴더의 `construction/` 아래다.
+
+```text
+   순서  유닛                맡는 조각          병합 조건
+   1    contract-grammar    없음              코드 검사
+   2    step-phase          0                 조각 0
+   3    finalize            1 · 2 · 3         조각 1 · 2 · 3
+   4    trash               4                 조각 4
+   5    merge-rules         7 의 기계 부분      코드 검사 + 재개 시험
+   6    lower-state         없음              코드 검사
+   7    bake                5 · 6 · 7 · 8     조각 5 · 6 · 7 · 8
+   8    checkpoint          9                 조각 9
+```
+
+조각은 장면 게이트의 검증 단위다 (`requirements.md` 6절). 코드 검사는 빌드 · 기본 `go test` ·
+패키지별 커버리지 80% 이상 · 코드 경계 시험 · 크로스 빌드 셋이다 (`unit-of-work.md` 0절).
+
+### U1 `contract-grammar` — 브랜치 `unit/contract-grammar` (`1367f0b` 에서 맞췄다)
+
+```text
+   Functional Design      착수 2026-09-24T12:45:25Z.  계획과 물음 일곱
+                          construction/plans/contract-grammar-functional-design-plan.md
+                          답 2026-09-25T03:56:21Z — A · A · A · A · A · B · C
+                          되물음 셋 (답 3 과 6 의 충돌 · 계획이 지은 굽기의 승인 ·
+                          자리표시 예시) — ...-clarification-questions.md.  답 A · A · A
+                          (「권장대로.」).  산출물 셋 2026-09-25T04:08:26Z — construction/contract-grammar/
+                          functional-design/.  승인 2026-09-25T05:03:44Z (「다음으로」)
+   NFR Requirements       건너뛴다 (유닛 정의 — 성능 표면이 없다)
+   NFR Design             건너뛴다
+   Code Generation        Part 1 착수 2026-09-25T05:03:44Z
+```
+
 ## Stage Progress
 
 ### INCEPTION PHASE
@@ -146,7 +181,7 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Units Generation — 착수 2026-09-24T06:42:48Z. 계획 · 질문 넷 2026-09-24T06:50:29Z. 채팅 논의로 일곱이 닫힘 2026-09-24T09:50:00Z (Q1 A · Q2 A · Q3 A 순연 · Q4 B · Q7 A). 계획 승인 2026-09-24T12:14:10Z. 산출물 넷 2026-09-24T12:22:43Z · 승인 2026-09-24T12:31:50Z
 
 ### CONSTRUCTION PHASE
-- [ ] Functional Design — EXECUTE (유닛마다)
+- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 진행 중 — 위 「Construction」 절
 - [ ] NFR Requirements — EXECUTE (유닛마다 · 최소)
 - [ ] NFR Design — EXECUTE (유닛마다 · 최소)
 - [ ] Infrastructure Design — SKIP
