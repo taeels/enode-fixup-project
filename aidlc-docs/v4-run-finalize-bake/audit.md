@@ -609,3 +609,10 @@
 **Context**: Construction · U2 step-phase · Code Generation 닫힘
 
 ---
+## Construction · U2 `step-phase` · 브랜치를 올리고 PR 을 연다
+**Timestamp**: 2026-09-25T11:25:07Z
+**User Input**: "올리고 PR 연다 (권장)" (질문 — unit/step-phase 를 origin 에 올리고 main 으로 PR 을 열까. 병합 조건인 조각 0 은 초록이고 main 과의 차이는 이 유닛의 커밋 둘이다)
+**AI Response**: origin/main 은 9b40cd0 그대로라 다시 맞추지 않는다. 이 항목을 커밋에 싣고 unit/step-phase 를 올린 뒤 main 으로 PR 을 연다. 병합은 CI 가 초록인 뒤 묻는다.
+**Context**: Construction · U2 step-phase · 병합 단계
+
+---
