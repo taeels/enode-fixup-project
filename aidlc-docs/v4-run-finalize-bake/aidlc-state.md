@@ -172,7 +172,7 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           Part 2 완료 2026-09-25T05:29:37Z — 단계 열넷 체크 · 코드 검사 초록 (통과 1,891 · 실패 0 ·
                           스킵 0 · 패키지 전부 80% 이상 · 크로스 빌드 셋).  요약은
                           construction/contract-grammar/code/code-summary.md.  승인 2026-09-25T05:45:28Z
-   병합                   코드 검사 초록.  unit/contract-grammar -> main PR 은 묻고 연다
+   병합                   코드 검사 초록.  회차 PR #60 이 main 에 병합된 뒤 (cff1035) main 으로 PR
 ```
 
 ## Stage Progress

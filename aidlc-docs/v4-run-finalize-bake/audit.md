@@ -525,3 +525,17 @@
 **Context**: Construction · U1 contract-grammar · Code Generation 닫힘
 
 ---
+## Construction · U1 `contract-grammar` · 병합 순서 결정
+**Timestamp**: 2026-09-25T05:46:27Z
+**User Input**: "#60 먼저, 그다음 U1 (권장)" (질문 — 회차 브랜치 PR #60 이 아직 main 에 없어 지금 unit/contract-grammar -> main PR 을 열면 Inception 커밋 13 개가 함께 보인다. 어떻게 올릴까)
+**AI Response**: #60 이 main 에 병합된 뒤 unit/contract-grammar 를 올리고 main 으로 PR 을 연다. #60 의 병합은 사용자가 하거나 지시한다 — 지시 없이 병합하지 않는다. 이 항목은 PR 을 올리기 직전의 커밋에 싣는다.
+**Context**: Construction · U1 contract-grammar · 병합 대기
+
+---
+## Construction · U1 `contract-grammar` · #60 병합 · U1 PR
+**Timestamp**: 2026-09-25T06:46:48Z
+**User Input**: "60이 뭘 담고 있는데" 에 이어 "병합후 다음"
+**AI Response**: #60 의 내용을 답했다 — 요구 팩 다섯 · 회차 Inception 문서 · 공용 Reverse Engineering 여덟 문서 갱신 · 정본 핀 369270a -> a2c4ac6 · 문서 루트 규약 변경. Go 파일 0. 「병합후 다음」을 #60 병합 지시로 받아 병합 커밋으로 합쳤다 (cff1035 · 2026-09-25T06:46:23Z · #59 와 같은 방식). unit/contract-grammar 는 1367f0b 위에 있고 그것이 main 에 들어갔으므로 다시 맞추지 않는다 — main 과의 차이는 이 유닛의 커밋 둘이다. 브랜치를 올리고 main 으로 PR 을 연다. U1 PR 의 병합은 CI 가 초록인 뒤 묻는다.
+**Context**: Construction · U1 contract-grammar · 병합 단계
+
+---
