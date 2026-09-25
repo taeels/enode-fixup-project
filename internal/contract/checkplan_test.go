@@ -80,6 +80,45 @@ func TestCheckPlan_ALegitimatePlanPasses(t *testing.T) {
 	}
 }
 
+// 굽기를 짓는 계획이 부모의 승인을 needs 로 적어도 훅이 막지 않는다.
+//
+// 훅은 계획 밖 이름을 run 단계 그루터기로 채운다. 그 종류를 그대로 믿으면
+// 「굽기 앞에는 계획 단계만」이 맞는 계획을 틀린 이유로 거절하고, 그 문구가
+// 모델에게 되먹여져 모델이 거짓을 보고 계획을 고친다.
+func TestCheckPlan_ABakePlanNamingTheApprovalPasses(t *testing.T) {
+	plan := `{"steps":[` +
+		strings.Replace(bakeBuild, `"uses":"baker",`, `"uses":"baker","needs":["approve"],`, 1) + `,` +
+		bakeMerge + `],` + bakeWhen + `}`
+	if err := CheckPlan([]byte(plan), []string{"baker", "planner"}); err != nil {
+		t.Fatalf("blocked a legitimate bake plan: %v", err)
+	}
+
+	// 권위 있는 검사도 같은 계획을 받는다 — 진짜 부모(계획과 승인) 뒤에 붙인 모양이다.
+	var p PlanDoc
+	if err := json.Unmarshal([]byte(plan), &p); err != nil {
+		t.Fatal(err)
+	}
+	c := bakeOf(t, planStep, approveStep)
+	c.Steps = append(c.Steps, p.Steps...)
+	wantValidate(t, c, "")
+
+	// 그루터기를 빼는 것은 훅뿐이다. 같은 모양을 Validate 에 그대로 주면 거절한다.
+	hook := bakeOf(t, `{"id":"approve","uses":"baker","run":["true"],"needs":[]}`)
+	hook.Steps = append(hook.Steps, p.Steps...)
+	wantValidate(t, hook, `step "approve" comes before the bake but is not a planning step`)
+}
+
+// 그루터기가 아닌 단계는 훅에서도 걸린다 — 빼는 것은 이름으로 한 줄뿐이다.
+func TestCheckPlan_ARealStepBeforeTheBakeIsStillRejected(t *testing.T) {
+	plan := `{"steps":[{"id":"prep","uses":"baker","run":["true"]},` +
+		strings.Replace(bakeBuild, `"uses":"baker",`, `"uses":"baker","needs":["prep"],`, 1) + `,` +
+		bakeMerge + `],` + bakeWhen + `}`
+	err := CheckPlan([]byte(plan), []string{"baker"})
+	if err == nil || !strings.Contains(err.Error(), `step "prep" comes before the bake but is not a planning step`) {
+		t.Fatalf("CheckPlan = %v, want the planning-step rejection", err)
+	}
+}
+
 // 빈 계획은 값이다 (ADR-043) — 훅도 그것을 알아야 한다.
 func TestCheckPlan_AnEmptyPlanPasses(t *testing.T) {
 	if err := CheckPlan([]byte(`{"steps":[],"success_when":[]}`), []string{"a"}); err != nil {

@@ -207,6 +207,7 @@ func TestGrammar_WhatItForbidsIsActuallyRejected(t *testing.T) {
 			wantErr: "has no schema",
 		},
 	}
+	cases = append(cases, bakeGrammarCases()...)
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -271,5 +272,133 @@ func TestPlanShape_AgentKeyListDoesNotDriftFromReality(t *testing.T) {
 		if !strings.Contains(PlanShape, name) {
 			t.Errorf("agent key %q is missing from PlanShape — a plan would avoid a key that is actually allowed", name)
 		}
+	}
+}
+
+// bakeGrammarCases 는 굽기 회차가 문법에 더한 문장들이다 — effect · budget ·
+// discover · 굽기. 문장마다 그 규칙을 어긴 계약이 실제로 거절되는지를 본다.
+func bakeGrammarCases() []bad {
+	one := func(step string) string {
+		return `{"run_id":"r","requires":[{"as":"n","capability":"agent.reason"}],"steps":[` + step + `]}`
+	}
+	bake := func(steps ...string) string {
+		return `{"run_id":"r",` + bakeRequires + `,"steps":[` + strings.Join(steps, ",") + `],` + bakeWhen + `}`
+	}
+	judged := func(when string) string {
+		return `{"run_id":"r",` + bakeRequires + `,"steps":[` + bakeBuild + `,` + bakeMerge +
+			`],"success_when":[` + when + `]}`
+	}
+	build := func(from, to string) string { return strings.Replace(bakeBuild, from, to, 1) }
+	noAdoptWhen := strings.Replace(approveStep, `,"adopt_when":"approve"`, "", 1)
+	return []bad{
+		{name: "effect on other kinds", mustSay: "Other kinds take no effect.",
+			contract: one(`{"id":"q","ask":{"prompt":"?"},"effect":"read","out":["a"],
+			  "schema":{"a":{"type":"object"}}}`),
+			wantErr: "takes no effect"},
+		{name: "agent never builds", mustSay: "An agent step never takes build",
+			contract: one(`{"id":"a","uses":"n","agent":{},"effect":"build"}`),
+			wantErr:  "not allowed on an agent step"},
+		{name: "prepare is for build steps", mustSay: "build step takes prepare",
+			contract: one(`{"id":"a","uses":"n","run":["true"],"effect":"prepare"}`),
+			wantErr:  "only for a build step"},
+		{name: "finalize can only be raised", mustSay: "defaults to 1m and can only be raised",
+			contract: one(`{"id":"a","uses":"n","run":["true"],"budget":{"finalize":"30s"}}`),
+			wantErr:  "can only be raised"},
+		{name: "upload above zero", mustSay: "upload defaults to 3m and must be greater",
+			contract: one(`{"id":"a","uses":"n","run":["true"],"budget":{"upload":"0s"}}`),
+			wantErr:  "greater than zero"},
+		{name: "budget on three kinds", mustSay: "Only run, agent and build steps take a budget.",
+			contract: one(`{"id":"q","ask":{"prompt":"?"},"budget":{},"out":["a"],
+			  "schema":{"a":{"type":"object"}}}`),
+			wantErr: "takes no budget"},
+		{name: "discover on two kinds", mustSay: "Only run and agent steps take discover.",
+			contract: bake(build(`"sync"`, `"discover":true,"sync"`), bakeMerge),
+			wantErr:  "discover is only for a run or agent step"},
+		{name: "build needs uses", mustSay: `build     uses, effect "prepare", sync, builds, ir`,
+			contract: bake(build(`"uses":"baker",`, ``), bakeMerge),
+			wantErr:  "a build step needs uses"},
+		{name: "a bake has both steps", mustSay: "ends with exactly one build step and one merge step",
+			contract: bake(bakeBuild),
+			wantErr:  "has no merge step"},
+		{name: "same role", mustSay: "on the same role",
+			contract: bake(bakeBuild, `{"id":"merge","uses":"planner","merge":{}}`),
+			wantErr:  "same role"},
+		{name: "merge needs build", mustSay: "merge needs exactly [build]",
+			contract: bake(bakeBuild, `{"id":"merge","uses":"baker","needs":[],"merge":{}}`),
+			wantErr:  "must need exactly"},
+		{name: "only planning steps before", mustSay: "Only planning steps",
+			contract: bake(`{"id":"other","uses":"baker","run":["true"]}`, bakeBuild, bakeMerge),
+			wantErr:  "not a planning step"},
+		{name: "ir is required", mustSay: "A build step needs sync, at least one entry in builds, and ir.",
+			contract: bake(build(`"ir":"your-ir-tag",`, ``), bakeMerge),
+			wantErr:  "needs ir"},
+		{name: "builds names", mustSay: "a-z, 0-9 and -, and must not repeat",
+			contract: bake(build(`"config-a"`, `"Config-A"`), bakeMerge),
+			wantErr:  "must be 1 to 64 characters"},
+		{name: "builds names do not repeat", mustSay: "must not repeat",
+			contract: bake(build(`"config-b"`, `"config-a"`), bakeMerge),
+			wantErr:  "appears twice"},
+		{name: "no workspace on build", mustSay: "A build step takes no workspace and no out",
+			contract: bake(build(`"sync"`, `"workspace":{"repo":"x/y"},"sync"`), bakeMerge),
+			wantErr:  "does not take workspace"},
+		{name: "judge build by manifest", mustSay: `Judge build by produced ["manifest"]`,
+			contract: judged(`{"step":"build","produced":["log"]}`),
+			wantErr:  "judge it by produced"},
+		{name: "no other condition", mustSay: "condition applies to them",
+			contract: judged(`{"step":"build","exit_code":0}`),
+			wantErr:  "exit_code"},
+		{name: "no yolo for a bake", mustSay: `never adopted with adopt "yolo"`,
+			contract: bake(strings.Replace(planStep, `"expands":true,`, `"expands":true,"adopt":"yolo",`, 1),
+				bakeBuild, bakeMerge),
+			wantErr: "without asking"},
+		{name: "an ask adopts the plan", mustSay: "An ask step must",
+			contract: bake(planStep, bakeBuild, bakeMerge),
+			wantErr:  "no ask step adopts"},
+		{name: "the ask sets adopt_when", mustSay: "adopt it and set adopt_when",
+			contract: bake(planStep, noAdoptWhen, bakeBuild, bakeMerge),
+			wantErr:  "says nothing about rejection"},
+		{name: "build waits for the ask", mustSay: "the build step must wait for that ask",
+			contract: bake(planStep, approveStep, build(`"uses":"baker",`, `"uses":"baker","needs":["plan"],`),
+				bakeMerge),
+			wantErr: "does not wait for ask step"},
+	}
+}
+
+// PlanShape 의 굽기 모양은 계약에 넣었을 때 Validate 를 지나야 한다 —
+// 계획은 그 모양을 베끼므로, 거절될 모양을 가르치면 계획 한 판이 버려진다.
+// 모양은 PlanShape 에서 뽑는다. 시험에 사본을 두면 둘이 갈려도 안 깨진다.
+func TestPlanShape_TheBakeShapeValidates(t *testing.T) {
+	_, sect, ok := strings.Cut(PlanShape, "### The shape of a bake")
+	if !ok {
+		t.Fatal("PlanShape has no bake shape")
+	}
+	if i := strings.Index(sect, "\n###"); i >= 0 {
+		sect = sect[:i]
+	}
+	var code strings.Builder
+	for _, line := range strings.Split(sect, "\n") {
+		if strings.HasPrefix(line, "    ") {
+			code.WriteString(line + "\n")
+		}
+	}
+	dec := json.NewDecoder(strings.NewReader(code.String()))
+	var steps []Step
+	for dec.More() {
+		var st Step
+		if err := dec.Decode(&st); err != nil {
+			t.Fatalf("the bake shape is not JSON: %v", err)
+		}
+		steps = append(steps, st)
+	}
+	if len(steps) != 2 {
+		t.Fatalf("the bake shape has %d steps, want build and merge", len(steps))
+	}
+	c := Contract{RunID: "r", Requires: []Require{req("baker")}, Steps: steps,
+		SuccessWhen: []Condition{
+			{Step: "build", Produced: []string{ArtifactManifest}},
+			{Step: "merge", Produced: []string{ArtifactMerged}},
+		}}
+	if err := c.Validate(); err != nil {
+		t.Fatalf("the bake shape PlanShape teaches is rejected: %v", err)
 	}
 }

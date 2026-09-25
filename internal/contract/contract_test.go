@@ -66,6 +66,14 @@ func TestStepKind(t *testing.T) {
 		{"command step", Step{ID: "b", Run: []string{"make", "-j8"}}, KindRun, false},
 		{"both is wrong", Step{ID: "x", Agent: map[string]interface{}{}, Run: []string{"make"}}, KindUnknown, true},
 		{"neither is wrong", Step{ID: "y"}, KindUnknown, true},
+		// 굽기 두 종류 — build 는 sync 나 builds 어느 하나만 있어도 build 다.
+		// 빠진 쪽은 Validate 가 「needs sync」로 말한다. 「종류를 모른다」가 아니라.
+		{"build by sync and builds", Step{ID: "b", Sync: "s", Builds: []Build{{Name: "a"}}}, KindBuild, false},
+		{"build by sync alone", Step{ID: "b", Sync: "s"}, KindBuild, false},
+		{"build by builds alone", Step{ID: "b", Builds: []Build{}}, KindBuild, false},
+		{"merge by an empty object", Step{ID: "m", Merge: &Merge{}}, KindMerge, false},
+		{"run with sync is wrong", Step{ID: "x", Run: []string{"make"}, Sync: "s"}, KindUnknown, true},
+		{"build with merge is wrong", Step{ID: "x", Sync: "s", Merge: &Merge{}}, KindUnknown, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -77,6 +85,32 @@ func TestStepKind(t *testing.T) {
 				t.Fatalf("kind=%v, want %v", got, c.want)
 			}
 		})
+	}
+}
+
+// String 의 값이 steps.kind 칸에 그대로 들어간다 — 바뀌면 저장된 행과 갈린다.
+func TestStepKind_String(t *testing.T) {
+	for k, want := range map[StepKind]string{
+		KindAgent: "agent", KindRun: "run", KindAsk: "ask", KindAcquire: "acquire",
+		KindBuild: "build", KindMerge: "merge", KindUnknown: "unknown",
+	} {
+		if got := k.String(); got != want {
+			t.Errorf("%d.String() = %q, want %q", int(k), got, want)
+		}
+	}
+}
+
+// 판별 칸이 겹치거나 없을 때 여섯 종류를 모두 말한다 — 계약 저자가 무엇을
+// 적을 수 있는지 거절 문구에서 알 수 있다.
+func TestStepKind_ErrorNamesAllSixKinds(t *testing.T) {
+	_, err := Step{ID: "y"}.Kind()
+	if err == nil {
+		t.Fatal("Kind of an empty step = nil error")
+	}
+	for _, name := range []string{"agent", "run", "ask", "acquire", "build (sync, builds)", "merge"} {
+		if !strings.Contains(err.Error(), name) {
+			t.Errorf("error %q does not name %q", err, name)
+		}
 	}
 }
 

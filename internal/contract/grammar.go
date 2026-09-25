@@ -31,12 +31,14 @@ const Grammar = `## Contract grammar (the steps you write must follow these rule
 A plan that breaks a rule is rejected as a whole: schema validation returns 422,
 or contract validation returns 400. There is no partial acceptance.
 
-### There are four kinds of step, with different fields
+### There are six kinds of step, with different fields
 
     run       uses, run (argv array), out
     agent     uses, agent, in, out, schema
     ask       no uses, ask, out (exactly one), schema (required)
     acquire   no uses, acquire; performed by the mediator, not by a node
+    build     uses, effect "prepare", sync, builds, ir; bakes on the node
+    merge     uses, merge; merges what build baked, performed by the node
 
 expands is not a kind. It is a flag on an agent step that makes it build a plan:
 
@@ -77,6 +79,30 @@ read from $IN, and a step that omits it runs with no pack at all.
 The names you may put in agent.mcp are the mcp.<name> attributes printed next to
 each role above, when a role has any. A name that no node offers fails the step
 when it runs.
+
+### What a step does to the workspace: effect
+
+    run     build (default), edit, read
+    agent   edit (default), read
+    build   prepare, always written
+
+Write "effect": "edit" on a run step whose command changes source files, such as
+a formatter or a code generator. An agent step never takes build, and only a
+build step takes prepare. Other kinds take no effect.
+
+### Time after the command ends: budget
+
+    "budget": { "finalize": "5m", "upload": "10m" }
+
+finalize is the time to settle the result, upload the time to send it. finalize
+defaults to 1m and can only be raised. upload defaults to 3m and must be greater
+than zero. Only run, agent and build steps take a budget.
+
+### Listing what changed: discover
+
+"discover": true asks the node to list what changed in the workspace, within
+limits the node sets. The list is a diagnostic; nothing in it counts as
+produced. Only run and agent steps take discover.
 
 ### Two ways to branch
 
@@ -152,14 +178,37 @@ a plan may introduce a role the contract never declared. Roles that come from
 requires are fixed: uses may only name a role that requires declared or that an
 earlier acquire in the same plan introduced.
 
+### A bake: build, then merge
+
+A contract that bakes ends with exactly one build step and one merge step, in
+that order, on the same role. merge needs exactly [build]. Only planning steps
+may come before them: an agent step with expands, and the ask that adopts its
+plan.
+
+A build step needs sync, at least one entry in builds, and ir. ir is the exact
+tag to bake; the node passes it to sync and builds as ENODE_IR. builds names use
+a-z, 0-9 and -, and must not repeat. A build step takes no workspace and no out:
+sync prepares the source, and the step produces "manifest" by itself.
+
+merge.wait bounds how long the merge step may wait before it merges; 4h unless
+written.
+
+A plan that builds a bake is never adopted with adopt "yolo". An ask step must
+adopt it and set adopt_when, and the build step must wait for that ask.
+
 ### success_when conditions differ by step kind
 
     run                    exit_code and produced
     agent, ask, acquire    produced only
+    build                  produced ["manifest"] only
+    merge                  produced ["merged"] only
 
 exit_code is allowed only on a run step. A harness can produce nonsense and
 still exit 0, and a person's answer and a resource acquisition have no process
 at all, so success is judged by what was produced.
+
+Judge build by produced ["manifest"] and merge by produced ["merged"]. No other
+condition applies to them.
 
 success_when may only refer to steps that exist.
 

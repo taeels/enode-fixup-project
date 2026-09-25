@@ -497,3 +497,31 @@
 **Context**: Construction · U1 contract-grammar · Functional Design 닫힘 · NFR 둘 건너뜀
 
 ---
+## Construction · U1 `contract-grammar` · Code Generation 계획 · 승인 요청
+**Timestamp**: 2026-09-25T05:08:10Z
+**User Input**: (없음 — Functional Design 승인 「다음으로」에 이어 계획을 냈다)
+**AI Response**: Code Generation Part 1 (Step 1 ~ 6). 계획 파일 construction/plans/contract-grammar-code-generation-plan.md 을 냈다 — 단계 열다섯(타입과 상수 · 종류 판별 · 종류마다 받는 칸과 값 · 굽기 모양과 계획이 짓는 굽기 · 판정 조건 · 기본값 메서드 · 단위 시험 · 계획 훅의 그루터기 · Grammar 와 PlanShape · 예시 bake.json · runctl lint · runctl schema 확인 · 코드 검사 · 코드 요약 · 상태와 커밋). 고치는 파일 열넷 가운데 행렬 밖이 넷이다 — effect.go · bake.go (새 파일 · contract.go 가 이미 1,799 줄이라 주제별로 나눈다) · planshape.go (Functional Design 이 굽기 모양 예시를 더했다) · checkplan.go. 설계에 없던 자리 하나를 찾았다 — CheckPlan 의 Stop 훅은 계획 밖 이름을 run 단계 그루터기로 build 앞에 채우므로, Functional Design 규칙(business-rules.md 5절)의 「build 앞에는 계획 단계만」을 그대로 넣으면 needs: ["approve"] 를 적은 맞는 굽기 계획을 틀린 이유로 거절한다. Validate 본문을 validate(stubs) 로 옮기고 CheckPlan 만 그루터기 이름을 넘겨 그 한 검사에서 빼는 것으로 골랐다 (계획 3절 · internal/contract/checkplan.go:42 CheckPlan · :89 stubsFor). 이 유닛이 완성하는 스토리는 0 이고 US-8 · US-9 · US-15 · US-19 를 받친다. 승인을 요청한다.
+**Context**: Construction · U1 contract-grammar · Code Generation Part 1. 승인 대기
+
+---
+## Construction · U1 `contract-grammar` · Code Generation 계획 승인
+**Timestamp**: 2026-09-25T05:14:18Z
+**User Input**: "승인."
+**AI Response**: 계획 전체(단계 열다섯 · 행렬 밖 파일 넷 · 3절의 그루터기 처리)를 승인으로 받았다 (Step 7 ~ 9). Part 2 로 간다 — 계획의 첫 체크박스부터 짓는다.
+**Context**: Construction · U1 contract-grammar · Code Generation Part 1 닫힘 · Part 2 착수
+
+---
+## Construction · U1 `contract-grammar` · Code Generation 완료 · 승인 요청
+**Timestamp**: 2026-09-25T05:29:37Z
+**User Input**: (없음 — 계획 승인 「승인.」에 이어 생성)
+**AI Response**: Code Generation Part 2 (Step 10 ~ 14). 계획의 단계 열넷을 체크했다 (열다섯째는 커밋 — 승인 뒤). 새 파일 다섯(internal/contract/effect.go · bake.go · effect_test.go · bake_test.go · examples/bake.json)과 고친 파일 아홉. Step 에 칸 일곱 · 단계 종류 여섯 · 거절 규칙과 문구는 Functional Design 규칙 표 그대로. 계획 3절의 그루터기 처리가 실제로 필요한 것을 확인했다 — CheckPlan 이 validate(nil) 을 부르게 바꾸면 새 시험이 "step \"approve\" comes before the bake but is not a planning step" 으로 깨진다. 설계를 다듬은 자리 넷 — 거절 문구의 관사(an ask) · Grammar 의 effect 절에서 finalize 유닛 전에는 거짓인 문장을 뺌(ADR-053) · PlanShape 의 자리표시 안내 한 줄 · lint 경고 밑의 붙여넣을 한 줄. 코드 검사 — gofmt · vet · build 통과, go test ./... 통과 1,891 · 실패 0 · 스킵 0, 스무 패키지 전부 80% 이상(전체 85.7%, internal/contract 92.3%), 크로스 빌드 셋, enodectl.exe 심볼 tls 1 · http 6, U+2605 0, glyphscan 0, TestImportBoundaries 통과. 측정이 바꾼 cmd/enodectl/probe.lock 은 되돌렸다. 병합 뒤 창 두 줄을 요약 7절에 더했다 — Grammar 의 굽기 절과 runctl example 목록의 "ready-to-run" 머리말. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage.
+**Context**: Construction · U1 contract-grammar · Code Generation Part 2 (Step 14). 승인 대기
+
+---
+## Construction · U1 `contract-grammar` · Code Generation 승인
+**Timestamp**: 2026-09-25T05:45:28Z
+**User Input**: "승인"
+**AI Response**: Continue to Next Stage 로 받았다 (Step 15 ~ 16). U1 의 Code Generation 을 완료로 적고, 계획의 마지막 체크박스(커밋)를 채워 코드 · 시험 · 계획 · 코드 요약 · 상태 · 감사를 한 커밋으로 넣는다. 병합 조건은 코드 검사이고 초록이다. unit/contract-grammar 를 올리고 main 으로 PR 을 여는 일은 외부로 나가는 일이라 묻는다. 다음 유닛은 step-phase 이고, 한 줄 순서라 U1 이 main 에 병합된 뒤 그 브랜치를 딴다.
+**Context**: Construction · U1 contract-grammar · Code Generation 닫힘
+
+---
