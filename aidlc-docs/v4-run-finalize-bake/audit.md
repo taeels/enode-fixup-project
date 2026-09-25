@@ -581,3 +581,31 @@
 **Context**: Construction · U2 step-phase · Functional Design 승인 · NFR Requirements · NFR Design 건너뜀
 
 ---
+## Construction · U2 `step-phase` · Code Generation 계획 · 승인 요청
+**Timestamp**: 2026-09-25T08:58:42Z
+**User Input**: (없음 — 「승인한다. nfr 건너뛰고 다음으로.」에 이어 착수)
+**AI Response**: Code Generation Part 1. 코드를 다시 읽고 계획을 냈다 — construction/plans/step-phase-code-generation-plan.md. 단계 열여섯 (결과 어휘 · 스키마 칸 셋 · claim 과 재전달의 phase · 되돌림 셋 · MarkExited · 라우트와 postExited · result 새 칸 아홉 · 진행 조회의 단계 칸 · 후보 수 · Claimed 칸 일곱 · Record 칸 넷 · 저장소 시험 · HTTP 시험과 비용 측정 · 코드 검사와 조각 0 · 코드 요약 · 상태와 커밋). 건너뛴 NFR 두 단계가 보려던 것을 3절이 받는다 — 인스턴스 대조는 수락 표 10 · 11 의 시험, 대기 조회의 비용은 BenchmarkCandidatesFor 한 번과 그 숫자. FD 에 없던 자리 다섯을 4절이 정했다 — 409 문구를 싣는 오류 타입 · 어휘 밖 값을 찾는 StepResult.OutOfVocabulary · 같은 키 재전송의 경고 문구 · DB 오류는 503 · exited_at 의 모양. 행렬 밖 파일은 FD 흐름 9절의 넷과 시험 파일뿐이다. exit · phase 는 Postgres 17 예약어가 아님을 확인했다. 표기 검사 exit 0. 승인을 요청한다.
+**Context**: Construction · U2 step-phase · Code Generation Part 1 (Step 1 ~ 6). 승인 대기
+
+---
+## Construction · U2 `step-phase` · Code Generation 계획 승인
+**Timestamp**: 2026-09-25T09:32:03Z
+**User Input**: "승인"
+**AI Response**: 계획을 승인으로 닫았다. Part 2 를 시작한다 — 계획의 Step 1 부터 차례로 짓고 끝낸 자리에서 체크박스를 채운다.
+**Context**: Construction · U2 step-phase · Code Generation Part 1 승인 · Part 2 착수
+
+---
+## Construction · U2 `step-phase` · Code Generation 완료 · 승인 요청
+**Timestamp**: 2026-09-25T09:48:09Z
+**User Input**: (없음 — 「승인」에 이어 Part 2 를 돌았다)
+**AI Response**: 계획의 단계 열여섯을 차례로 지었다. 새 파일 — internal/contract/result.go 와 시험 넷(contract/result_test.go · store/exited_test.go · store/candidates_test.go · api/exited_test.go). 고친 파일 — schema.sql · claim.go · rollback.go · ask.go · observe.go · queue.go · seal.go · record.go · api.go. 행렬 밖 소스는 계획 2절의 넷 그대로다. 코드 검사 — gofmt 빈 출력 · vet · build exit 0 · go test 통과 1,960 · 실패 0 · 스킵 0 · 스무 패키지 전부 80% 이상(전체 85.7%) · 크로스 빌드 셋 · enodectl.exe 심볼 tls 1 · http 6 · U+2605 0 · glyphscan 0 · golangci-lint 39 건(main 과 같음, 고친 파일 0). 조각 0 초록 — mux.HandleFunc 18 -> 19. 대기 조회 비용 BenchmarkCandidatesFor 약 0.75 ms/op (Intel N100 · 광고 50 · 요구 줄 3). 인스턴스 대조는 수락 표 10 · 11 을 저장소와 HTTP 시험 둘 다에서 409 로 확인했다. 되감기 한 자리를 일부러 깨 시험이 잡는 것을 확인하고 되돌렸다. 계획과 다르게 된 자리 둘 — 라우트 수는 시험이 아니라 grep 으로 확인했다(FD 흐름 7절) · 벤치마크 전용 DB 도우미를 새로 썼다(다른 시험 파일을 안 고치려고). cmd/enodectl/probe.lock 은 측정이 바꿔 되돌렸다. 요약 — construction/step-phase/code/code-summary.md. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage. 커밋은 승인 뒤에 한 번으로 넣는다.
+**Context**: Construction · U2 step-phase · Code Generation Part 2 완료 (Step 14 ~ 15). 승인 대기
+
+---
+## Construction · U2 `step-phase` · Code Generation 승인
+**Timestamp**: 2026-09-25T11:23:52Z
+**User Input**: "승인"
+**AI Response**: Continue to Next Stage 로 받았다 (Step 15 ~ 16). U2 의 Code Generation 을 완료로 적고, 계획의 마지막 체크박스(커밋)를 채워 코드 · 시험 · 계획 · 코드 요약 · 상태 · 감사를 한 커밋으로 넣는다. 병합 조건은 조각 0 이고 초록이다 (라우트 18 -> 19 · build · vet · test 통과). unit/step-phase 를 올리고 main 으로 PR 을 여는 일은 외부로 나가는 일이라 묻는다. 다음 유닛은 finalize 이고, 한 줄 순서라 U2 가 main 에 병합된 뒤 그 브랜치를 딴다.
+**Context**: Construction · U2 step-phase · Code Generation 닫힘
+
+---

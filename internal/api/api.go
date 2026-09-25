@@ -90,6 +90,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/runs", read(s.getRuns))
 	mux.HandleFunc("POST /v1/nodes/{id}/claim", s.auth(s.postClaim))
 	mux.HandleFunc("POST /v1/runs/{run}/steps/{seq}/result", s.auth(s.postResult))
+	mux.HandleFunc("POST /v1/runs/{run}/steps/{seq}/exited", s.auth(s.postExited))
 	mux.HandleFunc("POST /v1/runs", s.auth(s.postRuns))
 	if s.cfg.Demo {
 		mux.Handle("POST /v1/demo/runs", s.newDemoHandler(demoScenarios()))
@@ -233,6 +234,10 @@ type runView struct {
 	// 계약 전문을 싣지 않는다. 전문은 낸 쪽이 갖고 봉인본에 남는다 —
 	// requires 만 예외인 이유는 그것이 배정의 입력이라 성격이 다르기 때문이다.
 	Requires []store.RequireView `json:"requires,omitempty"`
+	// CandidatesAt 은 requires[].candidates 를 센 DB 시각이다 (US-7).
+	// QUEUED 인 Run 의 getRun 에서만 채운다. 세는 데 실패하면 둘 다 빠지고
+	// warnings 에 한 줄이 실린다 — requires 를 못 읽었을 때와 같은 방식이다.
+	CandidatesAt *time.Time `json:"candidates_at,omitempty"`
 }
 
 // view 는 Run 하나를 밖에서 읽는 형태로 만든다.
@@ -414,6 +419,12 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 	}
 	res := body.StepResult
 	res.Produced, res.Error = body.Produced, body.Error
+	// 어휘 밖 값은 받는다 — 거절하면 노드가 그 보고를 잃는다. 여기서 한 번만
+	// 남기고 봉인 때는 다시 안 남긴다.
+	for _, kv := range res.OutOfVocabulary() {
+		s.log.Warn("result carries an unknown value", "run", runID, "seq", seq,
+			"field", kv[0], "value", kv[1])
+	}
 
 	// 여기서 성패를 판정하지 않는다 — 완주했는지만 본다.
 	// exit_code 2 로 끝난 빌드도 완주한 것이고, 그게 성공인지는 success_when 이
@@ -452,6 +463,51 @@ func (s *Server) postResult(w http.ResponseWriter, r *http.Request) {
 		state = s.drainAtBoundary(r.Context(), runID, body.Node)
 	}
 	write(w, 200, map[string]any{"run_id": runID, "seq": seq, "run_state": state})
+}
+
+// ── POST /v1/runs/{run}/steps/{seq}/exited — 종료 보고 ─────────────────────
+//
+// 명령이 끝났다는 보고다 (ADR-075 결정 7). 판정이 아니다 — 받으면 phase 가
+// finalizing 이 될 뿐이고, 정산 · drain 경계 · 알림을 부르지 않는다 (결정 1-7 · 1-8).
+// 단계를 끝내는 것은 여전히 result 하나다.
+//
+// 응답은 셋이다. 200 은 받았든(accepted true) 안 받았든(늦은 도착 · 끝난 단계 ·
+// 같은 보고의 재전송 — accepted false) 노드가 재시도를 멈출 자리다. 409 는 보낸 쪽이
+// 그 단계를 보고할 자격이 없다는 뜻이고 역시 멈춘다. 저장소 오류는 503 이다 —
+// 노드는 5xx 를 재시도한다.
+func (s *Server) postExited(w http.ResponseWriter, r *http.Request) {
+	runID := r.PathValue("run")
+	seq, err := strconv.Atoi(r.PathValue("seq"))
+	if err != nil || seq <= 0 {
+		fail(w, 400, "invalid step sequence: "+r.PathValue("seq"))
+		return
+	}
+	var body contract.Exited
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		fail(w, 400, "cannot parse exited: "+err.Error())
+		return
+	}
+	if err := body.Check(); err != nil {
+		fail(w, 400, err.Error())
+		return
+	}
+	accepted, err := s.st.MarkExited(r.Context(), runID, seq, body)
+	switch {
+	case errors.Is(err, store.ErrNotFound):
+		fail(w, 404, "no such run")
+		return
+	case errors.Is(err, store.ErrNoSuchStep):
+		fail(w, 404, "no such step")
+		return
+	case errors.Is(err, store.ErrExitRejected):
+		fail(w, 409, err.Error())
+		return
+	case err != nil:
+		s.log.Error("cannot record an exit report", "run", runID, "seq", seq, "err", err)
+		fail(w, 503, "query failed")
+		return
+	}
+	write(w, 200, map[string]any{"run_id": runID, "seq": seq, "accepted": accepted})
 }
 
 // drainAtBoundary 는 결과를 보고한 노드가 at-boundary 로 drain 중이면 그 Run 을
@@ -697,6 +753,21 @@ func (s *Server) getRun(w http.ResponseWriter, r *http.Request) {
 	// 아니고 한 줄이다. 로그는 그대로 남긴다.
 	if c, cerr := s.st.LiveContract(r.Context(), run.RunID); cerr == nil {
 		v.Requires = store.RequiresOf(c)
+		// 기다리는 Run 이면 요구 줄마다 후보 수를 붙인다 (US-7) — 점유 때문인지
+		// drain 때문인지를 밖에서 구별하게 한다. 목록과 제출 응답에는 안 붙인다.
+		// 폴링하는 목록이 Run 마다 셈을 하게 된다.
+		if run.State == store.StateQueued {
+			if counts, at, err := s.st.CandidatesFor(r.Context(), c.Requires); err == nil {
+				for i := range v.Requires {
+					n := counts[i]
+					v.Requires[i].Candidates = &n
+				}
+				v.CandidatesAt = &at
+			} else {
+				s.log.Error("cannot count candidates", "run", run.RunID, "err", err)
+				v.Warnings = append(v.Warnings, "candidate counts could not be read; candidates is omitted")
+			}
+		}
 	} else {
 		s.log.Error("cannot query contract", "run", run.RunID, "err", cerr)
 		v.Warnings = append(v.Warnings, "the contract could not be read; requires is omitted")

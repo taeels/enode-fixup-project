@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U2 step-phase 의 Code Generation Part 1 (브랜치 `unit/step-phase` · main `9b40cd0` 에서 땄다). Functional Design 승인 2026-09-25T08:52:58Z · NFR 둘은 사용자 결정으로 건너뜀. U1 contract-grammar 는 PR #61 로 병합 2026-09-25T07:21:53Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U2 step-phase 의 Code Generation 승인 2026-09-25T11:23:52Z · 병합 대기 (브랜치 `unit/step-phase` · main `9b40cd0` 에서 땄다). Functional Design 승인 2026-09-25T08:52:58Z · NFR 둘은 사용자 결정으로 건너뜀. U1 contract-grammar 는 PR #61 로 병합 2026-09-25T07:21:53Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -188,7 +188,15 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           보려던 둘 중 종료 보고의 인스턴스 대조는 Functional Design 의 수락 표가 정했고,
                           대기 조회마다 매칭 두 번의 비용은 Code Generation 계획이 시험 자리로 받는다
    NFR Design             건너뛴다 (위와 같은 결정)
-   Code Generation        Part 1 착수 2026-09-25T08:52:58Z
+   Code Generation        Part 1 착수 2026-09-25T08:52:58Z.  계획 — 단계 열여섯
+                          construction/plans/step-phase-code-generation-plan.md
+                          건너뛴 NFR 이 보려던 둘을 계획 3절이 받는다 · FD 에 없던 자리 다섯 (계획 4절).  승인 2026-09-25T09:32:03Z.
+                          Part 2 착수 2026-09-25T09:32:03Z.  완료 2026-09-25T09:48:09Z — 단계 열여섯 중 열다섯과 반 체크
+                          (커밋은 승인 뒤) · 코드 검사 초록 (통과 1,960 · 실패 0 · 스킵 0 · 패키지 전부 80% 이상 ·
+                          크로스 빌드 셋 · 린트 39 건 main 과 같음) · 조각 0 초록 (라우트 18 -> 19).
+                          대기 조회 비용 약 0.75 ms (광고 50 · 요구 줄 3).  요약은
+                          construction/step-phase/code/code-summary.md.  승인 2026-09-25T11:23:52Z (「승인」)
+   병합                   조각 0 이 초록이다.  unit/step-phase 를 올리고 main 으로 PR — 묻고 한다
 ```
 
 ## Stage Progress
@@ -207,7 +215,7 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 · U2 는 건너뜀 (U1 유닛 정의 · U2 사용자 결정)
 - [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 · U2 는 건너뜀
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE

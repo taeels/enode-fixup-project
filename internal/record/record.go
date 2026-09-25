@@ -197,6 +197,19 @@ type StepFile struct {
 	// 안 가져간 것과, 애초에 없었던 것은 다르다.
 	// 재현성이 아니라 자기충족이다 — 에이전트 출력은 원래 비결정이다.
 	LedgerAt []string `json:"ledger_at,omitempty"`
+	// 아래 넷은 명령이 끝난 뒤의 구간이다 (ADR-075 결정 7).
+	//
+	// 한 기록 안에서 칸마다 시계가 정해져 있다. started_at · ended_at 은 Mediator
+	// 시계이고(claim 때 · result 를 받은 때), exited_at · finalized_at 은 노드
+	// 시계다(명령이 끝난 때 · 결과 확정이 끝난 때). 두 시계의 차이를 고치지 않는다.
+	//
+	// 결과 없이 FAILED 로 끝난 단계가 last_phase finalizing 과 exit 를 가지면
+	// 「명령은 끝났고 결과 확정은 못 끝냈다」다. exit 가 없고 last_phase 가 running
+	// 이면 명령이 끝났다는 보고가 안 왔다 — 옛 노드이거나 명령 도중에 죽었다.
+	ExitedAt    string          `json:"exited_at,omitempty"`
+	FinalizedAt string          `json:"finalized_at,omitempty"`
+	Exit        json.RawMessage `json:"exit,omitempty"`       // 종료 보고의 outcome 그대로
+	LastPhase   string          `json:"last_phase,omitempty"` // 단계가 끝날 때의 phase
 }
 
 func writeJSON(path string, v any) error {

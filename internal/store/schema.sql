@@ -143,6 +143,24 @@ ALTER TABLE steps ADD COLUMN IF NOT EXISTS envelope_key text;
 -- 이 Run 에서 그 자리가 목표였다는 사실이다.
 ALTER TABLE steps ADD COLUMN IF NOT EXISTS chosen boolean NOT NULL DEFAULT false;
 
+-- CLAIMED 안의 진행 구간 (ADR-075 결정 7).
+--
+--     phase         running · finalizing · waiting.  열린 어휘다 (ADR-075 §10.3)
+--     phase_since   그 구간이 시작된 시각.  running · waiting 은 Mediator 시계,
+--                   finalizing 은 노드가 보낸 exited_at 이다
+--     exit          종료 보고가 나른 outcome 그대로 ({kind, code}).  판정이 아니다
+--
+-- claim 과 재전달이 running 이나 waiting 을, 종료 보고의 수락이 finalizing 을 적는다.
+-- 종결 전이(result · 재시작 · 임대 만료 · 취소 · 계획 거절)는 이 칸을 안 건드린다 —
+-- 마지막 값이 남아 Record 의 last_phase 와 exit 가 된다. 단계를 PENDING 으로 되돌리는
+-- 세 자리는 지운다 — 안 지우면 다음 회차가 옛 회차의 finalizing 을 물려받는다.
+--
+-- CHECK 를 안 거는 이유는 state 와 같다. NULL 은 「적은 적이 없다」다 —
+-- 이 칸이 생기기 전에 집힌 단계 · 아직 안 집힌 단계 · 되돌려진 단계.
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS phase text;
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS phase_since timestamptz;
+ALTER TABLE steps ADD COLUMN IF NOT EXISTS exit jsonb;
+
 -- 노드 소유자가 건 drain 정책의 복사본 (ADR-063 §6).
 --
 -- 정본은 노드의 정책 파일이고 이 열은 최근 광고에 실려 온 것이다.

@@ -62,6 +62,14 @@ func (s *Store) RenewLeases(ctx context.Context, nodeID string, ttl time.Duratio
 	return out, rows.Err()
 }
 
+// CLAIMED 안의 진행 구간이다 (ADR-075 결정 7 · steps.phase). 열린 어휘다 —
+// 값을 더해도 스키마와 판정이 안 바뀐다 (ADR-075 §10.3).
+const (
+	PhaseRunning    = "running"    // 명령이 돈다.  claim 때
+	PhaseFinalizing = "finalizing" // 명령은 끝났고 결과를 확정하는 중이다.  종료 보고를 받았을 때
+	PhaseWaiting    = "waiting"    // 다른 것을 기다린다.  merge 단계의 claim 때 (결정 1-12)
+)
+
 // Claimed 는 claim 이 돌려주는 할 일 하나다.
 type Claimed struct {
 	StepID  string            `json:"step_id"`
@@ -165,6 +173,21 @@ type Claimed struct {
 	// enode 가 $IN 에 파일 하나로 깔고, 본문이 필요하면 in.from 이 가져온다.
 	Ledger []LedgerEntry `json:"ledger,omitempty"`
 	Lease  LeaseRow      `json:"lease"`
+
+	// 아래 일곱은 계약의 단계 칸 그대로다 (contract-grammar 유닛 · ADR-075 · ADR-077).
+	// 노드가 결과를 어떻게 확정하고 굽기를 어떻게 도나를 이것으로 안다.
+	//
+	// 기본값을 채우지 않는다 — 안 적은 칸은 JSON 에서 빠진다. 노드가
+	// contract.Step 의 메서드(EffectOrDefault · Budgets · MergeWait)로 채운다.
+	// Mediator 와 노드가 같은 상수를 읽고, 기본값을 두 곳에 적지 않는다.
+	// 계약은 Validate 를 지났으므로 값은 이미 맞다 — 여기서 다시 보지 않는다.
+	Effect   contract.Effect  `json:"effect,omitempty"`
+	Budget   *contract.Budget `json:"budget,omitempty"`
+	Discover bool             `json:"discover,omitempty"`
+	Sync     string           `json:"sync,omitempty"`   // 굽기 build 단계만
+	Builds   []contract.Build `json:"builds,omitempty"` // 굽기 build 단계만
+	IR       string           `json:"ir,omitempty"`     // 굽기 build 단계만
+	Merge    *contract.Merge  `json:"merge,omitempty"`  // 굽기 merge 단계만
 }
 
 // Rejection 은 거절 한 번이다 (ADR-062).
@@ -317,11 +340,17 @@ func (s *Store) ClaimStep(ctx context.Context, nodeID, instance string) (*Claime
 	// 회차마다 새 열쇠가 된다: 앞 회차의 자백을 되먹일 때, 그것을 쓴
 	// 것이 자기 자신이어도 그때 본 열쇠는 이미 쓸모가 없다.
 	c.EnvelopeKey = newEnvelopeKey()
+	//
+	// 진행 구간도 함께 적는다 (ADR-075 결정 7). started_at 과 한 문장이라 두 시각이
+	// 같다. merge 단계는 명령이 없고 다른 것을 기다리므로 waiting 이다 (결정 1-12).
 	if _, err := tx.Exec(ctx,
 		`UPDATE steps SET state='CLAIMED', started_at=now(), claimed_instance=$3,
-		        envelope_key=$4
+		        envelope_key=$4,
+		        phase = CASE WHEN kind = 'merge' THEN $5 ELSE $6 END,
+		        phase_since=now(), exit=NULL
 		  WHERE run_id=$1 AND seq=$2`,
-		c.RunID, c.Seq, nullable(instance), nullable(c.EnvelopeKey)); err != nil {
+		c.RunID, c.Seq, nullable(instance), nullable(c.EnvelopeKey),
+		PhaseWaiting, PhaseRunning); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -505,7 +534,7 @@ func (s *Store) stampLedger(ctx context.Context, c *Claimed, contractJSON []byte
 //
 // 상태를 안 바꾼다 — 이미 CLAIMED 다. 그래서 몇 번을 다시 물어도 같은
 // 답이고, 죽은 연결에 전달돼 또 유실되어도 다음 물음이 또 받는다.
-// started_at 과 워터마크만 갱신한다 — 실행은 이 전달 뒤에 시작되므로
+// started_at · 진행 구간 · 워터마크만 갱신한다 — 실행은 이 전달 뒤에 시작되므로
 // "시작할 때 원장에 있던 것" 이라는 뜻(성질 4)이 그대로 산다.
 func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claimed, error) {
 	var c Claimed
@@ -536,9 +565,13 @@ func (s *Store) redeliver(ctx context.Context, nodeID, instance string) (*Claime
 		return nil, err
 	}
 	c.Lease.Capability = "agent.reason"
+	// 명령이 아직 안 돌았으므로 진행 구간도 claim 과 같이 다시 적는다.
 	if _, err := s.pool.Exec(ctx,
-		`UPDATE steps SET started_at=now() WHERE run_id=$1 AND seq=$2`,
-		c.RunID, c.Seq); err != nil {
+		`UPDATE steps SET started_at=now(),
+		        phase = CASE WHEN kind = 'merge' THEN $3 ELSE $4 END,
+		        phase_since=now(), exit=NULL
+		  WHERE run_id=$1 AND seq=$2`,
+		c.RunID, c.Seq, PhaseWaiting, PhaseRunning); err != nil {
 		return nil, err
 	}
 	c.StepID = fmt.Sprintf("%s#%02d", c.RunID, c.Seq)
@@ -611,6 +644,13 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 			Feedback  []string          `json:"feedback"`
 			Expands   bool              `json:"expands"`
 			Produces  []string          `json:"produces"`
+			Effect    contract.Effect   `json:"effect"`
+			Budget    *contract.Budget  `json:"budget"`
+			Discover  bool              `json:"discover"`
+			Sync      string            `json:"sync"`
+			Builds    []contract.Build  `json:"builds"`
+			IR        string            `json:"ir"`
+			Merge     *contract.Merge   `json:"merge"`
 		} `json:"steps"`
 		// 판정 조건에서 「확인할 경로」만 뽑아 싣는다 (ADR-037).
 		SuccessWhen []struct {
@@ -628,6 +668,8 @@ func fillFromContract(c *Claimed, contractJSON []byte) {
 	c.Agent, c.Run, c.Workspace, c.In, c.Out = st.Agent, st.Run, st.Workspace, st.In, st.Out
 	c.Schema, c.Feedback, c.Env, c.Collect = st.Schema, st.Feedback, st.Env, st.Collect
 	c.Expands = st.Expands
+	c.Effect, c.Budget, c.Discover = st.Effect, st.Budget, st.Discover
+	c.Sync, c.Builds, c.IR, c.Merge = st.Sync, st.Builds, st.IR, st.Merge
 	// 계획을 짓는 단계에만 어휘를 실어준다 (ADR-045).
 	// acquire 로 실행 중에 생기는 역할도 이 계약의 역할이다 (ADR-022 §7.5).
 	if c.Expands {
@@ -701,6 +743,145 @@ func condsFor(contractJSON []byte, name string) []contract.Condition {
 	return out
 }
 
+// ErrNoSuchStep 은 Run 은 있는데 그 순번의 단계가 없다는 뜻이다 (404).
+// Run 이 없으면 ErrNotFound 다.
+var ErrNoSuchStep = errors.New("no such step")
+
+// ErrExitRejected 는 종료 보고를 받을 수 없다는 뜻이다 (409).
+//
+// 돌려주는 오류의 문구가 곧 응답의 reason 이다 — errors.Is 로 이것을 고르고
+// Error() 를 그대로 싣는다. 머리말을 붙이지 않는다.
+var ErrExitRejected = errors.New("exit report rejected")
+
+// exitRejection 은 409 의 문구를 나른다. errors.Is(err, ErrExitRejected) 가 참이다.
+type exitRejection struct{ reason string }
+
+func (e exitRejection) Error() string        { return e.reason }
+func (e exitRejection) Is(target error) bool { return target == ErrExitRejected }
+
+func rejectExit(format string, a ...any) error {
+	return exitRejection{reason: fmt.Sprintf(format, a...)}
+}
+
+// MarkExited 는 종료 보고의 수락이다. 판정이 아니다 (결정 1-7).
+//
+// 받으면 phase 를 finalizing 으로, phase_since 를 노드가 보낸 exited_at 으로,
+// exit 를 outcome 으로 적는다. 그것뿐이다 — success_when 대조 · 다음 단계 ·
+// 정산 · 임대 해제 · 알림을 하지 않는다. 단계를 끝내는 것은 여전히 result 하나이고,
+// result 는 이 보고의 수락에 기대지 않는다 (결정 1-9). 그래서 트랜잭션도 없다 —
+// 묶을 것이 없다.
+//
+// 받을 조건을 전부 한 UPDATE 의 WHERE 에 둔다. 같은 키의 재전송 둘이 동시에 와도
+// 행 잠금이 둘째를 기다리게 하고, 둘째는 이미 finalizing 인 행을 보고 0 행이 된다 —
+// 처음 값이 남는다. 0 행이면 까닭을 분류만 한다 (classifyExit).
+//
+// 돌려주는 것 — 이 보고가 행을 바꿨나. 오류는 ErrNotFound (Run 없음) ·
+// ErrNoSuchStep · ErrExitRejected 와 저장소 오류다. 받지 않았는데 오류가 없는
+// 경우(늦은 도착 · 끝난 단계 · 재전송)는 노드에게 성공이다 — 재시도를 멈추면 된다.
+func (s *Store) MarkExited(ctx context.Context, runID string, seq int, e contract.Exited) (bool, error) {
+	outcome, err := json.Marshal(e.Outcome)
+	if err != nil {
+		return false, err
+	}
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE steps s
+		   SET phase = $7, phase_since = $8, exit = $9
+		  FROM runs r
+		 WHERE s.run_id = $1 AND s.seq = $2 AND r.run_id = s.run_id
+		   AND r.state = 'RUNNING'
+		   AND s.state = 'CLAIMED'
+		   AND s.kind NOT IN ('merge', 'ask', 'acquire')
+		   AND s.node_id = $3
+		   AND coalesce(s.claimed_instance, '') = $4
+		   AND s.attempt = $5
+		   AND coalesce(s.phase, $6) = $6`,
+		runID, seq, e.Node, e.Instance, e.Attempt, PhaseRunning,
+		PhaseFinalizing, e.ExitedAt, outcome)
+	if err != nil {
+		return false, err
+	}
+	if tag.RowsAffected() == 1 {
+		return true, nil
+	}
+	return false, s.classifyExit(ctx, runID, seq, e)
+}
+
+// classifyExit 는 받지 않은 종료 보고의 까닭을 고른다. 행을 바꾸지 않는다.
+//
+// 순서가 규칙이다 (step-phase Functional Design 의 수락 표) — 위에서부터 처음 맞는
+// 줄이 결과다. 끝난 것과 늦은 것은 조용히 200 이고, 받을 자격이 없는 보낸 쪽은 409 다.
+// 수락 문장과 이 읽기 사이에 상태가 바뀌어도 해가 없다 — 응답 코드만 그 순간의 것이다.
+func (s *Store) classifyExit(ctx context.Context, runID string, seq int, e contract.Exited) error {
+	var (
+		runState                string
+		state, kind, node, inst *string
+		phase                   *string
+		attempt                 *int
+		exit                    []byte
+		since                   *time.Time
+	)
+	err := s.pool.QueryRow(ctx, `
+		SELECT r.state, s.state, s.kind, coalesce(s.node_id, ''), coalesce(s.claimed_instance, ''),
+		       s.attempt, s.phase, s.exit, s.phase_since
+		  FROM runs r
+		  LEFT JOIN steps s ON s.run_id = r.run_id AND s.seq = $2
+		 WHERE r.run_id = $1`, runID, seq).
+		Scan(&runState, &state, &kind, &node, &inst, &attempt, &phase, &exit, &since)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if state == nil {
+		return ErrNoSuchStep
+	}
+	id := stepID(runID, seq)
+	switch {
+	case runState != StateRunning:
+		return nil // 취소 · 종결 — 더 받을 것이 없다
+	case *state == StepDone || *state == StepFailed || *state == StepSkipped:
+		return nil
+	case *kind == "ask" || *kind == "acquire":
+		return rejectExit("step %s is an %s step; only a step that runs a command reports an exit", id, *kind)
+	case *kind == "merge":
+		return nil // merge 는 명령이 없다 — 보내도 받지 않는다
+	case e.Attempt < *attempt:
+		return nil // 앞 회차의 늦은 도착이다
+	case e.Attempt > *attempt:
+		return rejectExit("step %s attempt %d has not started; the current attempt is %d", id, e.Attempt, *attempt)
+	case *state != StepClaimed:
+		return rejectExit("step %s is %s, not claimed; nothing ran that could exit", id, *state)
+	case *node != e.Node:
+		// 다른 노드의 이름을 문구에 싣지 않는다 — 보낸 쪽이 알 까닭이 없다.
+		return rejectExit("step %s is claimed by another node", id)
+	case *inst != e.Instance:
+		return rejectExit("step %s is claimed by another instance of this node; "+
+			"a restarted node cannot report the exit of an earlier life", id)
+	}
+	// 여기 닿으면 받을 자격은 있는데 phase 가 이미 running 을 지났다. 같은 키의
+	// 재전송이다 (또는 뒤에 더해질 구간). 처음 값이 남는다.
+	if phase != nil && *phase == PhaseFinalizing && !sameExit(exit, since, e) {
+		s.log().Warn("exit report repeated with a different outcome or time; the first one stands",
+			"step", id, "node", e.Node, "attempt", e.Attempt)
+	}
+	return nil
+}
+
+// sameExit 는 적힌 종료 보고와 새 보고가 같은 사실인가다. 시각은 DB 의 정밀도
+// (마이크로초)로 맞춰 본다.
+func sameExit(stored []byte, since *time.Time, e contract.Exited) bool {
+	var o contract.Outcome
+	if json.Unmarshal(stored, &o) != nil || since == nil {
+		return false
+	}
+	if o.Kind != e.Outcome.Kind || (o.Code == nil) != (e.Outcome.Code == nil) ||
+		(o.Code != nil && *o.Code != *e.Outcome.Code) {
+		return false
+	}
+	return since.Equal(e.ExitedAt.Truncate(time.Microsecond))
+}
+
 // StepResult 는 enode 가 보고하는 것이다.
 type StepResult struct {
 	ExitCode *int            `json:"exit_code,omitempty"` // 명령 단계만 (ADR-019)
@@ -734,6 +915,61 @@ type StepResult struct {
 	Error string `json:"error,omitempty"`
 	// Environment는 실제 실행한 profile/prepared/runtime의 식별자다.
 	Environment *execenv.Record `json:"environment,omitempty"`
+
+	// 아래 아홉은 명령이 끝난 뒤의 구간이 어떻게 지나갔나다 (ADR-075 · ADR-076 ·
+	// ADR-077). 노드가 채운다 — 결과 확정은 finalize, 보존은 checkpoint, 굽기는
+	// bake 유닛이 채운다. 판정 재료가 아니다 — success_when 은 이 칸을 안 본다.
+	//
+	// 봉인이 steps.result 를 이 타입으로 다시 풀므로(StepFiles) 여기 칸이 있어야
+	// Record 에 남는다. 값으로 거절하지 않는다 — 노드는 result 를 임대가 죽을 때까지
+	// 재시도하므로 400 은 그 보고를 잃게 한다. 어휘 밖 값은 받는 쪽이 로그에 남긴다
+	// (OutOfVocabulary). 시각은 모두 노드 시계다.
+	ExitedAt          *time.Time                  `json:"exited_at,omitempty"`
+	FinalizedAt       *time.Time                  `json:"finalized_at,omitempty"`
+	Finalize          contract.Stage              `json:"finalize,omitempty"`
+	Upload            contract.Stage              `json:"upload,omitempty"`
+	Reason            string                      `json:"reason,omitempty"`
+	Diagnostics       *contract.Diagnostics       `json:"diagnostics,omitempty"`
+	CheckpointCapture *contract.CheckpointCapture `json:"checkpoint_capture,omitempty"`
+	Build             *contract.BuildManifest     `json:"build,omitempty"` // 굽기 build 단계만
+	Merge             *contract.MergeResult       `json:"merge,omitempty"` // 굽기 merge 단계만
+}
+
+// OutOfVocabulary 는 어휘 밖 값을 (칸 이름, 값) 쌍으로 돌려준다.
+//
+// 거절 재료가 아니다 — 받는 쪽이 로그에 한 줄씩 남길 뿐이다. 노드가 Mediator 보다
+// 새 어휘를 먼저 쓸 수 있고, 그 보고도 봉인에 그대로 남아야 한다. 빈 값은 안
+// 적은 것이라 어휘 밖이 아니다.
+//
+// 보는 칸은 다섯이다 — finalize · upload · reason · checkpoint_capture.state ·
+// diagnostics.changes.
+func (r StepResult) OutOfVocabulary() [][2]string {
+	var out [][2]string
+	check := func(field, v string, known ...string) {
+		if v == "" {
+			return
+		}
+		for _, k := range known {
+			if v == k {
+				return
+			}
+		}
+		out = append(out, [2]string{field, v})
+	}
+	stages := []string{string(contract.StageOK), string(contract.StageTimeout), string(contract.StageError)}
+	check("finalize", string(r.Finalize), stages...)
+	check("upload", string(r.Upload), stages...)
+	check("reason", r.Reason, contract.ReasonFinalizeTimeout, contract.ReasonUploadTimeout,
+		contract.ReasonMergeWaitTimeout, contract.ReasonBakeInProgress)
+	if c := r.CheckpointCapture; c != nil {
+		check("checkpoint_capture.state", c.State, contract.CaptureNotRequested, contract.CaptureUnsupported,
+			contract.CaptureRejected, contract.CaptureCaptured, contract.CaptureFailed)
+	}
+	if d := r.Diagnostics; d != nil {
+		check("diagnostics.changes", d.Changes, contract.ChangesMeasured, contract.ChangesNotMeasured,
+			contract.ChangesPartial)
+	}
+	return out
 }
 
 // ReportStep 은 단계를 끝낸다.

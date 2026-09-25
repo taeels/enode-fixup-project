@@ -658,7 +658,8 @@ func (s *Store) rewindToPlanner(ctx context.Context, tx pgx.Tx, runID string,
 	}
 	if _, err := tx.Exec(ctx, `
 		UPDATE steps SET state='PENDING', attempt=$4, result=NULL,
-		       started_at=NULL, ended_at=NULL, ledger_at=NULL
+		       started_at=NULL, ended_at=NULL, ledger_at=NULL,
+		       phase=NULL, phase_since=NULL, exit=NULL
 		 WHERE run_id=$1 AND seq BETWEEN $2 AND $3 AND kind <> 'acquire'`,
 		runID, from, seq, attempt+1); err != nil {
 		return false, err
