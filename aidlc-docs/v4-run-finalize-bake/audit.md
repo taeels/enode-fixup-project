@@ -616,3 +616,45 @@
 **Context**: Construction · U2 step-phase · 병합 단계
 
 ---
+## Construction · U2 `step-phase` 병합 · U3 `finalize` 착수
+**Timestamp**: 2026-09-25T11:44:43Z
+**User Input**: "병합한다 (권장)" (질문 — PR #62 의 CI 가 초록이다 (test · cross · bounded-demo). 경고 전용 린트는 39 건으로 main 과 같고 이 유닛이 고친 파일의 경고는 0 이다. main 에 병합할까)
+**AI Response**: #62 를 병합 커밋으로 합쳤다 (0c0370c · 2026-09-25T11:44:43Z). U2 step-phase 가 닫혔다. main 에서 unit/finalize 를 땄다 (upstream 은 지웠다 — push 때 origin/unit/finalize 로 건다). U3 의 Functional Design 을 시작한다 — 유닛 정의 3절 · 요구 FR-1 ~ FR-3 · services.md 1절 · components.md 3.1 · 3.8 · 5절 · component-methods.md 4.1 · 4.2 · 조각 정의 · 정본 ADR-075 §5 · §8 · §9 · §10 · 앞 두 유닛이 넘긴 일을 읽는다.
+**Context**: Construction · U2 병합 · U3 finalize Functional Design Step 1
+
+---
+## Construction · U3 `finalize` · Functional Design 계획과 물음
+**Timestamp**: 2026-09-25T11:55:31Z
+**User Input**: (없음 — 「병합한다 (권장)」에 이어 착수)
+**AI Response**: Functional Design Step 1 ~ 4. 코드를 먼저 읽었다 — 명령 단계의 수확이 effect 를 모르고 RecordDiff 와 전체 훑기를 늘 켠다(claim.go:691) · 수확의 ctx 가 임대를 모르고 예산이 없다 · 업로드가 파일을 통째로 읽고(claim.go:917) 모든 요청에 30초 제한이 있다(cmd/enode/main.go:206) · agent 단계는 로그를 수확 전에 올린다(claim.go:874) · 전체 훑기에 방문 수와 시간 상한이 없다(changed.go:69) · workspace.changed 가 produced 로 올라가고 목록이 비면 「no files changed」라고 쓴다(claim.go:1002) · overlay helper 가 요청을 하나씩 처리하고 수확을 context.Background() 로 돌아 Worker 의 ctx 로 멈출 수 없다(runc_overlay_linux.go:657 · :980) · 닫기가 runRoot 를 지워 upper 크기에 비례한다(:406) · 노드의 Step 이 Claimed 의 effect · budget · discover 를 아직 안 받는다 · 옛 Mediator 는 exited 에 405 가 아니라 404 를 준다. 계획과 물음 아홉을 냈다 — construction/plans/finalize-functional-design-plan.md. 1 두 예산이 덮는 구간(trash 전까지 닫기를 예산 밖에) · 2 예산을 넘겼을 때(overlay 에 마감 전달) · 3 종료 보고의 조건 · 자리 · 재전송 · 4 agent 가 완주 못 했을 때 · 5 명시 훑기의 상한 넷과 훑는 곳 · 6 진단의 자리와 workspace.changed · 7 바뀐 기본값의 안내 · 8 업로드 client 와 흘려 보내기 · 9 조각 1 의 기계 확인 모양. 권장은 모두 A. 표기 검사 exit 0 · 사내 이름 0.
+**Context**: Construction · U3 finalize · Functional Design Step 1 ~ 4. 답을 기다린다
+
+---
+## Construction · U3 `finalize` · Functional Design 물음 중 질문
+**Timestamp**: 2026-09-25T12:18:36Z
+**User Input**: "discover 가 뭐였더라 ?"
+**AI Response**: discover 를 설명했다 — contract-grammar 가 더한 계약 칸("discover": true · run · agent 단계만 · 값은 true 하나 · 상한은 노드가 정한다). 명령이 끝난 뒤 워크스페이스에서 이 단계가 만들거나 고친 파일을 훑어 목록을 내는 진단이다. 오늘은 모든 단계가 이것을 켠 채로 돌아 workspace.changed 를 내는데 FR-1 이 기본으로 끄고, 산출물 경로를 찾아야 하는 계약 작성자가 명시로 켜는 자리로 남긴다 (ADR-075 §8). 결과는 result 의 diagnostics 칸이고 produced 가 아니다. 지목 경로만 stat 하는 success_when.changed (ADR-037) 와 다르다. 계획의 물음 4 · 5 가 이것을 묻는다.
+**Context**: Construction · U3 finalize · Functional Design Step 4 (답을 기다리는 중의 질문)
+
+---
+## Construction · U3 `finalize` · Functional Design 산출물 · 승인 요청
+**Timestamp**: 2026-09-25T12:26:32Z
+**User Input**: "답했다" (계획 파일의 [Answer]: 1 ~ 9 모두 「A」)
+**AI Response**: 답 아홉을 확인했다 (Step 5). 답끼리 막는 자리가 없어 되물음 파일을 만들지 않았다. 산출물 셋을 construction/finalize/functional-design/ 에 냈다 — domain-entities.md(노드 Step 의 새 칸 셋 · FinalizeSpec 과 HarvestSpec 칸마다의 판정 · FinalizeResult · Discovery · Keep · 새 StepSession · 훑기 상한 상수 · 노드 Result 의 새 칸 여섯 · Client.Exited · exitReporter · exitOutcome · Job.Exited · Client.Upload · PutBlob 흘려 보내기 · BlobRejected · helper 요청 op finalize) · business-rules.md(effect 표 · 두 예산의 경계 · 넘었을 때 멈추는 것과 계속하는 것 · finalize · upload · reason · error 를 정하는 표와 영어 문구 · 종료 보고를 보내는 조건과 응답마다의 처리 · 명시 훑기의 곳과 상한 넷과 changes 값 · 진단 칸 · workspace.changed 를 없앰 · 단계 로그 끝 줄 · 바뀐 기본값 안내 · 업로드 규칙 · 경로마다 result 새 칸 표) · business-logic-model.md(명령 단계와 agent 단계의 흐름 · overlay 에서 마감을 지키는 법 · 종료 보고 goroutine · 업로드 · 옛 Mediator 와 옛 계약 · trash 전의 창 · 조각 1 · 2 · 3 의 확인 모양 · 순수 함수 목록 · 파일 행렬 밖 자리 · 다른 유닛에 넘기는 것 · 정본 되돌림). 설계가 더한 것 — native 에서 signal 로 죽은 명령은 종료 보고를 signal 로 보내되 result 는 오늘처럼 완주가 아님 · agent 에서 Finalize 오류가 업로드를 건너뛰지 않게 명령 단계와 같은 모양으로 · 조각 3 을 위해 Worker 에 예산 함수를 바꿔 끼우는 시험 자리(계약의 Finalize 예산은 1분 아래로 못 내린다). 검사 — 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0 · U+2605 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage (다음은 이 유닛의 NFR Requirements).
+**Context**: Construction · U3 finalize · Functional Design Step 5 ~ 7. 승인 대기
+
+---
+## Construction · U3 `finalize` · Functional Design 승인 요청 중 질문
+**Timestamp**: 2026-09-25T12:51:28Z
+**User Input**: "nfr 또 해?"
+**AI Response**: 권장은 건너뛰기라고 답했다. 유닛 정의가 NFR 에 맡긴 둘이 Functional Design 에서 이미 닫혔다 — 임대 창이 트리 크기와 무관한지는 물음 9 (go test 의 방문 0 과 300만 파일 스크립트)가 확인하고, N3 (업로드 예산과 요청의 관계 · 흘려 보내기의 상한)은 물음 8 (요청마다 제한 없는 client · 예산이 마감 · Mediator 가 상한+1 바이트에서 끊음)이 정했다. 남는 값 둘(30초에 훑는 항목 수 · helper 여유 5초)은 틀려도 부분 관찰이나 helper 를 조금 일찍 죽이는 것으로 끝나 안전한 쪽으로 틀린다. 그 둘은 Code Generation 계획에 측정 한 번으로 넣자고 제안했다 (step-phase 의 BenchmarkCandidatesFor 와 같은 방식). Functional Design 승인과 NFR 을 건너뛸지는 사용자의 답을 기다린다.
+**Context**: Construction · U3 finalize · Functional Design Step 7 (승인 대기 중의 질문)
+
+---
+## Construction · U3 `finalize` · Functional Design 승인 · NFR 건너뜀
+**Timestamp**: 2026-09-25T12:53:36Z
+**User Input**: "승인. nfr 건너뛴다."
+**AI Response**: Functional Design 을 승인으로 적었다. NFR Requirements 와 NFR Design 을 사용자 결정으로 건너뛴다 (실행 계획은 「한다 (최소)」였다 · U2 와 같은 결정). 유닛 정의가 NFR 에 맡긴 것 중 임대 창이 트리 크기와 무관한지(조각 1)와 업로드 예산과 요청의 관계 · 흘려 보내기의 상한(N3)은 Functional Design 의 답 9 · 8 이 닫았다. 남는 값 둘(30초에 훑는 항목 수 · helper 여유 5초)은 Code Generation 계획이 측정 자리로 받는다. Functional Design 산출물 셋 · 계획 · 상태 · 감사를 한 커밋으로 넣고 Code Generation Part 1 (계획)을 시작한다.
+**Context**: Construction · U3 finalize · Functional Design 승인 · NFR Requirements 와 NFR Design 건너뜀 · Code Generation Part 1 착수
+
+---
