@@ -110,7 +110,7 @@ func (s *Store) StepFiles(ctx context.Context, runID string) ([]record.StepFile,
 	rows, err := s.pool.Query(ctx, `
 		SELECT st.seq, st.name, st.uses, st.kind, coalesce(st.node_id,''),
 		       coalesce(n.label,''), st.state, st.started_at, st.ended_at, st.result,
-		       st.ledger_at
+		       st.ledger_at, coalesce(st.phase,''), st.phase_since, st.exit
 		  FROM steps st
 		  LEFT JOIN nodes n ON n.node_id = st.node_id
 		 WHERE st.run_id = $1 ORDER BY st.seq`, runID)
@@ -121,10 +121,10 @@ func (s *Store) StepFiles(ctx context.Context, runID string) ([]record.StepFile,
 	var out []record.StepFile
 	for rows.Next() {
 		var f record.StepFile
-		var started, ended *time.Time
-		var raw []byte
+		var started, ended, since *time.Time
+		var raw, exit []byte
 		if err := rows.Scan(&f.Seq, &f.Name, &f.Uses, &f.Kind, &f.Node, &f.NodeLabel,
-			&f.State, &started, &ended, &raw, &f.LedgerAt); err != nil {
+			&f.State, &started, &ended, &raw, &f.LedgerAt, &f.LastPhase, &since, &exit); err != nil {
 			return nil, err
 		}
 		f.StepID = stepID(runID, f.Seq)
@@ -134,11 +134,28 @@ func (s *Store) StepFiles(ctx context.Context, runID string) ([]record.StepFile,
 		if ended != nil {
 			f.EndedAt = ended.UTC().Format(time.RFC3339Nano)
 		}
+		// 명령이 끝난 시각은 result 가 나른 값이 먼저다. 없으면 종료 보고로 받은
+		// 값(phase_since)이다 — 종료 보고가 유실돼도 result 하나로 같은 사실이 남고
+		// (결정 1-9), result 를 못 보낸 채 끝나도 종료 보고가 남긴 것이 있다.
+		var exitedAt, finalizedAt *time.Time
 		if len(raw) > 0 {
 			var r StepResult
 			if err := json.Unmarshal(raw, &r); err == nil {
 				f.Result = r
+				exitedAt, finalizedAt = r.ExitedAt, r.FinalizedAt
 			}
+		}
+		if len(exit) > 0 {
+			f.Exit = json.RawMessage(exit)
+			if exitedAt == nil {
+				exitedAt = since
+			}
+		}
+		if exitedAt != nil {
+			f.ExitedAt = exitedAt.UTC().Format(time.RFC3339Nano)
+		}
+		if finalizedAt != nil {
+			f.FinalizedAt = finalizedAt.UTC().Format(time.RFC3339Nano)
 		}
 		out = append(out, f)
 	}

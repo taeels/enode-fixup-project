@@ -74,7 +74,8 @@ func (s *Store) loopBack(ctx context.Context, tx pgx.Tx, runID string, seq int,
 	// 고를 수 있게 하고, 획득 단계는 안 되돌린다 (임대가 살아 있다).
 	if _, err := tx.Exec(ctx, `
 		UPDATE steps SET state='PENDING', attempt=$4, result=NULL,
-		       started_at=NULL, ended_at=NULL, ledger_at=NULL
+		       started_at=NULL, ended_at=NULL, ledger_at=NULL,
+		       phase=NULL, phase_since=NULL, exit=NULL
 		 WHERE run_id=$1 AND seq BETWEEN $2 AND $3 AND kind <> 'acquire'`,
 		runID, from, seq, attempt+1); err != nil {
 		return false, err
@@ -128,7 +129,8 @@ func (s *Store) validateBack(ctx context.Context, tx pgx.Tx, runID string, seq i
 	for _, n := range []int{targetSeq, seq} {
 		if _, err := tx.Exec(ctx, `
 			UPDATE steps SET state='PENDING', attempt=$3, result=NULL,
-			       started_at=NULL, ended_at=NULL, ledger_at=NULL
+			       started_at=NULL, ended_at=NULL, ledger_at=NULL,
+			       phase=NULL, phase_since=NULL, exit=NULL
 			 WHERE run_id=$1 AND seq=$2`, runID, n, attempt+1); err != nil {
 			return false, err
 		}

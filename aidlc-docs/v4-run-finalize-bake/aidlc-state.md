@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U1 contract-grammar 의 Code Generation 완료 · 병합 대기 (브랜치 `unit/contract-grammar`). 다음은 U2 step-phase. Functional Design 승인 2026-09-25T05:03:44Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U2 step-phase 의 Code Generation 승인 2026-09-25T11:23:52Z · 병합 대기 (브랜치 `unit/step-phase` · main `9b40cd0` 에서 땄다). Functional Design 승인 2026-09-25T08:52:58Z · NFR 둘은 사용자 결정으로 건너뜀. U1 contract-grammar 는 PR #61 로 병합 2026-09-25T07:21:53Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -172,7 +172,31 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           Part 2 완료 2026-09-25T05:29:37Z — 단계 열넷 체크 · 코드 검사 초록 (통과 1,891 · 실패 0 ·
                           스킵 0 · 패키지 전부 80% 이상 · 크로스 빌드 셋).  요약은
                           construction/contract-grammar/code/code-summary.md.  승인 2026-09-25T05:45:28Z
-   병합                   코드 검사 초록.  회차 PR #60 이 main 에 병합된 뒤 (cff1035) main 으로 PR
+   병합                   회차 PR #60 (cff1035) 뒤 PR #61 로 main 에 병합 (9b40cd0 · 2026-09-25T07:21:09Z)
+```
+
+### U2 `step-phase` — 브랜치 `unit/step-phase` (`9b40cd0` 에서 땄다)
+
+```text
+   Functional Design      착수 2026-09-25T07:21:53Z.  U1 이 넘긴 일 하나를 받는다 — Claimed 에 계약의 새 칸 일곱.
+                          계획과 물음 일곱 2026-09-25T07:27:18Z — construction/plans/step-phase-functional-design-plan.md.
+                          답 2026-09-25T08:30:40Z — A · A · A · A · C · A · A.  답 5 = C 가 연 자리 넷을 되물음
+                          ...-clarification-questions.md 로 물었다.  답 모두 A (「모두 권장대로」).
+                          산출물 셋 2026-09-25T08:42:20Z — construction/step-phase/functional-design/.
+                          승인 2026-09-25T08:52:58Z (「승인한다. nfr 건너뛰고 다음으로.」)
+   NFR Requirements       건너뛴다 — 사용자 결정 2026-09-25T08:52:58Z.  실행 계획은 「한다 (최소)」였다.
+                          보려던 둘 중 종료 보고의 인스턴스 대조는 Functional Design 의 수락 표가 정했고,
+                          대기 조회마다 매칭 두 번의 비용은 Code Generation 계획이 시험 자리로 받는다
+   NFR Design             건너뛴다 (위와 같은 결정)
+   Code Generation        Part 1 착수 2026-09-25T08:52:58Z.  계획 — 단계 열여섯
+                          construction/plans/step-phase-code-generation-plan.md
+                          건너뛴 NFR 이 보려던 둘을 계획 3절이 받는다 · FD 에 없던 자리 다섯 (계획 4절).  승인 2026-09-25T09:32:03Z.
+                          Part 2 착수 2026-09-25T09:32:03Z.  완료 2026-09-25T09:48:09Z — 단계 열여섯 중 열다섯과 반 체크
+                          (커밋은 승인 뒤) · 코드 검사 초록 (통과 1,960 · 실패 0 · 스킵 0 · 패키지 전부 80% 이상 ·
+                          크로스 빌드 셋 · 린트 39 건 main 과 같음) · 조각 0 초록 (라우트 18 -> 19).
+                          대기 조회 비용 약 0.75 ms (광고 50 · 요구 줄 3).  요약은
+                          construction/step-phase/code/code-summary.md.  승인 2026-09-25T11:23:52Z (「승인」)
+   병합                   조각 0 이 초록이다.  unit/step-phase 를 올리고 main 으로 PR — 묻고 한다
 ```
 
 ## Stage Progress
@@ -187,11 +211,11 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Units Generation — 착수 2026-09-24T06:42:48Z. 계획 · 질문 넷 2026-09-24T06:50:29Z. 채팅 논의로 일곱이 닫힘 2026-09-24T09:50:00Z (Q1 A · Q2 A · Q3 A 순연 · Q4 B · Q7 A). 계획 승인 2026-09-24T12:14:10Z. 산출물 넷 2026-09-24T12:22:43Z · 승인 2026-09-24T12:31:50Z
 
 ### CONSTRUCTION PHASE
-- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z — 위 「Construction」 절
-- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소)
-- [ ] NFR Design — EXECUTE (유닛마다 · 최소)
+- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z — 위 「Construction」 절
+- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 · U2 는 건너뜀 (U1 유닛 정의 · U2 사용자 결정)
+- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 · U2 는 건너뜀
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE

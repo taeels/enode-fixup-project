@@ -85,6 +85,75 @@ func drainingIn(ctx context.Context, q querier) (map[string]bool, error) {
 	return out, rows.Err()
 }
 
+// Candidates 는 QUEUED 인 Run 의 요구 줄 하나에 대한 후보 수다 (US-7 · 완료 조건 4).
+//
+// 오늘은 「후보가 점유됐다」와 「후보가 drain 중이다」가 밖에서 같다 — 대기열 훑기가
+// drain 을 busy 에 합친다. 모르면 계약 작성자는 Mediator 가 멈춘 줄 알고 취소하고
+// 다시 낸다. 이 셋이 그 둘을 구별하게 한다.
+//
+// 배타로 센다 — live = busy + draining + (나머지). busy 를 먼저 센다. 점유된 노드는
+// drain 이 없어도 못 받으므로, draining > 0 이 곧 「drain 만 아니면 받을 수 있는
+// 노드가 있다」다. 나머지는 칸으로 내지 않는다 — ADR-065 가 기각한 free 다. 확인한
+// 뒤 행동하는 경쟁을 공식 표면으로 만든다. 셋 다 관측한 사실이고 배정 판정이 아니다.
+type Candidates struct {
+	Live     int `json:"live"`     // 그 요구를 만족하는 살아 있는 광고
+	Busy     int `json:"busy"`     // live 중 임대를 쥔 것 — 다른 Run 이 맡았다
+	Draining int `json:"draining"` // live 중 임대가 없는데 drain 이 걸린 것
+}
+
+// CandidatesFor 는 요구 줄마다 후보 수 셋과 그 셈의 DB 시각을 준다.
+//
+// 매처를 부르지 않는다 — match.Match 는 수를 돌려주지 않고 첫 실패에서 멈춘다.
+// 매처가 쓰는 판단 하나(Advert.Satisfies)를 빌릴 뿐이라 「관측 경로에서 매처를
+// 안 부른다」(ADR-065)는 그대로 참이다. 읽는 문장 셋은 대기열 훑기의 것 그대로다.
+//
+// 광고 · 임대 · drain 을 한 스냅샷에서 읽는다 (읽기 전용 REPEATABLE READ). now() 는
+// 트랜잭션 시작 시각이라 그 스냅샷과 같은 시점이다 — 관측 표면의 규칙 「목록과
+// 시각이 같은 시점에서 나온다」를 지킨다.
+//
+// 요구 줄마다 따로 센다. 한 노드가 두 줄을 만족하면 두 줄에 다 든다. 비용은 대기열
+// 훑기 한 번과 같다 — 세 표를 한 번씩 읽고 메모리에서 (줄 수 x 광고 수) 번 비교한다.
+func (s *Store) CandidatesFor(ctx context.Context, reqs []contract.Require) ([]Candidates, time.Time, error) {
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var at time.Time
+	if err := tx.QueryRow(ctx, `SELECT now()`).Scan(&at); err != nil {
+		return nil, time.Time{}, err
+	}
+	adverts, err := liveAdvertsIn(ctx, tx)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	busy, err := s.busyIn(ctx, tx)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	draining, err := drainingIn(ctx, tx)
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	out := make([]Candidates, len(reqs))
+	for i, r := range reqs {
+		for _, a := range adverts {
+			if !a.Satisfies(r) {
+				continue
+			}
+			out[i].Live++
+			switch {
+			case busy[a.NodeID]:
+				out[i].Busy++
+			case draining[a.NodeID]:
+				out[i].Draining++
+			}
+		}
+	}
+	return out, at, nil
+}
+
 // leaseTTL 은 승격이 발급하는 임대의 수명이다. 안 채워졌으면 설정 기본값과 같다.
 func (s *Store) leaseTTL() time.Duration {
 	if s.LeaseTTL > 0 {

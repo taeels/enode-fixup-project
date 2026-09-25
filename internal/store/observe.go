@@ -42,6 +42,19 @@ type StepView struct {
 	Chosen    bool       `json:"chosen"`
 	StartedAt *time.Time `json:"started_at,omitempty"`
 	EndedAt   *time.Time `json:"ended_at,omitempty"`
+	// Phase 와 PhaseSince 는 CLAIMED 안의 진행 구간이다 (ADR-075 결정 7).
+	// 단계가 CLAIMED 일 때만 싣는다 — 끝난 단계의 마지막 phase 는 Record 의
+	// last_phase 로 남는다.
+	//
+	// phase_since 는 phase 에 따라 시계가 바뀐다. running · waiting 은 Mediator
+	// 시계(claim 때 · started_at 과 같은 값)이고, finalizing 은 노드 시계(종료 보고의
+	// exited_at)다. finalizing 의 상한 「phase_since + finalize 예산 + upload 예산」을
+	// 노드가 자기 시계로 지키기 때문이다. 두 시계의 차이를 Mediator 가 고치지 않는다.
+	Phase      string     `json:"phase,omitempty"`
+	PhaseSince *time.Time `json:"phase_since,omitempty"`
+	// Exit 는 종료 보고가 나른 outcome 이다. 판정이 아니다. 있으면 상태와 무관하게
+	// 싣는다 — 끝난 단계에서도 「명령이 어떻게 끝났나」는 사실로 남는다.
+	Exit *contract.Outcome `json:"exit,omitempty"`
 }
 
 // Steps 는 그 Run 의 단계들을 순서대로 돌려준다 (ADR-025).
@@ -52,7 +65,7 @@ type StepView struct {
 func (s *Store) Steps(ctx context.Context, runID string) ([]StepView, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT seq, name, state, uses, coalesce(node_id,''), needs, attempt,
-		       chosen, started_at, ended_at
+		       chosen, started_at, ended_at, coalesce(phase,''), phase_since, exit
 		  FROM steps WHERE run_id = $1 ORDER BY seq`, runID)
 	if err != nil {
 		return nil, err
@@ -61,9 +74,19 @@ func (s *Store) Steps(ctx context.Context, runID string) ([]StepView, error) {
 	out := []StepView{}
 	for rows.Next() {
 		var v StepView
+		var exit []byte
 		if err := rows.Scan(&v.Seq, &v.ID, &v.State, &v.Uses, &v.Node, &v.Needs,
-			&v.Attempt, &v.Chosen, &v.StartedAt, &v.EndedAt); err != nil {
+			&v.Attempt, &v.Chosen, &v.StartedAt, &v.EndedAt, &v.Phase, &v.PhaseSince, &exit); err != nil {
 			return nil, err
+		}
+		if v.State != StepClaimed {
+			v.Phase, v.PhaseSince = "", nil
+		}
+		if len(exit) > 0 {
+			var o contract.Outcome
+			if json.Unmarshal(exit, &o) == nil {
+				v.Exit = &o
+			}
 		}
 		if v.Needs == nil {
 			v.Needs = []string{}
@@ -359,6 +382,10 @@ type RequireView struct {
 	// Attrs 는 비어도 {} 를 낸다. 키를 지우면 읽는 쪽이 기본값 규칙을
 	// 추측하고, 그것이 assigned 와 chosen 을 언제나 싣기로 한 이유와 같다.
 	Attrs map[string]string `json:"attrs"`
+	// Candidates 는 이 요구를 만족하는 노드가 몇이고 왜 못 받나다 (US-7).
+	// Run 이 QUEUED 일 때 GET /v1/runs/{id} 에서만 채운다 — 셈을 한 시각은 응답의
+	// candidates_at 이다. 목록과 제출 응답에는 안 싣는다.
+	Candidates *Candidates `json:"candidates,omitempty"`
 }
 
 // RequiresOf 는 계약의 요구를 관측 모양으로 옮긴다.
