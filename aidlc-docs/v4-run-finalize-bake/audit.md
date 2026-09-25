@@ -546,3 +546,38 @@
 **Context**: Construction · U1 contract-grammar · 병합 전 정리
 
 ---
+## Construction · U1 `contract-grammar` 병합 · U2 `step-phase` 착수
+**Timestamp**: 2026-09-25T07:21:53Z
+**User Input**: "그래" (질문 — PR #61 의 CI 가 초록이고 린트 경고가 main 과 같은 39 건이다. main 에 병합해도 되나)
+**AI Response**: #61 을 병합 커밋으로 합쳤다 (9b40cd0 · 2026-09-25T07:21:09Z). U1 contract-grammar 가 닫혔다. main 에서 unit/step-phase 를 땄다 (upstream 은 지웠다 — push 때 origin/unit/step-phase 로 건다). U2 의 Functional Design 을 시작한다 — 유닛 정의 2절과 Application Design 의 Mediator 절(components 3.3 ~ 3.5 · services 6절 · methods 7 · 8절)을 읽었고, 코드와 정본을 읽은 뒤 계획과 물음을 낸다. U1 이 넘긴 일 하나를 이 유닛이 받는다 — Claimed (internal/store/claim.go:66) 에 계약의 새 칸 일곱을 싣는다.
+**Context**: Construction · U1 병합 · U2 step-phase Functional Design Step 1
+
+---
+## Construction · U2 `step-phase` · Functional Design 계획과 물음
+**Timestamp**: 2026-09-25T07:27:18Z
+**User Input**: (없음 — 「그래」에 이어 착수)
+**AI Response**: Functional Design Step 1 ~ 4. 코드를 먼저 읽었다 — started_at · ended_at 은 Mediator 시계(claim.go:321 · :783) · 단계를 PENDING 으로 되돌리는 자리가 셋이고 파일 행렬에 없다(rollback.go:76 · :130 · ask.go:660) · result 는 본문의 node 로만 대조하고 노드는 임대가 죽을 때까지 재시도한다 · 봉인이 steps.result 를 StepResult 로 다시 풀어 없는 칸은 Record 에서 사라진다(seal.go:139) · match.Match 는 수를 돌려주지 않는다(match.go:100 · :118) · observe.go:85 의 「관측 경로에서 매처를 안 부른다(ADR-065)」 · Claimed 가 contract-grammar 의 새 칸을 아직 안 싣는다. 계획과 물음 일곱을 냈다 — construction/plans/step-phase-functional-design-plan.md. 1 종료 보고의 수락 표와 거절 코드 · 2 본문과 검사 · 3 두 시계 · 4 phase 전이와 종결 뒤에 남는 것 · 5 result 에 더하는 칸의 모양 · 6 QUEUED 후보 수 셋 · 7 Claimed 의 새 칸 일곱. 권장은 모두 A.
+**Context**: Construction · U2 step-phase · Functional Design Step 1 ~ 4. 답을 기다린다
+
+---
+## Construction · U2 `step-phase` · Functional Design 답 · 되물음
+**Timestamp**: 2026-09-25T08:30:40Z
+**User Input**: "답했다." (계획 파일의 [Answer]: 1 「A」 · 2 「A」 · 3 「A」 · 4 「A」 · 5 「C」 · 6 「A」 · 7 「A」)
+**AI Response**: 답 일곱을 확인했다 (Step 5). 답끼리 서로 막는 자리는 없다. 답 5 = C (result 의 새 칸 여덟을 이 유닛에서 모두 타입으로 정한다)가 정하지 않은 자리 넷을 찾았다 — 새 패키지 셋(lower · merge · scratch)은 Mediator 가 링크하지 않으므로 설계 스케치의 scratch.Capture · lower.BuildRecord 를 store.StepResult 가 그대로 쓸 수 없다(타입의 자리) · 유닛 정의의 여덟에는 changeset 이 없는데 설계 목록에는 있다 · MergeResult 는 설계 스케치가 없다 · 타입이 생기면 값 검사로 400 을 낼지. 되물음 파일(construction/plans/step-phase-functional-design-clarification-questions.md)에 물음 넷을 냈다 — 1 타입을 둘 패키지(권장 internal/contract 의 result.go — 노드와 Mediator 가 함께 가져오고 광고 어휘가 이미 거기 있다) · 2 changeset(권장 뺀다) · 3 안쪽 모양(권장 표 — 스케치는 그대로, MergeResult 는 ADR-077 §5 · §7 · §12 에서 뽑았다) · 4 값 검사(권장 하지 않는다).
+**Context**: Construction · U2 step-phase · Functional Design Step 5 (답 분석 · 되물음)
+
+---
+## Construction · U2 `step-phase` · Functional Design 산출물 · 승인 요청
+**Timestamp**: 2026-09-25T08:42:20Z
+**User Input**: "모두 권장대로" (되물음 넷 모두 A)
+**AI Response**: 되물음 파일의 [Answer] 넷에 A 를 적었다. 산출물 셋을 construction/step-phase/functional-design/ 에 냈다 — domain-entities.md(steps 의 새 칸 셋과 phase 어휘 · internal/contract/result.go 의 결과 어휘 — Exited · Outcome · Stage · 원인 코드 · Diagnostics · CheckpointCapture · BuildManifest · BuildRecord · Pinned · MergeResult · MergeOps · StepResult 의 새 칸 아홉 · StepView · Candidates · Claimed 의 새 칸 일곱 · Record 단계 기록의 새 칸 넷) · business-rules.md(종료 보고의 수락 표 열셋과 409 문구 · 본문 검사와 400 문구 · 칸마다의 시계 · phase 전이 표 · result 새 칸은 값으로 거절 안 함 · Record 칸의 출처 · 진행 조회에 싣는 조건 · 후보 수의 배타 정의 · Claimed) · business-logic-model.md(수락을 한 UPDATE 문장으로 · 0 행이면 분류만 · phase 의 한 생애 · 진행 조회 조립 · CandidatesFor 를 REPEATABLE READ 한 스냅샷에서 · result 에서 Record 까지 · 라우트와 조각 0 · 옛 노드와 옛 Mediator · 파일 행렬 밖 넷 · 다른 유닛에 넘기는 것 · 정본 되돌림). 설계가 더한 것 — 409 응답의 문구 · 200 응답의 accepted · 옛 Mediator 에서 404 · 405 면 노드가 그 Run 동안 다시 안 보냄(finalize 에 넘김). 코드를 확인해 고친 것 — 취소는 단계를 FAILED 로 닫는다(CANCELLED 가 아님) · 라우트 수를 세는 시험은 없다. 검사 — 표기 검사 exit 0 · U+2605 0 · 사용자가 싫어한 말투 0 · 사내 이름 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage (다음은 이 유닛의 NFR Requirements).
+**Context**: Construction · U2 step-phase · Functional Design Step 6 ~ 7. 승인 대기
+
+---
+## Construction · U2 `step-phase` · Functional Design 승인 · NFR 건너뜀
+**Timestamp**: 2026-09-25T08:52:58Z
+**User Input**: "승인한다. nfr 건너뛰고 다음으로."
+**AI Response**: Functional Design 을 승인으로 닫았다. NFR Requirements 와 NFR Design 을 사용자 결정으로 건너뛴다 — 실행 계획과 상태 파일은 이 유닛을 「한다 (최소)」로 적었었다. 그 둘이 보려던 것(종료 보고의 인스턴스 대조 · 대기 조회마다 매칭 두 번의 비용)은 Code Generation 계획이 받는다 — 앞의 것은 Functional Design 의 수락 표가 이미 정했고, 뒤의 것은 계획이 시험 자리로 적는다. 상태 파일을 고치고 Functional Design 산출물을 커밋한다. 다음은 Code Generation Part 1 (계획).
+**Context**: Construction · U2 step-phase · Functional Design 승인 · NFR Requirements · NFR Design 건너뜀
+
+---
