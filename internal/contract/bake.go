@@ -141,11 +141,20 @@ func buildName(n string) bool {
 		return false
 	}
 	for _, r := range n {
-		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') {
+		if !buildNameRune(r) {
 			return false
 		}
 	}
 	return true
+}
+
+func buildNameRune(r rune) bool {
+	return r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-'
+}
+
+func irRune(r rune) bool {
+	return r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' ||
+		r == '.' || r == '_' || r == '-' || r == '/'
 }
 
 // irProblem 은 ir 이 어긴 규칙 하나를 말한다. 어긴 것이 없으면 "" 다.
@@ -159,8 +168,7 @@ func irProblem(ir string) string {
 		return "it is longer than 128 characters"
 	}
 	for _, r := range ir {
-		if !(r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9' ||
-			r == '.' || r == '_' || r == '-' || r == '/') {
+		if !irRune(r) {
 			return fmt.Sprintf("%q is not allowed; use A-Z, a-z, 0-9, '.', '_', '-' and '/'", r)
 		}
 	}

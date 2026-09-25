@@ -96,6 +96,7 @@
 | `enodectl.exe` 심볼 | crypto/tls 1 · net/http 6 (상한 10 · 50) |
 | U+2605 · `go run ./scripts/glyphscan.go` | 0 · 134 파일에 장식 문자 0 |
 | 코드 경계 시험 `TestImportBoundaries` | 통과 |
+| `golangci-lint` v2.13.2 (CI 에서 경고 전용) | PR #61 의 첫 CI 가 39 건에서 42 건으로 늘었다 — 드모르간 둘(`bake.go`) · `reflect.Ptr` 하나(`bake_test.go`). 고쳐서 이 유닛이 더한 건수는 0 이다 |
 | `cmd/enodectl/probe.lock` | 측정이 바꿔 되돌렸다 (Reverse Engineering 이 적은 알려진 부채) |
 
 ---

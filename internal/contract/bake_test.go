@@ -320,7 +320,7 @@ func TestOtherFields_CoverEveryStepField(t *testing.T) {
 func setNonZero(t *testing.T, v reflect.Value) {
 	t.Helper()
 	switch v.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		v.Set(reflect.New(v.Type().Elem()))
 	case reflect.Slice:
 		v.Set(reflect.MakeSlice(v.Type(), 1, 1))

@@ -539,3 +539,10 @@
 **Context**: Construction · U1 contract-grammar · 병합 단계
 
 ---
+## Construction · U1 `contract-grammar` · PR #61 CI · 린트 경고 셋을 고침
+**Timestamp**: 2026-09-25T06:52:27Z
+**User Input**: (없음 — PR #61 의 CI 결과를 받아 이어서 했다)
+**AI Response**: PR #61 의 CI 가 초록이다 (bounded-demo · cross · test). 경고 전용 린트가 main 의 39 건에서 42 건으로 늘었다 — 이 유닛의 새 코드가 셋을 더했다: internal/contract/bake.go 의 드모르간 둘(QF1001)과 bake_test.go 의 reflect.Ptr 하나. 문자 판정을 함수 둘(buildNameRune · irRune)로 빼고 reflect.Pointer 로 바꿨다. 동작은 같고 시험이 그대로 지난다. 로컬 golangci-lint v2.13.2 로 두 패키지에 이 유닛의 경고 0 을 확인했다 (남은 넷은 기존 cmd/runctl 코드). 코드 요약 5절에 한 줄을 더했다. U1 의 병합은 묻는다.
+**Context**: Construction · U1 contract-grammar · 병합 전 정리
+
+---
