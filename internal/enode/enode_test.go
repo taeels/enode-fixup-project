@@ -111,25 +111,19 @@ func TestLockRejectsSecond(t *testing.T) {
 	again.Release()
 }
 
-// ADR-017 결정 3 — 여유공간은 매칭 조건이 아니라 광고 조건이다
-// "할 수 있는가" 는 노드가 판단하고, 못 하면 그 항목을 빼고 광고한다.
-func TestDetectDropsBuildWhenDiskLow(t *testing.T) {
+// 여유는 arch 키의 조건이 아니다 (trash 유닛 · business-rules.md 6.4)
+//
+// ADR-017 결정 3 은 여유가 모자라면 빌드 능력을 빼고 광고했다. 이제 여유가 모자라면
+// 노드 전체가 drain 으로 빠지므로(광고 주기 · drain_test.go) arch 키는 툴체인만 따른다.
+func TestDetectKeepsBuildWhenDiskLow(t *testing.T) {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	ws := t.TempDir()
 
-	l := Local{Workspace: ws, Arch: "armv7", MinFreeGB: 1}
+	// 임계값을 현실적으로 불가능하게 올려도 arch 키가 남는다
+	l := Local{Workspace: ws, Arch: "armv7", MinFreeGB: 1 << 20} // 1 PB
 	caps := Detect(context.Background(), l, log)
-	if len(caps) == 0 || caps[0].Attrs["arch"] != "armv7" {
-		t.Fatalf("with free space there must be a build capability: %+v", caps)
-	}
-
-	// 임계값을 현실적으로 불가능하게 올린다 → 빠져야 한다
-	l.MinFreeGB = 1 << 20 // 1 PB
-	caps = Detect(context.Background(), l, log)
-	for _, c := range caps {
-		if _, ok := c.Attrs["arch"]; ok {
-			t.Fatal("advertised a build capability with too little disk")
-		}
+	if len(caps) == 0 || caps[0].Attrs["arch"] != "armv7" || caps[0].Attrs[archPrefix+"armv7"] != "yes" {
+		t.Fatalf("the arch keys follow free disk: %+v", caps)
 	}
 }
 

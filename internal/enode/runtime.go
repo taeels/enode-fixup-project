@@ -98,8 +98,8 @@ type Discovery struct {
 	Skipped string    // 못 훑은 이유.  훑었으면 ""
 }
 
-// Keep 은 닫을 때 upper 의 행선지다. 이 유닛에서는 늘 비어 있다 — 쓰는 것은
-// trash (trash 로) · bake (대기 자리) · checkpoint (spool) 유닛이다.
+// Keep 은 닫을 때 upper 의 행선지다. 아직 늘 비어 있고, 비어 있으면 작업 폴더째 trash 로
+// 간다 (trash 유닛). 행선지를 쓰는 것은 bake (대기 자리) · checkpoint (spool) 유닛이다.
 type Keep struct {
 	Upper string // "" 면 버린다
 }
@@ -113,8 +113,9 @@ type StepSession interface {
 	Project(context.Context, FrameworkProjectionSpec) (FrameworkProjection, error)
 	Run(context.Context, ProcessSpec) (int, error)
 	Finalize(context.Context, FinalizeSpec) (FinalizeResult, error)
-	// Close 는 세션을 닫는다. ctx 는 이 유닛에서 받기만 한다 — 닫기는 trash 유닛이
-	// rename 으로 바꾸기 전까지 Finalize 예산 밖이다 (business-logic-model.md 7절).
+	// Close 는 세션을 닫는다. 닫기는 Finalize 예산 안이다 — runc-overlay 는 unmount 와 작업
+	// 폴더의 rename 한 번이다 (trash 유닛). ctx 로 끊지 않는다 — 반쯤 닫은 세션은 helper 와
+	// 마운트를 남긴다. 마감을 넘겼는지는 Worker 가 본다.
 	Close(context.Context, Keep) error
 	Environment() *execenv.Record
 }

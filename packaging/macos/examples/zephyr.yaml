@@ -21,4 +21,6 @@ workspace: /Users/여러분/zephyrproject/zephyr
 # 계약이 requires 에 적을 문자열이 이것이므로, 함대에서 한 벌로 통일 해야 한다.
 arch: arm-zephyr-eabi
 
+# 워크스페이스의 여유가 이 아래로 떨어지면 노드 전체가 drain 한다 (기본 10 GB).
+# 이 값 + 1 GB 를 되찾으면 풀린다.  빌드 능력(arch 키)은 여유와 무관하게 광고에 남는다.
 min_free_gb: 20

@@ -8,19 +8,32 @@ import (
 	"github.com/taeels/enode/internal/contract"
 	"github.com/taeels/enode/internal/enode"
 	"github.com/taeels/enode/internal/proc"
+	"github.com/taeels/enode/internal/scratch"
 )
 
 // State 는 화면이 읽는 값이다. 다섯 묶음이고 출처가 저마다 달라, 하나가 막혀도
 // 나머지는 채워진다 (business-rules §2).
 type State struct {
-	Node     string       `json:"node"`
-	Identity Identity     `json:"identity"`
-	Caps     CapsView     `json:"caps"`
-	Process  ProcView     `json:"process"`
-	Work     WorkView     `json:"work"`
-	Drain    string       `json:"drain"` // "" | graceful | at-boundary
-	Mediator MediatorView `json:"mediator"`
+	Node     string   `json:"node"`
+	Identity Identity `json:"identity"`
+	Caps     CapsView `json:"caps"`
+	Process  ProcView `json:"process"`
+	Work     WorkView `json:"work"`
+	Drain    string   `json:"drain"` // "" | graceful | at-boundary — 실린 값
+	// DrainSources 는 누가 건 drain 인가다 (완료 조건 1). DrainFrom 은 어디서 읽은 값인가 —
+	// "status" 는 데몬이 광고에 실은 값 · "policy" 는 정책 파일의 값이다.
+	DrainSources []enode.DrainSource `json:"drain_sources"`
+	DrainFrom    string              `json:"drain_from"`
+	// Scratch 는 곧 지워질 trash 의 양이다 (완료 조건 2). scratch 가 없는 노드는 없다.
+	Scratch  *scratch.Usage `json:"scratch,omitempty"`
+	Mediator MediatorView   `json:"mediator"`
 }
+
+// drain 칸의 출처 (business-rules.md 8.1).
+const (
+	drainFromStatus = "status"
+	drainFromPolicy = "policy"
+)
 
 type Identity struct {
 	NodeID    string `json:"node_id"`
@@ -82,10 +95,13 @@ func (s *Server) state(ctx context.Context) State {
 		Principal: s.ident.Principal,
 	}
 
-	// 탐지 능력 — 로컬 상태 파일. 없으면 「아직 모름」.
-	if status, err := enode.ReadStatus(s.cfg.ConfigPath); err == nil {
-		at := status.At
-		st.Caps = CapsView{Known: true, Caps: status.Caps, At: &at}
+	// 탐지 능력 · scratch 의 양 — 로컬 상태 파일. 없으면 「아직 모름」.
+	var status *enode.Status
+	if got, err := enode.ReadStatus(s.cfg.ConfigPath); err == nil {
+		status = &got
+		at := got.At
+		st.Caps = CapsView{Known: true, Caps: got.Caps, At: &at}
+		st.Scratch = got.Scratch
 	}
 
 	// 프로세스 — 로컬 잠금 파일 + proc.
@@ -93,10 +109,12 @@ func (s *Server) state(ctx context.Context) State {
 		st.Process = ProcView{Running: true, Pid: pid}
 	}
 
-	// drain — 로컬 정책 파일.
+	// drain — 데몬이 돌면 상태 파일(실린 값과 출처) · 아니면 로컬 정책 파일.
+	var policy *enode.Policy
 	if p, err := enode.ReadPolicyFile(s.cfg.ConfigPath); err == nil {
-		st.Drain = p.Drain
+		policy = &p
 	}
+	st.Drain, st.DrainSources, st.DrainFrom = drainView(st.Process.Running, status, policy)
 
 	// 현재 작업 · instance — Mediator 조회 (두 홉). 불통이면 로컬 묶음은 이미 섰다.
 	// 도달 여부는 「응답했나」다 — 멈춘 노드는 목록에 없어도 Mediator 는 살아 있다.
@@ -113,6 +131,26 @@ func (s *Server) state(ctx context.Context) State {
 		st.Mediator.LastResponse = &last
 	}
 	return st
+}
+
+// drainView 는 drain 칸을 정한다 (business-rules.md 8.1).
+//
+// 데몬이 돌고 상태 파일에 drain 칸이 있으면 데몬이 광고에 실은 값과 그 출처다 — 소유자가
+// 풀어도 여유 부족이 남아 노드가 빠져 있는 사실은 거기에만 있다. 아니면 오늘처럼 정책 파일의
+// 값이고 출처는 소유자 하나다. 데몬이 멈췄으면 광고가 없으므로 스스로 건 drain 도 없다.
+// 정책 파일을 못 읽었으면(nil) 빈 값이다.
+func drainView(running bool, status *enode.Status, policy *enode.Policy) (string, []enode.DrainSource, string) {
+	if running && status != nil && status.Drain != nil {
+		return status.Drain.Effective, status.Drain.Sources, drainFromStatus
+	}
+	if policy == nil {
+		return "", nil, drainFromPolicy
+	}
+	var sources []enode.DrainSource
+	if src, ok := enode.OwnerDrain(policy.Drain); ok {
+		sources = append(sources, src)
+	}
+	return policy.Drain, sources, drainFromPolicy
 }
 
 // thisNode 는 GET /v1/nodes 원문에서 이 노드의 행을 뽑는다.

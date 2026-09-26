@@ -353,6 +353,14 @@ func TestSettle(t *testing.T) {
 		{"the lease ended during upload", with(func(i *settleIn) {
 			i.upload, i.leaseEnded = contract.StageTimeout, true
 		}), contract.StageOK, contract.StageError, "", ""},
+		// 닫기는 Finalize 예산 안이다 (trash 유닛 · business-rules.md 2절)
+		{"closing ran past the deadline", with(func(i *settleIn) { i.closedLate = true }),
+			contract.StageTimeout, contract.StageOK, contract.ReasonFinalizeTimeout, "finalize budget of 1m0s exceeded"},
+		{"closing ran late but the lease ended", with(func(i *settleIn) { i.closedLate, i.leaseEnded = true, true }),
+			contract.StageOK, contract.StageOK, "", ""},
+		{"closing ran late after a finalize error", with(func(i *settleIn) {
+			i.finalizeErr, i.closedLate = errors.New("merged view is gone"), true
+		}), contract.StageError, contract.StageOK, "", "runtime finalize: merged view is gone"},
 	}
 	for _, c := range cases {
 		fin, up, reason, text := settle(c.in)

@@ -24,6 +24,7 @@ import (
 	"github.com/taeels/enode/internal/build"
 	"github.com/taeels/enode/internal/enode"
 	execenv "github.com/taeels/enode/internal/environment"
+	"github.com/taeels/enode/internal/scratch"
 )
 
 func main() { os.Exit(run()) }
@@ -46,6 +47,11 @@ func run() int {
 	// entrypoint다. 일반 flag/config 경로를 지나면 namespace protocol이 깨진다.
 	if len(os.Args) > 1 && os.Args[1] == "runtime-helper" {
 		return enode.RunRuncOverlayHelper(os.Stdin, os.Stdout, os.Stderr)
+	}
+	// trash-helper 도 같은 private entrypoint 다 — 배경 삭제자가 unshare 안에서 항목
+	// 하나를 지우려고 다시 실행한다 (ADR-076 §4.1).
+	if len(os.Args) > 1 && os.Args[1] == "trash-helper" {
+		return enode.RunTrashHelper(os.Args[2:], os.Stdout, os.Stderr)
 	}
 	// 하위 명령이 하나 있다 — `enode hook stop` (R5③ · R6).
 	// 훅을 별도 스크립트로 두지 않고 enode 자신이 되는 이유는 hook.go 에 적었다.
@@ -129,6 +135,8 @@ func run() int {
 	// manifest와 지금 host fact가 모두 ready여야 한다 (ADR-073).
 	var stepRuntime enode.StepRuntime
 	var runtimeRecord *execenv.Record
+	// scratchDir 는 runc-overlay 의 작업 폴더와 trash 의 자리다. native 노드는 없다.
+	var scratchDir string
 	if local.Environment != nil {
 		doc, binding, err := enode.LoadExecutionEnvironment(confPath, local)
 		if err != nil {
@@ -158,6 +166,7 @@ func run() int {
 				log.Error("cannot construct runc-overlay runtime", "err", err)
 				return 1
 			}
+			scratchDir = binding.Scratch
 		}
 	}
 	if *mediator != "" {
@@ -231,12 +240,17 @@ func run() int {
 	// 클라이언트도 둘이다 (ADR-029) — 롱폴에 짧은 타임아웃을 걸면
 	// 그 시간에 끊고 응답이 유실된다.
 	held := enode.NewHeld()
+	// 상태 파일의 칸을 한 자리에 모은다 — 광고 주기(능력 · drain)와 삭제자(scratch 의 양)가
+	// 다른 고루틴에서 같은 파일을 쓴다 (ADR-068 = A).
+	book := enode.NewStatusBook(ident.Config, log)
 
 	adv := &enode.Advertiser{
 		Client: client, Ident: ident, Every: *every, Log: log,
 		Caps:     det.Capabilities, // 여기서 탐지하지 않는다 (ADR-068)
 		OnLeases: held.Set,         // 응답이 임대의 갱신이자 취소 통보다 통째로 교체한다
 		Held:     held,             // 응답의 drain 을 Worker 에 나른다 (ADR-063 §4)
+		Local:    local,            // 여유가 min_free_gb 아래면 노드가 스스로 drain 한다
+		Status:   book,
 	}
 
 	// 떴다는 신호 — 첫 광고가 성공한 뒤 한 번 (docs/elastic-nodes.md §4.4).
@@ -282,17 +296,37 @@ func run() int {
 	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log,
 		Runtime: stepRuntime, RuntimeRecord: runtimeRecord}
 
+	// 단계가 남긴 작업 폴더를 지우는 자리 (ADR-076 §4.1) — runc-overlay 노드만 있다.
+	//
+	// 닫기는 작업 폴더를 trash 로 rename 한 번에 옮기기만 한다. 지우는 것은 보고 뒤의
+	// 삭제자다. 기동 청소가 먼저 죽은 데몬이 남긴 작업 폴더를 trash 로 옮기고, 삭제자는
+	// 곧바로 한 번 · 결과 보고 뒤마다 · 항목이 남아 있으면 10분마다 깬다. 배경에서 돈다 —
+	// 첫 광고는 삭제를 기다리지 않는다 (답 10 = A).
+	var deleter *scratch.Deleter
+	if scratchDir != "" {
+		enode.SweepOrphanSessions(scratchDir, log)
+		trash := scratch.TrashIn(scratchDir)
+		deleter = &scratch.Deleter{Trash: trash, Launch: enode.TrashLauncher(trash),
+			Changed: book.SetScratch, Log: log}
+		worker.AfterReport = deleter.Kick
+	}
+
 	// 고루틴이 셋이다 (ADR-016 의 둘에 ADR-068 이 하나를 더한다)
 	//   claim    롱폴 — 일을 기다린다. 서버가 대기 시간을 정한다
 	//   nodes    짧은 주기 — 살아 있다고 말하고 권한을 받는다
 	//   detect   자기 주기 — 비싼 탐지를 다시 돈다
 	// 셋을 가르는 논거가 같다 — 주기와 의미가 다른 일을 한 고루틴에 두면
-	// 느린 쪽이 빠른 쪽을 잡아먹는다.
+	// 느린 쪽이 빠른 쪽을 잡아먹는다. runc-overlay 노드는 넷째가 있다 —
+	//   trash    보고 뒤 · 항목이 남으면 10분 — 단계가 남긴 작업 폴더를 지운다
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go func() { defer wg.Done(); det.Run(ctx) }()
 	go func() { defer wg.Done(); adv.Run(ctx) }()
 	go func() { defer wg.Done(); worker.Run(ctx) }()
+	if deleter != nil {
+		wg.Add(1)
+		go func() { defer wg.Done(); deleter.Run(ctx) }()
+	}
 	wg.Wait()
 	log.Info("stopped")
 	return 0

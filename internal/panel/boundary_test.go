@@ -37,7 +37,7 @@ func TestImportBoundaries(t *testing.T) {
 		return false
 	}
 
-	// 금지 열두 줄. 표 하나라 줄을 더하는 것이 한 행이다.
+	// 금지 열네 줄. 표 하나라 줄을 더하는 것이 한 행이다.
 	//
 	// 오늘 넷이 자동으로 초록인 것이 쓸모없다는 뜻이 아니다 — 값은 나중에
 	// 누가 임포트를 더했을 때 빨개지는 데 있다.
@@ -54,6 +54,9 @@ func TestImportBoundaries(t *testing.T) {
 		{"internal/transcriptui", "internal/api"},
 		{"internal/transcriptui", "internal/store"},
 		{"internal/transcriptui", "internal/enode"},
+		// Mediator 는 노드 쪽 패키지를 링크하지 않는다 (trash 유닛 · business-rules.md 10절)
+		{"cmd/mediator", "internal/enode"},
+		{"cmd/mediator", "internal/scratch"},
 	} {
 		if has(deps(rule.from), rule.to) {
 			t.Errorf("%s must not import %s", rule.from, rule.to)
@@ -73,14 +76,34 @@ func TestImportBoundaries(t *testing.T) {
 	// 제어판과 현황판이 둘 다 그것을 임포트해 같은 바이트를 내므로, 잎이
 	// 아니면 두 화면이 그 의존을 통해 다시 붙는다. 위의 금지 넷은 이름을
 	// 아는 넷만 막고, 이 봉인이 「잎이다」를 실제로 잰다.
-	for _, sealed := range []string{"internal/transcript", "internal/transcriptui"} {
-		for _, dep := range strings.Split(deps(sealed), "\n") {
+	//
+	// internal/scratch 도 봉인이다 (trash 유닛) — 표준 라이브러리와 golang.org/x/sys 만
+	// 쓴다. trash 와 삭제의 규칙이 namespace 를 여는 쪽(internal/enode)과 광고를 모르게 한다.
+	for _, sealed := range []struct {
+		pkg   string
+		allow []string // 표준 라이브러리 밖에서 허용하는 모듈 경로의 머리
+	}{
+		{"internal/transcript", nil},
+		{"internal/transcriptui", nil},
+		{"internal/scratch", []string{"golang.org/x/sys/"}},
+	} {
+	deps:
+		for _, dep := range strings.Split(deps(sealed.pkg), "\n") {
 			dep = strings.TrimSpace(dep)
-			if dep == "" || dep == mod+sealed {
+			if dep == "" || dep == mod+sealed.pkg {
 				continue
 			}
+			for _, prefix := range sealed.allow {
+				if strings.HasPrefix(dep, prefix) {
+					continue deps
+				}
+			}
 			if first, _, _ := strings.Cut(dep, "/"); strings.Contains(first, ".") {
-				t.Errorf("%s must depend on the standard library only, but it imports %s", sealed, dep)
+				if sealed.allow == nil {
+					t.Errorf("%s must depend on the standard library only, but it imports %s", sealed.pkg, dep)
+				} else {
+					t.Errorf("%s must depend on the standard library and %v only, but it imports %s", sealed.pkg, sealed.allow, dep)
+				}
 			}
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"time"
 
@@ -121,15 +122,24 @@ type Advertiser struct {
 	// nil 이면 안 나른다 — 정책을 모르는 호출자는 오늘 그대로 돈다.
 	Held *Held
 
+	// Local 은 여유 부족 drain 의 재료다 — 워크스페이스와 min_free_gb (trash 유닛 · ADR-063 §4).
+	// 워크스페이스가 없으면 여유를 안 보고 걸지 않는다.
+	Local Local
+
+	// Status 는 상태 파일의 칸을 모으는 자리다 (ADR-068 = A). 삭제자도 같은 것에 쓴다.
+	// nil 이면 첫 광고에서 스스로 만든다 — 설정 경로가 있을 때만.
+	Status *StatusBook
+
 	// policy 는 광고 직전마다 읽는 정책 파일이다. 비어 있으면 첫 광고에서
 	// Ident.Config 옆의 파일로 만든다 — 설정이 없는 시험은 안 읽는다.
 	policy *policyReader
 
-	// lastStatusAt 는 상태 파일에 마지막으로 쓴 탐지 시각이다 (ADR-068 = A).
-	// At 이 바뀔 때만 쓴다 — 광고 주기(60초)와 탐지 주기(5분)가 달라 매 광고
-	// 쓰기는 같은 값의 낭비다. statusWarn 은 쓰기 실패를 원인이 바뀔 때만 찍는다.
-	lastStatusAt time.Time
-	statusWarn   string
+	// free 는 여유를 재는 자리다. nil 이면 freeBytes. 시험이 바꿔 끼운다.
+	free func(path string) (uint64, error)
+	// diskHeld 는 앞 광고에서 여유 부족 drain 을 걸었나다 — 거는 선과 푸는 선이 다르다.
+	diskHeld bool
+	// diskWarn 은 여유를 못 잰 원인이다. 바뀔 때만 적는다.
+	diskWarn string
 
 	// OnReady 는 첫 광고가 성공한 뒤 한 번 불린다 (탄력 노드).
 	//
@@ -162,25 +172,27 @@ func (a *Advertiser) Run(ctx context.Context) {
 		case <-t.C:
 		}
 
-		// 매번 전부 보낸다 — 보드가 빠지거나 디스크가 차면 그 항목이
-		// 빠진 채로 나가고, 그것이 곧 "지금은 못 한다" 다 (ADR-017 결정 3).
+		// 매번 전부 보낸다 — 보드가 빠지면 그 항목이 빠진 채로 나가고, 그것이
+		// 곧 "지금은 못 한다" 다 (ADR-017 결정 3).
 		//
 		// 보내는 규칙은 그대로이고 알아내는 자리만 옮겼다 (ADR-068).
-		// 디스크처럼 값싼 것은 Caps 안에서 지금 새로 보므로, 빌드가 도는
-		// 동안 디스크가 차면 다음 광고에서 바로 빠진다.
+		// 디스크 여유는 능력이 아니라 drain 이다 (trash 유닛) — 광고마다 새로 재서,
+		// 빌드가 도는 동안 디스크가 차면 다음 광고에서 노드 전체가 빠진다.
 		snap := a.Caps()
-		// 제어판이 읽을 상태 파일에 탐지 능력과 시각을 남긴다 (ADR-068 = A).
-		// 광고 경로 옆에 두는 것은 여기서 snap 을 이미 들기 때문이다 — 못 써도
+		drain := a.drain(time.Now())
+		// 제어판이 읽을 상태 파일에 탐지 능력과 drain 의 출처를 남긴다 (ADR-068 = A).
+		// 광고 경로 옆에 두는 것은 여기서 둘을 이미 들기 때문이다 — 못 써도
 		// 막지 않는다. 능력은 광고가 이미 진다.
-		a.writeStatus(snap)
+		a.status().SetCaps(snap)
+		a.status().SetDrain(drain)
 		ad := contract.Advert{
 			NodeID:       a.Ident.NodeID,
 			Label:        a.Ident.Label,
 			Instance:     a.Client.Instance, // 이번 생 (ADR-030)
 			Capabilities: snap.Caps,
-			// 소유자 정책은 광고 직전에 파일에서 읽는다 (ADR-063 §4) — 정본이 파일이다.
-			// 안 걸렸으면 제로값이라 policy 키가 안 나간다 (omitzero).
-			Policy: a.readPolicy(),
+			// 출처를 합친 값 하나만 싣는다 (business-rules.md 6.3). 안 걸렸으면 제로값이라
+			// policy 키가 안 나간다 (omitzero).
+			Policy: contract.Policy{Drain: drain.Effective},
 		}
 		resp, err := a.Client.Advertise(ctx, ad)
 		switch {
@@ -235,23 +247,61 @@ func (a *Advertiser) readPolicy() contract.Policy {
 	return a.policy.Read()
 }
 
-// writeStatus 는 상태 파일에 탐지 능력을 남긴다 (ADR-068 = A · 제어판이 읽는다).
-//
-// At 이 지난 쓰기와 같으면 안 쓴다. 설정 경로가 없으면(시험) 안 쓴다. 쓰기가
-// 실패해도 막지 않는다 — 능력은 광고가 이미 진다. 원인이 바뀔 때만 경고한다
-// (policy.go 의 warn 규약과 같다 — 5초마다 같은 줄이 쌓이지 않게).
-func (a *Advertiser) writeStatus(snap Capabilities) {
-	if a.Ident.Config == "" || snap.At.Equal(a.lastStatusAt) {
-		return
+// status 는 상태 파일의 자리다. 설정 경로가 없으면(시험) nil 이고 nil 은 아무것도 안 쓴다.
+func (a *Advertiser) status() *StatusBook {
+	if a.Status == nil && a.Ident.Config != "" {
+		a.Status = NewStatusBook(a.Ident.Config, a.Log)
 	}
-	if err := WriteStatus(a.Ident.Config, snap); err != nil {
-		if reason := err.Error(); reason != a.statusWarn {
-			a.statusWarn = reason
-			a.Log.Warn("cannot write the status file; the panel will show capabilities as unknown",
-				"path", StatusPath(a.Ident.Config), "err", reason)
+	return a.Status
+}
+
+// drain 은 이번 광고에 실을 drain 과 그 출처다 (business-logic-model.md 4절). 소유자 출처는
+// 정책 파일에서 · 여유 부족 출처는 워크스페이스의 여유에서 온다. 합친 값은 센 쪽 하나다.
+func (a *Advertiser) drain(now time.Time) DrainStatus {
+	var sources []DrainSource
+	if src, ok := OwnerDrain(a.readPolicy().Drain); ok {
+		sources = append(sources, src)
+	}
+	if src, ok := a.diskSource(); ok {
+		sources = append(sources, src)
+	}
+	return DrainStatus{Effective: combineDrain(sources), Sources: sources, At: now.UTC()}
+}
+
+// diskSource 는 여유 부족 출처다 (business-rules.md 6.1 · 6.2). 워크스페이스가 없으면 안 잰다.
+// 못 재면 넉넉한 것으로 치고 원인이 바뀔 때만 적는다. 걸기와 풀기가 바뀌면 로그 한 줄이다.
+func (a *Advertiser) diskSource() (DrainSource, bool) {
+	path := a.Local.Workspace
+	if path == "" {
+		return DrainSource{}, false
+	}
+	measure := a.free
+	if measure == nil {
+		measure = freeBytes
+	}
+	free, err := measure(path)
+	measured := err == nil
+	if err != nil {
+		if reason := err.Error(); reason != a.diskWarn {
+			a.diskWarn = reason
+			a.Log.Warn("cannot measure free disk; assuming enough", "path", path, "err", err)
 		}
-		return
+		free = math.MaxUint64
+	} else {
+		a.diskWarn = ""
 	}
-	a.statusWarn = ""
-	a.lastStatusAt = snap.At
+	src, ok := diskDrain(free, a.Local.MinFreeGB, a.diskHeld)
+	if ok != a.diskHeld {
+		a.diskHeld = ok
+		var freeGB any = "unknown"
+		if measured {
+			freeGB = free / (1 << 30)
+		}
+		if ok {
+			a.Log.Warn("free disk below min_free_gb; draining this node", "free_gb", freeGB, "min_gb", a.Local.MinFreeGB)
+		} else {
+			a.Log.Info("free disk recovered; lifting the disk drain", "free_gb", freeGB, "min_gb", a.Local.MinFreeGB)
+		}
+	}
+	return src, ok
 }

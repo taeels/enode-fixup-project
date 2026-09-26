@@ -16,6 +16,7 @@ import (
 	"github.com/taeels/enode/internal/contract"
 	"github.com/taeels/enode/internal/enode"
 	"github.com/taeels/enode/internal/runctl"
+	"github.com/taeels/enode/internal/scratch"
 	"github.com/taeels/enode/internal/transcriptui"
 )
 
@@ -95,7 +96,7 @@ func TestStateReadsLocalAndMediator(t *testing.T) {
 	s := testServer(t, med, "node-xyz")
 
 	// local status file
-	if err := enode.WriteStatus(s.cfg.ConfigPath, enode.Capabilities{
+	if err := enode.WriteStatus(s.cfg.ConfigPath, enode.Status{
 		Caps: []contract.Capability{{Capability: "agent.reason", Attrs: map[string]string{"harness": "claude"}}},
 		At:   time.Now(),
 	}); err != nil {
@@ -383,6 +384,88 @@ func TestHandleIndexServesButtons(t *testing.T) {
 		if !strings.Contains(b, want) {
 			t.Errorf("index page missing %q", want)
 		}
+	}
+}
+
+// drain 칸의 네 경우 (business-rules.md 8.1) — 소유자만 · 여유 부족만 · 둘 다 · 데몬이 안 돎.
+func TestDrainViewShowsWhoDrainedTheNode(t *testing.T) {
+	owner, _ := enode.OwnerDrain(contract.DrainAtBoundary)
+	disk := enode.DrainSource{Kind: enode.DrainDisk, Mode: contract.DrainGraceful, Detail: "free 7 GB < min 10 GB"}
+	status := func(effective string, sources ...enode.DrainSource) *enode.Status {
+		return &enode.Status{Drain: &enode.DrainStatus{Effective: effective, Sources: sources}}
+	}
+	policy := &enode.Policy{Drain: contract.DrainAtBoundary}
+	cases := []struct {
+		name    string
+		running bool
+		status  *enode.Status
+		policy  *enode.Policy
+		drain   string
+		kinds   []string
+		from    string
+	}{
+		{"owner only", true, status(contract.DrainAtBoundary, owner), policy, contract.DrainAtBoundary, []string{enode.DrainOwner}, drainFromStatus},
+		{"disk only", true, status(contract.DrainGraceful, disk), &enode.Policy{}, contract.DrainGraceful, []string{enode.DrainDisk}, drainFromStatus},
+		{"both", true, status(contract.DrainAtBoundary, owner, disk), policy, contract.DrainAtBoundary, []string{enode.DrainOwner, enode.DrainDisk}, drainFromStatus},
+		// 데몬이 멈췄다 — 상태 파일에 옛 drain 이 남아 있어도 정책 파일의 값이다
+		{"daemon stopped", false, status(contract.DrainGraceful, disk), policy, contract.DrainAtBoundary, []string{enode.DrainOwner}, drainFromPolicy},
+		// 옛 데몬 — 상태 파일에 drain 칸이 없다
+		{"old daemon", true, &enode.Status{}, &enode.Policy{}, "", nil, drainFromPolicy},
+		{"policy unreadable", false, nil, nil, "", nil, drainFromPolicy},
+	}
+	for _, c := range cases {
+		drain, sources, from := drainView(c.running, c.status, c.policy)
+		var kinds []string
+		for _, src := range sources {
+			kinds = append(kinds, src.Kind)
+		}
+		if drain != c.drain || from != c.from || strings.Join(kinds, ",") != strings.Join(c.kinds, ",") {
+			t.Errorf("%s: drain %q sources %v from %q, want %q %v %q", c.name, drain, kinds, from, c.drain, c.kinds, c.from)
+		}
+	}
+}
+
+// 상태 파일의 scratch 칸이 State 에 실리고, 데몬이 안 돌면 drain 은 정책 파일에서 온다.
+func TestStateCarriesTheTrashUsage(t *testing.T) {
+	s := testServer(t, nil, "node-xyz")
+	at := time.Now().UTC().Truncate(time.Second)
+	usage := scratch.Usage{TrashBytes: 9 << 30, TrashEntries: 2, TrashUnsized: 1, Deleting: true, MeasuredAt: at}
+	disk := enode.DrainSource{Kind: enode.DrainDisk, Mode: contract.DrainGraceful, Detail: "free 7 GB < min 10 GB"}
+	if err := enode.WriteStatus(s.cfg.ConfigPath, enode.Status{At: at, Scratch: &usage,
+		Drain: &enode.DrainStatus{Effective: contract.DrainGraceful, Sources: []enode.DrainSource{disk}, At: at}}); err != nil {
+		t.Fatal(err)
+	}
+	st := s.state(context.Background())
+	if st.Scratch == nil || st.Scratch.TrashBytes != usage.TrashBytes || st.Scratch.TrashUnsized != 1 || !st.Scratch.Deleting {
+		t.Fatalf("scratch = %+v", st.Scratch)
+	}
+	if st.DrainFrom != drainFromPolicy || st.Drain != "" || len(st.DrainSources) != 0 {
+		t.Fatalf("a stopped daemon's disk drain leaked into the view: %q %+v %q", st.Drain, st.DrainSources, st.DrainFrom)
+	}
+	b, err := json.Marshal(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"drain_from":"policy"`, `"trash_bytes":9663676416`, `"trash_unsized":1`, `"deleting":true`} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("state JSON lacks %s: %s", want, b)
+		}
+	}
+}
+
+// 화면이 출처 줄 · 누가 풀 수 있나 · 남은 출처 문구 · trash 줄을 그린다.
+func TestIndexDrawsDrainSourcesAndTrash(t *testing.T) {
+	for _, want := range []string{
+		"drain_sources", "소유자 정책", "여유 부족", "여기서 풀 수 있다",
+		"저절로 풀린다 — trash 가 비거나 디스크가 늘면", "drain 이 남아 노드는 빠져 있다",
+		"if(owner){", "개는 크기 모름", "지우는 중", "GiB", "drain_from",
+	} {
+		if !strings.Contains(indexHTML, want) {
+			t.Errorf("index page missing %q", want)
+		}
+	}
+	if strings.Contains(indexHTML, "소유자가 풀어야 후보로 돌아온다") {
+		t.Error("the page still says only the owner can lift the drain")
 	}
 }
 

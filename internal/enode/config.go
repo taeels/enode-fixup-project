@@ -91,8 +91,9 @@ type Local struct {
 	// 시험용 스텁을 가리키게 할 수 있다.
 	HarnessBin string `yaml:"harness_bin,omitempty"`
 
-	// 이 값 아래로 떨어지면 빌드 능력을 광고에서 뺀다 (ADR-017 결정 3).
-	// 매칭 조건이 아니라 광고 조건이다 — "할 수 있는가" 는 노드가 판단한다.
+	// 워크스페이스의 여유가 이 아래로 떨어지면 노드 전체가 drain 한다 (trash 유닛 ·
+	// ADR-063 §4). 이 값 + 1 GB 를 되찾으면 풀린다. 매칭 조건이 아니라 광고 조건이다 —
+	// "할 수 있는가" 는 노드가 판단한다 (ADR-017 결정 3). arch 키는 여유와 무관하다.
 	MinFreeGB int `yaml:"min_free_gb,omitempty"`
 
 	// Environment는 공유 profile과 이 node의 로컬 store/scratch binding이다.

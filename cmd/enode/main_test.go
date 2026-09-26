@@ -204,6 +204,24 @@ func TestRun_SetupIsReachedBeforeAnyConfigIsLooked(t *testing.T) {
 	}
 }
 
+func TestRun_TrashHelperIsReachedBeforeAnyConfigIsLooked(t *testing.T) {
+	// trash-helper 는 배경 삭제자가 unshare 안에서 다시 실행하는 private entrypoint 다
+	// (main.go). 설정 검색이나 플래그 파싱을 지나면 줄 프로토콜이 깨진다. 인자 없이 부르면
+	// 그 자리에서 1 로 끝나고, 설정을 찾았다는 흔적이 없어야 한다.
+	isolateNode(t)
+	noSystemNodeConfig(t)
+	code, stdout, stderr := callRun(t, "trash-helper")
+	if code != 1 {
+		t.Fatalf("exit code contract: enode trash-helper without arguments = %d, want 1; stderr %q", code, stderr)
+	}
+	if strings.Contains(stderr, "no config file found") {
+		t.Fatalf("trash-helper went through the config search: %q", stderr)
+	}
+	if !strings.Contains(stdout+stderr, "trash-helper") && !strings.Contains(stderr, "only available on linux") {
+		t.Fatalf("trash-helper said neither its usage nor its platform: stdout %q stderr %q", stdout, stderr)
+	}
+}
+
 func TestRun_NoConfig_NamesEveryPlaceItLookedAndExitsOne(t *testing.T) {
 	// ADR-015 §2 - 설정 파일이 곧 신원이다. 못 찾았을 때 어디를 봤는지
 	// 말하지 않으면 사람이 엉뚱한 경로를 들여다본다.

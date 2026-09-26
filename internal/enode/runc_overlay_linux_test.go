@@ -17,6 +17,7 @@ import (
 	"time"
 
 	execenv "github.com/taeels/enode/internal/environment"
+	"github.com/taeels/enode/internal/scratch"
 )
 
 func TestRuntimeProtocolHelperProcess(t *testing.T) {
@@ -36,6 +37,10 @@ func TestRuntimeProtocolHelperProcess(t *testing.T) {
 		}
 		switch request.Op {
 		case "open":
+			if os.Getenv("ENODE_TEST_RUNTIME_MODE") == "refuse" {
+				_ = encoder.Encode(runtimeWireResponse{Op: "opened", Error: "prepared rootfs target /work is missing"})
+				continue
+			}
 			_ = encoder.Encode(runtimeWireResponse{Op: "opened"})
 		case "project":
 			_ = encoder.Encode(runtimeWireResponse{Op: "projected"})
@@ -95,7 +100,8 @@ func protocolTestRuntime(t *testing.T, mode string) (*RuncOverlayRuntime, Runtim
 	}}
 	binding := execenv.Binding{Scratch: filepath.Join(root, "scratch"), Workspace: filepath.Join(root, "workspace")}
 	runtimeImpl := &RuncOverlayRuntime{doc: doc, binding: binding,
-		manifest: execenv.Manifest{Profile: execenv.ManifestProfile{SHA256: doc.SHA256}}, rootfs: rootfs}
+		manifest: execenv.Manifest{Profile: execenv.ManifestProfile{SHA256: doc.SHA256}}, rootfs: rootfs,
+		trash: scratch.TrashIn(binding.Scratch)}
 	runtimeImpl.command = func() *exec.Cmd {
 		cmd := exec.Command(os.Args[0], "-test.run=^TestRuntimeProtocolHelperProcess$")
 		cmd.Env = append(os.Environ(), "ENODE_TEST_RUNTIME_HELPER=1", "ENODE_TEST_RUNTIME_MODE="+mode)
@@ -178,7 +184,7 @@ func TestRuncOverlaySessionCancellationUsesTheHelperProtocol(t *testing.T) {
 }
 
 // 마감이 지나고 helperGrace 가 지나도 답하지 않는 helper 는 죽인다. 그 뒤의 닫기는
-// helper 에 말하지 않고 runRoot 만 지운다 (business-logic-model.md 3절).
+// helper 에 말하지 않는다. 작업 폴더는 abort 가 trash 로 옮겼다 (business-rules.md 1절 ③).
 func TestRuncOverlayFinalizeAbortsAHelperThatDoesNotAnswer(t *testing.T) {
 	grace := helperGrace
 	helperGrace = 20 * time.Millisecond
@@ -202,9 +208,7 @@ func TestRuncOverlayFinalizeAbortsAHelperThatDoesNotAnswer(t *testing.T) {
 	if err := session.Close(context.Background(), Keep{}); err != nil {
 		t.Fatalf("close after abort failed: %v", err)
 	}
-	if _, err := os.Stat(runRoot); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("runRoot survived the abort: %v", err)
-	}
+	assertInTrash(t, runtimeImpl, runRoot)
 }
 
 // helper 가 제 마감에 멈춰 답하면 모은 것은 남기고 마감으로 돌려준다.
@@ -424,9 +428,11 @@ func TestRuntimeHelperWritersAndValidation(t *testing.T) {
 	}
 }
 
-func TestRuntimeHelperCleanupIsIdempotent(t *testing.T) {
+// helper 의 cleanup 은 unmount 만 한다. 작업 폴더는 밖의 rename 이 trash 로 옮긴다
+// (business-rules.md 1절 ④) — 부모가 죽어 최종 방어 경로로 불려도 지우지 않는다.
+func TestRuntimeHelperCleanupIsIdempotentAndRemovesNothing(t *testing.T) {
 	runRoot := filepath.Join(t.TempDir(), "run")
-	if err := os.MkdirAll(runRoot, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(runRoot, "upper"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	h := &overlayRuntimeHelper{open: &runtimeWireOpen{RunRoot: runRoot}}
@@ -436,8 +442,134 @@ func TestRuntimeHelperCleanupIsIdempotent(t *testing.T) {
 	if err := h.cleanup(); err != nil {
 		t.Fatalf("second cleanup failed: %v", err)
 	}
-	if _, err := os.Stat(runRoot); !os.IsNotExist(err) {
-		t.Fatalf("runtime scratch remains: %v", err)
+	if _, err := os.Stat(filepath.Join(runRoot, "upper")); err != nil {
+		t.Fatalf("the helper removed the runtime scratch: %v", err)
+	}
+}
+
+// assertInTrash 는 작업 폴더가 원래 자리에 없고 trash 에 같은 이름으로 있으며 잠금이 풀렸는지 본다.
+func assertInTrash(t *testing.T, r *RuncOverlayRuntime, runRoot string) {
+	t.Helper()
+	if _, err := os.Stat(runRoot); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the work folder is still in scratch: %v", err)
+	}
+	moved := filepath.Join(r.trash.Dir, filepath.Base(runRoot))
+	if _, err := os.Stat(filepath.Join(moved, scratch.SessionLockName)); err != nil {
+		t.Fatalf("the work folder is not in trash with its lock file: %v", err)
+	}
+	lock, err := scratch.HoldSession(moved)
+	if err != nil {
+		t.Fatalf("the session lock was not released: %v", err)
+	}
+	_ = lock.Release()
+}
+
+// sessions 는 scratch 에 남은 작업 폴더다 — 실패한 Open 뒤에는 없어야 한다.
+func sessions(t *testing.T, r *RuncOverlayRuntime) []string {
+	t.Helper()
+	matches, err := filepath.Glob(filepath.Join(r.binding.Scratch, runcSessionPrefix+"*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return matches
+}
+
+// 보통 닫기 — helper 를 닫은 뒤 작업 폴더가 trash 로 가고 잠금이 풀린다. 연 동안에는 잠금을
+// 쥐고 있어 기동 청소가 남은 것으로 보지 않는다.
+func TestRuncOverlayCloseMovesTheSessionToTrash(t *testing.T) {
+	runtimeImpl, spec, _ := protocolTestRuntime(t, "")
+	session, err := runtimeImpl.Open(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runRoot := session.(*runcOverlaySession).runRoot
+	if !strings.HasPrefix(filepath.Base(runRoot), runcSessionPrefix) {
+		t.Fatalf("run root %s", runRoot)
+	}
+	orphans, _, err := scratch.Orphans(runtimeImpl.binding.Scratch, runcSessionPrefix, time.Now().Add(2*time.Hour))
+	if err != nil || len(orphans) != 0 {
+		t.Fatalf("an open session looks orphaned: %v %v", orphans, err)
+	}
+	if err := session.Close(context.Background(), Keep{}); err != nil {
+		t.Fatal(err)
+	}
+	assertInTrash(t, runtimeImpl, runRoot)
+}
+
+// Open 의 실패 갈래도 trash 로 간다 — helper 가 open 을 거절했을 때 · helper 를 띄우기 전에.
+func TestRuncOverlayOpenFailuresMoveTheSessionToTrash(t *testing.T) {
+	t.Run("helper refuses", func(t *testing.T) {
+		runtimeImpl, spec, _ := protocolTestRuntime(t, "refuse")
+		_, err := runtimeImpl.Open(context.Background(), spec)
+		if err == nil || !strings.Contains(err.Error(), "open runtime namespace: prepared rootfs target") {
+			t.Fatalf("err = %v", err)
+		}
+		if left := sessions(t, runtimeImpl); len(left) != 0 {
+			t.Fatalf("scratch still holds %v", left)
+		}
+		names, _ := runtimeImpl.trash.Entries()
+		if len(names) != 1 {
+			t.Fatalf("trash = %v", names)
+		}
+		assertInTrash(t, runtimeImpl, filepath.Join(runtimeImpl.binding.Scratch, names[0]))
+	})
+	t.Run("before the helper", func(t *testing.T) {
+		runtimeImpl, spec, _ := protocolTestRuntime(t, "")
+		runtimeImpl.doc.Profile.Runtime.Tmp.Size = "lots"
+		if _, err := runtimeImpl.Open(context.Background(), spec); err == nil {
+			t.Fatal("opened with a bad tmp size")
+		}
+		names, _ := runtimeImpl.trash.Entries()
+		if len(sessions(t, runtimeImpl)) != 0 || len(names) != 1 {
+			t.Fatalf("scratch %v trash %v", sessions(t, runtimeImpl), names)
+		}
+	})
+	t.Run("helper cannot start", func(t *testing.T) {
+		runtimeImpl, spec, _ := protocolTestRuntime(t, "")
+		runtimeImpl.command = func() *exec.Cmd { return exec.Command(filepath.Join(t.TempDir(), "no-such-helper")) }
+		if _, err := runtimeImpl.Open(context.Background(), spec); err == nil || !strings.Contains(err.Error(), "start runtime namespace helper") {
+			t.Fatalf("err = %v", err)
+		}
+		names, _ := runtimeImpl.trash.Entries()
+		if len(sessions(t, runtimeImpl)) != 0 || len(names) != 1 {
+			t.Fatalf("scratch %v trash %v", sessions(t, runtimeImpl), names)
+		}
+	})
+}
+
+// 옮기기가 실패하면 지우지 않는다 — 오류가 닫기 오류로 남고 폴더는 scratch 에 남는다.
+func TestRuncOverlayCloseDoesNotFallBackToRemoving(t *testing.T) {
+	runtimeImpl, spec, _ := protocolTestRuntime(t, "")
+	session, err := runtimeImpl.Open(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runRoot := session.(*runcOverlaySession).runRoot
+	// trash 자리를 파일이 쥐고 있다 — 설정이나 권한이 틀린 모양
+	if err := os.WriteFile(runtimeImpl.trash.Dir, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err = session.Close(context.Background(), Keep{})
+	if err == nil || !strings.Contains(err.Error(), "move runtime session to trash") {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := os.Stat(runRoot); err != nil {
+		t.Fatalf("the work folder was removed after a failed move: %v", err)
+	}
+	// 잠금은 놓았다 — 다음 기동 청소가 거둔다
+	orphans, _, _ := scratch.Orphans(runtimeImpl.binding.Scratch, runcSessionPrefix, time.Now())
+	if len(orphans) != 1 || orphans[0] != runRoot {
+		t.Fatalf("orphans = %v", orphans)
+	}
+	// Open 의 실패 갈래도 같다 — 옮기기 실패가 원래 오류에 붙는다
+	runtimeImpl.doc.Profile.Runtime.Tmp.Size = "lots"
+	if _, err := runtimeImpl.Open(context.Background(), spec); err == nil || !strings.Contains(err.Error(), "move runtime session to trash") {
+		t.Fatalf("open err = %v", err)
+	}
+	// 잠금을 쥐기 전의 실패도 같은 길이다 — 놓을 잠금이 없어도 원래 오류가 먼저 실린다
+	err = runtimeImpl.discard(t.TempDir(), nil, errors.New("hold session lock: resource busy"))
+	if err == nil || !strings.HasPrefix(err.Error(), "hold session lock") || !strings.Contains(err.Error(), "move runtime session to trash") {
+		t.Fatalf("discard err = %v", err)
 	}
 }
 

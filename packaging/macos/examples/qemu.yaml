@@ -22,4 +22,7 @@ board:
   port: ""                  # 가상이라 포트가 없다
 
 arch: arm-zephyr-eabi
+
+# 워크스페이스의 여유가 이 아래로 떨어지면 노드 전체가 drain 한다 (기본 10 GB).
+# 이 값 + 1 GB 를 되찾으면 풀린다.  빌드 능력(arch 키)은 여유와 무관하게 광고에 남는다.
 min_free_gb: 20

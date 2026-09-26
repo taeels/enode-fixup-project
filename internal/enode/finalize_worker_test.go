@@ -194,6 +194,50 @@ func TestFinalize_OverTheFinalizeBudget(t *testing.T) {
 	}
 }
 
+// lateCloseRuntime 은 닫기가 느린 세션을 연다 — Finalize 는 제시간에 끝난다.
+type lateCloseRuntime struct{ delay time.Duration }
+
+func (r lateCloseRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSession, error) {
+	s, err := NativeRuntime{}.Open(ctx, spec)
+	return &lateCloseSession{StepSession: s, delay: r.delay}, err
+}
+
+type lateCloseSession struct {
+	StepSession
+	delay time.Duration
+}
+
+func (s *lateCloseSession) Close(ctx context.Context, keep Keep) error {
+	time.Sleep(s.delay)
+	return s.StepSession.Close(ctx, keep)
+}
+
+// 닫기는 Finalize 예산 안이다 (trash 유닛). Finalize 가 제시간에 끝나도 닫기가 마감을 넘기면
+// finalize_timeout 이고 단계 로그 끝 줄도 같다. 닫기는 끊지 않는다 — 끝까지 닫고 올린다.
+func TestFinalize_ClosingPastTheDeadlineIsAFinalizeTimeout(t *testing.T) {
+	m, w := finalizeWorker(t)
+	w.Runtime = lateCloseRuntime{delay: 150 * time.Millisecond}
+	w.budgets = func(*Step) (time.Duration, time.Duration) { return 50 * time.Millisecond, time.Minute }
+
+	step := runStep("sh", "-c", `printf ok > "$OUT/result"`)
+	w.execute(context.Background(), step)
+
+	res := m.only(t)
+	if res.Finalize != contract.StageTimeout || res.Reason != contract.ReasonFinalizeTimeout ||
+		res.Error != "finalize budget of 50ms exceeded" {
+		t.Fatalf("finalize %q reason %q error %q", res.Finalize, res.Reason, res.Error)
+	}
+	if res.ExitedAt == nil || res.FinalizedAt == nil || res.FinalizedAt.Sub(*res.ExitedAt) < 150*time.Millisecond {
+		t.Fatalf("finalized_at is not when closing ended: %v %v", res.ExitedAt, res.FinalizedAt)
+	}
+	if res.Upload != contract.StageOK || !listed(res.Produced, "result") {
+		t.Fatalf("the upload did not go on: %q %v", res.Upload, res.Produced)
+	}
+	if tail := m.logOf("build"); !strings.Contains(tail, "enode: finalize budget of 50ms exceeded\n") {
+		t.Fatalf("the step log does not say it:\n%s", tail)
+	}
+}
+
 // 업로드 예산을 넘기면 upload_timeout. 남은 이름은 produced 에 없다.
 func TestFinalize_OverTheUploadBudget(t *testing.T) {
 	m, w := finalizeWorker(t)
@@ -491,5 +535,27 @@ func TestExecute_ACollectFailureIsWrittenDownNotThrown(t *testing.T) {
 	}
 	if strings.Contains(tail, "no files changed") {
 		t.Fatalf("FR-1 violated: an unmeasured list was reported as no change:\n%s", tail)
+	}
+}
+
+// 결과 보고가 끝나면 AfterReport 가 한 번 불린다 — 배경 삭제자의 Kick 이 앉는 자리다
+// (trash 유닛). 그때 보고는 이미 Mediator 에 닿았다.
+func TestReport_CallsAfterReportOnceTheReportIsDone(t *testing.T) {
+	m, w := finalizeWorker(t)
+	var calls atomic.Int32
+	var reportsAtCall atomic.Int32
+	w.AfterReport = func() {
+		calls.Add(1)
+		reportsAtCall.Store(int32(m.reports()))
+	}
+	w.execute(context.Background(), runStep("sh", "-c", "exit 0"))
+	m.only(t)
+	if calls.Load() != 1 || reportsAtCall.Load() != 1 {
+		t.Fatalf("AfterReport calls = %d with %d reports delivered", calls.Load(), reportsAtCall.Load())
+	}
+	// 명령 앞에서 실패해도 보고가 있으면 부른다
+	w.execute(context.Background(), runStep())
+	if calls.Load() != 2 {
+		t.Fatalf("AfterReport calls = %d after an early report", calls.Load())
 	}
 }
