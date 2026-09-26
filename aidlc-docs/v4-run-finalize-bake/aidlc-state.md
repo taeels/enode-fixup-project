@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U5 merge-rules 의 Code Generation (계획 · Part 1) (브랜치 `unit/merge-rules` · main `b44b46e` 에서 땄다). U4 trash 는 PR #64 로 병합 2026-09-26T15:34:52Z · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U5 merge-rules 의 Code Generation 승인 · PR (병합은 CI 뒤) (브랜치 `unit/merge-rules` · main `b44b46e` 에서 땄다). U4 trash 는 PR #64 로 병합 2026-09-26T15:34:52Z · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -277,7 +277,11 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           적어 두기로 했다 (시제품은 안 했다).  승인 2026-09-26T16:11:17Z (「nfr 건너뛰고 다음」)
    NFR                    건너뜀 (사용자 결정 2026-09-26T16:11:17Z).  유닛 정의가 NFR 에 둔 것 — 보안 확인 (FD 규칙 3절 · 7절) · 하루치 규모의
                           Preflight 와 Apply 시간 — 을 Code Generation 계획이 받는다 (trash 유닛과 같은 방식)
-   Code Generation        착수 2026-09-26T16:11:17Z
+   Code Generation        착수 2026-09-26T16:11:17Z.  계획 2026-09-26T16:14:02Z — construction/plans/merge-rules-code-generation-plan.md (열두 단계).  승인 2026-09-26T16:16:00Z (「그래」).  Part 2 끝 2026-09-26T16:33:06Z — internal/merge (코드 넷 · 시험 넷) · boundary_test.go.
+                          통과 2,178 · 실패 0 · 스킵 0 · internal/merge 89.1% · 전체 86.4% · 린트 38 그대로 · 크로스 빌드 셋.  조각 0 · 조각 7 의
+                          기계 부분(재개 41 자리) 초록.  integration 시험 SunnyVM 초록 (재개 44 자리).  벤치마크 SunnyVM Preflight 0.23 초 ·
+                          Apply 1.11 초 (§12 1.00 · 1.49).  code-summary.md.  승인 2026-09-26T16:39:48Z (「승인」).
+                          한 커밋 · PR 을 연다.  병합은 CI 뒤
 ```
 
 ## Stage Progress
@@ -296,7 +300,7 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 ~ U5 는 건너뜀 (U1 유닛 정의 · U2 ~ U5 사용자 결정)
 - [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 ~ U5 는 건너뜀
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE

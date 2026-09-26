@@ -854,3 +854,31 @@
 **Context**: Construction · U5 merge-rules · Functional Design 승인 · NFR 건너뜀 · Code Generation 착수
 
 ---
+## Construction · U5 `merge-rules` · Code Generation 계획 · 승인을 묻는다
+**Timestamp**: 2026-09-26T16:14:02Z
+**User Input**: (없음 — FD 커밋 f155faf 에 이어 착수)
+**AI Response**: Code Generation Part 1. 계획 construction/plans/merge-rules-code-generation-plan.md — 열두 단계 (기준선 · 겉면 타입 · 판정 · 판정 시험 · Preflight · Apply · 가짜 트리와 모형 · 규칙 시험 · 커버리지와 벤치마크 · integration 시험 · 경계 시험과 코드 검사 · 요약과 커밋). 고치는 파일은 internal/merge 의 새 파일 여덟 (코드 넷 · 시험 넷) 과 internal/panel/boundary_test.go 하나. NFR 을 건너뛴 몫을 3절이 받는다 — 보안 (lower 밖을 가리키는 symlink 위의 디렉터리 · 밖 디렉터리가 그대로) · 성능 (inode 가 upper 의 것 · 새 디렉터리 한 번 · 하루치 규모 벤치마크 둘을 ADR-077 §12 의 1.00 초 · 1.49 초와 댄다). FD 에 없던 자리 여덟을 4절에 정했다. 승인을 묻는다.
+**Context**: Construction · U5 merge-rules · Code Generation Part 1 · 승인 대기
+
+---
+## Construction · U5 `merge-rules` · Code Generation 계획 승인
+**Timestamp**: 2026-09-26T16:16:00Z
+**User Input**: "그래"
+**AI Response**: 계획 승인으로 적었다. Part 2 로 Step 1 부터 짓는다.
+**Context**: Construction · U5 merge-rules · Code Generation Part 1 승인
+
+---
+## Construction · U5 `merge-rules` · Code Generation 끝 · 승인을 묻는다
+**Timestamp**: 2026-09-26T16:33:06Z
+**User Input**: (없음 — 계획 승인에 이어 짓기)
+**AI Response**: 계획의 열두 단계 중 Step 1 ~ 11 과 Step 12 의 요약 · 검사 · 상태 · 감사를 마쳤다. 새 패키지 internal/merge (merge.go · decide.go · merge_linux.go · merge_other.go) 와 시험 넷 (decide_test.go · tree_linux_test.go · merge_linux_test.go · merge_integration_test.go), internal/panel/boundary_test.go 에 금지 하나와 봉인 하나. 코드 검사 — gofmt 빈 출력 · vet · vet -tags integration · build · U+2605 0 · glyphscan · go test ./... (시험 DB · 가짜 claude 스텁) 통과 2,178 · 실패 0 · 스킵 0 · 패키지마다 80% 이상 (internal/merge 89.1% · 전체 86.4%) · 크로스 빌드 셋 · 린트 38 그대로. 조각 0 과 조각 7 의 기계 부분 (TestApplyResume 41 자리) 초록. 변이 넷을 넣어 시험이 잡는지 보았다 — opaque 를 먼저 지우는 틀림은 재개 시험의 16번째 자리 하나만 잡는다. SunnyVM (커널 7.0) 에서 integration 시험 초록 — 커널 merged view = 모형 = 합친 lower · 0555 유지 · 다음 overlay 정상 · 재개 44 자리. 벤치마크 SunnyVM Preflight 0.23 초 (15만 항목) · Apply 1.11 초 (5.8만 항목 · 호출 72,485) — §12 의 1.00 초 · 1.49 초보다 빠르다. SunnyVM 에 둔 바이너리 · 로그 · 폴더는 지웠다. 시험이 바꾼 cmd/enodectl/probe.lock 을 되돌렸다. code-summary.md 를 썼다. 커밋은 승인 뒤다 (CONVENTIONS 3.3).
+**Context**: Construction · U5 merge-rules · Code Generation Part 2 끝 · 승인 대기
+
+---
+## Construction · U5 `merge-rules` · Code Generation 승인 · PR
+**Timestamp**: 2026-09-26T16:39:48Z
+**User Input**: "승인. 작업은 서브에이전트에게 위임해"
+**AI Response**: Code Generation 을 승인으로 받았다. 병합 조건 (코드 검사 + 재개 시험) 은 Part 2 에서 초록이었다. 커밋부터 PR 까지는 서브에이전트가 맡았다. 커밋 직전에 다시 보았다 — gofmt -l internal/merge internal/panel 빈 출력 · go vet ./internal/merge/... 와 -tags integration 통과 · go test ./internal/merge/... ./internal/panel/... 통과 · 작업 트리에 계획 2절 밖의 변화 없음. 사내 이름 0 — 사내 빌드 스크립트 셋과 구성 이름으로 origin/main...HEAD 의 diff · 작업 트리 diff · 새 파일을 grep 했다 (로컬 main 이 origin/main 보다 51 커밋 뒤라 origin/main 을 기준으로 보았다). 새 축약어 0 — 새 코드와 문서에 저장소가 지은 새 글자가 없어 GLOSSARY.md 를 만들지 않는다 (처음 나오는 대문자 낱말은 ERANGE · EEXIST · EXDEV 같은 errno 뿐이다). 표기 검사 (emphasis-check.py) 를 code-summary · 계획 · 상태 · 감사에 돌렸다. 코드 · 시험 · 계획 · code-summary · 상태 · 감사를 한 커밋으로 넣는다 (CONVENTIONS 3.3 · 3.4). 계획 Step 12 의 마지막 체크박스는 커밋 전에 체크해 같은 커밋에 싣는다. unit/merge-rules 를 push 하고 main 으로 PR 을 연다. 병합은 CI 결과를 보고 다시 묻는다.
+**Context**: Construction · U5 merge-rules · Code Generation 승인 · 커밋 · PR
+
+---
