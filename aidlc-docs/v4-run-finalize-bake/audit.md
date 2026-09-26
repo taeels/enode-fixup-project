@@ -616,3 +616,94 @@
 **Context**: Construction · U2 step-phase · 병합 단계
 
 ---
+## Construction · U2 `step-phase` 병합 · U3 `finalize` 착수
+**Timestamp**: 2026-09-25T11:44:43Z
+**User Input**: "병합한다 (권장)" (질문 — PR #62 의 CI 가 초록이다 (test · cross · bounded-demo). 경고 전용 린트는 39 건으로 main 과 같고 이 유닛이 고친 파일의 경고는 0 이다. main 에 병합할까)
+**AI Response**: #62 를 병합 커밋으로 합쳤다 (0c0370c · 2026-09-25T11:44:43Z). U2 step-phase 가 닫혔다. main 에서 unit/finalize 를 땄다 (upstream 은 지웠다 — push 때 origin/unit/finalize 로 건다). U3 의 Functional Design 을 시작한다 — 유닛 정의 3절 · 요구 FR-1 ~ FR-3 · services.md 1절 · components.md 3.1 · 3.8 · 5절 · component-methods.md 4.1 · 4.2 · 조각 정의 · 정본 ADR-075 §5 · §8 · §9 · §10 · 앞 두 유닛이 넘긴 일을 읽는다.
+**Context**: Construction · U2 병합 · U3 finalize Functional Design Step 1
+
+---
+## Construction · U3 `finalize` · Functional Design 계획과 물음
+**Timestamp**: 2026-09-25T11:55:31Z
+**User Input**: (없음 — 「병합한다 (권장)」에 이어 착수)
+**AI Response**: Functional Design Step 1 ~ 4. 코드를 먼저 읽었다 — 명령 단계의 수확이 effect 를 모르고 RecordDiff 와 전체 훑기를 늘 켠다(claim.go:691) · 수확의 ctx 가 임대를 모르고 예산이 없다 · 업로드가 파일을 통째로 읽고(claim.go:917) 모든 요청에 30초 제한이 있다(cmd/enode/main.go:206) · agent 단계는 로그를 수확 전에 올린다(claim.go:874) · 전체 훑기에 방문 수와 시간 상한이 없다(changed.go:69) · workspace.changed 가 produced 로 올라가고 목록이 비면 「no files changed」라고 쓴다(claim.go:1002) · overlay helper 가 요청을 하나씩 처리하고 수확을 context.Background() 로 돌아 Worker 의 ctx 로 멈출 수 없다(runc_overlay_linux.go:657 · :980) · 닫기가 runRoot 를 지워 upper 크기에 비례한다(:406) · 노드의 Step 이 Claimed 의 effect · budget · discover 를 아직 안 받는다 · 옛 Mediator 는 exited 에 405 가 아니라 404 를 준다. 계획과 물음 아홉을 냈다 — construction/plans/finalize-functional-design-plan.md. 1 두 예산이 덮는 구간(trash 전까지 닫기를 예산 밖에) · 2 예산을 넘겼을 때(overlay 에 마감 전달) · 3 종료 보고의 조건 · 자리 · 재전송 · 4 agent 가 완주 못 했을 때 · 5 명시 훑기의 상한 넷과 훑는 곳 · 6 진단의 자리와 workspace.changed · 7 바뀐 기본값의 안내 · 8 업로드 client 와 흘려 보내기 · 9 조각 1 의 기계 확인 모양. 권장은 모두 A. 표기 검사 exit 0 · 사내 이름 0.
+**Context**: Construction · U3 finalize · Functional Design Step 1 ~ 4. 답을 기다린다
+
+---
+## Construction · U3 `finalize` · Functional Design 물음 중 질문
+**Timestamp**: 2026-09-25T12:18:36Z
+**User Input**: "discover 가 뭐였더라 ?"
+**AI Response**: discover 를 설명했다 — contract-grammar 가 더한 계약 칸("discover": true · run · agent 단계만 · 값은 true 하나 · 상한은 노드가 정한다). 명령이 끝난 뒤 워크스페이스에서 이 단계가 만들거나 고친 파일을 훑어 목록을 내는 진단이다. 오늘은 모든 단계가 이것을 켠 채로 돌아 workspace.changed 를 내는데 FR-1 이 기본으로 끄고, 산출물 경로를 찾아야 하는 계약 작성자가 명시로 켜는 자리로 남긴다 (ADR-075 §8). 결과는 result 의 diagnostics 칸이고 produced 가 아니다. 지목 경로만 stat 하는 success_when.changed (ADR-037) 와 다르다. 계획의 물음 4 · 5 가 이것을 묻는다.
+**Context**: Construction · U3 finalize · Functional Design Step 4 (답을 기다리는 중의 질문)
+
+---
+## Construction · U3 `finalize` · Functional Design 산출물 · 승인 요청
+**Timestamp**: 2026-09-25T12:26:32Z
+**User Input**: "답했다" (계획 파일의 [Answer]: 1 ~ 9 모두 「A」)
+**AI Response**: 답 아홉을 확인했다 (Step 5). 답끼리 막는 자리가 없어 되물음 파일을 만들지 않았다. 산출물 셋을 construction/finalize/functional-design/ 에 냈다 — domain-entities.md(노드 Step 의 새 칸 셋 · FinalizeSpec 과 HarvestSpec 칸마다의 판정 · FinalizeResult · Discovery · Keep · 새 StepSession · 훑기 상한 상수 · 노드 Result 의 새 칸 여섯 · Client.Exited · exitReporter · exitOutcome · Job.Exited · Client.Upload · PutBlob 흘려 보내기 · BlobRejected · helper 요청 op finalize) · business-rules.md(effect 표 · 두 예산의 경계 · 넘었을 때 멈추는 것과 계속하는 것 · finalize · upload · reason · error 를 정하는 표와 영어 문구 · 종료 보고를 보내는 조건과 응답마다의 처리 · 명시 훑기의 곳과 상한 넷과 changes 값 · 진단 칸 · workspace.changed 를 없앰 · 단계 로그 끝 줄 · 바뀐 기본값 안내 · 업로드 규칙 · 경로마다 result 새 칸 표) · business-logic-model.md(명령 단계와 agent 단계의 흐름 · overlay 에서 마감을 지키는 법 · 종료 보고 goroutine · 업로드 · 옛 Mediator 와 옛 계약 · trash 전의 창 · 조각 1 · 2 · 3 의 확인 모양 · 순수 함수 목록 · 파일 행렬 밖 자리 · 다른 유닛에 넘기는 것 · 정본 되돌림). 설계가 더한 것 — native 에서 signal 로 죽은 명령은 종료 보고를 signal 로 보내되 result 는 오늘처럼 완주가 아님 · agent 에서 Finalize 오류가 업로드를 건너뛰지 않게 명령 단계와 같은 모양으로 · 조각 3 을 위해 Worker 에 예산 함수를 바꿔 끼우는 시험 자리(계약의 Finalize 예산은 1분 아래로 못 내린다). 검사 — 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0 · U+2605 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage (다음은 이 유닛의 NFR Requirements).
+**Context**: Construction · U3 finalize · Functional Design Step 5 ~ 7. 승인 대기
+
+---
+## Construction · U3 `finalize` · Functional Design 승인 요청 중 질문
+**Timestamp**: 2026-09-25T12:51:28Z
+**User Input**: "nfr 또 해?"
+**AI Response**: 권장은 건너뛰기라고 답했다. 유닛 정의가 NFR 에 맡긴 둘이 Functional Design 에서 이미 닫혔다 — 임대 창이 트리 크기와 무관한지는 물음 9 (go test 의 방문 0 과 300만 파일 스크립트)가 확인하고, N3 (업로드 예산과 요청의 관계 · 흘려 보내기의 상한)은 물음 8 (요청마다 제한 없는 client · 예산이 마감 · Mediator 가 상한+1 바이트에서 끊음)이 정했다. 남는 값 둘(30초에 훑는 항목 수 · helper 여유 5초)은 틀려도 부분 관찰이나 helper 를 조금 일찍 죽이는 것으로 끝나 안전한 쪽으로 틀린다. 그 둘은 Code Generation 계획에 측정 한 번으로 넣자고 제안했다 (step-phase 의 BenchmarkCandidatesFor 와 같은 방식). Functional Design 승인과 NFR 을 건너뛸지는 사용자의 답을 기다린다.
+**Context**: Construction · U3 finalize · Functional Design Step 7 (승인 대기 중의 질문)
+
+---
+## Construction · U3 `finalize` · Functional Design 승인 · NFR 건너뜀
+**Timestamp**: 2026-09-25T12:53:36Z
+**User Input**: "승인. nfr 건너뛴다."
+**AI Response**: Functional Design 을 승인으로 적었다. NFR Requirements 와 NFR Design 을 사용자 결정으로 건너뛴다 (실행 계획은 「한다 (최소)」였다 · U2 와 같은 결정). 유닛 정의가 NFR 에 맡긴 것 중 임대 창이 트리 크기와 무관한지(조각 1)와 업로드 예산과 요청의 관계 · 흘려 보내기의 상한(N3)은 Functional Design 의 답 9 · 8 이 닫았다. 남는 값 둘(30초에 훑는 항목 수 · helper 여유 5초)은 Code Generation 계획이 측정 자리로 받는다. Functional Design 산출물 셋 · 계획 · 상태 · 감사를 한 커밋으로 넣고 Code Generation Part 1 (계획)을 시작한다.
+**Context**: Construction · U3 finalize · Functional Design 승인 · NFR Requirements 와 NFR Design 건너뜀 · Code Generation Part 1 착수
+
+---
+## Construction · U3 `finalize` · Code Generation 계획 · 승인 요청
+**Timestamp**: 2026-09-25T13:01:31Z
+**User Input**: (없음 — 「승인. nfr 건너뛴다.」에 이어 착수)
+**AI Response**: Functional Design 커밋 572ec87 을 넣었다. Code Generation Part 1 — 코드를 먼저 읽었다 (runtime.go 의 세션 겉면 · claim.go:688 ~ :731 명령 단계의 끝 · :861 ~ :897 agent 단계 · :906 uploadProduced · changed.go · collect.go 의 copyFile · runc_overlay_linux.go 의 helper 요청 loop 와 :974 harvest · runner.go:234 session.Run · cmd/enode/main.go:204 client). 계획을 냈다 — construction/plans/finalize-code-generation-plan.md, 단계 열일곱. NFR 두 단계가 맡았던 것 중 조각 1 과 N3 은 FD 가 닫았고, 남는 값 둘(30초에 훑는 항목 수 · helper 여유 5초)은 계획 3절이 측정으로 받는다 — BenchmarkWalkWorkspace 와 조각 1 스크립트의 discover Run · 마감 뒤 돌아오기 시험. FD 에 없던 자리 열하나를 계획 4절에 적었다 — 새 파일 finalize.go 와 업로드를 upload.go 로 모음 · FinalizeSpec.DiscoverFor (helper 가 예산을 모른다) · overlay 는 ctx 가 끝난 때부터 5초 뒤 abort 하고 abort 뒤 Close 는 helper 에 말하지 않음 · whiteout 판정을 인자로 · 시험이 바꿔 끼우는 자리 (Worker.budgets · Worker.exitWait · helperGrace · statPath · walkDir) · Instance 가 비면 종료 보고 안 보냄 · 노드 로그 finalized 한 줄 · changedSince 를 그대로 둠 · ctx 를 보는 복사 · 하네스가 못 뜬 agent 단계 · 조각 스크립트 자리 scripts/finalize-bake/. 조각 1 · 3 은 이 단계에서 확인하고 조각 2 는 스크립트만 준비한다 (사람의 조각). 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0 · U+2605 0. 계획 승인을 요청한다.
+**Context**: Construction · U3 finalize · Code Generation Part 1 Step 1 ~ 6. 승인 대기
+
+---
+## Construction · U3 `finalize` · Code Generation 계획 승인
+**Timestamp**: 2026-09-25T13:27:18Z
+**User Input**: "승인"
+**AI Response**: 계획(단계 열일곱)을 승인으로 적었다. Part 2 를 Step 1 (기준선)부터 시작한다.
+**Context**: Construction · U3 finalize · Code Generation Part 1 Step 7 ~ 9 · Part 2 착수
+
+---
+## Construction · U3 `finalize` · Code Generation 완료 · 승인 요청
+**Timestamp**: 2026-09-25T14:06:03Z
+**User Input**: (없음 — 「승인」에 이어 Part 2)
+**AI Response**: 계획의 단계 열일곱 중 열여섯과 반을 채웠다 (커밋은 승인 뒤). 새 파일 finalize.go (규칙의 순수 함수 · 종료 보고 goroutine) · 세션 겉면 Harvest -> Finalize · Close(ctx, Keep) · 명시 훑기와 상한 넷 (changed.go) · ctx 를 보는 collect · overlay helper 가 요청의 마감으로 멈추고 Worker 가 ctx 끝 + 5초에 abort · 종료 보고 (Client.Exited · Job.Exited) · 업로드 client 와 흘려 보내기 (upload.go · cmd/enode/main.go) · 진단 칸 · 단계 로그 끝 줄과 안내 · workspace.changed 를 없앰. 계획과 다른 자리 여덟은 code-summary 4절 — advertise.go 에 Client.Upload 한 칸 · Discovery.Paths 가 경로와 크기 · 마감으로 멈춘 걷기도 time · UploadLog 4xx 도 BlobRejected · tee 를 Run 직후에 멈춤 · 임대 끝과 못 뜬 프로세스도 단계 로그를 올림 · agent 임대 만료의 문구 · collect 시험을 옮김. 코드 검사 — gofmt · vet (integration 태그 포함) · build · go test 통과 2,025 · 실패 0 · 스킵 0 · 스무 패키지 전부 80% 이상 (internal/enode 81.5% -> 82.3% · 전체 85.9%) · 크로스 빌드 셋 · enodectl.exe 심볼 1 · 6 · U+2605 0 · glyphscan 깨끗 · 린트 39 건 (기준선과 목록이 같다). 조각 0 초록 (라우트 19). 조각 1 초록 — slice-1.sh 를 이 브랜치에서 빌드한 스크래치 Mediator (127.0.0.1:18080 · DB enode_slice) 로 돌렸다. 개발용 Mediator (:8080) 는 2026-09-17 빌드라 종료 보고에 404 를 준다. 300만 파일 워크스페이스와 빈 워크스페이스 모두 finalized_at - exited_at 이 1 ms 아래 · 두 노드 모두 stat 3 · 걷기 0. 첫 실행은 계약이 400 (changed 는 워크스페이스를 적은 단계에만) 이라 단계에 workspace {repo: ""} 를 더했다. 조각 3 초록 (go test). 조각 2 는 사람의 조각이라 slice-2.sh 만 준비했다. 측정 — 훑기 초당 약 304,000 방문 (데워진 트리) · 300만 파일 첫 걷기에서 방문 상한 2,000,000 에 27.1 초 · 마감 뒤 돌아오기 0.19 ms (훑기) · 0.89 ms (256 MiB collect). 큰 트리는 지웠다. 스크래치 Mediator 는 조각 2 에 쓰도록 켜 두었다. 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage.
+**Context**: Construction · U3 finalize · Code Generation Part 2 Step 10 ~ 14. 승인 대기
+
+---
+## Construction · U3 `finalize` · Code Generation 승인
+**Timestamp**: 2026-09-26T00:45:54Z
+**User Input**: "승인"
+**AI Response**: Code Generation 을 승인으로 적었다. 코드 · 시험 · 스크립트 · 계획 · code-summary · 상태 · 감사를 한 커밋으로 넣는다 (CONVENTIONS 3.3 · 3.4). 병합 조건은 조각 1 · 2 · 3 이고 조각 2 (사람) 가 아직이라 PR 은 열지 않는다. 스크래치 Mediator (127.0.0.1:18080) 는 조각 2 에 쓰도록 켜 둔다.
+**Context**: Construction · U3 finalize · Code Generation Step 15 ~ 16. 커밋 · 병합은 조각 2 뒤
+
+---
+## Construction · U3 `finalize` · 조각 2 실행
+**Timestamp**: 2026-09-26T03:28:48Z
+**User Input**: "해봐"
+**AI Response**: 조각 2 (사람의 조각) 를 에이전트가 돌리라는 지시로 받았다. slice-2.sh 를 PAUSE=0 으로 돌리고 출력을 보인다. 판정은 사람의 몫으로 남긴다 (scene-gates.md 의 「집행자는 그 유닛을 구현하지 않은 사람」). 옛 노드는 main 0c0370c 를 git archive 로 풀어 빌드한다. Mediator 는 스크래치 Mediator (127.0.0.1:18080 · 이 브랜치 빌드) 다.
+**Context**: Construction · U3 finalize · 조각 2
+
+---
+## Construction · U3 `finalize` · 조각 2 결과 (판정은 사람)
+**Timestamp**: 2026-09-26T03:32:11Z
+**User Input**: (없음 — 「해봐」에 이어)
+**AI Response**: slice-2.sh 를 두 번 돌렸다. 첫 실행에서 ① 이 finalizing 을 못 보였다 — 256 MiB 파일 하나가 Mediator 의 blob 상한 (기본 10 MiB) 에 413 으로 곧바로 끊겨 업로드가 짧았고 1초 간격 조회가 놓쳤다 (노드는 거절로 받아 upload ok · produced 없음). 스크립트를 8 MiB 파일 32 개와 0.2초 간격 조회로 고쳐 다시 돌렸다. 결과 — ① running 뒤 12:30:58.76 에 finalizing · exit {exit, 1} (phase_since = 노드 exited_at) · 업로드 약 0.3 초 · produced 32. ② Mediator 를 10초 멈춘 Run 과 안 멈춘 Run 의 단계 기록이 시각 말고 같다 (DONE · exit 1 · last_phase finalizing · finalize ok · upload ok · 두 시각 있음). 종료 보고는 멈춘 동안 늦게 닿았다 — 유실은 아니다. ③ 다른 instance 의 종료 보고 409 와 사유. ④ 옛 노드 (0c0370c) 는 끝날 때까지 running · last_phase running · exited_at 없음. ⑤ exited_at < finalized_at. 판정은 사용자에게 묻는다. code-summary 6절에 결과를 적었다.
+**Context**: Construction · U3 finalize · 조각 2. 사용자 판정 대기
+
+---
+## Construction · U3 `finalize` · 조각 2 판정 · PR
+**Timestamp**: 2026-09-26T03:33:12Z
+**User Input**: "초록 · PR 올림 (Recommended)" (질문 — 조각 2 를 어떻게 판정할까요? 선택지: 초록 · PR 올림 / 40초 정지로 한 번 더 / 초록 · PR 은 나중에)
+**AI Response**: 조각 2 를 사용자 판정으로 초록으로 적었다. 조각 1 · 2 · 3 이 초록이라 병합 조건이 섰다. 브랜치 diff 에 사내 이름 0 을 확인했다. unit/finalize 를 push 하고 main 으로 PR 을 연다. 병합은 CI 결과를 보고 다시 묻는다.
+**Context**: Construction · U3 finalize · 조각 2 초록 · PR
+
+---

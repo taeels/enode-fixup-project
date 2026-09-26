@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/taeels/enode/internal/transcript"
 )
@@ -81,6 +82,12 @@ type Job struct {
 	// Session은 agent와 command가 공유하는 단계 실행 경계다. nil이면 기존
 	// native 실행을 써서 단독 runner 호출의 호환성을 지킨다.
 	Session StepSession
+
+	// Exited 는 하네스 프로세스가 끝난 순간에 한 번 불린다 (ADR-075 §10.4). nil 이면 안 부른다.
+	//
+	// 봉투 해석과 버전 확인 앞이다 — 종료 보고의 exited_at 이 프로세스가 끝난 때를
+	// 가리켜야 한다. 봉투를 읽는 동안은 이미 결과 확정의 구간이다.
+	Exited func(code int, runErr error, at time.Time)
 
 	// Log 는 Components.Notes 가 나갈 자리다 (U4).
 	//
@@ -236,6 +243,9 @@ func runHarness(ctx context.Context, h Harness, bin string, j Job) ([]byte, Harn
 		Stdout: io.MultiWriter(sinks...), Stderr: &stderr,
 	})
 	err = runErr
+	if j.Exited != nil {
+		j.Exited(code, runErr, time.Now())
+	}
 
 	// 배출기를 Decode 앞에서 닫는다.
 	//

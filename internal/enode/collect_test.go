@@ -1,6 +1,9 @@
 package enode
 
 import (
+	"context"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +22,7 @@ func TestCollect_MovesTheDeclaredPaths(t *testing.T) {
 	mk(t, ws, "drivers/spi/spi-bcm2835.ko", "module")
 	mk(t, ws, "build.log", "buildlog")
 
-	got, notes := collectDeclared(ws, out, map[string]string{
+	got, notes := collectDeclared(context.Background(), ws, out, map[string]string{
 		"artifact":  "drivers/spi/spi-bcm2835.ko",
 		"build_log": "build.log",
 	})
@@ -53,7 +56,7 @@ func TestCollect_CannotPointOutside(t *testing.T) {
 		"../../etc/passwd",   // 더 깊은 탈출
 		"a/../../secret.txt", // escape mixed into the middle
 	} {
-		got, notes := collectDeclared(ws, out, map[string]string{"x": pat})
+		got, notes := collectDeclared(context.Background(), ws, out, map[string]string{"x": pat})
 		if len(got) != 0 {
 			t.Fatalf("harvested %q", pat)
 		}
@@ -77,7 +80,7 @@ func TestCollect_DoesNotFollowASymlink(t *testing.T) {
 		t.Skip("cannot create a symlink")
 	}
 
-	got, notes := collectDeclared(ws, out, map[string]string{"x": "bait"})
+	got, notes := collectDeclared(context.Background(), ws, out, map[string]string{"x": "bait"})
 	if len(got) != 0 {
 		b, _ := os.ReadFile(filepath.Join(out, "x"))
 		t.Fatalf("followed a symlink and harvested outside: %q", b)
@@ -101,7 +104,7 @@ func TestCollect_DoesNotFollowASymlinkedParent(t *testing.T) {
 		t.Skip("cannot create a symlink")
 	}
 
-	got, notes := collectDeclared(ws, out, map[string]string{"leak": "x/shadow"})
+	got, notes := collectDeclared(context.Background(), ws, out, map[string]string{"leak": "x/shadow"})
 	if len(got) != 0 {
 		b, _ := os.ReadFile(filepath.Join(out, "leak"))
 		t.Fatalf("passed through a symlinked parent and harvested outside: %q", b)
@@ -121,7 +124,7 @@ func TestCollect_HarvestsEvenIfTheWorkspaceIsASymlink(t *testing.T) {
 		t.Skip("cannot create a symlink")
 	}
 
-	got, notes := collectDeclared(link, out, map[string]string{"m": "a.ko"})
+	got, notes := collectDeclared(context.Background(), link, out, map[string]string{"m": "a.ko"})
 	if len(got) != 1 || len(notes) != 0 {
 		t.Fatalf("dropped a valid artifact: got=%v notes=%+v", got, notes)
 	}
@@ -138,7 +141,7 @@ func TestCollect_SeveralMatchesHarvestNothingAndSayWhy(t *testing.T) {
 	mk(t, ws, "m/a.ko", "1")
 	mk(t, ws, "m/b.ko", "2")
 
-	got, notes := collectDeclared(ws, out, map[string]string{"modules": "m/*.ko"})
+	got, notes := collectDeclared(context.Background(), ws, out, map[string]string{"modules": "m/*.ko"})
 	if len(got) != 0 {
 		t.Fatalf("must not harvest: %v", got)
 	}
@@ -154,7 +157,7 @@ func TestCollect_SeveralMatchesHarvestNothingAndSayWhy(t *testing.T) {
 func TestCollect_ASingleGlobMatchIsHarvested(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
 	mk(t, ws, "arch/arm/boot/zImage", "kernel")
-	got, notes := collectDeclared(ws, out, map[string]string{"kernel": "arch/*/boot/zImage"})
+	got, notes := collectDeclared(context.Background(), ws, out, map[string]string{"kernel": "arch/*/boot/zImage"})
 	if len(got) != 1 || len(notes) != 0 {
 		t.Fatalf("got=%v notes=%+v", got, notes)
 	}
@@ -167,7 +170,7 @@ func TestCollect_DoesNotOverwriteWhatExists(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(out, "artifact"), []byte("from-script"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	collectDeclared(ws, out, map[string]string{"artifact": "a.bin"})
+	collectDeclared(context.Background(), ws, out, map[string]string{"artifact": "a.bin"})
 	b, _ := os.ReadFile(filepath.Join(out, "artifact"))
 	if string(b) != "from-script" {
 		t.Fatalf("overwritten: %q", b)
@@ -177,7 +180,7 @@ func TestCollect_DoesNotOverwriteWhatExists(t *testing.T) {
 // 없으면 왜 없는지를 남긴다 — 새 실패 경로는 안 만든다.
 func TestCollect_LeavesANoteWhenNothingMatches(t *testing.T) {
 	ws, out := t.TempDir(), t.TempDir()
-	got, notes := collectDeclared(ws, out, map[string]string{"artifact": "missing/path.ko"})
+	got, notes := collectDeclared(context.Background(), ws, out, map[string]string{"artifact": "missing/path.ko"})
 	if len(got) != 0 || len(notes) != 1 {
 		t.Fatalf("got=%v notes=%+v", got, notes)
 	}
@@ -192,26 +195,68 @@ func TestCollect_DoesNotHarvestDirectories(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(ws, "build"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	got, notes := collectDeclared(ws, out, map[string]string{"x": "build"})
+	got, notes := collectDeclared(context.Background(), ws, out, map[string]string{"x": "build"})
 	if len(got) != 0 || len(notes) != 1 {
 		t.Fatalf("got=%v notes=%+v", got, notes)
 	}
 }
 
-// 못 걷은 이유가 기록에 실린다 — 없으면 사람이 계약과 트리를 대조해야 한다.
-func TestCollect_TheNoteReachesTheRecord(t *testing.T) {
-	out := t.TempDir()
-	writeChangedNote(out, []string{"artifact"}, Stamp{},
-		[]HarvestNote{{"artifact", `no file matches "arch/arm/boot/zImage"`}}, testLog())
+// 마감이 지나면 collect 가 멈춘다 (Finalize 예산). 멈춘 이름은 이유를 안 남긴다 —
+// 못 걷은 것이 아니라 시간이 다 됐고, 그 사실은 finalize_timeout 이 적는다.
+func TestCollect_StopsAtTheDeadline(t *testing.T) {
+	ws, out := t.TempDir(), t.TempDir()
+	mk(t, ws, "a.bin", "a")
+	mk(t, ws, "b.bin", "b")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	got, notes := collectDeclared(ctx, ws, out, map[string]string{"a": "a.bin", "b": "b.bin"})
+	if len(got) != 0 || len(notes) != 0 {
+		t.Fatalf("a finished budget still collected: got=%v notes=%+v", got, notes)
+	}
+	if ents, _ := os.ReadDir(out); len(ents) != 0 {
+		t.Fatalf("$OUT is not empty: %v", ents)
+	}
+}
 
-	b, err := os.ReadFile(filepath.Join(out, changedName))
-	if err != nil {
-		t.Fatal(err)
+// 복사 중에 마감이 지나면 .part 를 지우고 그 이름으로 아무것도 안 남긴다.
+func TestCopyFile_ADeadlineLeavesNoPartialFile(t *testing.T) {
+	ws, out := t.TempDir(), t.TempDir()
+	src := mk(t, ws, "big.bin", strings.Repeat("x", 3*copyChunk))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	dst := filepath.Join(out, "big")
+	if err := copyFile(ctx, src, dst); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
 	}
-	got := string(b)
-	if !strings.Contains(got, "collect could not gather") || !strings.Contains(got, "zImage") {
-		t.Fatalf("the note did not ride along:\n%s", got)
+	for _, p := range []string{dst, dst + ".part"} {
+		if _, err := os.Lstat(p); err == nil {
+			t.Errorf("%s was left behind", filepath.Base(p))
+		}
 	}
+}
+
+// 조각 사이에서 ctx 를 본다 — 첫 조각을 읽은 뒤 끝난 마감에 둘째 조각을 안 쓴다.
+func TestCopyWithin_ChecksTheDeadlineBetweenChunks(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	src := &cancelAfterRead{r: strings.NewReader(strings.Repeat("x", 3*copyChunk)), cancel: cancel}
+	var dst strings.Builder
+	if err := copyWithin(ctx, &dst, src); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if dst.Len() != copyChunk {
+		t.Errorf("copied %d bytes, want exactly one chunk (%d)", dst.Len(), copyChunk)
+	}
+}
+
+type cancelAfterRead struct {
+	r      io.Reader
+	cancel func()
+}
+
+func (c *cancelAfterRead) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.cancel()
+	return n, err
 }
 
 // $IN 은 읽기 전용이다

@@ -31,6 +31,12 @@ type Client struct {
 	// 응답이 유실되고 그 단계는 아무도 안 돌린다 — claim 은 비멱등이라
 	// 재시도가 되찾지도 못한다. 실측에서 Run 이 영구히 멈췄다.
 	Poll *http.Client
+	// Upload 는 요청마다의 제한이 없는 client 다 (FR-3 · N3). 마감은 업로드 예산의
+	// ctx 가 준다. PutBlob 과 UploadLog 가 쓴다. nil 이면 HTTP 를 쓴다 (시험 · 옛 조립).
+	//
+	// HTTP 의 요청마다 30초가 큰 산출물을 끊었다 — 예산 3분 안에서도 한 파일이 30초를
+	// 넘으면 실패였다. 롱폴처럼 칸을 나눈다: 한쪽을 조이면 다른 쪽이 따라 조여지면 안 된다.
+	Upload *http.Client
 }
 
 // AdvertResponse 는 광고의 응답이다.

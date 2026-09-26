@@ -2,15 +2,21 @@ package enode
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // 진행 청크를 받는 가짜 Mediator.
@@ -320,4 +326,191 @@ func waitFor(t *testing.T, cond func() bool, msg string) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatal(msg)
+}
+
+// ── 단계 끝의 업로드 (FR-3 · N3) ──────────────────────────────────
+
+// blobServer 는 단계 끝의 업로드를 받는 시험 서버다. 이름마다 답을 고른다.
+type blobServer struct {
+	mu      sync.Mutex
+	got     map[string]int64 // 이름 -> 받은 바이트
+	lengths map[string]int64 // 이름 -> 요청의 Content-Length
+	order   []string
+	answer  func(name string, w http.ResponseWriter, r *http.Request) bool // 참이면 답을 끝냈다
+}
+
+func newBlobServer(t *testing.T) (*blobServer, *Worker) {
+	t.Helper()
+	b := &blobServer{got: map[string]int64{}, lengths: map[string]int64{}}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := r.URL.Query().Get("name")
+		if i := strings.Index(r.URL.Path, "/blob/"); i >= 0 {
+			name = r.URL.Path[i+len("/blob/"):]
+		}
+		if b.answer != nil && b.answer(name, w, r) {
+			return
+		}
+		n, _ := io.Copy(io.Discard, r.Body)
+		b.mu.Lock()
+		b.got[name], b.lengths[name] = n, r.ContentLength
+		b.order = append(b.order, name)
+		b.mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	w := &Worker{
+		// HTTP 는 쓰면 안 되는 client 다 — 업로드는 Upload 로만 나가야 한다
+		Client: &Client{Base: srv.URL, HTTP: &http.Client{Transport: failingTransport{}}, Upload: srv.Client()},
+		Log:    discardLog(),
+	}
+	return b, w
+}
+
+// hold 는 답하지 않고 붙잡는다. 본문을 먼저 다 읽는다 — 서버는 본문을 다 읽은 뒤에야
+// 끊긴 연결을 알아채고 r.Context() 를 끝낸다.
+func hold(r *http.Request) {
+	_, _ = io.Copy(io.Discard, r.Body)
+	select {
+	case <-r.Context().Done():
+	case <-time.After(10 * time.Second):
+	}
+}
+
+type failingTransport struct{}
+
+func (failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, io.ErrUnexpectedEOF
+}
+
+func outWith(t *testing.T, files map[string]int) string {
+	t.Helper()
+	out := t.TempDir()
+	for name, size := range files {
+		if err := os.WriteFile(filepath.Join(out, name), bytes.Repeat([]byte("x"), size), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return out
+}
+
+// 흘려 보낸다 — Content-Length 가 파일 크기이고 본문이 그대로 닿는다. 단계 로그가 먼저다.
+// 어댑터가 남긴 것(.enode-)과 마감에 멈춘 복사의 반쪽(.part)은 산출물이 아니다.
+func TestUpload_StreamsWithTheFileSizeAndSkipsLeavings(t *testing.T) {
+	b, w := newBlobServer(t)
+	out := outWith(t, map[string]int{"big": 3 << 20, "empty": 0, ".enode-prompt.md": 5, "half.part": 7})
+	produced, stage := w.upload(context.Background(), runStep(), out, []byte("log"), true, discardLog())
+	if stage != contract.StageOK || strings.Join(produced, ",") != "big,empty" {
+		t.Fatalf("produced %v stage %q", produced, stage)
+	}
+	if b.got["big"] != 3<<20 || b.lengths["big"] != 3<<20 {
+		t.Errorf("big: got %d bytes with Content-Length %d", b.got["big"], b.lengths["big"])
+	}
+	if b.order[0] != "build" {
+		t.Errorf("the step log must go first: %v", b.order)
+	}
+}
+
+// Mediator 가 받고서 거절한 것(413 · 422)은 produced 에 없고 upload 칸을 바꾸지 않는다.
+func TestUpload_ARejectionIsTheMediatorsJudgment(t *testing.T) {
+	b, w := newBlobServer(t)
+	b.answer = func(name string, w http.ResponseWriter, r *http.Request) bool {
+		if name != "huge" {
+			return false
+		}
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		_, _ = io.WriteString(w, "blob exceeds the limit")
+		return true
+	}
+	out := outWith(t, map[string]int{"huge": 10, "small": 1})
+	produced, stage := w.upload(context.Background(), runStep(), out, nil, true, discardLog())
+	if stage != contract.StageOK || strings.Join(produced, ",") != "small" {
+		t.Fatalf("produced %v stage %q", produced, stage)
+	}
+}
+
+// 업로드 예산의 마감 — 진행 중 요청을 끊고 남은 이름을 안 올린다. upload 는 timeout.
+func TestUpload_TheBudgetStopsTheRest(t *testing.T) {
+	b, w := newBlobServer(t)
+	b.answer = func(name string, w http.ResponseWriter, r *http.Request) bool {
+		if name != "b" {
+			return false
+		}
+		hold(r) // 답하지 않는다
+		return true
+	}
+	out := outWith(t, map[string]int{"a": 1, "b": 1, "c": 1})
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	produced, stage := w.upload(ctx, runStep(), out, nil, true, discardLog())
+	if stage != contract.StageTimeout || strings.Join(produced, ",") != "a" {
+		t.Fatalf("produced %v stage %q", produced, stage)
+	}
+	if _, ok := b.got["c"]; ok {
+		t.Fatal("a name after the deadline was still uploaded")
+	}
+}
+
+// 예산 안의 전송 실패는 그 이름만 빠지고 다음 이름으로 간다. upload 는 error.
+func TestUpload_ATransferFailureMovesOn(t *testing.T) {
+	b, w := newBlobServer(t)
+	b.answer = func(name string, w http.ResponseWriter, r *http.Request) bool {
+		if name != "a" {
+			return false
+		}
+		hj, _ := w.(http.Hijacker)
+		conn, _, _ := hj.Hijack()
+		_ = conn.Close() // 답 없이 끊는다
+		return true
+	}
+	out := outWith(t, map[string]int{"a": 1, "b": 1})
+	produced, stage := w.upload(context.Background(), runStep(), out, nil, true, discardLog())
+	if stage != contract.StageError || strings.Join(produced, ",") != "b" {
+		t.Fatalf("produced %v stage %q", produced, stage)
+	}
+}
+
+// 5xx 도 전송 실패다 — Mediator 가 받지 못했다.
+func TestUpload_AServerErrorIsAFailure(t *testing.T) {
+	b, w := newBlobServer(t)
+	b.answer = func(name string, w http.ResponseWriter, r *http.Request) bool {
+		if name != "build" {
+			return false
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
+		return true
+	}
+	produced, stage := w.upload(context.Background(), runStep(), outWith(t, map[string]int{"a": 1}), []byte("log"), true, discardLog())
+	if stage != contract.StageError || strings.Join(produced, ",") != "a" {
+		t.Fatalf("produced %v stage %q", produced, stage)
+	}
+}
+
+// 단계 로그에서 마감이 오면 산출물을 하나도 안 올린다. 완주 못 한 agent 단계는 로그만.
+func TestUpload_LogOnlyAndADeadlineOnTheLog(t *testing.T) {
+	b, w := newBlobServer(t)
+	produced, stage := w.upload(context.Background(), runStep(), outWith(t, map[string]int{"a": 1}), []byte("log"), false, discardLog())
+	if stage != contract.StageOK || produced != nil || len(b.order) != 1 {
+		t.Fatalf("log only: produced %v stage %q order %v", produced, stage, b.order)
+	}
+	b.answer = func(name string, w http.ResponseWriter, r *http.Request) bool {
+		hold(r)
+		return true
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	produced, stage = w.upload(ctx, runStep(), outWith(t, map[string]int{"a": 1}), []byte("log"), true, discardLog())
+	if stage != contract.StageTimeout || produced != nil {
+		t.Fatalf("deadline on the log: produced %v stage %q", produced, stage)
+	}
+}
+
+// 임대가 끝나 멈춘 업로드는 마감이 아니다 — error 로 적는다.
+func TestUpload_ALeaseEndIsNotTheBudget(t *testing.T) {
+	_, w := newBlobServer(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, stage := w.upload(ctx, runStep(), outWith(t, map[string]int{"a": 1}), []byte("log"), true, discardLog())
+	if stage != contract.StageError {
+		t.Fatalf("stage %q, want error", stage)
+	}
 }

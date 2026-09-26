@@ -67,6 +67,10 @@ verify: {executables: [bash], locale: C.UTF-8}
 	if err := os.WriteFile(filepath.Join(binding.SSHDir, "config"), []byte("gate\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// 단계가 지우는 lower 의 파일 — upper 에 whiteout(문자 장치 0:0)으로 남는다
+	if err := os.WriteFile(filepath.Join(binding.Workspace, "gate-lower"), []byte("lower\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	manifest := execenv.Manifest{Profile: execenv.ManifestProfile{Name: doc.Profile.Name, SHA256: doc.SHA256}}
 	runtimeImpl, err := newRuncOverlayRuntime(doc, binding, manifest, rootfs)
 	if err != nil {
@@ -89,7 +93,7 @@ verify: {executables: [bash], locale: C.UTF-8}
 		t.Fatal(err)
 	}
 	concrete := session.(*runcOverlaySession)
-	defer session.Close() //nolint:errcheck
+	defer session.Close(context.Background(), Keep{}) //nolint:errcheck
 	projection, err := session.Project(context.Background(), FrameworkProjectionSpec{
 		HarnessExecutable: helper, EnodeExecutable: helper,
 		Instrumentation: instrumentation, CredentialHelper: helper,
@@ -111,6 +115,7 @@ test "$(cat "$HOME/.ssh/config")" = gate
 test -x "$CREDENTIAL"
 printf instrument > "$INSTRUMENTATION/probe"
 printf workspace > .gate-marker
+rm gate-lower
 printf output > "$OUT/probe"
 printf '#!/bin/sh\nexit 0\n' > /tmp/gate-exec
 chmod +x /tmp/gate-exec
@@ -125,29 +130,42 @@ chmod +x /tmp/gate-exec
 		Dir: "/work", Stdout: &stdout, Stderr: &stderr,
 	})
 	if runErr != nil || code != 0 {
-		_ = session.Close()
+		_ = session.Close(context.Background(), Keep{})
 		t.Fatalf("run code=%d err=%v stdout=%q stderr=%q", code, runErr, stdout.String(), stderr.String())
 	}
 	if _, err := os.Stat(filepath.Join(binding.Workspace, ".gate-marker")); !os.IsNotExist(err) {
-		_ = session.Close()
+		_ = session.Close(context.Background(), Keep{})
 		t.Fatalf("overlay write reached the original workspace: %v", err)
 	}
 	if b, err := os.ReadFile(filepath.Join(out, "probe")); err != nil || string(b) != "output" {
-		_ = session.Close()
+		_ = session.Close(context.Background(), Keep{})
 		t.Fatalf("$OUT projection body=%q err=%v", b, err)
 	}
 	if b, err := os.ReadFile(filepath.Join(instrumentation, "probe")); err != nil || string(b) != "instrument" {
 		t.Fatalf("instrumentation projection body=%q err=%v", b, err)
 	}
 	_ = os.Remove(filepath.Join(out, "gate-artifact"))
-	harvested, err := session.Harvest(context.Background(), HarvestSpec{
-		Collect: map[string]string{"gate-artifact": ".gate-marker"},
+	finalized, err := session.Finalize(context.Background(), FinalizeSpec{
+		Collect:  map[string]string{"gate-artifact": ".gate-marker"},
+		Discover: true, Stamp: Stamp{Root: binding.Workspace}, Deadline: time.Now().Add(time.Minute),
 	})
-	if err != nil || len(harvested.Collected) != 1 || harvested.Collected[0] != "gate-artifact" {
-		t.Fatalf("merged harvest=%+v err=%v", harvested, err)
+	if err != nil || len(finalized.Collected) != 1 || finalized.Collected[0] != "gate-artifact" {
+		t.Fatalf("merged finalize=%+v err=%v", finalized, err)
 	}
+	// 명시 훑기는 upper 만 걷는다 — 쓴 것은 목록에, 지운 것은 whiteout 으로 센다
+	if d := finalized.Discovery; d == nil || d.Deleted != 1 || !discovered(d, ".gate-marker") {
+		t.Fatalf("upper discovery=%+v", finalized.Discovery)
+	}
+	// helper 여유 5초의 측정 (계획 3절 ②) — 마감이 지난 요청에 helper 가 돌아오기까지
+	began := time.Now()
+	if _, err := session.Finalize(context.Background(), FinalizeSpec{
+		Discover: true, Stamp: Stamp{Root: binding.Workspace}, Deadline: time.Now(),
+	}); err == nil {
+		t.Fatal("a finalize past its deadline returned no error")
+	}
+	t.Logf("helper answered %v after its deadline (grace %v)", time.Since(began), helperGrace)
 	if b, err := os.ReadFile(filepath.Join(out, "gate-artifact")); err != nil || string(b) != "workspace" {
-		t.Fatalf("harvested artifact body=%q err=%v", b, err)
+		t.Fatalf("collected artifact body=%q err=%v", b, err)
 	}
 
 	cancelCtx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
@@ -160,7 +178,7 @@ chmod +x /tmp/gate-exec
 	if elapsed := time.Since(started); elapsed > 5*time.Second {
 		t.Fatalf("canceled runtime took %s", elapsed)
 	}
-	if err := session.Close(); err != nil {
+	if err := session.Close(context.Background(), Keep{}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(concrete.runRoot); !os.IsNotExist(err) {
@@ -224,4 +242,13 @@ printf '{"type":"result","subtype":"success","num_turns":1}\n'
 	if err != nil || len(left) != 0 {
 		t.Fatalf("runtime scratch remains after Worker scenes: %v err=%v", left, err)
 	}
+}
+
+func discovered(d *Discovery, path string) bool {
+	for _, p := range d.Paths {
+		if p.Path == path {
+			return true
+		}
+	}
+	return false
 }

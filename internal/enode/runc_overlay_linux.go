@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -76,7 +77,7 @@ type runtimeWireRequest struct {
 	Open       *runtimeWireOpen       `json:"open,omitempty"`
 	Projection *runtimeWireProjection `json:"projection,omitempty"`
 	Process    *runtimeWireProcess    `json:"process,omitempty"`
-	Harvest    *HarvestSpec           `json:"harvest,omitempty"`
+	Finalize   *FinalizeSpec          `json:"finalize,omitempty"`
 }
 
 type runtimeWireOpen struct {
@@ -112,11 +113,11 @@ type runtimeWireProcess struct {
 }
 
 type runtimeWireResponse struct {
-	Op       string         `json:"op"`
-	Error    string         `json:"error,omitempty"`
-	Data     []byte         `json:"data,omitempty"`
-	ExitCode int            `json:"exit_code,omitempty"`
-	Harvest  *HarvestResult `json:"harvest,omitempty"`
+	Op       string          `json:"op"`
+	Error    string          `json:"error,omitempty"`
+	Data     []byte          `json:"data,omitempty"`
+	ExitCode int             `json:"exit_code,omitempty"`
+	Finalize *FinalizeResult `json:"finalize,omitempty"`
 }
 
 func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSession, error) {
@@ -243,6 +244,8 @@ type runcOverlaySession struct {
 	callMu    sync.Mutex
 	closeOnce sync.Once
 	closeErr  error
+	// aborted 는 Finalize 가 답하지 않는 helper 를 죽였다는 표시다. callMu 아래에서 쓰고 읽는다.
+	aborted bool
 }
 
 func (s *runcOverlaySession) Paths() RuntimePaths {
@@ -385,28 +388,77 @@ func readRuntimeStdin(reader io.Reader) ([]byte, error) {
 	return b, nil
 }
 
-func (s *runcOverlaySession) Harvest(_ context.Context, spec HarvestSpec) (HarvestResult, error) {
+// helperGrace 는 Finalize 의 ctx 가 끝난 뒤 helper 가 스스로 돌아와 답을 쓰기를 기다리는
+// 여유다 (business-logic-model.md 3절). 지나면 helper 를 죽인다. 시험이 줄인다.
+//
+// 기준이 마감이 아니라 ctx 가 끝난 때인 까닭 — 임대가 끝나도 ctx 가 끝나는데, helper 는
+// 요청을 하나씩 처리해 도중에 cancel 요청을 못 읽는다. 그래서 그때도 길은 abort 하나다.
+var helperGrace = 5 * time.Second
+
+// Finalize 는 결과 확정을 helper 에 맡긴다. 마감은 요청의 Deadline 으로 helper 에 가고,
+// helper 가 그 시각으로 자기 ctx 를 만든다. Worker 쪽은 ctx 가 끝난 뒤 helperGrace 만큼
+// 더 기다리고, 그래도 답이 없으면 helper 를 죽이고 ctx 의 오류를 돌려준다.
+func (s *runcOverlaySession) Finalize(ctx context.Context, spec FinalizeSpec) (FinalizeResult, error) {
 	s.callMu.Lock()
 	defer s.callMu.Unlock()
 	copySpec := spec
 	copySpec.Workspace = ""
-	if err := s.send(runtimeWireRequest{Op: "harvest", Harvest: &copySpec}); err != nil {
-		return HarvestResult{}, err
+	if deadline, ok := ctx.Deadline(); ok && copySpec.Deadline.IsZero() {
+		copySpec.Deadline = deadline
 	}
-	response, err := s.receive()
-	if err != nil {
-		return HarvestResult{}, err
+	if err := s.send(runtimeWireRequest{Op: "finalize", Finalize: &copySpec}); err != nil {
+		return FinalizeResult{}, err
 	}
-	if response.Op != "harvested" || response.Error != "" || response.Harvest == nil {
-		return HarvestResult{}, fmt.Errorf("runtime harvest: %s", response.Error)
+	type answer struct {
+		response runtimeWireResponse
+		err      error
 	}
-	return *response.Harvest, nil
+	got := make(chan answer, 1)
+	go func() {
+		response, err := s.receive()
+		got <- answer{response, err}
+	}()
+	var a answer
+	select {
+	case a = <-got:
+	case <-ctx.Done():
+		select {
+		case a = <-got:
+		case <-time.After(helperGrace):
+			s.abort()
+			s.aborted = true
+			return FinalizeResult{}, ctx.Err()
+		}
+	}
+	if a.err != nil {
+		return FinalizeResult{}, a.err
+	}
+	if a.response.Op != "finalized" || a.response.Finalize == nil {
+		return FinalizeResult{}, errors.New(a.response.Error)
+	}
+	switch a.response.Error {
+	case "":
+		return *a.response.Finalize, nil
+	case context.DeadlineExceeded.Error():
+		// helper 의 마감이다 — 모은 것은 남기고 마감으로 돌려준다
+		return *a.response.Finalize, context.DeadlineExceeded
+	}
+	return *a.response.Finalize, errors.New(a.response.Error)
 }
 
-func (s *runcOverlaySession) Close() error {
+// Close 는 helper 를 닫고 runRoot 를 지운다. Keep 은 받기만 한다 — 행선지를 쓰는 것은
+// trash · bake · checkpoint 유닛이다. Finalize 가 helper 를 죽였으면 helper 에 말하지
+// 않고 남은 runRoot 만 지운다 — 죽은 helper 에 close 를 보내면 실패가 덧붙는다.
+func (s *runcOverlaySession) Close(context.Context, Keep) error {
 	s.closeOnce.Do(func() {
 		s.callMu.Lock()
 		defer s.callMu.Unlock()
+		if s.aborted {
+			if err := os.RemoveAll(s.runRoot); err != nil {
+				s.closeErr = fmt.Errorf("remove runtime session: %w", err)
+			}
+			return
+		}
 		var errs []error
 		if err := s.send(runtimeWireRequest{Op: "close"}); err != nil {
 			errs = append(errs, err)
@@ -647,6 +699,7 @@ type overlayRuntimeHelper struct {
 	runWG      sync.WaitGroup
 	counter    atomic.Uint64
 	merged     string
+	upper      string // 명시 훑기의 곳 — 이 단계가 쓴 것이 여기 있다
 	lowerRO    string
 	inRO       string
 	sshRO      string
@@ -705,14 +758,14 @@ func (h *overlayRuntimeHelper) loop() error {
 			go h.runProcess(*request.Process)
 		case "cancel":
 			h.cancel()
-		case "harvest":
-			if request.Harvest == nil {
-				h.respond(runtimeWireResponse{Op: "harvested", Error: "missing harvest payload"})
+		case "finalize":
+			if request.Finalize == nil {
+				h.respond(runtimeWireResponse{Op: "finalized", Error: "missing finalize payload"})
 				continue
 			}
 			h.waitRun()
-			result, err := h.harvest(*request.Harvest)
-			response := runtimeWireResponse{Op: "harvested", Harvest: &result}
+			result, err := h.finalize(*request.Finalize)
+			response := runtimeWireResponse{Op: "finalized", Finalize: &result}
 			if err != nil {
 				response.Error = err.Error()
 			}
@@ -799,6 +852,7 @@ func (h *overlayRuntimeHelper) openSession(open runtimeWireOpen) error {
 	h.bundle = filepath.Join(runRoot, "bundle")
 	h.state = filepath.Join(runRoot, "state")
 	upper := filepath.Join(runRoot, "upper")
+	h.upper = upper
 	work := filepath.Join(runRoot, "work")
 	h.merged = filepath.Join(runRoot, "merged")
 	h.lowerRO = filepath.Join(runRoot, "lower-ro")
@@ -971,13 +1025,36 @@ func (h *overlayRuntimeHelper) cancel() {
 
 func (h *overlayRuntimeHelper) waitRun() { h.runWG.Wait() }
 
-func (h *overlayRuntimeHelper) harvest(spec HarvestSpec) (HarvestResult, error) {
+// finalize 는 merged 에서 collect · stat · diff 를, upper 에서 명시 훑기를 한다.
+// 마감은 요청이 나른 시각이다 — Worker 의 ctx 는 이 프로세스에 닿지 않는다.
+func (h *overlayRuntimeHelper) finalize(spec FinalizeSpec) (FinalizeResult, error) {
 	if h.open == nil {
-		return HarvestResult{}, errors.New("runtime is not open")
+		return FinalizeResult{}, errors.New("runtime is not open")
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	if !spec.Deadline.IsZero() {
+		ctx, cancel = context.WithDeadline(context.Background(), spec.Deadline)
+	}
+	defer cancel()
 	spec.Workspace = h.merged
 	spec.Out = h.open.Out
-	return (&nativeSession{}).Harvest(context.Background(), spec)
+	upper := h.upper
+	return finalizeLocal(ctx, spec, func(ctx context.Context, limits discoverLimits) *Discovery {
+		return walkUpper(ctx, upper, limits, isOverlayWhiteout)
+	})
+}
+
+// isOverlayWhiteout 은 overlay 가 upper 에 남기는 지운 표시다 — 문자 장치 0:0.
+func isOverlayWhiteout(d fs.DirEntry) bool {
+	if d.Type()&fs.ModeCharDevice == 0 {
+		return false
+	}
+	fi, err := d.Info()
+	if err != nil {
+		return false
+	}
+	st, ok := fi.Sys().(*syscall.Stat_t)
+	return ok && st.Rdev == 0
 }
 
 func (h *overlayRuntimeHelper) cleanup() error {
@@ -1233,7 +1310,7 @@ func (ExecutionRuntimeVerifier) Verify(ctx context.Context, doc execenv.Document
 	if concrete, ok := session.(*runcOverlaySession); ok {
 		runRoot = concrete.runRoot
 	}
-	defer session.Close() //nolint:errcheck
+	defer session.Close(ctx, Keep{}) //nolint:errcheck
 	tmpCheck := "/tmp/enode-runtime-smoke"
 	execExpectation := tmpCheck
 	if !doc.Profile.Runtime.Tmp.Executable {
@@ -1259,7 +1336,7 @@ chmod +x %s
 	var stdout, stderr bytes.Buffer
 	code, runErr := session.Run(ctx, ProcessSpec{Argv: []string{"/bin/sh", "-c", script},
 		Env: []string{"IN=" + runtimeInTarget, "OUT=" + runtimeOutTarget}, Stdout: &stdout, Stderr: &stderr})
-	closeErr := session.Close()
+	closeErr := session.Close(ctx, Keep{})
 	if _, statErr := os.Stat(lowerMarker); !errors.Is(statErr, os.ErrNotExist) {
 		if statErr == nil {
 			_ = os.Remove(lowerMarker)

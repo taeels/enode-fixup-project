@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U2 step-phase 의 Code Generation 승인 2026-09-25T11:23:52Z · 병합 대기 (브랜치 `unit/step-phase` · main `9b40cd0` 에서 땄다). Functional Design 승인 2026-09-25T08:52:58Z · NFR 둘은 사용자 결정으로 건너뜀. U1 contract-grammar 는 PR #61 로 병합 2026-09-25T07:21:53Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U3 finalize 의 PR (조각 1 · 2 · 3 초록) (브랜치 `unit/finalize` · main `0c0370c` 에서 땄다). Functional Design 승인 2026-09-25T12:53:36Z · NFR 두 단계는 사용자 결정으로 건너뜀. U2 step-phase 는 PR #62 로 병합 2026-09-25T11:44:43Z · U1 contract-grammar 는 PR #61 로 병합 2026-09-25T07:21:53Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -196,7 +196,36 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           크로스 빌드 셋 · 린트 39 건 main 과 같음) · 조각 0 초록 (라우트 18 -> 19).
                           대기 조회 비용 약 0.75 ms (광고 50 · 요구 줄 3).  요약은
                           construction/step-phase/code/code-summary.md.  승인 2026-09-25T11:23:52Z (「승인」)
-   병합                   조각 0 이 초록이다.  unit/step-phase 를 올리고 main 으로 PR — 묻고 한다
+   병합                   PR #62 (CI 초록 · 린트 39 건 main 과 같음) 로 main 에 병합 (0c0370c · 2026-09-25T11:44:43Z)
+```
+
+### U3 `finalize` — 브랜치 `unit/finalize` (`0c0370c` 에서 땄다)
+
+```text
+   Functional Design      착수 2026-09-25T11:44:43Z.  앞 두 유닛이 넘긴 일을 받는다 — effect 에 따라 거두기 ·
+                          두 예산 · discover 의 상한 (contract-grammar) · exited 보내기와 result 새 칸 여섯
+                          (step-phase).  계획과 물음 아홉 2026-09-25T11:55:31Z — construction/plans/finalize-functional-design-plan.md.
+                          답 2026-09-25T12:26:32Z — 아홉 모두 A (「답했다」).  되물음 없음.
+                          산출물 셋 2026-09-25T12:26:32Z — construction/finalize/functional-design/.
+                          승인 2026-09-25T12:53:36Z (「승인. nfr 건너뛴다.」)
+   NFR Requirements       건너뛴다 — 사용자 결정 2026-09-25T12:53:36Z.  실행 계획은 「한다 (최소)」였다.
+                          유닛 정의가 맡긴 것 중 조각 1 의 임대 창과 N3 (업로드 예산과 요청 · 흘려 보내기의
+                          상한)은 FD 답 9 · 8 이 닫았다.  남는 값 둘 (30초에 훑는 항목 수 · helper 여유 5초)은
+                          Code Generation 계획이 측정 자리로 받는다
+   NFR Design             건너뛴다 (위와 같은 결정)
+   Code Generation        Part 1 착수 2026-09-25T12:53:36Z.  계획 — 단계 열일곱 2026-09-25T13:01:31Z
+                          construction/plans/finalize-code-generation-plan.md
+                          NFR 이 맡았던 값 둘은 계획 3절 · FD 에 없던 자리 열하나 (계획 4절).  승인 2026-09-25T13:27:18Z (「승인」).
+                          Part 2 착수 2026-09-25T13:27:18Z.  완료 2026-09-25T14:06:03Z — 단계 열일곱 중 열여섯과 반 체크
+                          (커밋은 승인 뒤) · 코드 검사 초록 (통과 2,025 · 실패 0 · 스킵 0 · 패키지 전부 80% 이상 ·
+                          internal/enode 81.5% -> 82.3% · 크로스 빌드 셋 · 린트 39 건 기준선과 같음) · 조각 0 초록 (라우트 19) ·
+                          조각 1 초록 (300만 파일과 빈 워크스페이스 모두 finalized_at - exited_at 1 ms 아래 · stat 3) ·
+                          조각 3 초록 (go test).  조각 2 는 사람의 조각 — slice-2.sh 준비.  측정 — 훑기 초당 약 304,000 방문 ·
+                          300만 파일에서 방문 상한에 27.1 초 · 마감 뒤 돌아오기 1 ms 아래.  조각 1 은 이 브랜치의
+                          스크래치 Mediator (127.0.0.1:18080) 로 돌렸다 — 개발용 :8080 은 2026-09-17 빌드.
+                          요약은 construction/finalize/code/code-summary.md.  승인 2026-09-26T00:45:54Z (「승인」)
+   병합                   조각 2 초록 — 에이전트가 돌리고 (「해봐」) 사용자가 판정 2026-09-26T03:33:12Z.  스크립트를 고쳐 다시 돌렸다
+                          (369417e · 256 MiB 파일 하나가 blob 상한 10 MiB 에 413).  조각 1 · 2 · 3 초록.  PR 을 연다
 ```
 
 ## Stage Progress
@@ -211,11 +240,11 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Units Generation — 착수 2026-09-24T06:42:48Z. 계획 · 질문 넷 2026-09-24T06:50:29Z. 채팅 논의로 일곱이 닫힘 2026-09-24T09:50:00Z (Q1 A · Q2 A · Q3 A 순연 · Q4 B · Q7 A). 계획 승인 2026-09-24T12:14:10Z. 산출물 넷 2026-09-24T12:22:43Z · 승인 2026-09-24T12:31:50Z
 
 ### CONSTRUCTION PHASE
-- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z — 위 「Construction」 절
-- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 · U2 는 건너뜀 (U1 유닛 정의 · U2 사용자 결정)
-- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 · U2 는 건너뜀
+- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z · U3 finalize 완료 2026-09-25T12:53:36Z — 위 「Construction」 절
+- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 · U2 · U3 는 건너뜀 (U1 유닛 정의 · U2 · U3 사용자 결정)
+- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 · U2 · U3 는 건너뜀
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE

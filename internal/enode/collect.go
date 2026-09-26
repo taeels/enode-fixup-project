@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -41,7 +42,11 @@ type HarvestNote struct{ Name, Why string }
 //
 // 새 실패 경로를 만들지 않는다 — 못 걷으면 produced 가 불만족이 되고
 // 판정은 success_when 이 한다 (ADR-004 · I3). 여기서는 이유만 남긴다.
-func collectDeclared(ws, out string, spec map[string]string) (got []string, notes []HarvestNote) {
+//
+// ctx 는 Finalize 예산이다. 마감이 지나면 이름 사이에서든 복사 중에든 멈추고 남은
+// 이름을 안 옮긴다. 멈춘 이름은 이유를 안 남긴다 — 못 걷은 것이 아니라 시간이 다 됐고,
+// 그 사실은 finalize_timeout 이 적는다.
+func collectDeclared(ctx context.Context, ws, out string, spec map[string]string) (got []string, notes []HarvestNote) {
 	if ws == "" || len(spec) == 0 {
 		return nil, nil
 	}
@@ -52,6 +57,9 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 	sort.Strings(names) // 결정적 순서 — 기록을 비교할 수 있어야 한다
 
 	for _, name := range names {
+		if ctx.Err() != nil {
+			return got, notes
+		}
 		pat := spec[name]
 		if why := badPattern(pat); why != "" {
 			notes = append(notes, HarvestNote{name, why})
@@ -87,7 +95,10 @@ func collectDeclared(ws, out string, spec map[string]string) (got []string, note
 				fmt.Sprintf("%q matches %d files (%s); narrow it to exactly one",
 					pat, len(hits), strings.Join(rel, ", "))})
 		default:
-			if err := copyFile(hits[0], dst); err != nil {
+			if err := copyFile(ctx, hits[0], dst); err != nil {
+				if ctx.Err() != nil {
+					return got, notes
+				}
 				notes = append(notes, HarvestNote{name, "cannot move: " + err.Error()})
 				continue
 			}
@@ -174,7 +185,12 @@ func realPath(p string) (string, error) {
 	return filepath.EvalSymlinks(abs)
 }
 
-func copyFile(src, dst string) error {
+// copyChunk 는 복사 중 마감을 보는 간격이다.
+const copyChunk = 1 << 20
+
+// copyFile 은 dst.part 에 쓰고 이름을 바꾼다. ctx 가 끝나면 1 MiB 마다 멈추고
+// .part 를 지운다 — 반쯤 복사한 것이 그 이름으로 남지 않는다.
+func copyFile(ctx context.Context, src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -185,7 +201,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := io.Copy(f, in); err != nil {
+	if err := copyWithin(ctx, f, in); err != nil {
 		f.Close()      //nolint:errcheck
 		os.Remove(tmp) //nolint:errcheck
 		return err
@@ -196,6 +212,21 @@ func copyFile(src, dst string) error {
 	}
 	// 이름 바꾸기로 마무리한다 — 반쯤 쓴 파일이 산출물로 걷히면 안 된다.
 	return os.Rename(tmp, dst)
+}
+
+// copyWithin 은 io.Copy 와 같되 조각 사이마다 ctx 를 본다.
+func copyWithin(ctx context.Context, dst io.Writer, src io.Reader) error {
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		// CopyN 은 덜 옮겼으면 io.EOF 를 준다 — 그것이 끝이다.
+		if _, err := io.CopyN(dst, src, copyChunk); err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+	}
 }
 
 // sealInput 은 $IN 을 읽기 전용으로 잠근다 (2026-08-20).
