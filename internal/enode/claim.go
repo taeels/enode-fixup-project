@@ -325,6 +325,10 @@ type Worker struct {
 	// exitWait 는 종료 보고의 재전송 간격이다. nil 이면 exitBackoff. 시험이 줄인다.
 	exitWait func(n int) time.Duration
 
+	// AfterReport 는 결과 보고가 끝나면 불린다 — 닿았든 포기했든 (trash 유닛). 배경
+	// 삭제자의 Kick 이 앉는다. 막지 않아야 한다. nil 이면 안 부른다.
+	AfterReport func()
+
 	// drainingNoted 는 「안 집는다」를 이미 찍었는가다 — 광고 주기마다 다시 안 찍는다.
 	drainingNoted bool
 
@@ -375,7 +379,12 @@ func (w *Worker) transcript(step *Step) (io.Writer, func()) {
 // 든 채로는 물러서지 않는다: 성공하거나, 서버가 거절하거나(4xx — 받긴 받았다),
 // 임대가 죽을 때까지 던진다. 임대가 죽으면 회수가 Run 을 정리하므로
 // 유실된 보고도 함께 정리된다 — 여기서도 시간이 감시자다 (ADR-008).
+//
+// 끝나면 AfterReport 를 부른다 — 작업 폴더는 이미 trash 에 있고, 지우기는 보고 뒤다.
 func (w *Worker) report(ctx context.Context, step *Step, res Result) {
+	if w.AfterReport != nil {
+		defer w.AfterReport()
+	}
 	if res.Environment == nil {
 		res.Environment = w.RuntimeRecord
 	}
@@ -774,8 +783,10 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 // afterExit 는 명령이 끝난 뒤의 구간을 닫는다 — Finalize · 닫기 · 업로드 · 판정 칸
 // (business-logic-model.md 1 · 2절). 명령 단계와 agent 단계가 같은 모양으로 지난다.
 //
-//	[Finalize 예산]  from 부터.  collect · 지목 경로 stat · diff · 명시 훑기
-//	닫기             예산 밖.  trash 유닛이 rename 으로 바꾸면 안으로 옮긴다
+//	[Finalize 예산]  from 부터.  collect · 지목 경로 stat · diff · 명시 훑기 · 닫기
+//	                 닫기는 unmount 와 rename 한 번이라 예산 안이다 (trash 유닛).  마감으로
+//	                 끊지는 않는다 — 반쯤 닫은 세션은 helper 와 마운트를 남긴다.  마감 뒤에
+//	                 끝났으면 finalize_timeout 이다
 //	finalized_at
 //	[업로드 예산]    닫기가 끝난 때부터.  단계 로그 먼저 -> $OUT 의 이름들
 //
@@ -793,10 +804,12 @@ func (w *Worker) afterExit(runCtx, ctx context.Context, step *Step, session Step
 	cancel()
 	closeErr := session.Close(ctx, Keep{})
 	finalizedAt := time.Now().UTC()
+	closedLate := finalizedAt.After(spec.Deadline) && runCtx.Err() == nil
 
 	diag := diagnosticsFor(step, spec.Out, spec.Effect, fin)
 	logFinalize(log, spec, fin, diag, time.Since(began))
-	timedOut := errors.Is(finErr, context.DeadlineExceeded) && runCtx.Err() == nil
+	timedOut := runCtx.Err() == nil &&
+		(errors.Is(finErr, context.DeadlineExceeded) || (finErr == nil && closedLate))
 	tail := logTail(step, diag, fin, timedOut, finalizeBudget)
 
 	uctx, cancel := context.WithTimeout(runCtx, uploadBudget)
@@ -807,8 +820,8 @@ func (w *Worker) afterExit(runCtx, ctx context.Context, step *Step, session Step
 	res.Changed, res.Produced = fin.Changed, produced
 	res.FinalizedAt, res.Diagnostics = &finalizedAt, diag
 	res.Finalize, res.Upload, res.Reason, res.Error = settle(settleIn{
-		finalizeErr: finErr, closeErr: closeErr, upload: uploaded, leaseEnded: leaseEnded,
-		finalizeBudget: finalizeBudget, uploadBudget: uploadBudget,
+		finalizeErr: finErr, closeErr: closeErr, closedLate: closedLate, upload: uploaded,
+		leaseEnded: leaseEnded, finalizeBudget: finalizeBudget, uploadBudget: uploadBudget,
 	})
 	return leaseEnded
 }

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	execenv "github.com/taeels/enode/internal/environment"
+	"github.com/taeels/enode/internal/scratch"
 	"golang.org/x/sys/unix"
 )
 
@@ -41,12 +42,16 @@ const (
 // RuncOverlayRuntime은 한 step 동안 user/mount namespace를 유지하는 Linux
 // adapter다. helper가 overlay mount, runc process, Harvest를 같은 namespace에서
 // 소유하므로 Run이 끝난 뒤에도 merged view를 잃지 않는다.
+//
+// 세션이 끝나면 작업 폴더를 지우지 않고 trash(<scratch>/trash)로 rename 한 번에 옮긴다
+// (ADR-076 §4.1). 지우는 것은 보고 뒤의 배경 삭제자다 (scratch.Deleter).
 type RuncOverlayRuntime struct {
 	doc      execenv.Document
 	binding  execenv.Binding
 	manifest execenv.Manifest
 	rootfs   string
 	helper   string
+	trash    scratch.Trash
 	command  func() *exec.Cmd
 }
 
@@ -69,7 +74,8 @@ func newRuncOverlayRuntime(doc execenv.Document, binding execenv.Binding, manife
 	if err != nil {
 		return nil, fmt.Errorf("resolve enode executable for runtime helper: %w", err)
 	}
-	return &RuncOverlayRuntime{doc: doc, binding: binding, manifest: manifest, rootfs: rootfs, helper: helper}, nil
+	return &RuncOverlayRuntime{doc: doc, binding: binding, manifest: manifest, rootfs: rootfs, helper: helper,
+		trash: scratch.TrashIn(binding.Scratch)}, nil
 }
 
 type runtimeWireRequest struct {
@@ -135,14 +141,19 @@ func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSe
 	if err := os.MkdirAll(r.binding.Scratch, 0o700); err != nil {
 		return nil, fmt.Errorf("create runtime scratch: %w", err)
 	}
-	runRoot, err := os.MkdirTemp(r.binding.Scratch, "enode-runc-")
+	runRoot, err := os.MkdirTemp(r.binding.Scratch, runcSessionPrefix)
 	if err != nil {
 		return nil, fmt.Errorf("create runtime session: %w", err)
 	}
+	// 곧바로 잠금을 쥔다 — 다른 데몬의 기동 청소가 이 폴더를 남은 것으로 보지 않게.
+	// 실패 갈래는 모두 trash 로 옮긴 뒤 잠금을 놓는다 (business-rules.md 1절 ①).
+	lock, err := scratch.HoldSession(runRoot)
+	if err != nil {
+		return nil, r.discard(runRoot, nil, err)
+	}
 	tmpSize, err := execenv.ParseSize(r.doc.Profile.Runtime.Tmp.Size)
 	if err != nil {
-		_ = os.RemoveAll(runRoot)
-		return nil, err
+		return nil, r.discard(runRoot, lock, err)
 	}
 
 	var cmd *exec.Cmd
@@ -157,19 +168,16 @@ func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSe
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		_ = os.RemoveAll(runRoot)
-		return nil, err
+		return nil, r.discard(runRoot, lock, err)
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		_ = os.RemoveAll(runRoot)
-		return nil, err
+		return nil, r.discard(runRoot, lock, err)
 	}
 	var helperErr lockedRuntimeBuffer
 	cmd.Stderr = &helperErr
 	if err := cmd.Start(); err != nil {
-		_ = os.RemoveAll(runRoot)
-		return nil, fmt.Errorf("start runtime namespace helper: %w", err)
+		return nil, r.discard(runRoot, lock, fmt.Errorf("start runtime namespace helper: %w", err))
 	}
 
 	s := &runcOverlaySession{
@@ -186,23 +194,34 @@ func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSe
 		},
 		cmd: cmd, stdin: stdin, decoder: json.NewDecoder(bufio.NewReader(stdout)),
 		encoder: json.NewEncoder(stdin), helperErr: &helperErr, runRoot: runRoot,
+		lock: lock, trash: r.trash,
 	}
 	if r.doc.Profile.Runtime.Credentials.SSH == "readonly" {
 		s.open.SSHDir = r.binding.SSHDir
 	}
 	if err := s.send(runtimeWireRequest{Op: "open", Open: &s.open}); err != nil {
-		s.abort()
-		return nil, err
+		return nil, errors.Join(err, s.abort())
 	}
 	response, err := s.receive()
 	if err != nil || response.Op != "opened" || response.Error != "" {
-		s.abort()
+		released := s.abort()
 		if err != nil {
-			return nil, fmt.Errorf("open runtime namespace: %w", err)
+			return nil, errors.Join(fmt.Errorf("open runtime namespace: %w", err), released)
 		}
-		return nil, fmt.Errorf("open runtime namespace: %s", response.Error)
+		return nil, errors.Join(fmt.Errorf("open runtime namespace: %s", response.Error), released)
 	}
 	return s, nil
+}
+
+// discard 는 helper 를 띄우기 전에 실패한 Open 의 작업 폴더를 버린다. 막 만든 빈 폴더라도
+// 같은 길로 간다 — 자리가 하나면 빠지는 경로가 없다. 옮긴 뒤에 잠금을 놓는다.
+func (r *RuncOverlayRuntime) discard(runRoot string, lock *scratch.SessionLock, cause error) error {
+	errs := []error{cause}
+	if _, err := r.trash.Move(runRoot); err != nil {
+		errs = append(errs, fmt.Errorf("move runtime session to trash: %w", err))
+	}
+	_ = lock.Release()
+	return errors.Join(errs...)
 }
 
 func runcOverlayHelperArgv(helper string) []string {
@@ -240,12 +259,17 @@ type runcOverlaySession struct {
 	encoder   *json.Encoder
 	helperErr *lockedRuntimeBuffer
 	runRoot   string
+	lock      *scratch.SessionLock
+	trash     scratch.Trash
 	sendMu    sync.Mutex
 	callMu    sync.Mutex
 	closeOnce sync.Once
 	closeErr  error
 	// aborted 는 Finalize 가 답하지 않는 helper 를 죽였다는 표시다. callMu 아래에서 쓰고 읽는다.
 	aborted bool
+	// releaseOnce 는 작업 폴더를 trash 로 옮기는 일을 한 번만 하게 한다 — abort 와 Close 가 모두 부른다.
+	releaseOnce sync.Once
+	releaseErr  error
 }
 
 func (s *runcOverlaySession) Paths() RuntimePaths {
@@ -425,7 +449,7 @@ func (s *runcOverlaySession) Finalize(ctx context.Context, spec FinalizeSpec) (F
 		select {
 		case a = <-got:
 		case <-time.After(helperGrace):
-			s.abort()
+			_ = s.abort() // 옮기기의 오류는 뒤의 Close 가 돌려준다
 			s.aborted = true
 			return FinalizeResult{}, ctx.Err()
 		}
@@ -446,17 +470,20 @@ func (s *runcOverlaySession) Finalize(ctx context.Context, spec FinalizeSpec) (F
 	return *a.response.Finalize, errors.New(a.response.Error)
 }
 
-// Close 는 helper 를 닫고 runRoot 를 지운다. Keep 은 받기만 한다 — 행선지를 쓰는 것은
-// trash · bake · checkpoint 유닛이다. Finalize 가 helper 를 죽였으면 helper 에 말하지
-// 않고 남은 runRoot 만 지운다 — 죽은 helper 에 close 를 보내면 실패가 덧붙는다.
+// Close 는 helper 를 닫고(unmount 만) runRoot 를 trash 로 옮긴 뒤 잠금을 놓는다. 보고 전
+// 창에는 rename 한 번만 든다 — 지우는 것은 보고 뒤의 삭제자다 (business-rules.md 1절 ②).
+// ctx 로 끊지 않는다 — 반쯤 닫은 세션은 helper 와 마운트를 남긴다. 닫기가 마감을 넘었는지는
+// Worker 가 본다.
+//
+// Keep 은 받기만 한다 — Upper 는 늘 비어 있고 행선지를 쓰는 것은 bake · checkpoint 유닛이다.
+// Finalize 가 helper 를 죽였으면 helper 에 말하지 않는다 — 죽은 helper 에 close 를 보내면
+// 실패가 덧붙는다. 그때 옮기기는 abort 가 이미 했다.
 func (s *runcOverlaySession) Close(context.Context, Keep) error {
 	s.closeOnce.Do(func() {
 		s.callMu.Lock()
 		defer s.callMu.Unlock()
 		if s.aborted {
-			if err := os.RemoveAll(s.runRoot); err != nil {
-				s.closeErr = fmt.Errorf("remove runtime session: %w", err)
-			}
+			s.closeErr = s.release()
 			return
 		}
 		var errs []error
@@ -486,21 +513,36 @@ func (s *runcOverlaySession) Close(context.Context, Keep) error {
 			}
 			errs = append(errs, errors.New("runtime helper did not exit after close"))
 		}
-		if err := os.RemoveAll(s.runRoot); err != nil {
-			errs = append(errs, fmt.Errorf("remove runtime session: %w", err))
+		if err := s.release(); err != nil {
+			errs = append(errs, err)
 		}
 		s.closeErr = errors.Join(errs...)
 	})
 	return s.closeErr
 }
 
-func (s *runcOverlaySession) abort() {
+// abort 는 helper 를 죽이고 작업 폴더를 trash 로 옮긴다 (business-rules.md 1절 ③).
+// namespace 가 죽으면 그 안의 마운트도 사라지므로 옮길 때 남은 마운트가 없다.
+func (s *runcOverlaySession) abort() error {
 	_ = s.stdin.Close()
 	if s.cmd.Process != nil {
 		_ = syscall.Kill(-s.cmd.Process.Pid, syscall.SIGKILL)
 		_ = s.cmd.Wait()
 	}
-	_ = os.RemoveAll(s.runRoot)
+	return s.release()
+}
+
+// release 는 작업 폴더를 trash 로 옮기고 잠금을 놓는다 — 잠금은 rename 뒤에 놓는다. 앞에
+// 놓으면 그 사이에 다른 데몬의 기동 청소가 같은 폴더를 옮기려 한다. 옮기기가 실패해도
+// 지우지 않는다 — 폴더는 scratch 에 남고 다음 기동 청소가 거둔다.
+func (s *runcOverlaySession) release() error {
+	s.releaseOnce.Do(func() {
+		if _, err := s.trash.Move(s.runRoot); err != nil {
+			s.releaseErr = fmt.Errorf("move runtime session to trash: %w", err)
+		}
+		_ = s.lock.Release()
+	})
+	return s.releaseErr
 }
 
 func (s *runcOverlaySession) Environment() *execenv.Record { return s.record }
@@ -1057,14 +1099,13 @@ func isOverlayWhiteout(d fs.DirEntry) bool {
 	return ok && st.Rdev == 0
 }
 
+// cleanup 은 unmount 만 한다. runRoot 를 지우지 않는다 — 밖의 rename 이 trash 로 옮기고
+// 배경 삭제자가 지운다 (business-rules.md 1절 ④). 부모가 죽어 최종 방어 경로로 불렸으면
+// 작업 폴더는 scratch 에 남고 다음 기동 청소가 거둔다.
 func (h *overlayRuntimeHelper) cleanup() error {
 	merged, lowerRO, inRO, sshRO := h.merged, h.lowerRO, h.inRO, h.sshRO
-	runRoot := ""
-	if h.open != nil {
-		runRoot = h.open.RunRoot
-	}
 	// close request와 helper의 최종 방어 경로가 모두 cleanup을 부른다.
-	// 첫 호출이 소유권을 가져가야 두 번째 호출이 삭제된 mount path를 다시
+	// 첫 호출이 소유권을 가져가야 두 번째 호출이 이미 푼 mount path를 다시
 	// unmount하고 helper를 실패로 끝내지 않는다.
 	h.merged, h.lowerRO, h.inRO, h.sshRO = "", "", "", ""
 	h.open = nil
@@ -1088,11 +1129,6 @@ func (h *overlayRuntimeHelper) cleanup() error {
 	if sshRO != "" {
 		if err := unix.Unmount(sshRO, unix.MNT_DETACH); err != nil && !errors.Is(err, unix.EINVAL) {
 			errs = append(errs, fmt.Errorf("unmount SSH projection: %w", err))
-		}
-	}
-	if runRoot != "" {
-		if err := os.RemoveAll(runRoot); err != nil {
-			errs = append(errs, fmt.Errorf("remove runtime scratch: %w", err))
 		}
 	}
 	return errors.Join(errs...)
@@ -1349,6 +1385,7 @@ chmod +x %s
 	if closeErr != nil {
 		return closeErr
 	}
+	// 닫기가 작업 폴더를 trash 로 옮겼다 — 원래 자리에 없어야 한다. 지우는 것은 데몬의 삭제자다
 	if runRoot != "" {
 		if _, err := os.Stat(runRoot); !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("runtime smoke left session state at %s", runRoot)

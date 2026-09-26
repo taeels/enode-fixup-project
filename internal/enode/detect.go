@@ -32,9 +32,9 @@ func Detect(ctx context.Context, l Local, log *slog.Logger) []contract.Capabilit
 
 // cheapAttrs 는 외부 프로세스를 안 띄우고 알아내는 것이다 (ADR-068 §4 비용 축).
 //
-// 상수 · syscall · 설정값뿐이라 광고마다 새로 봐도 된다. 오히려 새로 봐야
-// 한다 — 디스크 여유가 여기 있고, 그것이 동적이라는 것이 ADR-017 결정 3 의
-// 근거였다. 빌드가 도는 동안 디스크가 차면 다음 광고에서 바로 빠져야 한다.
+// 상수 · syscall · 설정값뿐이라 광고마다 새로 봐도 된다. 디스크 여유는 여기 있다가
+// 광고 주기의 drain 으로 옮겼다 (trash 유닛) — 모자라면 키 몇 개가 아니라 노드 전체가
+// 빠진다. 그래서 arch 키는 툴체인만 따른다.
 func cheapAttrs(l Local, log *slog.Logger) map[string]string {
 	attrs := map[string]string{}
 
@@ -78,23 +78,19 @@ func cheapAttrs(l Local, log *slog.Logger) map[string]string {
 		attrs["ws"] = l.Workspace
 	}
 
-	// 빌드 능력 — 툴체인이 있고 디스크가 남아 있을 때만 광고한다.
+	// 빌드 능력 — 툴체인이 있으면 광고한다. 여유가 모자라도 남는다 — 그때는 노드
+	// 전체가 drain 으로 빠지므로 키를 빼서 막을 일이 없다 (business-rules.md 6.4).
 	if archs := detectArchs(l); len(archs) > 0 {
-		if ok, free := hasRoom(l, log); ok {
-			// arch 는 값이 하나라 둘 이상을 말하지 못한다. 예전 어휘로 남기되
-			// archToolchains 의 고정 순서에서 첫째를 쓴다 — 뒤집히지 않는다.
-			attrs["arch"] = archs[0]
-			// 집합은 값이 아니라 키다. 할 줄 아는 것 하나에 키 하나를 낸다.
-			//
-			// 값에 담아 합치면(arm64,armv7) 부분집합 비교가 문자열 같음이라
-			// 어느 요구와도 안 맞는다. 키로 펴면 계약이 필요한 것만 적고
-			// 둘을 적으면 그것이 곧 AND 다 — 매처가 한 줄도 안 바뀐다.
-			for _, a := range archs {
-				attrs[archPrefix+a] = "yes"
-			}
-		} else {
-			log.Warn("not enough free disk; dropping build capability from the advertisement",
-				"free_gb", free, "min_gb", l.MinFreeGB)
+		// arch 는 값이 하나라 둘 이상을 말하지 못한다. 예전 어휘로 남기되
+		// archToolchains 의 고정 순서에서 첫째를 쓴다 — 뒤집히지 않는다.
+		attrs["arch"] = archs[0]
+		// 집합은 값이 아니라 키다. 할 줄 아는 것 하나에 키 하나를 낸다.
+		//
+		// 값에 담아 합치면(arm64,armv7) 부분집합 비교가 문자열 같음이라
+		// 어느 요구와도 안 맞는다. 키로 펴면 계약이 필요한 것만 적고
+		// 둘을 적으면 그것이 곧 AND 다 — 매처가 한 줄도 안 바뀐다.
+		for _, a := range archs {
+			attrs[archPrefix+a] = "yes"
 		}
 	}
 
@@ -382,18 +378,4 @@ func detectArchs(l Local) []string {
 		}
 	}
 	return archs
-}
-
-func hasRoom(l Local, log *slog.Logger) (bool, uint64) {
-	path := l.Workspace
-	if path == "" {
-		return true, 0
-	}
-	free, err := freeBytes(path)
-	if err != nil {
-		log.Warn("cannot measure free disk; assuming enough", "path", path, "err", err)
-		return true, 0
-	}
-	freeGB := free / (1 << 30)
-	return freeGB >= uint64(l.MinFreeGB), freeGB
 }

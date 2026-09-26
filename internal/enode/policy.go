@@ -2,11 +2,13 @@ package enode
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -152,4 +154,74 @@ func (r *policyReader) checkPerms() {
 			"path", r.Path, "mode", fi.Mode().Perm().String())
 	}
 	r.permsWarned = loose
+}
+
+// drain 의 출처 (ADR-063 §4 · trash 유닛 · 완료 조건 1).
+//
+// 광고의 policy.drain 에는 출처를 합친 값 하나만 실린다 — 새 광고 어휘도 Mediator 변경도
+// 없다 (FR-4). 누가 건 drain 인지는 노드 쪽(상태 파일과 제어판)에만 있다. 노드가 스스로 건
+// drain 도 소유자 drain 과 같은 길을 지난다 — Mediator 가 받아 적고 응답으로 돌려주면 Worker 가
+// 새 일을 안 집는다.
+const (
+	DrainOwner = "owner" // 소유자가 정책 파일에 건 것.  여기서 풀 수 있다
+	DrainDisk  = "disk"  // 워크스페이스의 여유가 min_free_gb 아래라 노드가 스스로 건 것
+)
+
+// DrainSource 는 drain 의 출처 하나다.
+type DrainSource struct {
+	Kind   string `yaml:"kind" json:"kind"`     // owner | disk.  bake 는 lower-state 유닛이 더한다
+	Mode   string `yaml:"mode" json:"mode"`     // graceful | at-boundary
+	Detail string `yaml:"detail" json:"detail"` // 영어 한 줄 (business-rules.md 6절)
+	Owner  bool   `yaml:"owner" json:"owner"`   // 소유자가 정책 파일에서 풀 수 있나
+}
+
+// DrainStatus 는 이번 광고에 실은 drain 과 그 출처다.
+type DrainStatus struct {
+	Effective string        `yaml:"effective" json:"effective"` // "" | graceful | at-boundary
+	Sources   []DrainSource `yaml:"sources" json:"sources"`
+	At        time.Time     `yaml:"at" json:"at"` // 이 값을 정한 광고 주기의 시각
+}
+
+// OwnerDrain 은 정책 파일의 값에서 소유자 출처를 짓는다. 값이 없으면 출처가 없다.
+// 제어판도 이것을 쓴다 — 데몬이 돌지 않을 때 정책 파일에서 출처 하나를 그린다.
+func OwnerDrain(mode string) (DrainSource, bool) {
+	if mode == contract.DrainNone {
+		return DrainSource{}, false
+	}
+	return DrainSource{Kind: DrainOwner, Mode: mode, Detail: "set in the policy file", Owner: true}, true
+}
+
+// combineDrain 은 출처 목록에서 센 쪽 하나를 고른다 — at-boundary > graceful > 없음
+// (business-rules.md 6.3). 출처가 늘어도(bake) 이 규칙이 그대로다.
+func combineDrain(sources []DrainSource) string {
+	effective := contract.DrainNone
+	for _, src := range sources {
+		switch src.Mode {
+		case contract.DrainAtBoundary:
+			return contract.DrainAtBoundary
+		case contract.DrainGraceful:
+			effective = contract.DrainGraceful
+		}
+	}
+	return effective
+}
+
+// diskDrain 은 여유 부족 출처를 정한다 (business-rules.md 6.2). held 는 앞 광고에서 걸었나다 —
+// 거는 선과 푸는 선이 다르다. 걸 때는 min 아래 · 풀 때는 min + 1 GB 이상이다. GB 는 2^30
+// 바이트의 몫(내림)이다. min 이 0 이하면 걸지 않는다.
+func diskDrain(freeBytes uint64, minFreeGB int, held bool) (DrainSource, bool) {
+	if minFreeGB <= 0 {
+		return DrainSource{}, false
+	}
+	freeGB, minGB := freeBytes/(1<<30), uint64(minFreeGB)
+	src := DrainSource{Kind: DrainDisk, Mode: contract.DrainGraceful}
+	switch {
+	case freeGB < minGB:
+		src.Detail = fmt.Sprintf("free %d GB < min %d GB", freeGB, minGB)
+		return src, true
+	case held && freeGB < minGB+1:
+		src.Detail = fmt.Sprintf("free %d GB < min %d GB + 1 GB to lift", freeGB, minGB)
+		return src, true
+	}
+	return DrainSource{}, false
 }

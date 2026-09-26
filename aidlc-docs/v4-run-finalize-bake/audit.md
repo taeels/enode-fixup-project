@@ -707,3 +707,101 @@
 **Context**: Construction · U3 finalize · 조각 2 초록 · PR
 
 ---
+## Construction · U3 `finalize` 병합 · U4 `trash` 착수
+**Timestamp**: 2026-09-26T03:46:31Z
+**User Input**: "병합한다 (Recommended)" (질문 — PR #63 의 CI 가 초록입니다 (test · cross · bounded-demo). 린트는 39 건으로 main 과 같고 커버리지는 전체 86.2% · 미달 0 입니다. main 에 병합할까요?)
+**AI Response**: #63 을 병합 커밋으로 합쳤다 (3f98c8f · 2026-09-26T03:46:10Z). U3 finalize 가 닫혔다. 스크래치 Mediator (127.0.0.1:18080) 를 내리고 DB enode_slice 와 조각 자리를 지웠다. main 에서 unit/trash 를 땄다 (upstream 없음 — push 때 origin/unit/trash 로 건다). U4 의 Functional Design 을 시작한다 — 유닛 정의 4절 · 요구 FR-4 · 설계 문서 · 조각 4 정의 · finalize 가 넘긴 일 (닫기를 rename 으로 바꾸는 커밋에서 닫기를 Finalize 예산 안으로) 을 읽는다.
+**Context**: Construction · U3 병합 · U4 trash Functional Design Step 1
+
+---
+## Construction · U4 `trash` · Functional Design 계획과 물음
+**Timestamp**: 2026-09-26T03:51:52Z
+**User Input**: (없음 — 「병합한다 (Recommended)」에 이어 착수)
+**AI Response**: Functional Design Step 1 ~ 4. 코드를 먼저 읽었다 — 작업 폴더는 MkdirTemp(<scratch>, "enode-runc-") 이고 지우는 자리가 다섯이다 (Open 실패 :144 · :160 · :165 · :171 · Close :489 · abort 뒤 :457 · abort :503 · helper cleanup :1094 · smoke :1339). 큰 비용은 helper 가 namespace 안에서 지우는 :1094 다. 데몬이 죽으면 작업 폴더가 scratch 에 남고 치우는 코드가 없다. hasRoom (detect.go:82 ~ :98 · :387) 이 arch 키만 가리고 min_free_gb 기본값은 10 이라 모든 노드가 본다 (config.go:139). 광고의 drain 은 정책 파일 하나 (advertise.go:183) · 상태 파일은 탐지 시각이 바뀔 때만 (advertise.go:175) · 제어판 drain 은 정책 파일만 (panel/view.go:98). 계획과 물음 열을 냈다 — construction/plans/trash-functional-design-plan.md. 1 닫기를 Finalize 예산 안으로 · 2 trash 의 자리와 이름 · 남은 작업 폴더 (세션 잠금) · 3 삭제자의 때와 모양 · 4 삭제의 경계 · 5 trash 양 측정 · 6 여유 부족 drain 을 거는 노드 · 7 합치기 · 걸고 푸는 조건 · 8 상태 파일 쓰기 · 9 제어판 · 10 기동 순서와 조각 4. 권장은 모두 A. 표기 검사 exit 0 · 사내 이름 0.
+**Context**: Construction · U4 trash · Functional Design Step 1 ~ 4. 답을 기다린다
+
+---
+## Construction · U4 `trash` · Functional Design 답
+**Timestamp**: 2026-09-26T12:35:51Z
+**User Input**: "권장대로"
+**AI Response**: 물음 열의 답을 모두 A 로 적었다 (계획 파일의 [Answer]:). 답끼리 막는 자리가 없어 되물음 파일을 만들지 않는다. 산출물 셋을 construction/trash/functional-design/ 에 낸다.
+**Context**: Construction · U4 trash · Functional Design Step 5
+
+---
+## Construction · U4 `trash` · Functional Design 산출물 · 승인 요청
+**Timestamp**: 2026-09-26T12:40:16Z
+**User Input**: (없음 — 「권장대로」에 이어)
+**AI Response**: 산출물 셋을 construction/trash/functional-design/ 에 냈다 — domain-entities.md (internal/scratch 의 Trash · 세션 잠금 · CheckEntry · Measure · Remove · Deleter · Usage · trash-helper 의 입구와 줄 · DrainSource · DrainStatus · combineDrain · diskDrain · 상태 파일의 새 칸과 statusBook · 제어판 State 의 새 칸) · business-rules.md (다섯 자리의 새 동작 · 닫기와 Finalize 예산 · 기동 청소 · 삭제자의 때와 결과 · 측정 · 삭제 경계 · 여유 부족 drain 의 걸고 푸는 표와 합치기 표 · arch 키 · 상태 파일 · 제어판 · 예시 주석 · 경계 시험 줄) · business-logic-model.md (닫기 · 기동 · 삭제자와 helper · 광고 주기 · 상태 파일 · 제어판 · 조각 4 의 확인 모양 · 파일 행렬 밖 · 넘기는 것 · 정본 되돌림). 설계가 더한 것 — 삭제자가 「실패한 항목이 남았으면」이 아니라 「항목이 남아 있으면」 10분마다 깬다 (데몬이 도는 동안 env check 가 남긴 것도 거둔다) · 잠금 파일이 없는 작업 폴더는 만든 지 1시간이 지났을 때만 남은 것으로 친다 · 다른 filesystem 으로 안 넘어가는 삭제 경계. 검사 — 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0 · U+2605 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage (다음은 이 유닛의 NFR Requirements — N1 · 보안 · 성능).
+**Context**: Construction · U4 trash · Functional Design Step 6 ~ 7. 승인 대기
+
+---
+## Construction · U4 `trash` · Functional Design 승인 요청 중 질문
+**Timestamp**: 2026-09-26T14:23:06Z
+**User Input**: "nfr 또해?"
+**AI Response**: 권장은 건너뛰기라고 답했다. 유닛 정의가 NFR 에 맡긴 셋 중 보안(trash 삭제 줄)은 business-rules.md 5절이, 성능(보고 전에는 rename 한 번)은 1 · 2절과 조각 4 ① 이 닫았다. 남는 N1 (한 번에 지우는 양과 속도)은 틀려도 trash 가 늦게 비워져 여유 부족 drain 이 걸리는 안전한 쪽이라 Code Generation 계획에 측정으로 넣자고 제안했다. 하나를 새로 알렸다 — IO 우선순위 idle 은 BFQ 스케줄러에서만 먹는다. 이 기계의 블록 장치는 none 이고, 그런 디스크에서는 삭제자가 도는 단계와 보통 우선순위로 IO 를 나눈다. 삭제자를 그대로 둘지(답 3 = A) 단계가 도는 동안 쉬게 할지(B) 사용자에게 묻는다.
+**Context**: Construction · U4 trash · Functional Design Step 7 (승인 대기 중의 질문)
+
+---
+## Construction · U4 `trash` · Functional Design 승인 · NFR 건너뜀
+**Timestamp**: 2026-09-26T14:24:01Z
+**User Input**: "건너뛴다 (Recommended)" · "계속 지운다 (Recommended)" (질문 — trash 유닛의 NFR 두 단계를 어떻게 할까요? / 단계가 도는 동안 삭제자는 어떻게 할까요? (스케줄러가 none 이면 idle IO 가 안 먹는다))
+**AI Response**: NFR 을 건너뛰고 다음 단계로 가는 답을 Functional Design 승인으로 받았다. NFR Requirements 와 NFR Design 을 사용자 결정으로 건너뛴다 (실행 계획은 「한다 (최소)」였다). N1 은 Code Generation 계획이 측정으로 받는다. 삭제자는 답 3 = A 그대로 — 단계가 도는 동안에도 지운다. idle IO 가 BFQ 에서만 먹는다는 사실과 이 결정을 business-rules.md 4.2 에 적었다. Functional Design 산출물 셋 · 계획 · 상태 · 감사를 한 커밋으로 넣고 Code Generation Part 1 (계획) 을 시작한다.
+**Context**: Construction · U4 trash · Functional Design 승인 · NFR Requirements 와 NFR Design 건너뜀 · Code Generation Part 1 착수
+
+---
+## Construction · U4 `trash` · Code Generation 계획 · 승인 요청
+**Timestamp**: 2026-09-26T14:26:50Z
+**User Input**: (없음 — FD 승인에 이어 착수)
+**AI Response**: Functional Design 커밋 dd27618 을 넣었다. Code Generation Part 1 — cmd/enode/main.go 의 기동 (runtime 생성 :156 · Advertiser :235 · Worker :282 · 고루틴 셋 :294) · 제어판 State 와 drain 그리기 (view.go · page.go:237) · 경계 시험 표를 읽었다. 계획을 냈다 — construction/plans/trash-code-generation-plan.md, 단계 열여덟. 새 패키지 internal/scratch (trash · 세션 잠금 · 측정과 삭제 · 삭제자 · unix 와 other 짝) · trash-helper (trash_linux.go) · 다섯 자리 · 닫기가 늦었는지를 settle 에 · drain 합치기와 여유 · 상태 파일의 StatusBook · 기동을 잇기 · 제어판 · 예시 주석 · 경계 시험 줄 셋 · 측정 · 조각 4 스크립트. NFR 이 맡았던 N1 은 계획 3절이 측정으로 받는다 (BenchmarkRemove 150,000 파일 · 조각 4 에서 SunnyVM 의 스케줄러와 9 GB 지우는 시간). FD 에 없던 자리 여덟 (계획 4절). SunnyVM 에 ssh 가 닿지 않았다 (No route to host · 2026-09-26) — 조각 4 는 켜진 뒤 사용자가 돈다. 그때까지 병합 조건이 안 선다. 표기 검사 exit 0 · 사내 이름 0. 계획 승인을 요청한다.
+**Context**: Construction · U4 trash · Code Generation Part 1 Step 1 ~ 6. 승인 대기
+
+---
+## Construction · U4 `trash` · Code Generation 계획 승인 요청 중 질문
+**Timestamp**: 2026-09-26T14:27:06Z
+**User Input**: "sunnyvm 필요해?"
+**AI Response**: 지금은 필요 없다고 답했다. 코드 · 기본 go test · 코드 검사 · 측정(BenchmarkRemove)은 이 기계에서 돈다. SunnyVM 은 마지막에 조각 4 (병합 조건 · 사람의 조각) 와 integration 태그 시험에만 필요하다 — 이 기계는 subordinate uid 를 매핑하지 못한다 (unshare --map-auto 가 「newuidmap: write to uid_map failed: Operation not permitted」 · 방금 확인). 계획 승인은 여전히 기다린다.
+**Context**: Construction · U4 trash · Code Generation Part 1 Step 7 (승인 대기 중의 질문)
+
+---
+## Construction · U4 `trash` · 답의 언어
+**Timestamp**: 2026-09-26T14:28:25Z
+**User Input**: "왜 자꾸 영어로 말함"
+**AI Response**: 앞의 몇 답을 영어로 썼다고 인정하고 한국어로 다시 답했다. 앞으로 채팅 답을 한국어로 쓰도록 기억에 남겼다. Code Generation 계획의 승인은 여전히 기다린다.
+**Context**: Construction · U4 trash · Code Generation Part 1 Step 7 (승인 대기)
+
+---
+## Construction · U4 `trash` · Code Generation 계획 승인
+**Timestamp**: 2026-09-26T14:31:04Z
+**User Input**: "승인한다."
+**AI Response**: 계획(construction/plans/trash-code-generation-plan.md · 단계 열여덟)의 승인으로 받았다. Code Generation Part 2 를 시작한다 — Step 1 기준선부터. 커밋은 Part 2 가 끝나고 승인한 뒤 한 번이다 (계획 Step 18).
+**Context**: Construction · U4 trash · Code Generation Part 1 승인 · Part 2 착수
+
+---
+## Construction · U4 `trash` · Code Generation Part 2 완료 · 승인 요청
+**Timestamp**: 2026-09-26T15:08:14Z
+**User Input**: (없음 — 계획 승인에 이어 Part 2 를 돌았다)
+**AI Response**: 계획의 단계 열여덟 중 열일곱과 반을 돌고 체크했다 (남은 반은 승인 뒤의 커밋). 새 패키지 internal/scratch (trash · 세션 잠금 · 측정과 삭제 · 배경 삭제자) · trash-helper (trash_linux.go) · 다섯 자리를 rename 으로 (runc_overlay_linux.go) · 닫기를 Finalize 예산 안으로 (settle 의 closedLate) · 여유 부족 drain 과 합치기 (policy.go · advertise.go) · arch 키의 여유 조건문을 지웠다 (detect.go) · 상태 파일의 StatusBook · 기동 청소와 삭제자를 잇기 (cmd/enode/main.go) · 제어판의 출처 줄과 trash 줄 · 예시 넷 · 경계 시험 줄 셋 · 조각 4 스크립트. 코드 검사 — gofmt 빈 출력 · vet · vet -tags integration · build exit 0 · go test 통과 2,088 · 실패 0 · 스킵 0 · 스물한 패키지 전부 80% 이상 (전체 86.4% · 새 internal/scratch 93.5% · internal/enode 83.6% · cmd/enode 80.4%) · 크로스 빌드 셋 · enodectl.exe 심볼 1 · 6 · U+2605 0 · glyphscan 0 · golangci-lint 38 (기준선 39 · 새 경고 0 — errcheck 일곱을 고쳤다). 조각 0 초록 (라우트 19). 측정 N1 — BenchmarkRemove 150,101 항목에 3.14 초 (Intel N100 · ext4 · mq-deadline). 계획과 다르게 된 자리 열하나를 code-summary.md 4절에 적었다 — 우선순위를 프로세스 그룹에 건다 · 삭제를 dirfd 로 · config.go 주석과 enode setup 도움말의 옛 뜻을 고쳤다 (행렬 밖) 등. 알려진 한계 둘 (8절) — 비어 있던 trash 에 데몬 밖에서 들어온 smoke 폴더는 다음 Kick 까지 남는다 · 여유 부족 drain 은 광고 주기만큼 늦다. 조각 4 는 사람의 조각이라 돌리지 않았다 — 보류. SunnyVM 은 15:07:53Z 에 다시 닿는다. 표기 검사 exit 0 · 싫어한 말투 0 · 사내 이름 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage (다음 유닛 merge-rules 는 조각 4 가 초록이 되어 이 유닛이 병합된 뒤).
+**Context**: Construction · U4 trash · Code Generation Part 2 Step 14. 승인 대기
+
+---
+## Construction · U4 `trash` · Code Generation 승인 요청 중 지시 — 미뤄 둔 실측
+**Timestamp**: 2026-09-26T15:12:51Z
+**User Input**: "미뤄둔 실측 있으면 지금 해."
+**AI Response**: 미뤄 둔 실측 다섯을 SunnyVM 에서 돌린다 — 이 유닛의 조각 4 (사람의 조각 · 에이전트가 돌리고 판정은 사용자) · integration 태그 시험 (namespace 안 삭제 · 000 work/work · whiteout) · SunnyVM 의 IO 스케줄러와 9 GB 지우는 시간 (N1 의 나머지) · finalize 유닛이 넘긴 둘 (SunnyVM 디스크의 BenchmarkWalkWorkspace · overlay 에서 helper 가 마감 뒤 돌아오는 시간). Code Generation 승인은 여전히 기다린다.
+**Context**: Construction · U4 trash · Code Generation 승인 대기 중 실측
+
+---
+## Construction · U4 `trash` · 미뤄 둔 실측 결과 (판정은 사람)
+**Timestamp**: 2026-09-26T15:23:23Z
+**User Input**: (없음 — 앞 지시 「미뤄둔 실측 있으면 지금 해.」 를 돌았다)
+**AI Response**: SunnyVM 에서 실측 다섯을 돌렸다. 차림 — 이 브랜치로 빌드한 스크래치 Mediator (192.168.219.203:18080 · DB enode_slice4 · 광고 주기 5초) 와 SunnyVM 의 조각 전용 노드 (이 브랜치 빌드 · 설정 slice4.yaml · 워크스페이스와 scratch 를 따로 · 준비된 store 는 읽기만). 사용자의 yocto 노드와 공유 rootfs 는 건드리지 않았다. (1) 조각 4 — ① 큰 upper (15만 파일 · 9 GB) 208 ms · 작은 upper 43 ms · ② 보고 뒤 trash 가 1,037 ms 에 비었다 (9,667,428,352 바이트 · 상태 파일 scratch 칸이 크기 모름 -> 측정 -> 0 으로) · ③ 삭제 실패 0 · ④ SIGKILL 뒤 남은 작업 폴더를 재시작 때 trash 로 옮겨 지웠다 · ⑤ min_free_gb 328 에 draining graceful 과 출처 disk, 되돌리면 풀림. 노드에 arch 키가 없어 arch: armv7 을 잠시 더해 drain 중에도 arch 키가 남는 것을 봤다 · ⑥ env check smoke 폴더는 다음 Kick 에 지워짐. Open 실패는 쉼표가 든 TMPDIR 로 노드를 띄워 확인했다 (runtime open: … unsafe for overlay options · 작업 폴더가 trash 를 거쳐 지워짐). (2) integration 시험 초록 — helper 가 15 항목을 4.7 ms 에. (3) SunnyVM 디스크 sda 의 스케줄러 none — idle IO 가 안 먹는다. (4) BenchmarkWalkWorkspace 초당 약 811,700 방문 · BenchmarkRemove 150,101 항목 0.99 초. (5) helper 가 마감 뒤 돌아오기 80 ~ 115 µs. 알게 된 것 — upper 의 항목은 모두 노드 uid 소유다 (단계 사용자가 노드 uid 로 매핑된다). FD 의 「subordinate uid 소유 항목」 전제는 이 매핑에서 생기지 않는다. 설계는 그대로 두고 정본에 사실로 올린다. 돌리며 고친 것 — slice-4.sh (끝 상태 SUCCEEDED · git email 을 처음에 확인 · 실제 디스크의 스케줄러만 · ③ 문구 · arch 키 없는 노드 알림) · integration 시험 (ENODE_RUNC_USER · helper 가 항목 전체를 지움 · 소유자 로그). 저장소 뿌리에 잘못 생긴 mediator.pid 를 지웠다. 스크래치 Mediator 는 내렸고 DB enode_slice4 · SunnyVM 의 ~/slice4 · ~/enode-trash-slice · slice4.yaml 은 판정 뒤 지운다. code-summary 6 · 7 · 8 · 10절에 적었다. 조각 4 판정과 Code Generation 승인을 묻는다.
+**Context**: Construction · U4 trash · 조각 4 · 판정 대기
+
+---
+## Construction · U4 `trash` · 조각 4 판정 · Code Generation 승인 · PR
+**Timestamp**: 2026-09-26T15:24:25Z
+**User Input**: "초록 · 승인 · PR 올림 (Recommended)" (질문 — 조각 4 를 어떻게 판정하고, Code Generation 을 어떻게 할까요? 선택지: 초록 · 승인 · PR 올림 / 초록 · 승인 · 커밋만 / 변경 요청)
+**AI Response**: 조각 4 를 사용자 판정으로 초록으로 적었다. 병합 조건이 섰다. Code Generation 을 승인으로 받아 코드 · 시험 · 스크립트 · 예시 · 계획 · code-summary · 상태 · 감사를 한 커밋으로 넣는다 (CONVENTIONS 3.3 · 3.4). 브랜치 diff 에 사내 이름 0 을 확인했다. unit/trash 를 push 하고 main 으로 PR 을 연다. 병합은 CI 결과를 보고 다시 묻는다. 조각 전용 자리 (DB enode_slice4 · SunnyVM 의 ~/slice4 · ~/enode-trash-slice · slice4.yaml · 스크래치 파일) 를 지운다.
+**Context**: Construction · U4 trash · 조각 4 초록 · Code Generation 승인 · 커밋 · PR
+
+---

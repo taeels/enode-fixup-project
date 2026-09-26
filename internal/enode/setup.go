@@ -354,7 +354,7 @@ func SetupCLI(prog string, args []string) int {
 		port  = fs.String("board-port", "", "the serial port it hangs on")
 		label = fs.String("label", "", "k=v pairs, comma separated")
 		orch  = fs.Bool("orchestration", false, "this node builds contracts instead of running commands")
-		free  = fs.Int("min-free-gb", 0, "stop advertising build capacity below this")
+		free  = fs.Int("min-free-gb", 0, "drain this node while workspace free disk is below this many GB")
 		princ = fs.String("principal", "",
 			"your email; needed only where git config --global user.email is not set")
 		check = fs.Bool("check", false, "report and write nothing")

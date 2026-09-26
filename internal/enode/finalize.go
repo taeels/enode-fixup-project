@@ -194,6 +194,7 @@ func (r *exitReporter) Stop() {
 type settleIn struct {
 	finalizeErr    error          // session.Finalize 가 돌려준 것
 	closeErr       error          // session.Close 가 돌려준 것
+	closedLate     bool           // 닫기가 Finalize 예산의 마감 뒤에 끝났다 (임대는 살아 있다)
 	upload         contract.Stage // Worker.upload 가 돌려준 것
 	leaseEnded     bool           // runCtx 가 임대로 끝났다
 	finalizeBudget time.Duration
@@ -203,13 +204,14 @@ type settleIn struct {
 // settle 은 finalize · upload · reason 칸과 error 문구를 정한다 (business-rules.md 3.2).
 //
 // 예산을 넘긴 것만 판정을 바꾼다 — error 가 차면 Mediator 가 완주가 아닌 것으로 받는다.
-// 문구는 일어난 순서대로 "; " 로 잇는다. 명령이 완주하지 않았다는 문구(임대 만료 ·
+// 닫기는 Finalize 예산 안이다 (trash 유닛 · business-rules.md 2절). Finalize 가 제시간에
+// 끝났어도 닫기가 마감을 넘겼으면 같은 timeout 이다. 문구는 일어난 순서대로 "; " 로 잇는다. 명령이 완주하지 않았다는 문구(임대 만료 ·
 // 실행 실패 · 하네스 미완주)는 부르는 쪽이 이 위에 덮어쓴다 — 그 사실을 먼저 적는다.
 func settle(in settleIn) (finalize, upload contract.Stage, reason, errText string) {
 	var errs []string
 	finalize = contract.StageOK
 	switch {
-	case errors.Is(in.finalizeErr, context.DeadlineExceeded) && !in.leaseEnded:
+	case (errors.Is(in.finalizeErr, context.DeadlineExceeded) || (in.finalizeErr == nil && in.closedLate)) && !in.leaseEnded:
 		finalize = contract.StageTimeout
 		errs = append(errs, fmt.Sprintf("finalize budget of %s exceeded", in.finalizeBudget))
 	case in.finalizeErr != nil:

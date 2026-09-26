@@ -10,5 +10,6 @@ token: 여기에-mediator-토큰                # ENODE_TOKEN 으로도 준다
 # 사람이 저장소 주소를 안 적는다 (ADR-017).
 workspace: /Users/여러분/work/some-repo
 
-# 디스크가 이 아래로 떨어지면 빌드 능력을 광고에서 뺀다 (기본 10).
+# 워크스페이스의 여유가 이 아래로 떨어지면 노드 전체가 drain 한다 (기본 10 GB).
+# 이 값 + 1 GB 를 되찾으면 풀린다.  빌드 능력(arch 키)은 여유와 무관하게 광고에 남는다.
 min_free_gb: 20

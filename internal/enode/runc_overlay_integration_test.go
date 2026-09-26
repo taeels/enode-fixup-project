@@ -9,10 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
 	execenv "github.com/taeels/enode/internal/environment"
+	"github.com/taeels/enode/internal/scratch"
 )
 
 func TestRuncOverlayRuntimeIntegration(t *testing.T) {
@@ -21,6 +23,11 @@ func TestRuncOverlayRuntimeIntegration(t *testing.T) {
 	helper := os.Getenv("ENODE_RUNC_HELPER")
 	if rootfs == "" || testRoot == "" || helper == "" {
 		t.Skip("set ENODE_RUNC_ROOTFS, ENODE_RUNC_TEST_ROOT, and ENODE_RUNC_HELPER for the real namespace gate")
+	}
+	// rootfs 의 사용자 이름 — 준비된 rootfs 마다 다르다 (profile 의 rootfs.user.name)
+	user := os.Getenv("ENODE_RUNC_USER")
+	if user == "" {
+		user = "sunny"
 	}
 	subIDSize := 65536
 	if value := os.Getenv("ENODE_RUNC_SUBID_SIZE"); value != "" {
@@ -43,14 +50,14 @@ rootfs:
   arch: amd64
   apt: {components: [main], packages: [bash]}
   locale: C.UTF-8
-  user: {name: sunny, uid: 1000, gid: 1000}
+  user: {name: %s, uid: 1000, gid: 1000}
 runtime:
   driver: runc-overlay
   workspace_target: /work
   tmp: {size: 64MiB, executable: true}
   credentials: {ssh: readonly}
 verify: {executables: [bash], locale: C.UTF-8}
-`, subIDSize, subIDSize)))
+`, subIDSize, subIDSize, user)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,6 +192,41 @@ chmod +x /tmp/gate-exec
 		t.Fatalf("runtime session state remains at %s: %v", concrete.runRoot, err)
 	}
 
+	// 닫은 작업 폴더는 trash 에 있다 — 권한 000 인 work/work 와 whiteout 째로 (trash 유닛).
+	// 노드 uid 로는 못 지우는 모양이다. trash-helper 가 같은 uid 매핑의 namespace 안에서 지운다
+	// (business-logic-model.md 7절 · 조각 4 ③).
+	trash := runtimeImpl.trash
+	entry := filepath.Base(concrete.runRoot)
+	var st syscall.Stat_t
+	if err := syscall.Lstat(filepath.Join(trash.Dir, entry, "work", "work"), &st); err != nil || st.Mode&0o777 != 0 {
+		t.Fatalf("work/work in trash: mode %o err %v", st.Mode&0o777, err)
+	}
+	if err := syscall.Lstat(filepath.Join(trash.Dir, entry, "upper", "gate-lower"), &st); err != nil ||
+		st.Mode&syscall.S_IFMT != syscall.S_IFCHR || st.Rdev != 0 {
+		t.Fatalf("the whiteout did not travel to trash: mode %o rdev %d err %v", st.Mode, st.Rdev, err)
+	}
+	// 소유자를 적는다 — 단계 사용자(컨테이너 uid 1000)는 노드 uid 로 매핑된다 (runtimeIDMappings).
+	// 2026-09-26 SunnyVM 에서 upper · work 의 항목은 모두 노드 uid 소유였다
+	for _, rel := range []string{"upper", "upper/.gate-marker", "upper/gate-lower", "work", "work/work"} {
+		var own syscall.Stat_t
+		if err := syscall.Lstat(filepath.Join(trash.Dir, entry, rel), &own); err == nil {
+			t.Logf("trash %s: uid %d gid %d mode %o", rel, own.Uid, own.Gid, own.Mode&0o7777)
+		}
+	}
+	// 노드 uid 로는 권한 000 인 work/work 안을 못 읽는다. helper 가 항목 전체를 지운다
+	was := trashHelperCommand
+	trashHelperCommand = func(dir, name string) ([]string, error) { return trashHelperArgv(helper, dir, name), nil }
+	defer func() { trashHelperCommand = was }()
+	var measured scratch.Size
+	began = time.Now()
+	if err := TrashLauncher(trash)(context.Background(), entry, func(s scratch.Size) { measured = s }); err != nil {
+		t.Fatalf("trash helper: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(trash.Dir, entry)); !os.IsNotExist(err) {
+		t.Fatalf("the trash entry survived the helper: %v", err)
+	}
+	t.Logf("trash helper removed %d entries (%d bytes) in %v", measured.Entries, measured.Bytes, time.Since(began))
+
 	record := &execenv.Record{
 		ProfileSHA256: doc.SHA256, PreparedEnvironment: "integration-rootfs", Runtime: "runc-overlay",
 	}
@@ -242,6 +284,23 @@ printf '{"type":"result","subtype":"success","num_turns":1}\n'
 	if err != nil || len(left) != 0 {
 		t.Fatalf("runtime scratch remains after Worker scenes: %v err=%v", left, err)
 	}
+
+	// Worker 장면이 trash 에 남긴 것을 배경 삭제자가 비운다
+	deleter := &scratch.Deleter{Trash: trash, Launch: TrashLauncher(trash)}
+	dctx, dcancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { deleter.Run(dctx); close(done) }()
+	deadline := time.Now().Add(time.Minute)
+	for u := deleter.Usage(); u.TrashEntries != 0 || u.Deleting || u.MeasuredAt.IsZero(); u = deleter.Usage() {
+		if time.Now().After(deadline) {
+			dcancel()
+			<-done
+			t.Fatalf("the deleter did not empty trash: %+v", deleter.Usage())
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	dcancel()
+	<-done
 }
 
 func discovered(d *Discovery, path string) bool {

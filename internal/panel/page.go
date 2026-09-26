@@ -234,25 +234,56 @@ function render(st){
     el("work").innerHTML = "<span class='muted'>지금 도는 작업 없음</span>";
   }
 
+  // drain 은 출처가 여럿일 수 있다 (소유자 정책 · 여유 부족). 풀기 버튼은 소유자
+  // 출처가 있을 때만 — 여유 부족은 여기서 못 풀고 저절로 풀린다.
   var dr = el("drain");
+  var srcs = st.drain_sources || [];
+  var owner = srcs.some(function(s){ return s.owner; });
+  var others = srcs.filter(function(s){ return !s.owner; });
+  var h = "";
   if(st.drain){
-    dr.innerHTML =
+    h +=
       "<div class='head'><span class='title' style='font-size:14px'>되찾은 상태</span>" +
       "<span class='grow'></span><span class='badge' style='color:var(--drain);border-color:var(--drain)'>draining · " + esc(st.drain) + "</span></div>" +
-      "<p class='muted' style='margin:10px 0 14px'>도는 단계까지 마친 뒤 이 노드는 후보에서 빠져 있다. 소유자가 풀어야 후보로 돌아온다.</p>" +
-      "<button class='primary' onclick='doUndrain()'>drain 풀기 · 형태로 돌려주기</button>";
-  } else {
-    dr.innerHTML =
+      "<p class='muted' style='margin:10px 0 14px'>도는 단계까지 마친 뒤 이 노드는 후보에서 빠져 있다. 출처가 모두 풀려야 후보로 돌아온다.</p>";
+    if(srcs.length){
+      h += "<dl style='margin:0 0 14px'>" + srcs.map(function(s){
+        return "<dt>" + esc(drainName(s.kind)) + "</dt><dd>" + esc(s.mode) + " · " + esc(s.detail) +
+          " · <span class='muted'>" + esc(drainLift(s.kind)) + "</span></dd>";
+      }).join("") + "</dl>";
+    }
+    if(owner){
+      h += "<button class='primary' onclick='doUndrain()'>drain 풀기 · 형태로 돌려주기</button>";
+      if(others.length){
+        h += "<p class='muted' style='margin:10px 0 0'>풀어도 " + esc(others.map(function(s){ return drainName(s.kind); }).join(" · ")) +
+          " drain 이 남아 노드는 빠져 있다</p>";
+      }
+    }
+  }
+  if(!owner){
+    h +=
       "<div class='modes'>" +
       "<label class='mode on'><input type='radio' name='mode' value='graceful' checked><div><div class='mt'>graceful</div><div class='md'>도는 단계까지 마치고 임대를 놓는다. 놀라움이 적은 기본값.</div></div></label>" +
       "<label class='mode'><input type='radio' name='mode' value='at-boundary'><div><div class='mt'>at-boundary</div><div class='md'>단계 경계에서 임대를 놓고 취소 경로로 종료한다. 남은 단계는 새 Run 으로.</div></div></label>" +
       "</div><button class='primary' onclick='doDrain()'>drain 걸기</button>";
-    for(var m of dr.querySelectorAll("input[name=mode]")){
-      m.addEventListener("change", function(){
-        for(var lab of dr.querySelectorAll(".mode")) lab.classList.remove("on");
-        this.closest(".mode").classList.add("on");
-      });
-    }
+  }
+  h += "<div class='muted' style='margin-top:12px;font-size:12px'>" + (st.drain_from === "status"
+    ? "데몬이 광고에 실은 값"
+    : "정책 파일의 값 — 데몬이 멈췄거나 아직 상태 파일에 쓰지 않았다") + "</div>";
+  var sc = st.scratch;
+  if(sc){
+    var parts = ["trash " + (sc.trash_bytes / 1073741824).toFixed(1) + " GiB",
+      "항목 " + sc.trash_entries + (sc.trash_unsized ? " (" + sc.trash_unsized + " 개는 크기 모름)" : "")];
+    if(sc.deleting) parts.push("지우는 중");
+    parts.push("측정 " + (sc.measured_at ? new Date(sc.measured_at).toLocaleTimeString() : "없음"));
+    h += "<div class='subline'>" + esc(parts.join(" · ")) + "</div>";
+  }
+  dr.innerHTML = h;
+  for(var m of dr.querySelectorAll("input[name=mode]")){
+    m.addEventListener("change", function(){
+      for(var lab of dr.querySelectorAll(".mode")) lab.classList.remove("on");
+      this.closest(".mode").classList.add("on");
+    });
   }
 
   var caps = st.caps || {};
@@ -271,6 +302,12 @@ function render(st){
   el("mediator").textContent = md.reachable
     ? ("Mediator 도달 가능 · 마지막 응답 " + fmt(md.last_response))
     : ("Mediator 불통 · 마지막 응답 " + (md.last_response?fmt(md.last_response):"없음") + " · drain 통보가 늦어진다");
+}
+
+// drain 출처의 이름과 누가 풀 수 있나 (business-rules.md 8.1)
+function drainName(kind){ return {owner:"소유자 정책", disk:"여유 부족"}[kind] || kind; }
+function drainLift(kind){
+  return {owner:"여기서 풀 수 있다", disk:"저절로 풀린다 — trash 가 비거나 디스크가 늘면"}[kind] || "";
 }
 
 function load(){ fetch("/api/state").then(function(r){return r.json();}).then(render).catch(function(e){ alert("상태를 못 불러왔습니다: "+e); }); }

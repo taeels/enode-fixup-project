@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U3 finalize 의 PR (조각 1 · 2 · 3 초록) (브랜치 `unit/finalize` · main `0c0370c` 에서 땄다). Functional Design 승인 2026-09-25T12:53:36Z · NFR 두 단계는 사용자 결정으로 건너뜀. U2 step-phase 는 PR #62 로 병합 2026-09-25T11:44:43Z · U1 contract-grammar 는 PR #61 로 병합 2026-09-25T07:21:53Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U4 trash 의 Code Generation 승인 · 조각 4 초록 · PR (병합은 CI 뒤) (브랜치 `unit/trash` · main `3f98c8f` 에서 땄다). U3 finalize 는 PR #63 으로 병합 2026-09-26T03:46:10Z · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -225,7 +225,37 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           스크래치 Mediator (127.0.0.1:18080) 로 돌렸다 — 개발용 :8080 은 2026-09-17 빌드.
                           요약은 construction/finalize/code/code-summary.md.  승인 2026-09-26T00:45:54Z (「승인」)
    병합                   조각 2 초록 — 에이전트가 돌리고 (「해봐」) 사용자가 판정 2026-09-26T03:33:12Z.  스크립트를 고쳐 다시 돌렸다
-                          (369417e · 256 MiB 파일 하나가 blob 상한 10 MiB 에 413).  조각 1 · 2 · 3 초록.  PR 을 연다
+                          (369417e · 256 MiB 파일 하나가 blob 상한 10 MiB 에 413).  조각 1 · 2 · 3 초록.
+                          PR #63 (CI 초록 · 린트 39 건 main 과 같음 · 커버리지 86.2%) 로 main 에 병합 (3f98c8f · 2026-09-26T03:46:10Z)
+```
+
+### U4 `trash` — 브랜치 `unit/trash` (`3f98c8f` 에서 땄다)
+
+```text
+   Functional Design      착수 2026-09-26T03:46:31Z.  finalize 가 넘긴 일을 받는다 — 닫기를 rename 으로 바꾸는 커밋에서
+                          닫기를 Finalize 예산 안으로 (afterExit 의 session.Close 에 Finalize ctx) ·
+                          Keep.Upper 가 "" 면 runRoot 를 trash 로 · finalized_at 의 뜻은 그대로.
+                          계획과 물음 열 2026-09-26T03:51:52Z — construction/plans/trash-functional-design-plan.md.
+                          답 2026-09-26T12:35:51Z — 열 모두 A (「권장대로」).  되물음 없음.
+                          산출물 셋 2026-09-26T12:40:16Z — construction/trash/functional-design/.
+                          승인 2026-09-26T14:24:01Z (NFR 을 건너뛰는 답으로 받았다 · 삭제자는 단계가 돌아도 지운다 — idle IO 는 BFQ 에서만)
+   NFR Requirements       건너뛴다 — 사용자 결정 2026-09-26T14:24:01Z.  보안 · 성능은 FD 규칙 5절 · 1 · 2절이 닫았다.
+                          N1 (한 번에 지우는 양과 속도)은 Code Generation 계획이 측정으로 받는다
+   NFR Design             건너뛴다 (위와 같은 결정)
+   Code Generation        Part 1 착수 2026-09-26T14:24:01Z.  계획 — 단계 열여덟 2026-09-26T14:26:50Z
+                          construction/plans/trash-code-generation-plan.md
+                          N1 은 계획 3절 · FD 에 없던 자리 여덟 (계획 4절).  SunnyVM 이 꺼져 있다 — 조각 4 는 켜진 뒤.  승인 2026-09-26T14:31:04Z (「승인한다.」).
+                          Part 2 착수 2026-09-26T14:31:04Z.  완료 2026-09-26T15:08:14Z — 단계 열여덟 중 열일곱과 반 체크 (커밋은 승인 뒤) ·
+                          코드 검사 초록 (통과 2,088 · 실패 0 · 스킵 0 · 스물한 패키지 전부 80% 이상 · 새 internal/scratch 93.5% ·
+                          internal/enode 82.7% -> 83.6% · cmd/enode 83.0% -> 80.4% · 크로스 빌드 셋 · 린트 39 -> 38) ·
+                          조각 0 초록 (라우트 19).  조각 4 는 사람의 조각 — slice-4.sh 준비 · 보류.  SunnyVM 은 다시 닿는다 (2026-09-26T15:08:14Z).
+                          측정 N1 — BenchmarkRemove 150,101 항목에 3.14 초 (N100 · ext4 · mq-deadline).
+                          요약은 construction/trash/code/code-summary.md.
+                          미뤄 둔 실측 (2026-09-26T15:23:23Z · 사용자 지시) — 조각 4 를 에이전트가 SunnyVM 에서 돌렸다 (스크래치 Mediator :18080 ·
+                          조각 전용 노드).  ① 208 ms · 43 ms · ② 9.67 GB 를 보고 뒤 1.09 초에 · ④ 남은 작업 폴더를 재시작 때 거둠 ·
+                          ⑤ draining 과 arch 키 · ⑥ Open 실패와 smoke.  integration 시험 초록.  finalize 가 넘긴 둘도 닫음
+                          (훑기 초당 약 811,700 · helper 여유 80 ~ 115 µs).  조각 4 초록 (사용자 판정) · 승인 2026-09-26T15:24:25Z
+                          (「초록 · 승인 · PR 올림」).  한 커밋 · PR 을 연다.  병합은 CI 뒤
 ```
 
 ## Stage Progress
@@ -240,11 +270,11 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Units Generation — 착수 2026-09-24T06:42:48Z. 계획 · 질문 넷 2026-09-24T06:50:29Z. 채팅 논의로 일곱이 닫힘 2026-09-24T09:50:00Z (Q1 A · Q2 A · Q3 A 순연 · Q4 B · Q7 A). 계획 승인 2026-09-24T12:14:10Z. 산출물 넷 2026-09-24T12:22:43Z · 승인 2026-09-24T12:31:50Z
 
 ### CONSTRUCTION PHASE
-- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z · U3 finalize 완료 2026-09-25T12:53:36Z — 위 「Construction」 절
-- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 · U2 · U3 는 건너뜀 (U1 유닛 정의 · U2 · U3 사용자 결정)
-- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 · U2 · U3 는 건너뜀
+- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z · U3 finalize 완료 2026-09-25T12:53:36Z · U4 trash 완료 2026-09-26T14:24:01Z — 위 「Construction」 절
+- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 ~ U4 는 건너뜀 (U1 유닛 정의 · U2 ~ U4 사용자 결정)
+- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 ~ U4 는 건너뜀
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE
