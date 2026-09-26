@@ -227,7 +227,8 @@ type Options struct {
 func Apply(ctx context.Context, p Paths, opt Options) (Result, error)
 
 // Classify 는 upper 의 항목 하나가 무엇인지 읽는다.
-// whiteout 은 문자 장치 0/0 과 xattr 형식, opaque 는 user.overlay.opaque.
+// whiteout 은 문자 장치 0/0, opaque 는 user.overlay.opaque 값 y. xattr 형식의 whiteout 은 거절한다.
+// (merge-rules FD 답 8 · 2026-09-26 고침. 겉면은 FD 의 domain-entities.md 1절이 바꿨다 — Classify 는 안쪽 순수 함수가 됐다)
 func Classify(path string, fi fs.FileInfo) (Kind, error)
 ```
 
