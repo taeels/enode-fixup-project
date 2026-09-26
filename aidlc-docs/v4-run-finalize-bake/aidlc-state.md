@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U3 finalize 의 Code Generation 승인 · 조각 2 (사람) 대기 (브랜치 `unit/finalize` · main `0c0370c` 에서 땄다). Functional Design 승인 2026-09-25T12:53:36Z · NFR 두 단계는 사용자 결정으로 건너뜀. U2 step-phase 는 PR #62 로 병합 2026-09-25T11:44:43Z · U1 contract-grammar 는 PR #61 로 병합 2026-09-25T07:21:53Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U3 finalize 의 PR (조각 1 · 2 · 3 초록) (브랜치 `unit/finalize` · main `0c0370c` 에서 땄다). Functional Design 승인 2026-09-25T12:53:36Z · NFR 두 단계는 사용자 결정으로 건너뜀. U2 step-phase 는 PR #62 로 병합 2026-09-25T11:44:43Z · U1 contract-grammar 는 PR #61 로 병합 2026-09-25T07:21:53Z. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -224,7 +224,8 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           300만 파일에서 방문 상한에 27.1 초 · 마감 뒤 돌아오기 1 ms 아래.  조각 1 은 이 브랜치의
                           스크래치 Mediator (127.0.0.1:18080) 로 돌렸다 — 개발용 :8080 은 2026-09-17 빌드.
                           요약은 construction/finalize/code/code-summary.md.  승인 2026-09-26T00:45:54Z (「승인」)
-   병합                   조각 2 (사람) 를 기다린다.  scripts/finalize-bake/slice-2.sh · 스크래치 Mediator 127.0.0.1:18080
+   병합                   조각 2 초록 — 에이전트가 돌리고 (「해봐」) 사용자가 판정 2026-09-26T03:33:12Z.  스크립트를 고쳐 다시 돌렸다
+                          (369417e · 256 MiB 파일 하나가 blob 상한 10 MiB 에 413).  조각 1 · 2 · 3 초록.  PR 을 연다
 ```
 
 ## Stage Progress
