@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,6 +17,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // 워커의 실행 경로 — claim.go 의 「일을 받아 돌리고 보고한다」 반쪽이다.
@@ -47,6 +50,12 @@ type mediator struct {
 	claims   []*Step           // claim 이 차례로 내줄 것. 비면 204 다
 	instance []string          // claim 이 받은 X-Enode-Instance 값들
 
+	// 종료 보고 (ADR-075 §10.4). exitedCodes 를 차례로 답하고 다 쓰면 200 이다.
+	exited      []contract.Exited
+	exitedCodes []int
+	// putHold 의 이름은 PUT 에 답하지 않고 붙잡는다 — 업로드 예산의 시험이 쓴다.
+	putHold map[string]bool
+
 	// 진행 청크(progress=1)는 선별본과 다른 파일로 간다. 한 자리에 덮으면
 	// 두 벌이 아니라 한 벌이 되고, 그러면 "두 벌이 안 생긴다" 를 재는 시험이
 	// 아무것도 안 재게 된다.
@@ -62,6 +71,7 @@ func newMediator(t *testing.T) *mediator {
 	m := &mediator{
 		logs: map[string][]byte{}, blobs: map[string][]byte{},
 		gets: map[string][]byte{}, getCode: map[string]int{}, putCode: map[string]int{},
+		putHold: map[string]bool{},
 	}
 	m.srv = httptest.NewServer(http.HandlerFunc(m.serve))
 	t.Cleanup(m.srv.Close)
@@ -108,9 +118,29 @@ func (m *mediator) serve(w http.ResponseWriter, r *http.Request) {
 		m.logs[r.URL.Query().Get("name")] = b
 		m.order = append(m.order, "sealed")
 		w.WriteHeader(http.StatusOK)
+	case len(p) == 6 && p[5] == "exited":
+		var e contract.Exited
+		b, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(b, &e)
+		m.exited = append(m.exited, e)
+		code := http.StatusOK
+		if len(m.exitedCodes) > 0 {
+			code, m.exitedCodes = m.exitedCodes[0], m.exitedCodes[1:]
+		}
+		w.WriteHeader(code)
 	case len(p) == 7 && p[5] == "blob":
 		name := p[6]
 		b, _ := io.ReadAll(r.Body)
+		if m.putHold[name] {
+			// 답하지 않는다. 잠금을 풀고 기다린다 — 다른 요청은 계속 받는다
+			m.mu.Unlock()
+			select {
+			case <-r.Context().Done():
+			case <-time.After(10 * time.Second):
+			}
+			m.mu.Lock()
+			return
+		}
 		if code, ok := m.putCode[name]; ok {
 			w.WriteHeader(code)
 			_, _ = io.WriteString(w, "schema violation in "+name)
@@ -164,6 +194,12 @@ func (m *mediator) enqueue(s *Step) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.claims = append(m.claims, s)
+}
+
+func (m *mediator) exits() []contract.Exited {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]contract.Exited(nil), m.exited...)
 }
 
 func (m *mediator) instances() []string {
@@ -522,9 +558,13 @@ func TestPutBlob_A422CarriesTheReasonIntoTheError(t *testing.T) {
 	m.putCode["plan.json"] = http.StatusUnprocessableEntity
 	c := &Client{Base: m.srv.URL, Token: "t", Principal: "p", HTTP: m.srv.Client()}
 
-	err := c.PutBlob(context.Background(), "r1", 1, "plan.json", []byte(`{}`))
+	err := c.PutBlob(context.Background(), "r1", 1, "plan.json", strings.NewReader(`{}`), 2)
 	if err == nil {
 		t.Fatal("ADR-020 violated: a 422 was reported as a successful upload")
+	}
+	var rej *BlobRejected
+	if !errors.As(err, &rej) {
+		t.Fatalf("a 422 is the mediator's judgment, not a transfer failure: %T %v", err, err)
 	}
 	if !strings.Contains(err.Error(), "schema violation in plan.json") {
 		t.Fatalf("ADR-020 violated: the reason did not reach the caller: %v", err)
@@ -540,7 +580,7 @@ func TestPutBlob_ASuccessfulUploadKeepsTheBodyIntact(t *testing.T) {
 	c := &Client{Base: m.srv.URL, Token: "t", Principal: "p", HTTP: m.srv.Client()}
 
 	body := []byte("zImage bytes\x00\x01")
-	if err := c.PutBlob(context.Background(), "r1", 1, "artifact", body); err != nil {
+	if err := c.PutBlob(context.Background(), "r1", 1, "artifact", bytes.NewReader(body), int64(len(body))); err != nil {
 		t.Fatalf("the blob did not land: %v", err)
 	}
 	got, ok := m.blob("artifact")
@@ -559,9 +599,9 @@ func TestUploadProduced_AdapterLeavingsAreNotArtifacts(t *testing.T) {
 	writeFile(t, filepath.Join(out, ".enode-prompt.md"), "what we asked")
 	writeFile(t, filepath.Join(out, "artifact"), "the real thing")
 
-	got := w.uploadProduced(context.Background(), runStep(), out, HarvestResult{}, discardLog())
+	got, stage := w.upload(context.Background(), runStep(), out, nil, true, discardLog())
 
-	if len(got) != 1 || got[0] != "artifact" {
+	if len(got) != 1 || got[0] != "artifact" || stage != contract.StageOK {
 		t.Fatalf("the adapter's own leavings were harvested as artifacts: %v", got)
 	}
 	if _, ok := m.blob(".enode-prompt.md"); ok {
@@ -581,7 +621,10 @@ func TestUploadProduced_ARejectedNameIsNotListedAsProduced(t *testing.T) {
 	writeFile(t, filepath.Join(out, "plan.json"), `{"steps":[]}`)
 	writeFile(t, filepath.Join(out, "notes.txt"), "kept")
 
-	got := w.uploadProduced(context.Background(), runStep(), out, HarvestResult{}, discardLog())
+	got, stage := w.upload(context.Background(), runStep(), out, nil, true, discardLog())
+	if stage != contract.StageOK {
+		t.Fatalf("a rejection is the mediator's judgment; upload = %q", stage)
+	}
 
 	for _, n := range got {
 		if n == "plan.json" {
@@ -590,39 +633,6 @@ func TestUploadProduced_ARejectedNameIsNotListedAsProduced(t *testing.T) {
 	}
 	if len(got) != 1 || got[0] != "notes.txt" {
 		t.Fatalf("the accepted artifact did not survive: %v", got)
-	}
-}
-
-// collect 가 못 걷어도 단계를 안 죽인다 — 판정은 success_when 이 한다
-// (ADR-004 · I3). 대신 왜 못 걷었는지를 기록이 스스로 적는다.
-func TestUploadProduced_ACollectFailureIsWrittenDownNotThrown(t *testing.T) {
-	m := newMediator(t)
-	w := newWorker(m)
-	w.Local.Workspace = t.TempDir()
-	out := t.TempDir()
-
-	step := runStep()
-	step.Collect = map[string]string{"artifact": "arch/arm/boot/zImage"}
-	step.Out = []string{"artifact"}
-
-	result, err := (&nativeSession{}).Harvest(context.Background(), HarvestSpec{
-		Workspace: w.Local.Workspace, Out: out, Collect: step.Collect,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := w.uploadProduced(context.Background(), step, out, result, discardLog())
-
-	note, ok := m.blob(changedName)
-	if !ok {
-		t.Fatalf("I3 violated: nothing was written down about the failed collect; produced=%v", got)
-	}
-	if !strings.Contains(string(note), "collect could not gather") ||
-		!strings.Contains(string(note), "no file matches") {
-		t.Fatalf("the note does not say why collect failed:\n%s", note)
-	}
-	if !strings.Contains(string(note), "required by the contract but missing from $OUT: artifact") {
-		t.Fatalf("the note does not say what the contract wanted:\n%s", note)
 	}
 }
 

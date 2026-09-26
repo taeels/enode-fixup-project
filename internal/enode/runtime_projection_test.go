@@ -60,11 +60,11 @@ func (s *projectingSession) Run(_ context.Context, process ProcessSpec) (int, er
 	s.process = process
 	return 0, nil
 }
-func (*projectingSession) Harvest(context.Context, HarvestSpec) (HarvestResult, error) {
-	return HarvestResult{}, nil
+func (*projectingSession) Finalize(context.Context, FinalizeSpec) (FinalizeResult, error) {
+	return FinalizeResult{}, nil
 }
-func (*projectingSession) Close() error                 { return nil }
-func (*projectingSession) Environment() *execenv.Record { return nil }
+func (*projectingSession) Close(context.Context, Keep) error { return nil }
+func (*projectingSession) Environment() *execenv.Record      { return nil }
 
 func TestRunnerUsesOnlyRuntimeVisibleProjectionTargets(t *testing.T) {
 	host := IOPaths{Dir: t.TempDir(), In: t.TempDir(), Out: t.TempDir()}

@@ -3,13 +3,19 @@ package enode
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // 도는 동안의 원문을 Mediator 로 민다 (FR-5 의 노드 쪽).
@@ -338,3 +344,167 @@ func (u *uploader) run() {
 // 컴파일러에게 이 타입이 io.Writer 임을 말한다 - tee 에 꽂히는 것이 이 겹의
 // 유일한 쓰임이라, 그 계약이 깨지면 배선하는 자리가 아니라 여기서 빨개져야 한다.
 var _ io.Writer = (*uploader)(nil)
+
+// ── 단계 끝의 업로드 (FR-3 · N3 · business-rules.md 8절) ─────────────────
+//
+// 단계 로그(선별본)와 $OUT 의 산출물을 올린다. 둘 다 업로드 client 를 쓰고 마감은
+// 업로드 예산의 ctx 가 준다 — 요청마다의 30초가 큰 산출물을 끊던 자리다.
+
+// upload 는 업로드 client 다. 없으면 일반 것을 쓴다 — 없다고 동작이 달라지면 안 된다.
+func (c *Client) upload() *http.Client {
+	if c.Upload != nil {
+		return c.Upload
+	}
+	return c.HTTP
+}
+
+// BlobRejected 는 Mediator 가 받고서 거절한 업로드다 (4xx). 전송 실패가 아니다 —
+// 스키마 위반(422)이나 크기 상한(413)은 Mediator 의 판정이고, upload 칸을 error 로
+// 만들지 않는다. 다시 보내도 같은 답이다.
+type BlobRejected struct{ Status, Body string }
+
+func (e *BlobRejected) Error() string {
+	if e.Body == "" {
+		return e.Status
+	}
+	return e.Status + ": " + e.Body
+}
+
+// UploadLog 는 그 단계가 뱉은 것을 원문 그대로 올린다 (ADR-005 의 logs/).
+// 산출물보다 먼저 올린다 — 단계가 실패해도 로그는 남아야 한다.
+func (c *Client) UploadLog(ctx context.Context, runID string, seq int, name string, body []byte) error {
+	url := fmt.Sprintf("%s/v1/runs/%s/steps/%d/log?name=%s", c.Base, runID, seq, name)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
+	return c.put(req)
+}
+
+// PutBlob 은 산출물을 Mediator 로 흘려 보낸다 (run-contract §4 별 모양).
+//
+// 통째로 읽지 않는다 — size 를 Content-Length 로 싣고 body 를 그대로 흘린다. 크기를
+// 미리 재서 거절하지 않는다: Mediator 가 상한+1 바이트에서 413 으로 끊으므로 보내는
+// 양이 상한을 안 넘고, 노드는 Mediator 의 상한 값을 모른다.
+//
+// 노드끼리 직접 전송하지 않는다 — 서로 다른 기계라 공유 작업공간이 없고,
+// 직접 보내려면 enode 가 서로를 알아야 한다. Mediator 는 이미 전부와 말한다.
+//
+// 422 는 스키마 위반이다 (ADR-020) — 저장되지 않았으므로 그 이름을
+// produced 에 넣으면 안 된다. 어긴 산출물은 산출물이 아니다.
+func (c *Client) PutBlob(ctx context.Context, runID string, seq int, name string, body io.Reader, size int64) error {
+	if size == 0 {
+		body = http.NoBody // 0 과 본문이 함께면 크기를 모르는 것으로 친다
+	}
+	url := fmt.Sprintf("%s/v1/runs/%s/steps/%d/blob/%s", c.Base, runID, seq, name)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, body)
+	if err != nil {
+		return err
+	}
+	req.ContentLength = size
+	req.Header.Set("Content-Type", "application/octet-stream")
+	return c.put(req)
+}
+
+func (c *Client) put(req *http.Request) error {
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("X-Enode-Principal", c.Principal)
+	resp, err := c.upload().Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close() //nolint:errcheck
+	if resp.StatusCode/100 == 2 {
+		return nil
+	}
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	if resp.StatusCode/100 == 4 {
+		return &BlobRejected{Status: resp.Status, Body: strings.TrimSpace(string(b))}
+	}
+	return fmt.Errorf("upload failed: %s %s", resp.Status, strings.TrimSpace(string(b)))
+}
+
+// upload 는 단계 로그를 먼저, 그다음 $OUT 의 이름들을 올린다 (business-rules.md 8절).
+//
+// 올라간 것만 produced 다 — 거절된 것은 저장되지 않았고, 어긴 산출물은 산출물이
+// 아니다 (ADR-020). blobs 가 거짓이면 산출물을 안 올린다 (완주하지 못한 agent 단계).
+//
+// stage 는 upload 칸의 값이다. 마감이 지나면 남은 이름을 안 올리고 timeout,
+// 예산 안에서 전송이 한 건이라도 실패했으면 error, 거절은 영향이 없다.
+func (w *Worker) upload(ctx context.Context, step *Step, out string, logBody []byte, blobs bool, log *slog.Logger) ([]string, contract.Stage) {
+	stage := contract.StageOK
+	// failed 는 한 건의 실패를 적고 멈출지를 돌려준다 — 마감이나 임대 끝이면 멈춘다.
+	failed := func(kind, name string, err error) bool {
+		var rej *BlobRejected
+		switch {
+		case errors.As(err, &rej):
+			log.Warn(kind+" rejected; not listed in produced", "name", name, "err", err)
+		case ctx.Err() != nil:
+			return true
+		default:
+			log.Warn(kind+" upload failed", "name", name, "err", err)
+			stage = contract.StageError
+		}
+		return false
+	}
+	if err := w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBody); err != nil && failed("log", step.Name, err) {
+		return nil, w.uploadStopped(ctx, append([]string{"(step log)"}, uploadNames(out, blobs)...), log)
+	}
+	if !blobs {
+		return nil, stage
+	}
+	var produced []string
+	names := uploadNames(out, true)
+	for i, name := range names {
+		if err := w.putFile(ctx, step, out, name); err != nil {
+			if failed("blob", name, err) {
+				return produced, w.uploadStopped(ctx, names[i:], log)
+			}
+			continue
+		}
+		produced = append(produced, name)
+	}
+	return produced, stage
+}
+
+// uploadStopped 는 마감이나 임대 끝으로 멈춘 업로드다. 못 올린 이름을 적는다.
+func (w *Worker) uploadStopped(ctx context.Context, left []string, log *slog.Logger) contract.Stage {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		log.Warn("upload budget exceeded; not uploaded", "names", left)
+		return contract.StageTimeout
+	}
+	log.Warn("upload stopped; not uploaded", "names", left)
+	return contract.StageError
+}
+
+// uploadNames 는 $OUT 에서 올릴 이름이다 — 디렉터리를 읽은 순서(이름순).
+// .enode- 로 시작하는 것은 어댑터가 남긴 것(프롬프트 등)이고, .part 로 끝나는 것은
+// 마감에 멈춘 복사가 남긴 반쪽이다. 둘 다 산출물이 아니다.
+func uploadNames(out string, blobs bool) []string {
+	if !blobs {
+		return nil
+	}
+	var names []string
+	for _, name := range harvest(out) {
+		if strings.HasPrefix(name, ".enode-") || strings.HasSuffix(name, ".part") {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+// putFile 은 파일 하나를 열어 흘려 보낸다.
+func (w *Worker) putFile(ctx context.Context, step *Step, out, name string) error {
+	f, err := os.Open(filepath.Join(out, name))
+	if err != nil {
+		return err
+	}
+	defer f.Close() //nolint:errcheck
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	return w.Client.PutBlob(ctx, step.RunID, step.Seq, name, f, fi.Size())
+}

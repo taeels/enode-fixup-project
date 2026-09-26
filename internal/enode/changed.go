@@ -1,6 +1,7 @@
 package enode
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"os"
@@ -8,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // R5②' — git 이 안 보는 산출물을 걷는다
@@ -28,14 +31,6 @@ import (
 //	✗ syscall 가로채기  seccomp user-notify 로 되긴 하지만(실측) openat 이
 //	            수백만 번이라 빌드가 못 돌 만큼 느려진다.
 //	○ 기준 시각 + walk 한 번        특권 없음 · 어디서나 됨 · 비용이 유계다.
-
-// changedName 은 변경 요약이 실리는 산출물 이름이다.
-//
-// diff 와 이름이 다른 이유 — 보는 것이 다르다.
-//
-//	workspace.diff      추적 파일의 내용 — 사람이 리뷰한다
-//	workspace.changed   무시되는 것 포함 목록 — 훅이 검토시키고 사람이 확인한다
-const changedName = "workspace.changed"
 
 // Stamp 는 「이 시각 이후에 생긴 것」의 기준이다.
 //
@@ -215,7 +210,7 @@ func CheckChanged(stamp Stamp, want []string) []string {
 	}
 	var got []string
 	for _, rel := range want {
-		fi, err := os.Stat(filepath.Join(stamp.Root, rel))
+		fi, err := statPath(filepath.Join(stamp.Root, rel))
 		if err != nil || fi.IsDir() {
 			continue // 없거나 디렉터리면 「바뀌었다」가 아니다
 		}
@@ -225,4 +220,188 @@ func CheckChanged(stamp Stamp, want []string) []string {
 		}
 	}
 	return got
+}
+
+// statPath 와 walkDir 는 결과 확정이 파일시스템에 닿는 두 자리다.
+//
+// 변수인 까닭은 조각 1 (걷지 않는다) 의 시험이 호출 수를 세기 때문이다 — build effect
+// 단계에서 걷기가 0 번이고 stat 이 지목 경로 수만큼인지. 시험만 바꿔 끼운다.
+// 훅의 걷기(changedSince)는 이 변수를 안 쓴다 — 결과 확정과 무관하다.
+var (
+	statPath = os.Stat
+	walkDir  = filepath.WalkDir
+)
+
+// 명시 훑기의 상한 넷이다 (business-rules.md 5.2 · ADR-075 §8).
+//
+// 계약은 discover 를 켜기만 하고 상한은 노드가 정한다 — 계약이 노드의 메모리와
+// 시간을 정하게 두지 않는다. 먼저 닿은 하나만 적고, 닿으면 목록이 부분 관찰이다.
+const (
+	discoverMaxVisits = 2_000_000 // 방문한 항목 (디렉터리 포함)
+	discoverMaxHeld   = 200_000   // 들고 있는 항목 — 메모리 상한 대신.  changedSince 의 값과 같다
+	discoverMaxPaths  = 2_000     // diagnostics.discovered 의 경로 수
+	discoverMaxBytes  = 256 << 10 // diagnostics.discovered 의 경로 글자 합
+)
+
+// discoverTime 은 시간 상한이다 — Finalize 예산의 절반. 훑기 혼자서 단계를
+// finalize_timeout 으로 만들지 않고, 계약이 예산을 늘리면 훑기 시간도 같이 는다.
+func discoverTime(finalize time.Duration) time.Duration { return finalize / 2 }
+
+// discoverLimits 는 걷는 함수가 받는 상한이다. 시험이 작게 준다.
+type discoverLimits struct {
+	visits, held, paths, bytes int
+	time                       time.Duration
+}
+
+// defaultDiscoverLimits 는 노드가 쓰는 상한이다. d 가 0 이면 기본 예산의 절반.
+func defaultDiscoverLimits(d time.Duration) discoverLimits {
+	if d <= 0 {
+		d = discoverTime(contract.DefaultFinalizeBudget)
+	}
+	return discoverLimits{visits: discoverMaxVisits, held: discoverMaxHeld,
+		paths: discoverMaxPaths, bytes: discoverMaxBytes, time: d}
+}
+
+// walker 는 한 번의 걷기가 센 것이다. 상한을 보는 자리가 둘(워크스페이스 · upper)이라 묶었다.
+type walker struct {
+	ctx    context.Context
+	limits discoverLimits
+	start  time.Time
+	d      Discovery
+	all    []Changed
+}
+
+// visit 는 방문 하나를 세고 멈출지를 돌려준다. 시간은 1,024 번마다 본다 —
+// 첫 방문에서도 본다.
+func (w *walker) visit() bool {
+	w.d.Visited++
+	switch {
+	case w.ctx.Err() != nil:
+		// Finalize 예산의 마감이다 — 그것도 시간 상한이라 time 으로 적는다. 목록은 부분이다.
+		w.d.Limit = contract.LimitTime
+		return true
+	case w.d.Visited > w.limits.visits:
+		w.d.Visited--
+		w.d.Limit = contract.LimitVisits
+		return true
+	case w.d.Visited&1023 == 1 && time.Since(w.start) >= w.limits.time:
+		w.d.Limit = contract.LimitTime
+		return true
+	}
+	return false
+}
+
+// hold 는 찾은 파일 하나를 든다. 들고 있는 수가 상한이면 멈춘다.
+func (w *walker) hold(c Changed) bool {
+	if len(w.all) >= w.limits.held {
+		w.d.Limit = contract.LimitMemory
+		return true
+	}
+	w.all = append(w.all, c)
+	w.d.Total++
+	return false
+}
+
+// done 은 큰 파일부터 담다가 결과 크기 상한에서 자른다. 다른 상한이 먼저 닿았으면
+// size 를 적지 않는다 — 먼저 닿은 하나만 적는다.
+func (w *walker) done() *Discovery {
+	sort.Slice(w.all, func(i, j int) bool {
+		if w.all[i].Size != w.all[j].Size {
+			return w.all[i].Size > w.all[j].Size
+		}
+		return w.all[i].Path < w.all[j].Path
+	})
+	bytes := 0
+	for i, c := range w.all {
+		if i >= w.limits.paths || bytes+len(c.Path) > w.limits.bytes {
+			if w.d.Limit == "" {
+				w.d.Limit = contract.LimitSize
+			}
+			break
+		}
+		bytes += len(c.Path)
+		w.d.Paths = append(w.d.Paths, c)
+	}
+	return &w.d
+}
+
+func newWalker(ctx context.Context, limits discoverLimits) *walker {
+	return &walker{ctx: ctx, limits: limits, start: time.Now()}
+}
+
+// walkWorkspace 는 native 의 명시 훑기다 — 기준 시각 뒤에 수정된 보통 파일을 모은다.
+//
+// changedSince 와 방법이 같고 상한이 다르다. changedSince 는 훅이 쓰는 걷기라 그대로
+// 둔다 — 합치면 훅의 걷기에 방문 상한이 생긴다.
+func walkWorkspace(ctx context.Context, s Stamp, limits discoverLimits) *Discovery {
+	w := newWalker(ctx, limits)
+	_ = walkDir(s.Root, func(p string, d fs.DirEntry, err error) error {
+		if w.visit() {
+			return filepath.SkipAll
+		}
+		if err != nil {
+			return nil // 읽을 수 없는 곳은 건너뛴다
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", ".repo":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		fi, err := d.Info()
+		if err != nil || !fi.ModTime().After(s.At) {
+			return nil
+		}
+		rel, _ := filepath.Rel(s.Root, p)
+		if w.hold(Changed{Path: rel, Size: fi.Size()}) {
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return w.done()
+}
+
+// walkUpper 는 overlay 의 명시 훑기다 — upper 에 있는 것이 곧 이 단계가 쓴 것이다.
+//
+// 기준 시각을 안 본다. whiteout (지운 항목) 은 목록에 안 넣고 센다. 판정을 인자로 받는
+// 까닭은 whiteout 이 문자 장치 0:0 이라 보통 권한의 시험이 만들 수 없어서다 — linux
+// helper 가 진짜 판정을 넘긴다. 디렉터리와 opaque 표시는 안 센다.
+func walkUpper(ctx context.Context, upper string, limits discoverLimits, whiteout func(fs.DirEntry) bool) *Discovery {
+	w := newWalker(ctx, limits)
+	_ = walkDir(upper, func(p string, d fs.DirEntry, err error) error {
+		if w.visit() {
+			return filepath.SkipAll
+		}
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", ".repo":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if whiteout(d) {
+			w.d.Deleted++
+			return nil
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		fi, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		rel, _ := filepath.Rel(upper, p)
+		if w.hold(Changed{Path: rel, Size: fi.Size()}) {
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return w.done()
 }

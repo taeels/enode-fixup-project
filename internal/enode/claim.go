@@ -78,6 +78,14 @@ type Step struct {
 	// 본문이 필요하면 계약이 in.from 에 이름을 적어 그 경로로 받는다.
 	Ledger json.RawMessage `json:"ledger,omitempty"`
 	Lease  Lease           `json:"lease"`
+
+	// 아래 셋은 명령이 끝난 뒤 무엇을 거두고 얼마나 기다리나다 (ADR-075 §5 · §8 · FR-3).
+	// Mediator 가 계약에서 옮겨 싣는다 — 이름은 store.Claimed 와 같다. 기본값은
+	// 안 싣는다. 노드가 contract.Step 의 메서드(EffectOrDefault · Budgets)로 채운다
+	// (contractStep). 옛 Mediator 는 셋을 안 싣고, 그때도 기본값으로 돈다.
+	Effect   contract.Effect  `json:"effect,omitempty"`
+	Budget   *contract.Budget `json:"budget,omitempty"`
+	Discover bool             `json:"discover,omitempty"`
 }
 
 // planOutName 은 계획 산출물의 이름이다 — 계획 단계가 아니면 빈 문자열.
@@ -140,56 +148,6 @@ func (c *Client) Claim(ctx context.Context, nodeID string) (*Step, error) {
 	}
 }
 
-// UploadLog 는 그 단계가 뱉은 것을 원문 그대로 올린다 (ADR-005 의 logs/).
-// result 보다 먼저 올린다 — 단계가 실패해도 로그는 남아야 한다.
-func (c *Client) UploadLog(ctx context.Context, runID string, seq int, name string, body []byte) error {
-	url := fmt.Sprintf("%s/v1/runs/%s/steps/%d/log?name=%s", c.Base, runID, seq, name)
-	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-	req.Header.Set("X-Enode-Principal", c.Principal)
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode/100 != 2 {
-		return fmt.Errorf("log upload rejected: %s", resp.Status)
-	}
-	return nil
-}
-
-// PutBlob 은 산출물을 Mediator 로 올린다 (run-contract §4 별 모양).
-//
-// 노드끼리 직접 전송하지 않는다 — 서로 다른 기계라 공유 작업공간이 없고,
-// 직접 보내려면 enode 가 서로를 알아야 한다. Mediator 는 이미 전부와 말한다.
-//
-// 422 는 스키마 위반이다 (ADR-020) — 저장되지 않았으므로 그 이름을
-// produced 에 넣으면 안 된다. 어긴 산출물은 산출물이 아니다.
-func (c *Client) PutBlob(ctx context.Context, runID string, seq int, name string, body []byte) error {
-	url := fmt.Sprintf("%s/v1/runs/%s/steps/%d/blob/%s", c.Base, runID, seq, name)
-	req, err := http.NewRequestWithContext(ctx, "PUT", url, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/octet-stream")
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-	req.Header.Set("X-Enode-Principal", c.Principal)
-	resp, err := c.HTTP.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode/100 != 2 {
-		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return fmt.Errorf("%s: %s", resp.Status, strings.TrimSpace(string(b)))
-	}
-	return nil
-}
-
 // GetBlob 은 이전 단계의 산출물을 받는다. 이름으로 가장 최근 것이 온다.
 // 리다이렉트는 http.Client 가 알아서 따른다 — 나중에 Mediator 가 302 로
 // 저장소를 가리켜도 이 코드는 안 바뀐다 (ADR-018).
@@ -241,6 +199,20 @@ type Result struct {
 	Error string `json:"error,omitempty"`
 	// Environment는 이 단계를 실제로 실행한 준비 산출물과 runtime policy다.
 	Environment *execenv.Record `json:"environment,omitempty"`
+
+	// 아래 여섯은 명령이 끝난 뒤의 구간이 어떻게 지나갔나다 (ADR-075 §10 · FR-3).
+	// 이름과 모양은 store.StepResult 와 같다. Finalize 를 돈 단계에만 있다 —
+	// 명령 앞에서 실패했거나 임대가 끝나 Finalize 를 건너뛴 단계에는 없고, 칸이
+	// 없다는 것이 곧 「그 구간에 닿지 않았다」다.
+	//
+	// 판정 재료가 아니다. 예산을 넘긴 것은 Error 를 채워 완주가 아니게 만들고,
+	// 여기에는 사실만 적는다. 시각은 모두 노드 시계다.
+	ExitedAt    *time.Time            `json:"exited_at,omitempty"`    // 종료 status 를 받은 순간
+	FinalizedAt *time.Time            `json:"finalized_at,omitempty"` // 닫기가 끝난 순간
+	Finalize    contract.Stage        `json:"finalize,omitempty"`
+	Upload      contract.Stage        `json:"upload,omitempty"`
+	Reason      string                `json:"reason,omitempty"`
+	Diagnostics *contract.Diagnostics `json:"diagnostics,omitempty"`
 }
 
 func (c *Client) Report(ctx context.Context, runID string, seq int, res Result) error {
@@ -270,6 +242,47 @@ func (c *Client) Report(ctx context.Context, runID string, seq int, res Result) 
 		return fmt.Errorf("report failed: %s %s", resp.Status, b)
 	}
 	return nil
+}
+
+// Exited 는 명령 종료 보고다 (POST /v1/runs/{run}/steps/{seq}/exited · ADR-075 §10.4).
+//
+// 판정이 아니다 — Mediator 는 이것으로 phase 를 finalizing 으로 옮길 뿐이고 단계를
+// 끝내는 것은 result 하나다. 30초 client 를 쓴다. stop 이 참이면 다시 보내지 않는다 —
+// 받았거나(2xx) 받고서 거절했다(4xx · 그때 err 는 *exitRejected). 5xx 와 끊김은
+// stop 이 거짓이다.
+func (c *Client) Exited(ctx context.Context, runID string, seq int, e contract.Exited) (stop bool, err error) {
+	body, _ := json.Marshal(e) // 시각과 정수뿐이라 실패하지 않는다
+	url := fmt.Sprintf("%s/v1/runs/%s/steps/%d/exited", c.Base, runID, seq)
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return true, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("X-Enode-Principal", c.Principal)
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+	switch {
+	case resp.StatusCode/100 == 2:
+		return true, nil
+	case exitedStop(resp.StatusCode):
+		return true, &exitRejected{Code: resp.StatusCode, Body: strings.TrimSpace(string(b))}
+	}
+	return false, fmt.Errorf("exit report failed: %s %s", resp.Status, strings.TrimSpace(string(b)))
+}
+
+// exitRejected 는 Mediator 가 받고서 거절한 종료 보고다 (4xx). 다시 보내도 같은 답이다.
+type exitRejected struct {
+	Code int
+	Body string
+}
+
+func (e *exitRejected) Error() string {
+	return fmt.Sprintf("exit report rejected: %d %s", e.Code, e.Body)
 }
 
 // ReportRejected 는 서버가 받고서 거절한 보고다 (4xx).
@@ -304,6 +317,13 @@ type Worker struct {
 	// Runtime은 agent와 command가 함께 지나는 실행 경계다. nil이면 native다.
 	Runtime       StepRuntime
 	RuntimeRecord *execenv.Record
+
+	// budgets 는 단계의 두 예산을 정한다. nil 이면 stepBudgets — 계약이 적은 값과 기본값.
+	// 시험만 바꿔 끼운다: 계약의 Finalize 예산은 1분 아래로 못 내리는데 조각 3 (예산)의
+	// 시험은 짧은 예산이 필요하다.
+	budgets func(*Step) (finalize, upload time.Duration)
+	// exitWait 는 종료 보고의 재전송 간격이다. nil 이면 exitBackoff. 시험이 줄인다.
+	exitWait func(n int) time.Duration
 
 	// drainingNoted 는 「안 집는다」를 이미 찍었는가다 — 광고 주기마다 다시 안 찍는다.
 	drainingNoted bool
@@ -641,7 +661,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		return
 	}
 	session = manageSession(session)
-	defer session.Close() //nolint:errcheck // 명시 Close가 오류를 결과로 옮긴다
+	defer session.Close(ctx, Keep{}) //nolint:errcheck // 명시 Close가 오류를 결과로 옮긴다
 	runtimePaths := session.Paths()
 	if step.Kind == "agent" {
 		w.runAgentStep(runCtx, ctx, step, dir, in, out, runtimePaths, stamp, prep, missingIn, session, log)
@@ -688,51 +708,123 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	code, runErr := session.Run(runCtx, ProcessSpec{
 		Argv: argv, Dir: runtimePaths.Dir, Env: processEnv, Stdout: sink, Stderr: sink,
 	})
-	harvested, harvestErr := session.Harvest(ctx, HarvestSpec{
-		Workspace: dir, Out: out, RecordDiff: w.Local.Workspace != "" && len(step.Workspace) > 0,
-		Discover: true, Collect: step.Collect, Check: step.CheckChanged, Stamp: stamp,
-	})
-	logHarvest(harvested, log)
-
-	res := Result{Node: w.Ident.NodeID, Workspace: prep,
-		Changed: harvested.Changed, Environment: session.Environment()}
-	if harvestErr != nil {
-		res.Error = "runtime harvest: " + harvestErr.Error()
-	}
-	if closeErr := session.Close(); closeErr != nil {
-		res.Error = "runtime cleanup: " + closeErr.Error()
-	}
-	res.Produced = w.uploadProduced(ctx, step, out, harvested, log)
-
+	exitedAt := time.Now().UTC()
 	// 꼬리를 비우는 것이 UploadLog(선별본)보다 먼저다 - 뒤집으면 봉인 직전의
-	// 마지막 줄이 중앙 화면에 안 뜬다.
+	// 마지막 줄이 중앙 화면에 안 뜬다. 명령의 출력은 Run 이 돌아온 때 이미 다 왔다.
 	stopCmdTee()
 
-	// 로그를 먼저 올린다 — 단계가 실패해도 원문은 남아야 한다.
-	// 여기서 실패해도 결과 보고는 계속한다. 로그가 없다고 Run 을 멈출 이유는 없다.
-	if err := w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, buf.Bytes()); err != nil && ctx.Err() == nil {
-		log.Warn("log upload failed", "err", err)
+	res := Result{Node: w.Ident.NodeID, Workspace: prep, Environment: session.Environment()}
+	outcome, started := exitOutcome(code, runErr)
+	if leaseEnded := runCtx.Err() != nil && ctx.Err() == nil; leaseEnded || !started {
+		// 임대가 끝나 죽였거나 프로세스가 뜨지 않았다 — 종료 보고도 Finalize 도 없다
+		// (business-rules.md 2절). 닫고 단계 로그만 올린다. 새 칸은 없다 — 칸이 없는
+		// 것이 곧 「그 구간에 닿지 않았다」다.
+		w.closeAndUploadLog(ctx, step, session, buf.Bytes(), log)
+		switch {
+		case leaseEnded:
+			res.Error = "aborted: lease expired"
+			log.Warn("aborted: lease expired")
+		default:
+			res.Error = "cannot execute"
+			if runErr != nil {
+				res.Error = runErr.Error()
+			}
+			log.Error("cannot execute", "err", runErr)
+		}
+		w.report(ctx, step, res)
+		return
 	}
 
+	// 종료 보고는 결과 확정을 막지 않는다 (ADR-075 §10.4) — goroutine 이 보내고,
+	// result 를 보내기 직전에 그만둔다. 유실돼도 result 가 같은 사실을 싣는다.
+	reporter := w.startExitReport(ctx, step, contract.Exited{
+		Node: w.Ident.NodeID, Instance: w.Client.Instance, Attempt: step.Attempt,
+		Outcome: outcome, ExitedAt: exitedAt,
+	})
+	res.ExitedAt = &exitedAt
+	spec := finalizeSpecFor(step, true, w.Local)
+	spec.Workspace, spec.Out, spec.Stamp = dir, out, stamp
+	leaseEnded := w.afterExit(runCtx, ctx, step, session, spec, exitedAt, buf.Bytes(), true, &res, log)
+	reporter.Stop()
+
 	switch {
-	case runCtx.Err() != nil && ctx.Err() == nil:
+	case leaseEnded:
 		// 임대가 끝나 중단됐다 — 완주가 아니다
 		res.Error = "aborted: lease expired"
 		log.Warn("aborted: lease expired")
 	case runErr != nil && code < 0:
-		// 프로세스를 못 띄웠다 (실행 파일 없음 등) — 완주가 아니다
+		// native 에서 signal 로 죽었다 — 완주가 아니다. 종료 보고만 그것을 signal 로 알렸다
 		res.Error = runErr.Error()
-		log.Error("cannot execute", "err", runErr)
+		log.Warn("command ended by a signal", "err", runErr)
 	default:
 		// 완주했다. 종료코드가 무엇이든.
 		// exit 2 로 끝난 빌드도 완주한 것이고, 성공 여부는 success_when 이 판정한다
 		// (ADR-004 · I3). 여기서 판정하면 O4 가 성립하지 않는다.
+		// 예산을 넘긴 것은 error 에 남아 완주가 아니게 되지만 exit_code 는 그대로 남는다 —
+		// 명령 실패와 원인이 나뉜다 (조각 3).
 		res.ExitCode = &code
 		log.Info("step finished", "exit", code, "produced", res.Produced,
+			"finalize", res.Finalize, "upload", res.Upload,
 			"took", time.Since(start).Round(time.Millisecond))
 	}
 
 	w.report(ctx, step, res)
+}
+
+// afterExit 는 명령이 끝난 뒤의 구간을 닫는다 — Finalize · 닫기 · 업로드 · 판정 칸
+// (business-logic-model.md 1 · 2절). 명령 단계와 agent 단계가 같은 모양으로 지난다.
+//
+//	[Finalize 예산]  from 부터.  collect · 지목 경로 stat · diff · 명시 훑기
+//	닫기             예산 밖.  trash 유닛이 rename 으로 바꾸면 안으로 옮긴다
+//	finalized_at
+//	[업로드 예산]    닫기가 끝난 때부터.  단계 로그 먼저 -> $OUT 의 이름들
+//
+// 두 ctx 모두 runCtx 에서 딴다 — runCtx 가 임대를 보므로 임대가 끝나도 멈춘다
+// (ADR-075 §9). res 에 changed · produced 와 새 칸 다섯, error 의 앞부분을 채운다.
+// 돌려주는 것은 그동안 임대가 끝났나다 — 명령이 완주하지 않았다는 문구는 부르는 쪽이
+// 덮어쓴다.
+func (w *Worker) afterExit(runCtx, ctx context.Context, step *Step, session StepSession, spec FinalizeSpec, from time.Time, logBody []byte, blobs bool, res *Result, log *slog.Logger) bool {
+	finalizeBudget, uploadBudget := w.budgetsFor(step)
+	spec.DiscoverFor = discoverTime(finalizeBudget)
+	spec.Deadline = from.Add(finalizeBudget)
+	fctx, cancel := context.WithDeadline(runCtx, spec.Deadline)
+	began := time.Now()
+	fin, finErr := session.Finalize(fctx, spec)
+	cancel()
+	closeErr := session.Close(ctx, Keep{})
+	finalizedAt := time.Now().UTC()
+
+	diag := diagnosticsFor(step, spec.Out, spec.Effect, fin)
+	logFinalize(log, spec, fin, diag, time.Since(began))
+	timedOut := errors.Is(finErr, context.DeadlineExceeded) && runCtx.Err() == nil
+	tail := logTail(step, diag, fin, timedOut, finalizeBudget)
+
+	uctx, cancel := context.WithTimeout(runCtx, uploadBudget)
+	produced, uploaded := w.upload(uctx, step, spec.Out, withTail(logBody, tail), blobs, log)
+	cancel()
+
+	leaseEnded := runCtx.Err() != nil && ctx.Err() == nil
+	res.Changed, res.Produced = fin.Changed, produced
+	res.FinalizedAt, res.Diagnostics = &finalizedAt, diag
+	res.Finalize, res.Upload, res.Reason, res.Error = settle(settleIn{
+		finalizeErr: finErr, closeErr: closeErr, upload: uploaded, leaseEnded: leaseEnded,
+		finalizeBudget: finalizeBudget, uploadBudget: uploadBudget,
+	})
+	return leaseEnded
+}
+
+// closeAndUploadLog 는 Finalize 에 닿지 않은 단계의 끝이다 — 닫고 단계 로그만 올린다.
+// runCtx 가 끝났을 수 있으므로 Worker 의 ctx 에 업로드 예산을 건다.
+func (w *Worker) closeAndUploadLog(ctx context.Context, step *Step, session StepSession, logBody []byte, log *slog.Logger) {
+	if err := session.Close(ctx, Keep{}); err != nil {
+		log.Warn("runtime cleanup failed", "err", err)
+	}
+	_, uploadBudget := w.budgetsFor(step)
+	uctx, cancel := context.WithTimeout(ctx, uploadBudget)
+	defer cancel()
+	if err := w.Client.UploadLog(uctx, step.RunID, step.Seq, step.Name, logBody); err != nil && ctx.Err() == nil {
+		log.Warn("log upload failed", "err", err)
+	}
 }
 
 // runAgentStep 은 ADR-013 의 어댑터 넷 중 ②기동을 부르고 ④수확으로 잇는다.
@@ -742,7 +834,7 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, runtimePaths RuntimePaths, stamp Stamp, prep Prep, missingIn []string, session StepSession, log *slog.Logger) {
 	report := func(res Result) {
 		res.Environment = session.Environment()
-		if closeErr := session.Close(); closeErr != nil {
+		if closeErr := session.Close(ctx, Keep{}); closeErr != nil {
 			res.Error = "runtime cleanup: " + closeErr.Error()
 		}
 		w.report(ctx, step, res)
@@ -849,6 +941,8 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		wsMCP, wsErr = readWorkspaceMCP(w.Local.Workspace)
 	}
 	tee, stopTee := w.transcript(step)
+	var exitedAt time.Time
+	var reporter *exitReporter
 	logBytes, h := runHarness(runCtx, ha, bin, Job{
 		Params: p, Prompt: prompt,
 		IO: IOPaths{Dir: dir, In: in, Out: out},
@@ -867,144 +961,70 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 		Emit:       func(e Event) { log.Debug("harness event", "kind", e.Kind) },
 		Transcript: tee, // 하네스 stdout 을 링과 업로더로 tee
 		Session:    session,
+		// 하네스 프로세스가 끝난 순간 — 봉투 해석 앞이다. 프로세스가 떴고 임대가
+		// 살아 있으면 종료 보고를 시작한다 (business-rules.md 4.1).
+		Exited: func(code int, runErr error, at time.Time) {
+			outcome, ok := exitOutcome(code, runErr)
+			if !ok || runCtx.Err() != nil {
+				return
+			}
+			exitedAt = at.UTC()
+			reporter = w.startExitReport(ctx, step, contract.Exited{
+				Node: w.Ident.NodeID, Instance: w.Client.Instance, Attempt: step.Attempt,
+				Outcome: outcome, ExitedAt: exitedAt,
+			})
+		},
 	})
 	// 꼬리를 비우는 것이 UploadLog(선별본)보다 먼저다 - 뒤집으면 봉인 직전의
 	// 마지막 문장이 중앙 화면에 안 뜬다.
 	stopTee()
-	_ = w.Client.UploadLog(ctx, step.RunID, step.Seq, step.Name, logBytes)
 
-	harvestSpec := HarvestSpec{Workspace: dir, Out: out, Check: step.CheckChanged, Stamp: stamp}
-	if h.Reason.Completed() {
-		harvestSpec.RecordDiff = w.Local.Workspace != "" && len(step.Workspace) > 0
-		harvestSpec.Discover = true
-		harvestSpec.Collect = step.Collect
-	}
-	harvested, harvestErr := session.Harvest(ctx, harvestSpec)
-	logHarvest(harvested, log)
-	res := Result{Node: w.Ident.NodeID, Harness: &h, Workspace: prep,
-		Changed: harvested.Changed}
-	if harvestErr != nil {
-		res.Error = "runtime harvest: " + harvestErr.Error()
-		report(res)
+	res := Result{Node: w.Ident.NodeID, Harness: &h, Workspace: prep, Environment: session.Environment()}
+	completed := h.Reason.Completed()
+	harnessFailed := "harness: " + string(h.Reason) + " " + h.Message
+	if runCtx.Err() != nil && ctx.Err() == nil {
+		// 임대가 끝났다 — Finalize 와 업로드를 건너뛴다. Run 은 이미 회수되고 있다.
+		reporter.Stop()
+		w.closeAndUploadLog(ctx, step, session, logBytes, log)
+		res.Error = "aborted: lease expired"
+		if !completed {
+			res.Error = harnessFailed
+		}
+		log.Warn("aborted: lease expired", "reason", h.Reason)
+		w.report(ctx, step, res)
 		return
 	}
-	if !h.Reason.Completed() {
-		// 크래시는 완주가 아니다 — 반쯤 쓴 파일을 믿을 수 없다
-		res.Error = "harness: " + string(h.Reason) + " " + h.Message
-		log.Warn("harness did not complete", "reason", h.Reason, "msg", h.Message)
-		report(res)
-		return
-	}
-	// ④수확 — 올라간 것만 produced 다. 스키마를 어긴 것은 422 로 거절된다.
-	res.Produced = w.uploadProduced(ctx, step, out, harvested, log)
-	log.Info("agent step finished", "reason", h.Reason, "turns", h.Turns,
-		"cost_usd", h.CostUSD, "produced", res.Produced)
-	report(res)
-}
 
-// uploadProduced 는 ④수확이다 — $OUT 을 걷어 올린다.
-//
-// 올라간 것만 produced 다 — 스키마를 어긴 것은 422 로 거절되어
-// 저장되지 않았고, 어긴 산출물은 산출물이 아니다 (ADR-020).
-func (w *Worker) uploadProduced(ctx context.Context, step *Step, out string, result HarvestResult, log *slog.Logger) []string {
-	writeHarvestNote(out, step.Out, result, log)
-
-	var produced []string
-	for _, name := range harvest(out) {
-		if strings.HasPrefix(name, ".enode-") {
-			continue // 어댑터가 남긴 것 (프롬프트 등) 은 산출물이 아니다
-		}
-		body, err := os.ReadFile(filepath.Join(out, name))
-		if err != nil {
-			log.Error("cannot read output", "name", name, "err", err)
-			continue
-		}
-		if err := w.Client.PutBlob(ctx, step.RunID, step.Seq, name, body); err != nil {
-			log.Warn("blob rejected; not listed in produced", "name", name, "err", err)
-			continue
-		}
-		produced = append(produced, name)
-	}
-	return produced
-}
-
-func logHarvest(result HarvestResult, log *slog.Logger) {
-	switch {
-	case result.DiffError != "":
-		log.Warn("cannot collect workspace diff", "err", result.DiffError)
-	case result.DiffBytes > 0:
-		log.Info("workspace diff", "bytes", result.DiffBytes)
-	}
-	if len(result.Collected) > 0 {
-		log.Info("collected", "names", result.Collected)
-	}
-	for _, n := range result.Notes {
-		log.Warn("collect failed", "name", n.Name, "why", n.Why)
-	}
-}
-
-// writeChangedNote 는 「무엇을 만들었고 무엇을 안 냈나」를 한 파일로 남긴다.
-//
-// 판정하지 않는다 — 판정은 success_when 이 한다 (ADR-004 · I3).
-// 여기서는 사실만 적는다. 실패해도 단계를 죽이지 않는다.
-func writeChangedNote(out string, want []string, stamp Stamp, cnotes []HarvestNote, log *slog.Logger) {
-	result := HarvestResult{Notes: cnotes}
-	if stamp.Root != "" {
-		var err error
-		if result.Workspace, result.WorkspaceN, err = changedSince(stamp, 2000); err != nil {
-			result.ChangedError = err.Error()
-		}
-	}
-	writeHarvestNote(out, want, result, log)
-}
-
-func writeHarvestNote(out string, want []string, result HarvestResult, log *slog.Logger) {
-	have := map[string]bool{}
-	for _, n := range harvest(out) {
-		have[n] = true
-	}
-	var missing []string
-	for _, n := range want {
-		if !have[n] {
-			missing = append(missing, n)
-		}
-	}
-
-	found, total := result.Workspace, result.WorkspaceN
-	if result.ChangedError != "" {
-		log.Warn("cannot collect change list", "err", result.ChangedError)
-	}
-	if total == 0 && len(missing) == 0 && len(result.Notes) == 0 {
-		return // 적을 것이 없다
-	}
-
-	var b strings.Builder
-	if len(missing) > 0 {
-		b.WriteString("required by the contract but missing from $OUT: ")
-		b.WriteString(strings.Join(missing, ", "))
-		b.WriteString("\n\n")
-		log.Warn("required outputs are missing from $OUT", "missing", missing, "changed", total)
-	}
-	// collect 가 왜 못 걷었는지 — 이게 없으면 "요구했는데 없다" 만 남고
-	// 사람이 계약과 트리를 대조해 스스로 알아내야 한다.
-	if len(result.Notes) > 0 {
-		b.WriteString("collect could not gather:\n")
-		for _, n := range result.Notes {
-			b.WriteString("  " + n.Name + " — " + n.Why + "\n")
-		}
-		b.WriteString("\n")
-	}
-	if total > 0 {
-		b.WriteString(summarize(found, total, 40))
+	// 하네스가 뜨지 못했으면 exited_at 이 없다. Finalize 예산은 지금부터 센다 —
+	// Finalize 는 돌지만(지목 경로 stat) 종료 보고는 없다.
+	from := exitedAt
+	if from.IsZero() {
+		from = time.Now().UTC()
 	} else {
-		// 이 경우가 보드 단계다 — 파일시스템에 흔적이 없다.
-		// 시리얼 출력이 산출물이므로 단계가 직접 $OUT 에 옮겨야 한다.
-		b.WriteString("no files changed in the workspace.\n" +
-			"(expected for steps whose result is not a file; the step must write to $OUT.)\n")
+		res.ExitedAt = &exitedAt
 	}
-	if err := os.WriteFile(filepath.Join(out, changedName), []byte(b.String()), 0o644); err != nil {
-		log.Warn("cannot write change note", "err", err)
+	// 완주하지 못했으면 collect 와 diff 를 안 하고 산출물을 안 올린다 — 반쯤 쓴 파일을
+	// 믿을 수 없다. 단계 로그는 올린다. 오늘은 Finalize 오류에 곧바로 보고했는데, 이제
+	// 명령 단계와 같은 모양으로 적고 계속한다.
+	spec := finalizeSpecFor(step, completed, w.Local)
+	spec.Workspace, spec.Out, spec.Stamp = dir, out, stamp
+	leaseEnded := w.afterExit(runCtx, ctx, step, session, spec, from, logBytes, completed, &res, log)
+	reporter.Stop()
+
+	switch {
+	case !completed:
+		// 크래시는 완주가 아니다
+		res.Error = harnessFailed
+		log.Warn("harness did not complete", "reason", h.Reason, "msg", h.Message)
+	case leaseEnded:
+		res.Error = "aborted: lease expired"
+		log.Warn("aborted: lease expired")
+	default:
+		log.Info("agent step finished", "reason", h.Reason, "turns", h.Turns,
+			"cost_usd", h.CostUSD, "produced", res.Produced,
+			"finalize", res.Finalize, "upload", res.Upload)
 	}
+	w.report(ctx, step, res)
 }
 
 // harvest 는 $OUT 에 이름별로 놓인 것을 걷는다 (ADR-013 ④수확).

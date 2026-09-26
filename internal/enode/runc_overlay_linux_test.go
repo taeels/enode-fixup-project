@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	execenv "github.com/taeels/enode/internal/environment"
 )
@@ -47,8 +49,24 @@ func TestRuntimeProtocolHelperProcess(t *testing.T) {
 			_ = encoder.Encode(runtimeWireResponse{Op: "stdout", Data: append([]byte("stdout:"), request.Process.Stdin...)})
 			_ = encoder.Encode(runtimeWireResponse{Op: "stderr", Data: []byte("stderr")})
 			_ = encoder.Encode(runtimeWireResponse{Op: "run-done", ExitCode: 0})
-		case "harvest":
-			_ = encoder.Encode(runtimeWireResponse{Op: "harvested", Harvest: &HarvestResult{Collected: []string{"fake"}}})
+		case "finalize":
+			switch os.Getenv("ENODE_TEST_RUNTIME_MODE") {
+			case "silent":
+				// 답하지 않는다 — stdin 이 닫히거나 죽을 때까지 기다린다
+				var next runtimeWireRequest
+				_ = decoder.Decode(&next)
+				return
+			case "deadline":
+				_ = encoder.Encode(runtimeWireResponse{Op: "finalized", Error: context.DeadlineExceeded.Error(),
+					Finalize: &FinalizeResult{Changed: []string{"before-the-deadline"}}})
+			case "broken":
+				_ = encoder.Encode(runtimeWireResponse{Op: "finalized", Error: "merged view is gone",
+					Finalize: &FinalizeResult{}})
+			default:
+				// 받은 마감을 돌려준다 — 마감이 요청에 실려 가는지 시험이 본다
+				_ = encoder.Encode(runtimeWireResponse{Op: "finalized", Finalize: &FinalizeResult{
+					Collected: []string{"fake"}, Changed: []string{request.Finalize.Deadline.UTC().Format(time.RFC3339)}}})
+			}
 		case "close":
 			_ = encoder.Encode(runtimeWireResponse{Op: "closed"})
 			return
@@ -118,17 +136,23 @@ func TestRuncOverlaySessionProtocol(t *testing.T) {
 	if err != nil || code != 0 || stdout.String() != "stdout:input" || stderr.String() != "stderr" {
 		t.Fatalf("run code=%d err=%v stdout=%q stderr=%q", code, err, stdout.String(), stderr.String())
 	}
-	harvest, err := session.Harvest(context.Background(), HarvestSpec{})
-	if err != nil || !reflect.DeepEqual(harvest.Collected, []string{"fake"}) {
-		t.Fatalf("harvest=%+v err=%v", harvest, err)
+	deadline := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
+	fctx, cancel := context.WithDeadline(context.Background(), deadline)
+	finalized, err := session.Finalize(fctx, FinalizeSpec{})
+	cancel()
+	if err != nil || !reflect.DeepEqual(finalized.Collected, []string{"fake"}) {
+		t.Fatalf("finalize=%+v err=%v", finalized, err)
+	}
+	if want := deadline.Format(time.RFC3339); !reflect.DeepEqual(finalized.Changed, []string{want}) {
+		t.Fatalf("the deadline did not travel to the helper: got %v want %s", finalized.Changed, want)
 	}
 	if session.Environment() != spec.Record {
 		t.Fatal("session lost its environment record")
 	}
-	if err := session.Close(); err != nil {
+	if err := session.Close(context.Background(), Keep{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := session.Close(); err != nil {
+	if err := session.Close(context.Background(), Keep{}); err != nil {
 		t.Fatalf("close is not idempotent: %v", err)
 	}
 	if _, err := os.Stat(rootfs); err != nil {
@@ -148,8 +172,65 @@ func TestRuncOverlaySessionCancellationUsesTheHelperProtocol(t *testing.T) {
 	if err == nil || code != -1 {
 		t.Fatalf("canceled run code=%d err=%v", code, err)
 	}
-	if err := session.Close(); err != nil {
+	if err := session.Close(context.Background(), Keep{}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// 마감이 지나고 helperGrace 가 지나도 답하지 않는 helper 는 죽인다. 그 뒤의 닫기는
+// helper 에 말하지 않고 runRoot 만 지운다 (business-logic-model.md 3절).
+func TestRuncOverlayFinalizeAbortsAHelperThatDoesNotAnswer(t *testing.T) {
+	grace := helperGrace
+	helperGrace = 20 * time.Millisecond
+	t.Cleanup(func() { helperGrace = grace })
+	runtimeImpl, spec, _ := protocolTestRuntime(t, "silent")
+	session, err := runtimeImpl.Open(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runRoot := session.(*runcOverlaySession).runRoot
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	began := time.Now()
+	_, err = session.Finalize(ctx, FinalizeSpec{})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want the deadline", err)
+	}
+	if took := time.Since(began); took > 5*time.Second {
+		t.Fatalf("finalize waited %v for a silent helper", took)
+	}
+	if err := session.Close(context.Background(), Keep{}); err != nil {
+		t.Fatalf("close after abort failed: %v", err)
+	}
+	if _, err := os.Stat(runRoot); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("runRoot survived the abort: %v", err)
+	}
+}
+
+// helper 가 제 마감에 멈춰 답하면 모은 것은 남기고 마감으로 돌려준다.
+func TestRuncOverlayFinalizeKeepsWhatTheHelperGatheredBeforeItsDeadline(t *testing.T) {
+	runtimeImpl, spec, _ := protocolTestRuntime(t, "deadline")
+	session, err := runtimeImpl.Open(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close(context.Background(), Keep{}) //nolint:errcheck
+	result, err := session.Finalize(context.Background(), FinalizeSpec{Deadline: time.Now()})
+	if !errors.Is(err, context.DeadlineExceeded) || !reflect.DeepEqual(result.Changed, []string{"before-the-deadline"}) {
+		t.Fatalf("result %+v err %v", result, err)
+	}
+}
+
+// 마감이 아닌 helper 의 오류는 그 문구 그대로다. 앞에 머리말을 붙이는 것은 Worker 다.
+func TestRuncOverlayFinalizeCarriesTheHelperError(t *testing.T) {
+	runtimeImpl, spec, _ := protocolTestRuntime(t, "broken")
+	session, err := runtimeImpl.Open(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close(context.Background(), Keep{}) //nolint:errcheck
+	if _, err := session.Finalize(context.Background(), FinalizeSpec{}); err == nil || err.Error() != "merged view is gone" {
+		t.Fatalf("err = %v", err)
 	}
 }
 
@@ -543,28 +624,56 @@ func hasRuntimeOption(options []string, want string) bool {
 	return false
 }
 
-func TestOverlayHarvestReadsTheMergedWorkspaceAndExistingOut(t *testing.T) {
+func TestOverlayFinalizeReadsTheMergedWorkspaceAndWalksTheUpper(t *testing.T) {
 	root := t.TempDir()
-	merged, out := filepath.Join(root, "merged"), filepath.Join(root, "out")
-	if err := os.MkdirAll(merged, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(out, 0o755); err != nil {
-		t.Fatal(err)
+	merged, out, upper := filepath.Join(root, "merged"), filepath.Join(root, "out"), filepath.Join(root, "upper")
+	for _, dir := range []string{merged, out, upper} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err := os.WriteFile(filepath.Join(merged, "artifact"), []byte("sealed"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	h := &overlayRuntimeHelper{open: &runtimeWireOpen{Out: out}, merged: merged}
-	result, err := h.harvest(HarvestSpec{Collect: map[string]string{"result": "artifact"}})
+	if err := os.WriteFile(filepath.Join(upper, "written-by-the-step"), []byte("new"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := &overlayRuntimeHelper{open: &runtimeWireOpen{Out: out}, merged: merged, upper: upper}
+	result, err := h.finalize(FinalizeSpec{Collect: map[string]string{"result": "artifact"},
+		Discover: true, Stamp: Stamp{Root: "/host/workspace"}, Deadline: time.Now().Add(time.Minute)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(result.Collected, []string{"result"}) {
-		t.Fatalf("unexpected harvest: %+v", result)
+		t.Fatalf("unexpected finalize: %+v", result)
 	}
 	b, err := os.ReadFile(filepath.Join(out, "result"))
 	if err != nil || string(b) != "sealed" {
-		t.Fatalf("harvested body=%q err=%v", b, err)
+		t.Fatalf("collected body=%q err=%v", b, err)
+	}
+	if d := result.Discovery; d == nil || d.Total != 1 || d.Paths[0].Path != "written-by-the-step" || d.Deleted != 0 {
+		t.Fatalf("discover did not walk the upper: %+v", result.Discovery)
+	}
+}
+
+// 문자 장치가 아닌 항목은 whiteout 이 아니다. 진짜 whiteout(문자 장치 0:0)은 보통 권한으로
+// 만들 수 없어 integration 태그 시험이 확인한다.
+func TestIsOverlayWhiteoutIgnoresRegularFiles(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "f"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := os.ReadDir(dir)
+	if isOverlayWhiteout(entries[0]) {
+		t.Fatal("a regular file was taken for a whiteout")
+	}
+	devs, err := os.ReadDir("/dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range devs {
+		if d.Name() == "null" && isOverlayWhiteout(d) {
+			t.Fatal("/dev/null (1:3) was taken for a whiteout")
+		}
 	}
 }

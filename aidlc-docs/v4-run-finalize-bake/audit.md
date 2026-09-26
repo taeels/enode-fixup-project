@@ -658,3 +658,31 @@
 **Context**: Construction · U3 finalize · Functional Design 승인 · NFR Requirements 와 NFR Design 건너뜀 · Code Generation Part 1 착수
 
 ---
+## Construction · U3 `finalize` · Code Generation 계획 · 승인 요청
+**Timestamp**: 2026-09-25T13:01:31Z
+**User Input**: (없음 — 「승인. nfr 건너뛴다.」에 이어 착수)
+**AI Response**: Functional Design 커밋 572ec87 을 넣었다. Code Generation Part 1 — 코드를 먼저 읽었다 (runtime.go 의 세션 겉면 · claim.go:688 ~ :731 명령 단계의 끝 · :861 ~ :897 agent 단계 · :906 uploadProduced · changed.go · collect.go 의 copyFile · runc_overlay_linux.go 의 helper 요청 loop 와 :974 harvest · runner.go:234 session.Run · cmd/enode/main.go:204 client). 계획을 냈다 — construction/plans/finalize-code-generation-plan.md, 단계 열일곱. NFR 두 단계가 맡았던 것 중 조각 1 과 N3 은 FD 가 닫았고, 남는 값 둘(30초에 훑는 항목 수 · helper 여유 5초)은 계획 3절이 측정으로 받는다 — BenchmarkWalkWorkspace 와 조각 1 스크립트의 discover Run · 마감 뒤 돌아오기 시험. FD 에 없던 자리 열하나를 계획 4절에 적었다 — 새 파일 finalize.go 와 업로드를 upload.go 로 모음 · FinalizeSpec.DiscoverFor (helper 가 예산을 모른다) · overlay 는 ctx 가 끝난 때부터 5초 뒤 abort 하고 abort 뒤 Close 는 helper 에 말하지 않음 · whiteout 판정을 인자로 · 시험이 바꿔 끼우는 자리 (Worker.budgets · Worker.exitWait · helperGrace · statPath · walkDir) · Instance 가 비면 종료 보고 안 보냄 · 노드 로그 finalized 한 줄 · changedSince 를 그대로 둠 · ctx 를 보는 복사 · 하네스가 못 뜬 agent 단계 · 조각 스크립트 자리 scripts/finalize-bake/. 조각 1 · 3 은 이 단계에서 확인하고 조각 2 는 스크립트만 준비한다 (사람의 조각). 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0 · U+2605 0. 계획 승인을 요청한다.
+**Context**: Construction · U3 finalize · Code Generation Part 1 Step 1 ~ 6. 승인 대기
+
+---
+## Construction · U3 `finalize` · Code Generation 계획 승인
+**Timestamp**: 2026-09-25T13:27:18Z
+**User Input**: "승인"
+**AI Response**: 계획(단계 열일곱)을 승인으로 적었다. Part 2 를 Step 1 (기준선)부터 시작한다.
+**Context**: Construction · U3 finalize · Code Generation Part 1 Step 7 ~ 9 · Part 2 착수
+
+---
+## Construction · U3 `finalize` · Code Generation 완료 · 승인 요청
+**Timestamp**: 2026-09-25T14:06:03Z
+**User Input**: (없음 — 「승인」에 이어 Part 2)
+**AI Response**: 계획의 단계 열일곱 중 열여섯과 반을 채웠다 (커밋은 승인 뒤). 새 파일 finalize.go (규칙의 순수 함수 · 종료 보고 goroutine) · 세션 겉면 Harvest -> Finalize · Close(ctx, Keep) · 명시 훑기와 상한 넷 (changed.go) · ctx 를 보는 collect · overlay helper 가 요청의 마감으로 멈추고 Worker 가 ctx 끝 + 5초에 abort · 종료 보고 (Client.Exited · Job.Exited) · 업로드 client 와 흘려 보내기 (upload.go · cmd/enode/main.go) · 진단 칸 · 단계 로그 끝 줄과 안내 · workspace.changed 를 없앰. 계획과 다른 자리 여덟은 code-summary 4절 — advertise.go 에 Client.Upload 한 칸 · Discovery.Paths 가 경로와 크기 · 마감으로 멈춘 걷기도 time · UploadLog 4xx 도 BlobRejected · tee 를 Run 직후에 멈춤 · 임대 끝과 못 뜬 프로세스도 단계 로그를 올림 · agent 임대 만료의 문구 · collect 시험을 옮김. 코드 검사 — gofmt · vet (integration 태그 포함) · build · go test 통과 2,025 · 실패 0 · 스킵 0 · 스무 패키지 전부 80% 이상 (internal/enode 81.5% -> 82.3% · 전체 85.9%) · 크로스 빌드 셋 · enodectl.exe 심볼 1 · 6 · U+2605 0 · glyphscan 깨끗 · 린트 39 건 (기준선과 목록이 같다). 조각 0 초록 (라우트 19). 조각 1 초록 — slice-1.sh 를 이 브랜치에서 빌드한 스크래치 Mediator (127.0.0.1:18080 · DB enode_slice) 로 돌렸다. 개발용 Mediator (:8080) 는 2026-09-17 빌드라 종료 보고에 404 를 준다. 300만 파일 워크스페이스와 빈 워크스페이스 모두 finalized_at - exited_at 이 1 ms 아래 · 두 노드 모두 stat 3 · 걷기 0. 첫 실행은 계약이 400 (changed 는 워크스페이스를 적은 단계에만) 이라 단계에 workspace {repo: ""} 를 더했다. 조각 3 초록 (go test). 조각 2 는 사람의 조각이라 slice-2.sh 만 준비했다. 측정 — 훑기 초당 약 304,000 방문 (데워진 트리) · 300만 파일 첫 걷기에서 방문 상한 2,000,000 에 27.1 초 · 마감 뒤 돌아오기 0.19 ms (훑기) · 0.89 ms (256 MiB collect). 큰 트리는 지웠다. 스크래치 Mediator 는 조각 2 에 쓰도록 켜 두었다. 표기 검사 exit 0 · 사용자가 싫어한 말투 0 · 사내 이름 0. 승인을 요청한다 — Request Changes 또는 Continue to Next Stage.
+**Context**: Construction · U3 finalize · Code Generation Part 2 Step 10 ~ 14. 승인 대기
+
+---
+## Construction · U3 `finalize` · Code Generation 승인
+**Timestamp**: 2026-09-26T00:45:54Z
+**User Input**: "승인"
+**AI Response**: Code Generation 을 승인으로 적었다. 코드 · 시험 · 스크립트 · 계획 · code-summary · 상태 · 감사를 한 커밋으로 넣는다 (CONVENTIONS 3.3 · 3.4). 병합 조건은 조각 1 · 2 · 3 이고 조각 2 (사람) 가 아직이라 PR 은 열지 않는다. 스크래치 Mediator (127.0.0.1:18080) 는 조각 2 에 쓰도록 켜 둔다.
+**Context**: Construction · U3 finalize · Code Generation Step 15 ~ 16. 커밋 · 병합은 조각 2 뒤
+
+---

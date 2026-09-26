@@ -1,13 +1,18 @@
 package enode
 
 import (
+	"context"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/taeels/enode/internal/contract"
 )
 
 // 이게 이 파일이 존재하는 이유다
@@ -145,81 +150,182 @@ func TestHook_RunsWithoutAStamp(t *testing.T) {
 	}
 }
 
-// 명령 단계에는 훅이 없다 — 기록이 대신 말해야 한다
+// ── 명시 훑기 (discover) ─────────────────────────────────────────
 //
-// 빌드·플래시가 전부 명령 단계이고 ADR-019 로 같은 노드의 cap 아래 들어왔다.
-// 되물을 상대가 스크립트라 훅을 못 쓴다. 그러면 기록이
-// "무엇을 만들었고 무엇을 안 냈나" 를 스스로 말해야 한다.
-func TestNote_RecordsWhatWasMadeAndWhatWasNotProduced(t *testing.T) {
-	dir := gitInit(t)
-	out := t.TempDir()
-	time.Sleep(1100 * time.Millisecond)
-	s := stampNow(dir)
-	time.Sleep(1100 * time.Millisecond)
-	// 빌드가 산출물을 만들었다 — 전부 .gitignore 안이다
-	write(t, dir, "build/vmlinux", strings.Repeat("v", 9000))
-	write(t, dir, "drivers/spi.ko", strings.Repeat("k", 3000))
-	write(t, dir, "drivers/spi.o", "obj")
-	// 그런데 $OUT 으로 안 옮겼다
+// 계약이 discover 를 켠 단계에서만 돈다. 상한 넷 중 먼저 닿은 하나를 적고 멈춘다
+// (business-rules.md 5.2). 시험은 상한을 작게 준다.
 
-	writeChangedNote(out, []string{"artifact", "build_log"}, s, nil, testLog())
+func bigLimits() discoverLimits {
+	return discoverLimits{visits: 1 << 30, held: 1 << 30, paths: 1 << 30, bytes: 1 << 30, time: time.Hour}
+}
 
-	b, err := os.ReadFile(filepath.Join(out, changedName))
-	if err != nil {
-		t.Fatal(err)
+// tree 는 기준 시각 뒤의 파일 n 개와 앞의 파일 old 개를 만든다. 잠들지 않고 mtime 을 옮긴다.
+func tree(t *testing.T, n, old int) (string, Stamp) {
+	t.Helper()
+	dir := t.TempDir()
+	at := time.Now().Add(-time.Hour)
+	for i := 0; i < n; i++ {
+		write(t, dir, filepath.Join("new", strconv.Itoa(i%7), "f"+strconv.Itoa(i)), strings.Repeat("x", i+1))
 	}
-	got := string(b)
-	if !strings.Contains(got, "artifact") || !strings.Contains(got, "build_log") {
-		t.Fatalf("what was not produced is not pointed out:\n%s", got)
+	for i := 0; i < old; i++ {
+		p := filepath.Join(dir, "old", "f"+strconv.Itoa(i))
+		write(t, dir, filepath.Join("old", "f"+strconv.Itoa(i)), "o")
+		if err := os.Chtimes(p, at.Add(-time.Hour), at.Add(-time.Hour)); err != nil {
+			t.Fatal(err)
+		}
 	}
-	if !strings.Contains(got, "vmlinux") {
-		t.Fatalf("what was made is not recorded — the diff alone looks like nothing happened:\n%s", got)
+	return dir, Stamp{At: at, Root: dir}
+}
+
+// 다 훑으면 기준 시각 뒤의 보통 파일만, 큰 것부터 나온다. 상한은 안 적힌다.
+func TestWalkWorkspace_ListsFilesAfterTheStampLargestFirst(t *testing.T) {
+	dir, s := tree(t, 20, 5)
+	write(t, dir, ".git/objects/x", "git")
+	write(t, dir, ".repo/manifest.xml", "repo")
+	d := walkWorkspace(context.Background(), s, bigLimits())
+	if d.Total != 20 || len(d.Paths) != 20 || d.Limit != "" {
+		t.Fatalf("total %d paths %d limit %q, want 20 · 20 · none", d.Total, len(d.Paths), d.Limit)
 	}
-	if strings.Contains(got, "실패") {
-		t.Fatalf("the record passed judgment — success_when does the judging (ADR-004·I3):\n%s", got)
+	if d.Paths[0].Size != 20 || d.Paths[19].Size != 1 {
+		t.Errorf("not largest first: first %+v last %+v", d.Paths[0], d.Paths[19])
+	}
+	for _, p := range d.Paths {
+		if strings.HasPrefix(p.Path, ".git") || strings.HasPrefix(p.Path, ".repo") || strings.HasPrefix(p.Path, "old") {
+			t.Errorf("%s must not be listed", p.Path)
+		}
+	}
+	if d.Visited == 0 {
+		t.Error("visits were not counted")
 	}
 }
 
-// 다 냈으면 「안 낸 것」 절이 없다.
-func TestNote_SaysNothingWhenAllWasProduced(t *testing.T) {
-	dir, out := gitInit(t), t.TempDir()
-	if err := os.WriteFile(filepath.Join(out, "artifact"), []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
+// 상한마다 — 닿은 하나가 적히고 목록은 부분이다.
+func TestWalkWorkspace_StopsAtEachLimit(t *testing.T) {
+	dir, s := tree(t, 50, 0)
+	cases := []struct {
+		name  string
+		tweak func(*discoverLimits)
+		want  string
+	}{
+		{"visits", func(l *discoverLimits) { l.visits = 10 }, contract.LimitVisits},
+		{"time", func(l *discoverLimits) { l.time = time.Nanosecond }, contract.LimitTime},
+		{"memory", func(l *discoverLimits) { l.held = 5 }, contract.LimitMemory},
+		{"size by count", func(l *discoverLimits) { l.paths = 3 }, contract.LimitSize},
+		{"size by bytes", func(l *discoverLimits) { l.bytes = 30 }, contract.LimitSize},
 	}
-	time.Sleep(1100 * time.Millisecond)
-	s := stampNow(dir)
-	time.Sleep(1100 * time.Millisecond)
-	write(t, dir, "build/x.o", "o")
-
-	writeChangedNote(out, []string{"artifact"}, s, nil, testLog())
-	b, _ := os.ReadFile(filepath.Join(out, changedName))
-	if strings.Contains(string(b), "missing") {
-		t.Fatalf("pointed something out although everything was produced:\n%s", b)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			l := bigLimits()
+			c.tweak(&l)
+			d := walkWorkspace(context.Background(), Stamp{At: s.At, Root: dir}, l)
+			if d.Limit != c.want {
+				t.Fatalf("limit = %q, want %q", d.Limit, c.want)
+			}
+			if len(d.Paths) >= 50 {
+				t.Errorf("a limited walk listed everything (%d)", len(d.Paths))
+			}
+		})
 	}
 }
 
-// 보드 단계 — 파일시스템에 흔적이 없다
-//
-// diff 도 changed 도 비어 있는 것이 정상이다. 시리얼 출력이 산출물이고
-// 그건 단계가 직접 $OUT 에 옮겨야 한다. 기록이 그 사실을 말해줘야
-// 사람이 "왜 아무것도 안 걷혔지" 를 안 헤맨다.
-func TestNote_ExplainsAStepThatLeftNoTrace(t *testing.T) {
-	dir, out := t.TempDir(), t.TempDir()
-	time.Sleep(1100 * time.Millisecond)
-	s := stampNow(dir)
+// 먼저 닿은 하나만 적는다 — 방문 상한에 멈춘 걷기는 결과 크기에 걸려도 size 가 아니다.
+func TestWalkWorkspace_OnlyTheFirstLimitIsRecorded(t *testing.T) {
+	_, s := tree(t, 50, 0)
+	l := bigLimits()
+	l.visits, l.paths = 30, 1
+	d := walkWorkspace(context.Background(), s, l)
+	if d.Limit != contract.LimitVisits || len(d.Paths) != 1 {
+		t.Fatalf("limit %q paths %d, want visits · 1", d.Limit, len(d.Paths))
+	}
+	if d.Visited != 30 {
+		t.Errorf("visited %d, want exactly the visit limit", d.Visited)
+	}
+}
 
-	writeChangedNote(out, []string{"kunit_result"}, s, nil, testLog())
-	b, err := os.ReadFile(filepath.Join(out, changedName))
-	if err != nil {
+// Finalize 의 마감이 지나면 멈춘다. 그것도 시간 상한이라 time 으로 적고 목록은 부분이다.
+func TestWalkWorkspace_StopsAtTheDeadline(t *testing.T) {
+	_, s := tree(t, 10, 0)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	d := walkWorkspace(ctx, s, bigLimits())
+	if d.Limit != contract.LimitTime || d.Total != 0 || d.Visited != 1 {
+		t.Fatalf("limit %q total %d visited %d, want time · 0 · 1", d.Limit, d.Total, d.Visited)
+	}
+}
+
+// overlay — upper 에 있는 것이 곧 이 단계가 쓴 것이다. 기준 시각을 안 보고,
+// whiteout 은 목록에 안 넣고 센다.
+func TestWalkUpper_ListsTheUpperAndCountsWhiteouts(t *testing.T) {
+	upper := t.TempDir()
+	write(t, upper, "src/new.c", "int x;")
+	write(t, upper, "build/zImage", strings.Repeat("k", 100))
+	write(t, upper, "src/gone.c", "") // 가짜 whiteout — 이름으로 판정한다
+	write(t, upper, "src/also-gone.h", "")
+	write(t, upper, ".git/index", "i")
+	old := time.Now().Add(-48 * time.Hour)
+	if err := os.Chtimes(filepath.Join(upper, "src/new.c"), old, old); err != nil {
 		t.Fatal(err)
 	}
-	got := string(b)
-	if !strings.Contains(got, "kunit_result") {
-		t.Fatalf("what was not produced is not pointed out:\n%s", got)
+	fake := func(d fs.DirEntry) bool { return strings.Contains(d.Name(), "gone") }
+	d := walkUpper(context.Background(), upper, bigLimits(), fake)
+	if d.Total != 2 || d.Deleted != 2 {
+		t.Fatalf("total %d deleted %d, want 2 · 2 (%+v)", d.Total, d.Deleted, d.Paths)
 	}
-	if !strings.Contains(got, "no files changed") {
-		t.Fatalf("the absence of any trace is not recorded — board steps look like this:\n%s", got)
+	if d.Paths[0].Path != filepath.Join("build", "zImage") {
+		t.Errorf("largest first: got %+v", d.Paths)
 	}
+}
+
+// upper 도 상한을 따른다.
+func TestWalkUpper_StopsAtALimit(t *testing.T) {
+	upper := t.TempDir()
+	for i := 0; i < 20; i++ {
+		write(t, upper, "f"+strconv.Itoa(i), "x")
+	}
+	l := bigLimits()
+	l.held = 4
+	d := walkUpper(context.Background(), upper, l, func(fs.DirEntry) bool { return false })
+	if d.Limit != contract.LimitMemory || d.Total != 4 {
+		t.Fatalf("limit %q total %d, want memory · 4", d.Limit, d.Total)
+	}
+}
+
+// 시간 상한은 Finalize 예산의 절반이다. 0 이면 기본 예산의 절반.
+func TestDefaultDiscoverLimits(t *testing.T) {
+	if got := defaultDiscoverLimits(0).time; got != 30*time.Second {
+		t.Errorf("default time = %v, want 30s", got)
+	}
+	l := defaultDiscoverLimits(discoverTime(5 * time.Minute))
+	if l.time != 150*time.Second || l.visits != 2_000_000 || l.held != 200_000 ||
+		l.paths != 2_000 || l.bytes != 256<<10 {
+		t.Errorf("limits = %+v", l)
+	}
+}
+
+// BenchmarkWalkWorkspace 는 이 디스크에서 초당 몇 항목을 훑나다 (계획 3절 ①).
+// 30초의 시간 상한과 2,000,000 의 방문 상한 중 무엇이 먼저 닿나를 여기서 읽는다.
+//
+//	go test ./internal/enode/ -run '^$' -bench WalkWorkspace -benchtime 5x
+func BenchmarkWalkWorkspace(b *testing.B) {
+	dir := b.TempDir()
+	for i := 0; i < 100; i++ {
+		sub := filepath.Join(dir, strconv.Itoa(i))
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			b.Fatal(err)
+		}
+		for j := 0; j < 1000; j++ {
+			if err := os.WriteFile(filepath.Join(sub, strconv.Itoa(j)), nil, 0o644); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+	s := Stamp{At: time.Now().Add(time.Hour), Root: dir} // 아무것도 안 걸린다 — 방문만 센다
+	b.ResetTimer()
+	var visited int
+	for i := 0; i < b.N; i++ {
+		visited = walkWorkspace(context.Background(), s, defaultDiscoverLimits(0)).Visited
+	}
+	b.ReportMetric(float64(visited)*float64(b.N)/b.Elapsed().Seconds(), "visits/s")
 }
 
 func testLog() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }

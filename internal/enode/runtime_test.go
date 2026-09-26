@@ -14,13 +14,13 @@ import (
 )
 
 type trackingRuntime struct {
-	opens    int
-	projects int
-	runs     int
-	harvests int
-	closes   int
-	commands [][]string
-	record   *execenv.Record
+	opens     int
+	projects  int
+	runs      int
+	finalizes int
+	closes    int
+	commands  [][]string
+	record    *execenv.Record
 }
 
 func (r *trackingRuntime) Open(_ context.Context, spec RuntimeSpec) (StepSession, error) {
@@ -56,12 +56,12 @@ func (s *trackingSession) Run(_ context.Context, spec ProcessSpec) (int, error) 
 	return 0, nil
 }
 
-func (s *trackingSession) Harvest(_ context.Context, spec HarvestSpec) (HarvestResult, error) {
-	s.owner.harvests++
-	return (&nativeSession{}).Harvest(context.Background(), spec)
+func (s *trackingSession) Finalize(_ context.Context, spec FinalizeSpec) (FinalizeResult, error) {
+	s.owner.finalizes++
+	return (&nativeSession{}).Finalize(context.Background(), spec)
 }
 
-func (s *trackingSession) Close() error {
+func (s *trackingSession) Close(context.Context, Keep) error {
 	s.owner.closes++
 	if s.owner.closes > s.owner.opens {
 		return errors.New("session closed more than once")
@@ -98,9 +98,9 @@ func TestWorkerRoutesCommandAndAgentThroughStepRuntime(t *testing.T) {
 				wantProjects = 1
 			}
 			if runtime.opens != 1 || runtime.projects != wantProjects || runtime.runs != 1 ||
-				runtime.harvests != 1 || runtime.closes != 1 {
-				t.Fatalf("want Open/Project/Run/Harvest/Close 1/%d/1/1/1, got %d/%d/%d/%d/%d",
-					wantProjects, runtime.opens, runtime.projects, runtime.runs, runtime.harvests, runtime.closes)
+				runtime.finalizes != 1 || runtime.closes != 1 {
+				t.Fatalf("want Open/Project/Run/Finalize/Close 1/%d/1/1/1, got %d/%d/%d/%d/%d",
+					wantProjects, runtime.opens, runtime.projects, runtime.runs, runtime.finalizes, runtime.closes)
 			}
 			if res.Environment == nil || res.Environment.PreparedEnvironment != "prepared" {
 				t.Fatalf("runtime identity did not reach the result: %+v", res.Environment)
@@ -123,7 +123,9 @@ func TestNativeRuntimePreservesExitCodeAndOutput(t *testing.T) {
 	}
 }
 
-func TestNativeHarvestDiscoversChangesWithoutNewContractDeclarations(t *testing.T) {
+// 명시 훑기는 계약이 켰을 때만 돈다 (FR-1). 켜지 않은 단계는 워크스페이스를 걷지
+// 않고, 직접 $OUT 에 둔 것은 그대로 기본 결과 경로다.
+func TestNativeFinalizeDiscoversChangesOnlyWhenAsked(t *testing.T) {
 	workspace, out := t.TempDir(), t.TempDir()
 	stamp := Stamp{At: time.Now().Add(-time.Second), Root: workspace}
 	if err := os.WriteFile(filepath.Join(workspace, "discovered-by-runtime.txt"), []byte("changed"), 0o644); err != nil {
@@ -136,20 +138,34 @@ func TestNativeHarvestDiscoversChangesWithoutNewContractDeclarations(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := session.Harvest(context.Background(), HarvestSpec{
+	quiet, err := session.Finalize(context.Background(), FinalizeSpec{Workspace: workspace, Out: out, Stamp: stamp})
+	if err != nil || quiet.Discovery != nil {
+		t.Fatalf("a step that did not ask walked the workspace: %+v %v", quiet.Discovery, err)
+	}
+	result, err := session.Finalize(context.Background(), FinalizeSpec{
 		Workspace: workspace, Out: out, Stamp: stamp, Discover: true,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.WorkspaceN == 0 || len(result.Workspace) == 0 ||
-		result.Workspace[0].Path != "discovered-by-runtime.txt" {
-		t.Fatalf("automatic workspace discovery was lost: %+v", result)
+	if d := result.Discovery; d == nil || d.Total != 1 || d.Paths[0].Path != "discovered-by-runtime.txt" {
+		t.Fatalf("explicit discovery did not list the change: %+v", result.Discovery)
 	}
 	if _, err := os.Stat(filepath.Join(out, "direct-output")); err != nil {
 		t.Fatalf("direct $OUT stopped being the default result path: %v", err)
 	}
 	if len(result.Collected) != 0 || len(result.Notes) != 0 {
 		t.Fatalf("empty optional collect became a requirement: %+v", result)
+	}
+}
+
+// 워크스페이스가 없는 노드는 훑지 않고 이유를 적는다.
+func TestNativeFinalizeSkipsDiscoveryWithoutAWorkspace(t *testing.T) {
+	session, _ := (NativeRuntime{}).Open(context.Background(), RuntimeSpec{})
+	result, err := session.Finalize(context.Background(), FinalizeSpec{
+		Workspace: t.TempDir(), Out: t.TempDir(), Stamp: Stamp{At: time.Now()}, Discover: true,
+	})
+	if err != nil || result.Discovery == nil || result.Discovery.Skipped != discoverNoWorkspace {
+		t.Fatalf("discovery = %+v err %v, want skipped", result.Discovery, err)
 	}
 }
