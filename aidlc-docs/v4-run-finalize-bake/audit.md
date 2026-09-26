@@ -805,3 +805,52 @@
 **Context**: Construction · U4 trash · 조각 4 초록 · Code Generation 승인 · 커밋 · PR
 
 ---
+## Construction · U4 `trash` · PR #64 CI · 병합을 묻는다
+**Timestamp**: 2026-09-26T15:29:53Z
+**User Input**: (없음 — CI 가 끝났다)
+**AI Response**: PR #64 의 CI 가 초록이다 — test 3분 43초 (린트 38 건 · 커버리지 하한 통과) · cross (enodectl crypto/tls 1 · net/http 6) · bounded-demo. mergeable CLEAN. 병합할지 묻는다 (앞 유닛처럼 병합 커밋). 조각 전용 자리 (SunnyVM ~/slice4 · ~/enode-trash-slice · slice4.yaml · DB enode_slice4 · 스크래치 Mediator) 는 지웠다.
+**Context**: Construction · U4 trash · 병합 대기
+
+---
+## Construction · U4 `trash` · 병합 · U5 `merge-rules` 착수
+**Timestamp**: 2026-09-26T15:34:52Z
+**User Input**: "병합 커밋으로 합침 (Recommended)" (질문 — PR #64 (trash 유닛) 의 CI 가 초록입니다. 병합할까요? 선택지: 병합 커밋으로 합침 / 병합만 한다 / 아직 합치지 않는다)
+**AI Response**: #64 를 병합 커밋으로 합쳤다 (b44b46e · 2026-09-26T15:34:52Z). U4 trash 가 닫혔다. origin/main 에서 unit/merge-rules 를 땄다 (upstream 없음 — push 때 origin/unit/merge-rules 로 건다). U5 의 Functional Design 을 시작한다 — 유닛 정의 5절 · FR-7 · ADR-077 §4 · §12 · components.md 2.2 · component-methods.md 2절 · SunnyVM 의 시제품 merge.py 를 읽는다.
+**Context**: Construction · U4 trash 병합 · U5 merge-rules Functional Design 착수
+
+---
+## Construction · U5 `merge-rules` · Functional Design 계획과 물음
+**Timestamp**: 2026-09-26T15:41:31Z
+**User Input**: (없음 — 병합에 이어 착수)
+**AI Response**: Functional Design Step 1 ~ 4. 시제품을 먼저 읽었다 — merge.py 는 종류가 바뀐 항목을 두 방향 모두 lower 쪽을 trash 로 옮긴 뒤 rename 했고 (FR-7 의 물음), lower 의 symlink 는 디렉터리로 치지 않았고, 디렉터리는 mode 와 시각만 맞췄고, 파일시스템을 바꾸는 호출마다 연산을 셌다. SunnyVM (커널 7.0) 에서 제품과 같은 마운트 옵션으로 측정했다 — user namespace 마운트는 커널이 redirect_dir=nofollow · userxattr 를 스스로 붙이고 metacopy 가 꺼져 있어 upper 의 표시가 ADR-077 §4 의 전제 그대로다 (문자 장치 whiteout · user.overlay.opaque · redirect 없음). 복사해 올린 항목에 user.overlay.origin 이 붙는다. 형제 helper 의 overlay 마운트는 호스트 mountinfo 에 안 보이고 /proc/<pid>/mountinfo 에서만 보인다. 이 기계에서 가짜 표시(mknod c 0 0 · user.overlay.opaque)를 특권 없이 다시 만들었다. 실측 폴더는 지웠다. 계획과 물음 아홉을 냈다 — construction/plans/merge-rules-functional-design-plan.md. 1 마운트 0 을 누가 보나 · 2 재개 시험의 연산 단위 · 3 기대값의 출처 · 4 디렉터리 속성 · 5 overlay 의 사적 xattr · 6 trash 로 옮기는 자리와 이름 · 7 경로 경계 · 8 시작 전 확인의 범위 · 9 도중 오류. 권장은 모두 A. 표기 검사 exit 0 · 사내 이름 0.
+**Context**: Construction · U5 merge-rules · Functional Design Step 1 ~ 4. 답 대기
+
+---
+## Construction · U5 `merge-rules` · 물음 아홉을 다시 검토
+**Timestamp**: 2026-09-26T15:55:03Z
+**User Input**: "질문 아홉을 다시 검토"
+**AI Response**: 물음 아홉을 유닛 정의 5 · 6절 · FR-7 · components.md 2절 · component-methods.md 2절 · ADR-077 §4 · §12 · trash 유닛의 넘김(business-logic-model.md 10절) · internal/scratch 코드 · 커널 문서 overlayfs.rst · merge.py 에 다시 대 보고, SunnyVM (커널 7.0) 에서 셋을 더 측정했다 (측정 폴더는 지웠다). 넷을 고쳤다. 물음 1 — Application Design 이 마운트 0 의 증거를 부르는 쪽의 배타 잠금으로 이미 정했고 유닛 정의가 그 증거를 lower-state 유닛에 맡겼다. A 를 「이 유닛은 확인하지 않는다 · 1.3 과 옛 노드의 틈을 lower-state 에 넘긴다」로 바꾸고 앞 판의 A (/proc 훑기)를 B 로 옮겼다. 물음 5 — A 의 근거(커널이 origin · impure 를 upper 층에서만 읽는다)가 측정 없는 주장이었다. origin · impure 가 남은 합친 lower 위에 새 overlay 를 올려 목록 · 내용 · 다시 복사해 올리기가 정상임을 측정했다 (1.8). 물음 6 — 앞 판의 B (internal/scratch 임포트)는 새 패키지 셋이 서로 임포트하지 않는다는 components.md 2절과 어긋났고, trash 유닛이 bake 에 넘긴 「합치기의 lower 쪽 항목도 Trash.Move 로」의 길이 빠져 있었다. A 를 「부르는 쪽이 채우는 함수 (merge-helper 가 Trash.Move 로 채운다)」로, B 를 「직접 renameat2 · 이름 규칙 두 벌」로 다시 짰다. 물음 8 — 앞 판의 B (upper 를 걷지 않는다)는 FR-7 의 시작 조건 둘을 빼는 것이라 뺐다. 커널 문서가 opaque 값 x 는 opaque 가 아니고 xattr whiteout 은 overlayfs 가 만들지 않는다고 적는다. 측정 — upper 층의 크기 0 파일 + user.overlay.whiteout 은 readdir 에는 보이고 lookup 은 ENOENT 다 (부모 표시와 무관) · 세션 안에서 붙인 user.overlay.* 는 upper 에 user.overlay.overlay.* 로 적힌다 (1.7). 물음 8 을 「upper 의 xattr whiteout 과 y 가 아닌 opaque 값을 거절하나 (A · ADR-077 §4 와 유닛 정의 5절을 고친다) · whiteout 으로 읽나 (B)」로 바꿨다. 3 · 7 · 9 에 한 줄씩 더했다 (요구 5.6 이 부르는 범위 · 물음 6 A 와의 관계 · 재개 때 되풀이되는 오류를 bake 에 넘김). 2 · 4 는 그대로. 표기 검사 exit 0 · 사내 이름 0.
+**Context**: Construction · U5 merge-rules · Functional Design 계획의 물음 다시 검토. 답 대기
+
+---
+## Construction · U5 `merge-rules` · 물음 아홉의 답
+**Timestamp**: 2026-09-26T16:02:51Z
+**User Input**: "권장대로"
+**AI Response**: 아홉 모두 A 로 계획 파일에 적었다. 모호한 답이 없어 되물음 파일을 만들지 않는다. 산출물을 쓰기 전에 시제품 merge.py · listing.py · toy-test.sh 를 다시 읽었다 — merge.py 는 항목 하나에 한 번 셌고 (opaque 의 xattr 지우기와 rename 사이 · 디렉터리의 chmod · utime · rmdir 사이에서는 안 끊겼다), 계획 1.1 의 「파일시스템을 바꾸는 호출마다 셌다」는 틀렸다. 답 2 = A (호출마다) 가 그보다 촘촘하다. listing.py 는 디렉터리 mtime 을 비교에서 뺐다 — 재개하면 upper 디렉터리의 mtime 이 이미 바뀌어 있기 때문이다. SunnyVM 에서 측정 — namespace 안의 root (--map-root-user --map-auto) 는 권한 0555 · 000 디렉터리를 권한 비트를 안 바꾸고 옮기고 지운다 (노드 uid 는 거부). 이 기계 ext4 에서 디렉터리를 다른 부모로 옮겨도 그 디렉터리의 mtime 이 그대로다. Functional Design Step 6 으로 간다.
+**Context**: Construction · U5 merge-rules · Functional Design Step 5 (답 수집) · 답 1 ~ 9 = A
+
+---
+## Construction · U5 `merge-rules` · Functional Design 산출물
+**Timestamp**: 2026-09-26T16:09:11Z
+**User Input**: (없음 — 답에 이어 산출)
+**AI Response**: Functional Design Step 6. 산출물 셋 — construction/merge-rules/functional-design/ 의 domain-entities.md (겉면 Preflight · Apply · Paths · Options{Discard · OnOp} · Call 아홉 · Result 칸 (§12 에 맞춰 나눔) · 순수 판정 classify · decide · 오류 타입 셋 · 재개 표지 · 시험 모형 · linux 짝) · business-rules.md (표 열 줄 · 표시를 읽는 법과 금지 · 시작 전 확인 다섯 · 걷기 · 디렉터리 속성 · 끊김과 재개 · 경로 경계 · 결과 세기 · 오류와 멈춤 · 영어 문구 · 경계 시험) · business-logic-model.md (부르는 쪽과의 약속 · 걷기 의사 코드 · 끊긴 자리마다의 재개 표 · 가짜 트리와 시험 여섯 · integration 시험 · 커버리지 · 넘김 · 되돌림). 답에 없던 설계 결정 셋을 적었다 — (1) 재개 뒤에도 디렉터리 mtime 이 같도록 양쪽 디렉터리의 upper 쪽에 들어가기 전 mtime 을 user.enode.merge-mtime 으로 적어 둔다 (시제품은 안 했고 listing.py 가 디렉터리 mtime 을 비교에서 뺐다) (2) 「시각」은 mtime 이고 atime 은 안 맞춘다 (시작 전 확인의 readdir 가 upper 디렉터리 atime 을 바꾼다) (3) 디렉터리를 옮기는 rename 은 RENAME_NOREPLACE. 겉면이 Application Design 과 다른 점 셋 (Classify 를 안쪽으로 · Options.Discard · Result 칸) 을 domain-entities.md 1절에 적었다. 답 8 에 따라 회차 문서 셋의 xattr whiteout 줄을 고쳤다 (unit-of-work.md 5절 · components.md 2.2 · component-methods.md 2절). 계획 1.1 의 「호출마다 셌다」를 「항목마다 셌다」로 고쳤다. 표기 검사 넷 exit 0 · 말투 0 · 사내 이름 0. 완료 메시지를 내고 승인을 기다린다.
+**Context**: Construction · U5 merge-rules · Functional Design Step 6 ~ 7. 승인 대기
+
+---
+## Construction · U5 `merge-rules` · Functional Design 승인 · NFR 건너뜀
+**Timestamp**: 2026-09-26T16:11:17Z
+**User Input**: "nfr 건너뛰고 다음"
+**AI Response**: Functional Design 을 승인으로 적었다. NFR Requirements 와 NFR Design 을 건너뛴다 (U2 ~ U4 와 같은 사용자 결정). 유닛 정의가 NFR 에 둔 것 — 보안(합치는 경로가 lower 밖으로 안 나감 · 같은 filesystem) 확인과 성능(하루치 규모의 Preflight 와 Apply 시간) — 은 trash 유닛처럼 Code Generation 계획이 받는다. Functional Design 산출물과 계획 · 상태 · 감사 · 고친 회차 문서 셋을 한 커밋으로 올리고 Code Generation Part 1 (계획) 로 간다.
+**Context**: Construction · U5 merge-rules · Functional Design 승인 · NFR 건너뜀 · Code Generation 착수
+
+---

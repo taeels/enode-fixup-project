@@ -76,7 +76,8 @@ verifier(`internal/enode`)다. 그래야 `internal/lower` 가 Mediator 가 링�
               (FR-7 · 사실 7)은 lower 쪽을 trash 로 옮긴 뒤 대체한다
               표시(whiteout · opaque)는 효과를 lower 에 적용한 뒤에만 치운다 — 재개가 같은 절차다
               시작 전 확인 — 같은 filesystem · metacopy 표시 없음 · redirect 표시 없음
-              whiteout 읽기 — 문자 장치 0/0 과 xattr 형식.  opaque 는 user.overlay.opaque
+              whiteout 읽기 — 문자 장치 0/0.  opaque 는 user.overlay.opaque 값 y.  xattr 형식의 whiteout 은
+              거절한다 (merge-rules FD 답 8 · 2026-09-26 고침)
    아는 것    경로 셋(upper · lower · trash) · rename · lstat · xattr · rmdir · 속성 맞추기
    모르는 것  상태 파일 · 잠금 · 광고 · namespace · Run
    약속       부르는 쪽이 lower 의 배타 잠금을 쥐고 온다.  그 약속이 「이 lower 의 overlay
