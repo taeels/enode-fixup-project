@@ -57,6 +57,8 @@ func TestImportBoundaries(t *testing.T) {
 		// Mediator 는 노드 쪽 패키지를 링크하지 않는다 (trash 유닛 · business-rules.md 10절)
 		{"cmd/mediator", "internal/enode"},
 		{"cmd/mediator", "internal/scratch"},
+		// 합치기 규칙도 노드 쪽이다 (merge-rules 유닛 · business-rules.md 11절)
+		{"cmd/mediator", "internal/merge"},
 	} {
 		if has(deps(rule.from), rule.to) {
 			t.Errorf("%s must not import %s", rule.from, rule.to)
@@ -79,6 +81,10 @@ func TestImportBoundaries(t *testing.T) {
 	//
 	// internal/scratch 도 봉인이다 (trash 유닛) — 표준 라이브러리와 golang.org/x/sys 만
 	// 쓴다. trash 와 삭제의 규칙이 namespace 를 여는 쪽(internal/enode)과 광고를 모르게 한다.
+	//
+	// internal/merge 도 봉인이다 (merge-rules 유닛) — 표준 라이브러리와 golang.org/x/sys 만 쓴다.
+	// internal/scratch 도 안 된다: 새 패키지 셋은 서로 임포트하지 않고, lower 쪽을 버리는 일은
+	// 부르는 쪽이 Options.Discard 로 채운다.
 	for _, sealed := range []struct {
 		pkg   string
 		allow []string // 표준 라이브러리 밖에서 허용하는 모듈 경로의 머리
@@ -86,6 +92,7 @@ func TestImportBoundaries(t *testing.T) {
 		{"internal/transcript", nil},
 		{"internal/transcriptui", nil},
 		{"internal/scratch", []string{"golang.org/x/sys/"}},
+		{"internal/merge", []string{"golang.org/x/sys/"}},
 	} {
 	deps:
 		for _, dep := range strings.Split(deps(sealed.pkg), "\n") {

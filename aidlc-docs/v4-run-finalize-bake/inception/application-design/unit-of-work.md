@@ -191,8 +191,8 @@ Run 을 조회할 때마다 매칭을 두 번 부르는 비용.
 **하는 일**
 
 - 새 패키지 `internal/merge` — 시작 전 확인(같은 filesystem · metacopy 꺼짐 · 디렉터리 이름 바꿈
-  기록 없음) · 위층 항목 읽기(whiteout 은 문자 장치 0/0 과 xattr 형식, opaque 는
-  `user.overlay.opaque`) · ADR-077 §4 의 표대로 합치기 · 종류가 바뀐 항목(아래층 쪽을 trash 로
+  기록 없음) · 위층 항목 읽기(whiteout 은 문자 장치 0/0, opaque 는 `user.overlay.opaque` 값 `y`.
+  xattr 형식의 whiteout 은 거절한다 — merge-rules FD 답 8 · 2026-09-26 고침) · ADR-077 §4 의 표대로 합치기 · 종류가 바뀐 항목(아래층 쪽을 trash 로
   옮긴 뒤 대체)
 - 표시는 효과를 적용한 뒤에만 지운다. 그래서 끊겨도 같은 절차를 다시 돌리면 결과가 같다
 - **가짜 트리 재개 시험** — 표시 종류를 모두 담고 종류가 바뀐 항목을 담은 가짜 트리에서 1 ~ 30번째
