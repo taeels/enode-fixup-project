@@ -686,3 +686,17 @@
 **Context**: Construction · U3 finalize · Code Generation Step 15 ~ 16. 커밋 · 병합은 조각 2 뒤
 
 ---
+## Construction · U3 `finalize` · 조각 2 실행
+**Timestamp**: 2026-09-26T03:28:48Z
+**User Input**: "해봐"
+**AI Response**: 조각 2 (사람의 조각) 를 에이전트가 돌리라는 지시로 받았다. slice-2.sh 를 PAUSE=0 으로 돌리고 출력을 보인다. 판정은 사람의 몫으로 남긴다 (scene-gates.md 의 「집행자는 그 유닛을 구현하지 않은 사람」). 옛 노드는 main 0c0370c 를 git archive 로 풀어 빌드한다. Mediator 는 스크래치 Mediator (127.0.0.1:18080 · 이 브랜치 빌드) 다.
+**Context**: Construction · U3 finalize · 조각 2
+
+---
+## Construction · U3 `finalize` · 조각 2 결과 (판정은 사람)
+**Timestamp**: 2026-09-26T03:32:11Z
+**User Input**: (없음 — 「해봐」에 이어)
+**AI Response**: slice-2.sh 를 두 번 돌렸다. 첫 실행에서 ① 이 finalizing 을 못 보였다 — 256 MiB 파일 하나가 Mediator 의 blob 상한 (기본 10 MiB) 에 413 으로 곧바로 끊겨 업로드가 짧았고 1초 간격 조회가 놓쳤다 (노드는 거절로 받아 upload ok · produced 없음). 스크립트를 8 MiB 파일 32 개와 0.2초 간격 조회로 고쳐 다시 돌렸다. 결과 — ① running 뒤 12:30:58.76 에 finalizing · exit {exit, 1} (phase_since = 노드 exited_at) · 업로드 약 0.3 초 · produced 32. ② Mediator 를 10초 멈춘 Run 과 안 멈춘 Run 의 단계 기록이 시각 말고 같다 (DONE · exit 1 · last_phase finalizing · finalize ok · upload ok · 두 시각 있음). 종료 보고는 멈춘 동안 늦게 닿았다 — 유실은 아니다. ③ 다른 instance 의 종료 보고 409 와 사유. ④ 옛 노드 (0c0370c) 는 끝날 때까지 running · last_phase running · exited_at 없음. ⑤ exited_at < finalized_at. 판정은 사용자에게 묻는다. code-summary 6절에 결과를 적었다.
+**Context**: Construction · U3 finalize · 조각 2. 사용자 판정 대기
+
+---

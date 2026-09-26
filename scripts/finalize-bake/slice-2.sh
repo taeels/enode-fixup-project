@@ -19,7 +19,8 @@
 #
 # 환경 변수
 #   SLICE_DIR  스크래치 자리.  기본 ${TMPDIR:-/tmp}/enode-slice-2
-#   OUT_MB     ① ② 의 $OUT 크기.  기본 256
+#   OUT_MB     ① ② 의 $OUT 크기.  기본 256.  8 MiB 파일 여럿으로 나눈다 — Mediator 의 blob 상한
+#              (max_blob_bytes · 기본 10 MiB) 을 넘는 파일 하나는 413 으로 곧바로 끊겨 업로드가 길지 않다
 #   PAUSE      0 이면 Enter 를 기다리지 않는다
 set -euo pipefail
 
@@ -79,9 +80,9 @@ YAML
   exit 1
 }
 
-# 명령이 sleep 뒤 exit 1 로 끝나고 $OUT 에 큰 파일을 남긴다.  업로드가 길다
+# 명령이 sleep 뒤 exit 1 로 끝나고 $OUT 에 8 MiB 파일 여럿을 남긴다.  업로드가 길다
 contract() {
-  local id=$1 ws=$2 sleep=$3
+  local id=$1 ws=$2 sleep=$3 n=$((OUT_MB / 8))
   cat <<JSON
 {
   "run_id": "$id",
@@ -91,8 +92,7 @@ contract() {
     {
       "id": "fail",
       "uses": "node",
-      "run": ["sh", "-c", "head -c ${OUT_MB}M /dev/urandom > \$OUT/big; sleep $sleep; exit 1"],
-      "out": ["big"],
+      "run": ["sh", "-c", "i=0; while [ \$i -lt $n ]; do head -c 8M /dev/urandom > \$OUT/big-\$i; i=\$((i + 1)); done; sleep $sleep; exit 1"],
       "budget": { "upload": "10m" }
     }
   ],
@@ -107,16 +107,21 @@ submit() {
   ENODE_MEDIATOR=$M ENODE_TOKEN=$T "$BIN/runctl" submit "$SLICE_DIR/$id.json" > /dev/null 2>&1 || true
 }
 
-# watch 는 Run 이 끝날 때까지 1초마다 단계의 phase · phase_since · exit 를 찍는다
+# watch 는 Run 이 끝날 때까지 0.2초마다 단계의 phase · phase_since · exit 를 보고, 바뀔 때만 찍는다.
+# finalizing 은 업로드가 끝나면 닫히므로 1초 간격으로는 놓칠 수 있다
 watch() {
-  local id=$1
+  local id=$1 last=""
   while :; do
-    local body state
+    local body state line
     body=$(api "$M/v1/runs/$id")
     state=$(jq -r '.state' <<<"$body")
-    printf '   %s  %-8s %s\n' "$(date +%T)" "$state" "$(jq -c '.steps[] | {phase, phase_since, exit}' <<<"$body")"
+    line="$state $(jq -c '.steps[] | {phase, phase_since, exit}' <<<"$body")"
+    if [ "$line" != "$last" ]; then
+      printf '   %s  %s\n' "$(date +%T.%3N)" "$line"
+      last=$line
+    fi
     case "$state" in DONE | FAILED | CANCELLED) break ;; esac
-    sleep 1
+    sleep 0.2
   done
 }
 
@@ -128,7 +133,8 @@ record() {
   done
   tar -xOf "$SLICE_DIR/$id.tar" --wildcards '*/steps/01-*.json' |
     jq '{state, exit, last_phase, exited_at, finalized_at,
-         result: (.result | {exit_code, error, finalize, upload, reason, exited_at, finalized_at})}'
+         result: (.result | {exit_code, error, finalize, upload, reason, exited_at, finalized_at,
+                             produced: (.produced | length)})}'
 }
 
 echo "== nodes =="

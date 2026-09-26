@@ -150,6 +150,28 @@ export OLD_ENODE=<main 0c0370c 에서 빌드한 enode>    # ④ 이 유닛 전�
 scripts/finalize-bake/slice-2.sh
 ```
 
+**2026-09-26 에이전트가 돌렸다 (사용자 지시 「해봐」). 판정은 사람의 몫이다.** 스크래치 Mediator (`127.0.0.1:18080`) ·
+옛 노드는 `main` `0c0370c` 을 `git archive` 로 풀어 빌드했다.
+
+```text
+   ①  12:30:50.37  running (exit 없음)
+      12:30:58.76  finalizing · exit {kind: exit, code: 1} · phase_since 12:30:58.51 (= 노드의 exited_at)
+      12:30:59.30  단계 종결 (phase 없음 · exit 는 남는다) -> Run FAILED (success_when 이 exit 0 을 요구)
+      업로드 8 MiB x 32 = 256 MiB 가 약 0.3 초.  produced 32
+   ②  Mediator 를 12:31:08 ~ 12:31:18 멈췄다.  재개 직후 finalizing · exit 1 · phase_since 12:31:10.46.
+      단계 기록 둘 — state DONE · exit {exit, 1} · last_phase finalizing · finalize ok · upload ok · produced 32 ·
+      exited_at 과 finalized_at 이 둘 다 있다.  시각만 다르다.  종료 보고는 유실이 아니라 멈춘 동안 늦게 닿았다
+   ③  다른 instance 의 종료 보고 -> 409 「step … is claimed by another instance of this node; a restarted node
+      cannot report the exit of an earlier life」
+   ④  옛 노드 — 끝날 때까지 running · last_phase running · exited_at 없음 · finalize · upload 칸 없음
+   ⑤  exited_at 03:30:58.509853 < finalized_at 03:30:58.509915 (Finalize 가 한 일이 없어 62 µs)
+```
+
+첫 실행에서 ① 이 finalizing 을 못 보였다 — 256 MiB 파일 하나가 Mediator 의 blob 상한(`max_blob_bytes` 기본
+10 MiB)에 413 으로 곧바로 끊겨 업로드가 짧았고, 1초 간격의 조회가 그 구간을 놓쳤다. 노드는 그것을 거절로 받아
+`upload: ok` · produced 없음으로 적었다 (FD 규칙 8절 그대로). 스크립트를 8 MiB 파일 여럿과 0.2초 간격(바뀔 때만
+찍는다)으로 고쳐 다시 돌렸다.
+
 Mediator 는 step-phase 이후(`main` `0c0370c` 이상)여야 한다. 이 기계의 개발용 Mediator(`:8080`)는 2026-09-17
 빌드라 종료 보고에 404 를 준다 — 조각 1 은 이 브랜치에서 빌드한 스크래치 Mediator(`127.0.0.1:18080`, DB
 `enode_slice`)로 돌렸다. 스크립트가 보이는 것 — ① 명령이 도는 동안 running, 끝나면 finalizing 과 exit 1 ·
