@@ -409,7 +409,8 @@ func (c *Client) Exited(ctx context.Context, runID string, seq int, e Exited) er
 //   FinalizedAt *time.Time
 //   Finalize    string                // ok | timeout | error
 //   Upload      string                // ok | timeout | error
-//   Reason      string                // finalize_timeout | upload_timeout | merge_wait_timeout | bake_in_progress | lower_changed (lower-state FD 답 1)
+//   Reason      string                // finalize_timeout | upload_timeout | merge_wait_timeout | bake_in_progress | lower_changed (lower-state FD 답 1) |
+//                                     ir_mismatch (bake FD 물음 1 답 B · 2026-09-27 더함 — DONE 에 실린다)
 //   Diagnostics *Diagnostics
 //   Checkpoint  *scratch.Capture       // receipt 의 checkpoint_capture
 //   Changeset   *ChangesetDescriptor
@@ -427,6 +428,9 @@ type BuildManifest struct {
 	Head   string              `json:"head"`
 	IR     *string             `json:"ir"`
 	Pinned *lower.Pinned       `json:"pinned"`
+	// HeadTags 는 sync 뒤 HEAD 에 붙은 태그 전부다 — 대조 전이거나 대조를 못 했으면 null · 태그가 없으면 [] (bake FD 물음 1 답 B ·
+	// 되물음 5 답 A · 2026-09-27 더함)
+	HeadTags []string          `json:"head_tags"`
 }
 
 type ChangesetDescriptor struct {
@@ -463,6 +467,8 @@ func (g *LowerGuard) AfterResponse(drain string, leases []Lease)
 // OnClaim 은 claim 직후다. prepare 단계면 놓는다 (결정 3-9).
 func (g *LowerGuard) OnClaim(step *Step) error // 거절할 Run 이면 lower_changed 로 보고하게 오류 (lower-state FD 답 1)
 func (g *LowerGuard) StepDone(step *Step)       // 세션을 닫은 뒤.  lower-state FD 가 더했다 · HoldBake · DropBake 도
+// (bake FD 더함 · 되물음 1 답 A) func (g *LowerGuard) OnStale(f func(lower.State)) — state 가 committed 가 아닌 광고에서 부른다 ·
+//  func (g *LowerGuard) Dir() *lower.Dir — 연 상태 자리 (못 열었으면 nil)
 
 // (lower-state 코드 — 짓는 것은 func StartLowerGuard(lowerRoot string, ident Identity, log *slog.Logger) *LowerGuard.
 //  lowerRoot 가 "" 면 nil 이고 nil 은 아무것도 안 한다.  거절의 오류는 *LowerChangedError.  Advertiser 에 Guard · Writes,

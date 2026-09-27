@@ -224,8 +224,10 @@ FR 번호는 팩의 기능 번호와 같다. 팩의 문장을 되풀이하지 �
   `workspace_target` 이 작업 단계와 같다
 - 노드가 `sync` 를 먼저, `builds` 를 적힌 순서대로 돌리며 항목마다 시작 · 끝 시각과
   exit code 를 기록한다. 이것이 prepare effect 의 결과 manifest 다
-- 하나라도 0 이 아니면 build 단계가 실패하고 합치지 않는다. upper 는 trash 로 가고
-  실패한 시도는 `state.json` 의 `last_attempt` 와 Run Record 에 남는다
+- 하나라도 0 이 아니면 그 뒤를 안 돌리고 합치지 않는다. build 단계는 완주 (DONE · exit 는 그
+  명령의 값) 이고 판정이 실패다 — manifest 가 없다 (bake FD 2026-09-27 고침 · 답 3 첫 실패에서
+  멈춤 · INVARIANTS 의 완주와 성공). upper 는 trash 로 가고 실패한 시도는 `state.json` 의
+  `last_attempt` 와 Run Record 에 남는다
 - 성공하면 Finalize 가 upper 만 합치기 대기 자리로 `rename` 하고 나머지 `runRoot` 는
   trash 로 보낸다
 - `repo manifest -r` 로 뜬 pinned manifest 를 남긴다
@@ -260,9 +262,13 @@ FR 번호는 팩의 기능 번호와 같다. 팩의 문장을 되풀이하지 �
 - merge 대기가 상한을 넘으면 `merge_wait_timeout` 으로 upper 를 trash 로 보내고
   상태를 committed 로 돌리고 drain 을 푼다. 합치기 본체에는 상한이 없다
 - 상태가 committed 가 아니고 굽기 잠금의 주인이 살아 있으면 새 굽기는
-  `bake_in_progress` 로 곧바로 실패한다. 주인이 없으면 낡은 상태를 정리한다
+  `bake_in_progress` 로 곧바로 실패한다. 주인이 없으면 낡은 상태를 정리한다 — merging 이면
+  정리 대신 재개를 배경에 열고 새 굽기는 `bake_in_progress` 로 실패한다 (bake FD 답 2 ·
+  2026-09-27 고침)
 - 같은 lower 의 어느 노드든 시작할 때 merging 을 재개한다. 재개로 끝낸 합치기는
-  metadata 에 `resumed` 와 원래 Run 을 남긴다
+  metadata 에 `resumed` 와 원래 Run 을 남긴다. 살아 있는 동안에도 광고 주기가 주인이
+  죽은 낡은 상태를 시작할 때와 같이 다룬다 — building · pending 은 정리, merging 은 재개
+  (bake FD 답 2 · 되물음 1 답 A · 2026-09-27 더함)
 - `env check` 가 셋을 확인한다 — scratch 와 워크스페이스의 `st_dev` 일치, lower 루트
   소유 uid 와 노드 uid 의 일치, `lower.json` 신원. **not ready 의 사유가 어긋난 것을
   이름으로 말한다** (사실 9 — scratch 를 다른 filesystem 에 둔 기존 노드가 여기 걸린다)
@@ -274,8 +280,11 @@ FR 번호는 팩의 기능 번호와 같다. 팩의 문장을 되풀이하지 �
   exit_code) · `environment` · `workspace_target` · `bake`(run · node · merged_at ·
   resumed · previous_ir)를 담는다
 - **굽기 계약의 build 단계가 구울 IR 태그를 정확한 값으로 적는다 (필수).** 노드는 그
-  값을 sync 와 builds 명령에 환경 변수로 넘기고, sync 뒤 `.repo/manifests` HEAD 에 그
-  태그가 정확히 붙었는지 확인한다. 다르면 build 단계가 실패하고 합치지 않는다. 제품에는
+  값을 sync 와 builds 명령에 환경 변수로 넘기고, sync 뒤 `.repo/manifests` (없으면
+  워크스페이스 뿌리의 `.git` — bake FD 2026-09-27 고침) HEAD 에 그 태그가 정확히 붙었는지
+  확인한다. 다르면 manifest 를 내지 않고 합치지 않는다 — build 단계는 DONE 에 reason
+  `ir_mismatch` 를 싣고, Run 의 판정은 계약의 조건이 한다 (bake FD 물음 1 답 B · 2026-09-27
+  고침. 처음 판은 「build 단계가 실패」). 제품에는
   IR 태그의 기본 형식이 없다 — 사내 규약이라 제품이 모른다. Units Generation(2026-09-24)
   이 고쳤다. 처음 판은 「IR 은 계약 칸이 아니라 sync 뒤 HEAD 태그에서 유도하고, 없으면
   null」이었다
@@ -422,7 +431,9 @@ security-baseline 확장은 꺼져 있다(질문 4 = B). 아래는 **팩의 요�
 `CONVENTIONS.md` 1 · 2 절 그대로다. 에러 문자열 · 로그 · CLI 출력 · 테스트 이름과
 메시지는 영어, 주석은 한국어. 코드와 커밋 메시지에 장식 문자를 넣지 않는다. 새
 reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
-`bake_in_progress`)는 wire 값이라 영어 소문자다.
+`bake_in_progress` · `lower_changed` · `ir_mismatch`)는 wire 값이라 영어 소문자다
+(뒤의 둘은 lower-state FD 답 1 · bake FD 물음 1 답 B 가 더했다 · 2026-09-27 고침).
+`ir_mismatch` 는 완주한 결과 (DONE) 에 실리는 첫 reason 이다.
 
 ---
 
@@ -435,7 +446,7 @@ reason 코드(`finalize_timeout` · `upload_timeout` · `merge_wait_timeout` ·
 |---|---|---|
 | 0 | 기동이 안 깨졌다 | 바닥이 `main` 이 된다(질문 3 = A). `grep -c 'mux.HandleFunc' internal/api/api.go` 가 **18 -> 19** 다 |
 | 1 | 걷지 않는다 | **잴 것이 는다.** bounded discovery 를 켠 단계가 상한에서 부분 관찰임을 적는다. 걷기를 안 켠 단계의 기록에 「바뀐 파일이 없다」가 없다 |
-| 6 | 굽기가 돈다 | **바뀐다** (Units Generation). 「manifest HEAD 에 IR 태그가 없으면 `ir` 은 null 이고 광고하지 않는다」 대신 — sync 가 계약의 IR 에 닿지 않으면 build 단계가 실패하고 합치지 않으며, 결과에 HEAD 의 태그와 커밋이 보인다 |
+| 6 | 굽기가 돈다 | **바뀐다** (Units Generation). 「manifest HEAD 에 IR 태그가 없으면 `ir` 은 null 이고 광고하지 않는다」 대신 — sync 가 계약의 IR 에 닿지 않으면 manifest 를 내지 않고 합치지 않으며, 결과에 HEAD 의 태그와 커밋이 보인다. Run 은 계약의 조건이 실패로 판정한다 (bake FD 물음 1 답 B) |
 | 2 | 보인다 | **잴 것이 는다.** 다른 인스턴스(같은 노드를 재시작한 뒤)가 보낸 종료 보고가 거절된다 |
 | 4 | trash | **재는 방법이 바뀐다.** 여유가 `min_free_gb` 아래면 그 노드가 `draining` 으로 후보에서 빠지고(`GET /v1/nodes`), trash 가 비면 풀린다. 그동안 `arch.<이름>` 키는 광고에 남는다. 다섯 자리 모두 trash 로 간다 |
 | 7 | 끊겨도 된다 | **잴 것이 는다.** 가짜 트리에 종류가 바뀐 항목이 있고, 그 시험이 기본 `go test` 에서 돈다 |

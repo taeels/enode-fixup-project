@@ -241,11 +241,12 @@ Mediator 는 여전히 이 패키지를 링크하지만 lower 코드는 안 딸�
 | trash 로 rename | 같은 scratch 안이라 늘 성립한다. 실패는 세션 닫기 오류로 결과에 남는다 (오늘 규칙) | 단계 |
 | 배경 삭제 | 항목이 trash 에 남는다. 여유가 모자라면 노드가 drain 한다 | 노드 |
 | capture | receipt 에 `rejected` · `failed` 와 reason. outcome 과 commit set 불변 | 보조 |
-| build 의 sync · builds | 하나라도 0 이 아니면 build 단계 실패 · 합치지 않음 · `last_attempt` | 단계 |
-| 새 굽기 중복 | 주인이 살아 있으면 곧바로 실패 · reason `bake_in_progress` | 단계 |
+| build 의 sync · builds | 하나라도 0 이 아니면 그 뒤를 안 돈다 (첫 실패에서 멈춤 · bake FD 답 3) · build 단계는 DONE (exit 는 그 명령의 값 · 완주) 이고 manifest 가 없다 · 합치지 않음 · `last_attempt`. merge 단계는 합칠 것 없음으로 DONE 이고 Run 은 계약의 조건 (produced manifest · merged) 이 판정한다 (I3 · bake FD 되물음 2 답 B · 2026-09-27 고침) | 단계 |
+| build 의 IR 대조 | 어긋나면 build 단계 DONE (error 없음) · reason `ir_mismatch` · builds 를 안 돈다 · manifest 없음 · 합치지 않음 · `last_attempt` · merge 는 합칠 것 없음 DONE · Run 은 계약의 produced 조건이 판정한다 (bake FD 물음 1 답 B · 2026-09-27 더함) | 단계 |
+| 새 굽기 중복 | 주인이 살아 있으면 곧바로 실패 · reason `bake_in_progress`. 주인이 죽은 merging 이면 재개를 배경에 열고 같은 reason 으로 실패 (bake FD 답 2 · 2026-09-27 고침) | 단계 |
 | merge 대기 상한 | 굽기 Run FAILED · reason `merge_wait_timeout` · upper 는 trash · committed · drain 풀림 | 단계 |
 | merge 시작 전 확인 | 시작하지 않는다. 상태를 어디로 돌리는지는 Functional Design | 단계 |
-| 합치기 도중 | 멈춘다. 재개가 남은 upper 로 끝낸다 (재개는 굽기 잠금을 먼저 잡은 노드가) | 노드 |
+| 합치기 도중 | 멈춘다. merge 단계는 FAILED 로 보고하고 (원인 코드 없음) 두 잠금을 놓는다 — lower 는 merging 에 남는다. 재개가 남은 upper 로 끝낸다 — 시작할 때와 살아 있는 동안 광고 주기에서, 굽기 잠금을 먼저 잡은 노드가. 실패하면 그 노드는 10분 뒤 (bake FD 답 2 · 2026-09-27 고침) | 단계 · 노드 |
 | 상태 자리 · 잠금 | 굽기와 후보 잠금을 못 한다. 노드가 drain 한다 | 노드 |
 | 공유 잠금을 놓은 뒤에 보인 임대 | lower 가 그새 바뀌었거나 합치는 중이면 그 Run 의 단계를 돌리지 않고 `lower_changed` 로 보고한다 (lower-state FD 답 1) | 단계 |
 | env check 확인 셋 | not ready · 어긋난 것을 이름으로 (FR-8 · 사실 9) | 노드 |
