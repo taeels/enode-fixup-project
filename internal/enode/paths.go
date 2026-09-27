@@ -55,6 +55,19 @@ func StateDir() string {
 	return filepath.Join(home, ".local", "state", "enode")
 }
 
+// LowersDir 는 아래층(lower) 상태 자리의 뿌리다 — 늘 $HOME/.local/state/enode/lowers (lower-state 답 9).
+//
+// ENODE_STATEDIR 를 따르지 않는다. 한 lower 를 쓰는 두 데몬이 그 변수를 다르게 두면 lower.lock 이 두 파일이
+// 되어 서로를 못 보고, 합치기가 형제의 Run 아래에서 lower 를 바꾼다. 로그를 나누려고 둔 변수가 잠금을 나누면
+// 안 된다. home 을 못 찾으면 오류다 — 그 노드는 lower 출처로 drain 한다.
+func LowersDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".local", "state", "enode", "lowers"), nil
+}
+
 // ConfigPaths 는 --config 없이 떴을 때 찾아볼 자리를 순서대로 돌려준다.
 //
 // 사용자 자리가 시스템 자리보다 앞이다 — 시연에서 노드가 발표자 노트북에

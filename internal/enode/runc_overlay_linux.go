@@ -126,6 +126,11 @@ type runtimeWireResponse struct {
 	Finalize *FinalizeResult `json:"finalize,omitempty"`
 }
 
+// Capability 는 isolated 다 — 단계의 쓰기는 upper 로 가고 워크스페이스(lower)에 안 닿는다 (ADR-077 §8).
+func (r *RuncOverlayRuntime) Capability() RuntimeCapability {
+	return RuntimeCapability{Writes: writesIsolated}
+}
+
 func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSession, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -1302,12 +1307,9 @@ func runtimeProcessEnv(source []string, open runtimeWireOpen) []string {
 	return result
 }
 
-// ExecutionRuntimeVerifier는 env check/apply가 product와 같은 adapter로 수행하는
-// smoke다. native는 추가 격리 경계가 없으므로 no-op이고 runc-overlay만 실제로
-// namespace를 연다.
-type ExecutionRuntimeVerifier struct{}
-
-func (ExecutionRuntimeVerifier) Verify(ctx context.Context, doc execenv.Document, binding execenv.Binding, rootfs string, manifest execenv.Manifest) error {
+// Verify 는 smoke 다 — type 과 뜻은 lowercheck.go 에 있다. 워크스페이스를 lowerdir 로 마운트하므로 세션을 열기
+// 전에 lower 공유를 쥐고 세션을 닫은 뒤 놓는다 (lower-state 답 5) — 합치는 중이면 기다린다.
+func (v ExecutionRuntimeVerifier) Verify(ctx context.Context, doc execenv.Document, binding execenv.Binding, rootfs string, manifest execenv.Manifest) error {
 	if doc.Profile.Runtime.Driver == "native" {
 		return nil
 	}
@@ -1315,6 +1317,11 @@ func (ExecutionRuntimeVerifier) Verify(ctx context.Context, doc execenv.Document
 	if err != nil {
 		return err
 	}
+	shared, err := smokeLock(ctx, binding.Workspace, v.Notice)
+	if err != nil {
+		return err
+	}
+	defer shared.Release() //nolint:errcheck // 아래 세션의 defer Close 뒤에 돈다
 	if err := os.MkdirAll(binding.Scratch, 0o700); err != nil {
 		return err
 	}

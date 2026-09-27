@@ -18,12 +18,14 @@ code 요약이 새 이름을 진다.
 // Key 는 lower 루트 디렉터리의 신원이다. statfs 의 f_fsid 와 inode.
 // bind 별칭도 같은 키가 된다 (결정 3-14).
 type Key struct {
-	FSID uint64
+	FSID uint64 // f_fsid.Val[0]<<32 | Val[1] — %x 가 stat -f -c %i 와 같다 (lower-state FD · 앞의 0 없이)
 	Ino  uint64
 }
 
 func KeyOf(root string) (Key, error)
 func (k Key) String() string // "<fsid>-<ino>"
+// (lower-state 코드 · 2026-09-27 — KeyOf 대신 ReadRoot(path) (Root, error) 가 키 · btime · 장치 · 마운트 번호 · 주인을
+//  한 번에 읽는다.  ParseKey 는 String 이 내는 글자만 받는다)
 
 // Dir 은 ~/.local/state/enode/lowers/<key>/ 다. 노드 사용자 전용 권한 (5.3).
 type Dir struct {
@@ -35,16 +37,21 @@ type Dir struct {
 func Open(stateRoot, lowerRoot string) (*Dir, error) // 자리를 만들고 lower.json 에 경로를 더한다
 
 // Identity 는 lower.json 이다. 신원 대조용.
+// (lower-state FD 답 7 · 2026-09-26 고침 — fsid 는 16진 글자, btime 을 더했다.
+//  Dir · Open 의 겉면도 바뀌었다 — 그 FD 의 domain-entities.md 1 · 2절)
 type Identity struct {
 	Schema   int       `json:"schema"`
-	FSID     uint64    `json:"fsid"`
+	FSID     string    `json:"fsid"`     // 16진 (앞의 0 없이) — stat -f -c %i 와 같은 글자
 	Ino      uint64    `json:"ino"`
+	BirthNs  int64     `json:"birth_ns"` // statx btime — inode 재사용을 잡는다
 	Paths    []string  `json:"paths"`
 	OwnerUID int       `json:"owner_uid"`
 	SeenAt   time.Time `json:"seen_at"`
 }
 
 func (d *Dir) Identity() (Identity, error)
+// (lower-state 코드 — Open(lowers, root, now) · Peek(lowers, root) 는 FD 그대로.  Dir 에 Notes (Open 이 고친 것 —
+//  좁힌 권한 · 새로 쓴 신원) 와 Loose (Peek 이 본 느슨한 비트) 를 더했다 — 이 패키지는 로그를 모르고 부르는 쪽이 쓴다)
 ```
 
 ### 1.2 상태 파일
@@ -84,7 +91,7 @@ type LastAttempt struct {
 }
 
 func (d *Dir) ReadState() (State, error)
-func (d *Dir) WriteState(State) error // 임시 파일에 쓰고 rename
+func (b *Bake) WriteState(State) error // 굽기 잠금의 주인만 쓴다.  임시 파일 · fsync · rename (lower-state FD 에서 *Dir 에서 옮겼다)
 ```
 
 ### 1.3 잠금과 쥔 사람 기록 (Q1 · Q4)
@@ -108,7 +115,8 @@ type Exclusive struct{ /* lower.lock 의 배타 flock */ }
 
 // Exclusive 는 ctx 의 마감(merge 대기 상한)까지 기다린다.
 // watch 는 기다리는 동안 주기마다 불린다 — 쥔 사람을 로그로 쓰는 자리 (Q4).
-func (d *Dir) Exclusive(ctx context.Context, watch func([]Holder)) (*Exclusive, error)
+// (lower-state FD 고침 — every 를 받고 watch 가 Waiting{Holders, Unnamed} 를 받는다.  Holder 에 Label · Acks · PID)
+func (d *Dir) Exclusive(ctx context.Context, every time.Duration, watch func(Waiting)) (*Exclusive, error)
 func (e *Exclusive) Release() error
 
 type Bake struct{ /* bake.lock 의 배타 flock */ }
@@ -117,6 +125,8 @@ func (d *Dir) TryBake() (*Bake, bool, error) // 주인이 살아 있으면 false
 func (b *Bake) Release() error
 
 func (d *Dir) Holders() ([]Holder, error)
+// (lower-state 코드 — func (s *Shared) Recorded() bool 을 더했다.  node_id 가 파일 이름이 될 수 없거나 같은 이름의 기록
+//  잠금을 남이 쥐면 기록 없이 공유만 쥔다 · WaitShared(ctx, every, notice) 는 기록 없는 공유다)
 ```
 
 ### 1.4 metadata
@@ -182,9 +192,12 @@ type Finding struct {
 	Required string
 	Observed string
 	OK       bool
+	// (lower-state FD 답 8 · 더함) Cause — binding 이면 invalid, state 면 external-blocked 로 옮긴다.  Remediation
 }
 
 func Check(stateRoot, lowerRoot, scratch string, uid int) []Finding
+// (lower-state 코드 — 첫 인자는 상태 자리의 뿌리 lowers 다.  "" 면 lower.identity 를 안 낸다.  home 은 부르는 쪽
+//  (internal/enode 의 Facts) 이 LowersDir 로 찾고, 못 찾으면 그쪽이 lower.identity 를 external-blocked 로 낸다)
 ```
 
 ---
@@ -362,8 +375,11 @@ type StepSession interface {
 	Finalize(context.Context, FinalizeSpec) (FinalizeResult, error)
 	Close(context.Context, Keep) error // 나머지 runRoot 는 trash 로.  native 는 Keep.Upper 가 늘 비어 있다
 	Environment() *execenv.Record
-	Capability() RuntimeCapability
 }
+
+// Capability 는 세션이 아니라 런타임이 낸다 — 광고는 세션 밖에서 돈다 (lower-state FD · 2026-09-26 고침).
+//   StepRuntime 에  Capability() RuntimeCapability
+// (lower-state 코드 — func WorkspaceWrites(rt StepRuntime) string.  nil 이나 값 없는 런타임은 in-place)
 ```
 
 ### 4.2 Worker 와 Client
@@ -393,7 +409,7 @@ func (c *Client) Exited(ctx context.Context, runID string, seq int, e Exited) er
 //   FinalizedAt *time.Time
 //   Finalize    string                // ok | timeout | error
 //   Upload      string                // ok | timeout | error
-//   Reason      string                // finalize_timeout | upload_timeout | merge_wait_timeout | bake_in_progress
+//   Reason      string                // finalize_timeout | upload_timeout | merge_wait_timeout | bake_in_progress | lower_changed (lower-state FD 답 1)
 //   Diagnostics *Diagnostics
 //   Checkpoint  *scratch.Capture       // receipt 의 checkpoint_capture
 //   Changeset   *ChangesetDescriptor
@@ -437,13 +453,20 @@ type LowerGuard struct{ /* lower.Dir · lower.Shared · 받아 적힌 drain 의 
 
 // BeforeAdvert 는 광고 직전이다. 소유자 정책과 스스로의 사유를 합쳐 실을 drain 을 낸다.
 // 후보면 공유 잠금을 쥐고, 못 쥐면(합치기 중) drain 을 싣는다.
-func (g *LowerGuard) BeforeAdvert(owner contract.Policy, free, minFree uint64) (contract.Policy, []DrainSource)
+// (lower-state FD 고침 — trash 유닛이 소유자 · 여유 부족 출처를 Advertiser 에 두어, 이미 만든 출처를 받고 자기 출처와 광고 키를 낸다)
+func (g *LowerGuard) BeforeAdvert(others []DrainSource) (own []DrainSource, keys map[string]string)
 
-// AfterResponse 는 광고 응답 뒤다. drain 이 받아 적혔고 임대가 없으면 놓는다 (놓는 울타리는 Functional Design).
+// AfterResponse 는 광고 응답 뒤다. drain 이 받아 적혔고 임대가 없는 응답을 두 번 연속 받고 도는 단계가 없으면 놓는다
+// (lower-state FD 답 1).  놓은 뒤에 보인 임대 · 합치기 없이 끝난 굽기도 여기서 본다.
 func (g *LowerGuard) AfterResponse(drain string, leases []Lease)
 
 // OnClaim 은 claim 직후다. prepare 단계면 놓는다 (결정 3-9).
-func (g *LowerGuard) OnClaim(step *Step)
+func (g *LowerGuard) OnClaim(step *Step) error // 거절할 Run 이면 lower_changed 로 보고하게 오류 (lower-state FD 답 1)
+func (g *LowerGuard) StepDone(step *Step)       // 세션을 닫은 뒤.  lower-state FD 가 더했다 · HoldBake · DropBake 도
+
+// (lower-state 코드 — 짓는 것은 func StartLowerGuard(lowerRoot string, ident Identity, log *slog.Logger) *LowerGuard.
+//  lowerRoot 가 "" 면 nil 이고 nil 은 아무것도 안 한다.  거절의 오류는 *LowerChangedError.  Advertiser 에 Guard · Writes,
+//  Worker 에 Guard 칸)
 
 // Status 에 더하는 칸 (상태 파일 · 제어판이 읽는다)
 //   Drain   DrainStatus   // Effective · Sources
@@ -458,6 +481,8 @@ func RunMergeHelper(in io.Reader, out, errOut io.Writer) int // merge.Preflight 
 
 // ExecutionRuntimeVerifier 가 environment.FactSource 를 구현한다.
 func (ExecutionRuntimeVerifier) Facts(ctx context.Context, doc execenv.Document, b execenv.Binding) []execenv.Fact
+// (lower-state 코드 — ExecutionRuntimeVerifier{Notice io.Writer} : smoke 가 합치기를 기다린다는 줄의 자리.  enodectl env 는
+//  표준 오류, 데몬 기동은 func LogNotice(log *slog.Logger) io.Writer — 줄마다 노드 로그의 Info 한 줄)
 ```
 
 ---

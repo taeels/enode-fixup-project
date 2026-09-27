@@ -106,6 +106,33 @@ type Keep struct {
 
 type StepRuntime interface {
 	Open(context.Context, RuntimeSpec) (StepSession, error)
+	// Capability 는 런타임이 광고에 내는 것이다. 세션이 아니라 런타임에 둔다 — 광고는 세션 밖에서 돈다
+	// (lower-state 유닛 · component-methods.md 4.1).
+	Capability() RuntimeCapability
+}
+
+// RuntimeCapability 는 런타임이 광고에 내는 것이다 (component-methods.md 4.1).
+type RuntimeCapability struct {
+	Writes string // "isolated" | "in-place" — 광고 workspace.writes
+	// 보존 지원(Capture)은 checkpoint 유닛이 더한다
+}
+
+// workspace.writes 의 두 값 (ADR-077 §8). isolated 는 단계의 쓰기가 upper 로 가고 워크스페이스(lower)에 안 닿는다.
+const (
+	writesIsolated = "isolated"
+	writesInPlace  = "in-place"
+)
+
+// WorkspaceWrites 는 광고 workspace.writes 의 값이다. 런타임이 없는 노드(environment 블록 없음)는 in-place 다
+// (ADR-077 §8) — nil 이나 값을 안 낸 런타임도 같다.
+func WorkspaceWrites(rt StepRuntime) string {
+	if rt == nil {
+		return writesInPlace
+	}
+	if w := rt.Capability().Writes; w != "" {
+		return w
+	}
+	return writesInPlace
 }
 
 type StepSession interface {
@@ -126,6 +153,9 @@ type NativeRuntime struct{}
 func (NativeRuntime) Open(_ context.Context, spec RuntimeSpec) (StepSession, error) {
 	return &nativeSession{spec: spec, record: spec.Record}, nil
 }
+
+// Capability 는 in-place 다 — native 는 워크스페이스에 그대로 쓴다.
+func (NativeRuntime) Capability() RuntimeCapability { return RuntimeCapability{Writes: writesInPlace} }
 
 type nativeSession struct {
 	spec   RuntimeSpec

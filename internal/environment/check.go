@@ -83,6 +83,13 @@ type RuntimeVerifier interface {
 	Verify(context.Context, Document, Binding, string, Manifest) error
 }
 
+// FactSource 는 verifier 가 더 낼 Fact 가 있을 때 구현한다 (component-methods.md 6절). 이 패키지는 구현을
+// 모른다 — RuntimeVerifier 와 같은 이음매다. CheckWithRuntime 이 host 점검 뒤 · prepared environment 와 smoke
+// 앞에서 그 Fact 를 더한다. 하나라도 ready 가 아니면 smoke 를 안 돈다 (lower-state 유닛 · 답 8).
+type FactSource interface {
+	Facts(context.Context, Document, Binding) []Fact
+}
+
 type OSInspector struct{}
 
 func (OSInspector) GOOS() string { return runtime.GOOS }
@@ -280,6 +287,14 @@ func CheckWithRuntime(ctx context.Context, doc Document, binding Binding, inspec
 		} else {
 			add(Fact{Name: "host.unprivileged_userns", Source: "/host/require/unprivileged_userns",
 				Required: "smoke succeeds", Observed: "ready", State: StateReady})
+		}
+	}
+
+	// verifier 가 더 낼 Fact — runc-overlay 의 scratch filesystem · lower 소유 uid · lower 신원. State 순위가
+	// 그대로 합친다. 어긋나면 아래 smoke 가 안 돈다 — smoke 는 lower 를 마운트하고 작업 폴더를 남긴다.
+	if src, ok := verifier.(FactSource); ok {
+		for _, f := range src.Facts(ctx, doc, binding) {
+			add(f)
 		}
 	}
 

@@ -130,6 +130,15 @@ type Advertiser struct {
 	// nil 이면 첫 광고에서 스스로 만든다 — 설정 경로가 있을 때만.
 	Status *StatusBook
 
+	// Guard 는 이 노드의 lower 공유 잠금을 쥐고 놓는다 (lower-state 유닛). 광고 직전에 굽기 · 상태 자리 출처와
+	// metadata 의 광고 키를 받고, 응답 뒤에 놓는 울타리를 센다. runc-overlay 노드만 있고 nil 은 아무것도 안 한다.
+	Guard *LowerGuard
+	// Writes 는 광고 workspace.writes 의 값이다 — 런타임의 Capability().Writes (WorkspaceWrites). "" 면
+	// in-place 다 — 런타임이 없는 노드 (ADR-077 §8).
+	Writes string
+	// labelWarned 는 라벨로 적어 이미 알린 예약 키다 — 키마다 처음 한 번.
+	labelWarned map[string]bool
+
 	// policy 는 광고 직전마다 읽는 정책 파일이다. 비어 있으면 첫 광고에서
 	// Ident.Config 옆의 파일로 만든다 — 설정이 없는 시험은 안 읽는다.
 	policy *policyReader
@@ -179,17 +188,20 @@ func (a *Advertiser) Run(ctx context.Context) {
 		// 디스크 여유는 능력이 아니라 drain 이다 (trash 유닛) — 광고마다 새로 재서,
 		// 빌드가 도는 동안 디스크가 차면 다음 광고에서 노드 전체가 빠진다.
 		snap := a.Caps()
-		drain := a.drain(time.Now())
+		drain, keys := a.drain(time.Now())
 		// 제어판이 읽을 상태 파일에 탐지 능력과 drain 의 출처를 남긴다 (ADR-068 = A).
 		// 광고 경로 옆에 두는 것은 여기서 둘을 이미 들기 때문이다 — 못 써도
 		// 막지 않는다. 능력은 광고가 이미 진다.
+		//
+		// 상태 파일은 탐지 능력 그대로다 — 광고 키는 복사본에만 싣는다 (계획 4절 ④). SetCaps 가 이 map 을 들고
+		// 있어 원본에 쓰면 삭제자 고루틴과 경합이 된다.
 		a.status().SetCaps(snap)
 		a.status().SetDrain(drain)
 		ad := contract.Advert{
 			NodeID:       a.Ident.NodeID,
 			Label:        a.Ident.Label,
 			Instance:     a.Client.Instance, // 이번 생 (ADR-030)
-			Capabilities: snap.Caps,
+			Capabilities: advertCaps(snap.Caps, a.writes(), keys, a.labelIgnored),
 			// 출처를 합친 값 하나만 싣는다 (business-rules.md 6.3). 안 걸렸으면 제로값이라
 			// policy 키가 안 나간다 (omitzero).
 			Policy: contract.Policy{Drain: drain.Effective},
@@ -220,6 +232,9 @@ func (a *Advertiser) Run(ctx context.Context) {
 				}
 				a.Held.SetRenew(a.Every)
 			}
+			// 받아 적힌 drain 과 임대 목록으로 공유 잠금을 놓을지 본다 (lower-state 답 1). 광고가 실패하면
+			// 여기 오지 않는다 — 응답이 없으면 본 것이 없다.
+			a.Guard.AfterResponse(resp.Drain, resp.Leases)
 			// 값의 나이를 함께 찍는다 — 비싼 탐지는 자기 주기로 도므로
 			// 여기 실린 harness·repo 는 「지금」이 아니다. 그 사실이 안
 			// 보이면 「왜 로그아웃했는데 아직 광고에 있지」가 미궁이 된다.
@@ -256,8 +271,9 @@ func (a *Advertiser) status() *StatusBook {
 }
 
 // drain 은 이번 광고에 실을 drain 과 그 출처다 (business-logic-model.md 4절). 소유자 출처는
-// 정책 파일에서 · 여유 부족 출처는 워크스페이스의 여유에서 온다. 합친 값은 센 쪽 하나다.
-func (a *Advertiser) drain(now time.Time) DrainStatus {
+// 정책 파일에서 · 여유 부족 출처는 워크스페이스의 여유에서 · 굽기와 상태 자리 출처는 Guard 에서 온다.
+// 합친 값은 센 쪽 하나다. Guard 가 돌려준 광고 키도 함께 돌려준다 (lower-state 유닛).
+func (a *Advertiser) drain(now time.Time) (DrainStatus, map[string]string) {
 	var sources []DrainSource
 	if src, ok := OwnerDrain(a.readPolicy().Drain); ok {
 		sources = append(sources, src)
@@ -265,7 +281,29 @@ func (a *Advertiser) drain(now time.Time) DrainStatus {
 	if src, ok := a.diskSource(); ok {
 		sources = append(sources, src)
 	}
-	return DrainStatus{Effective: combineDrain(sources), Sources: sources, At: now.UTC()}
+	own, keys := a.Guard.BeforeAdvert(sources)
+	sources = append(sources, own...)
+	return DrainStatus{Effective: combineDrain(sources), Sources: sources, At: now.UTC()}, keys
+}
+
+// writes 는 광고 workspace.writes 의 값이다. 비어 있으면 in-place — 런타임이 없는 노드다.
+func (a *Advertiser) writes() string {
+	if a.Writes == "" {
+		return writesInPlace
+	}
+	return a.Writes
+}
+
+// labelIgnored 는 라벨로 적은 예약 키를 키마다 처음 한 번 알린다 (business-rules.md 11절).
+func (a *Advertiser) labelIgnored(key string) {
+	if a.labelWarned[key] {
+		return
+	}
+	if a.labelWarned == nil {
+		a.labelWarned = map[string]bool{}
+	}
+	a.labelWarned[key] = true
+	a.Log.Warn("label ignored; " + key + " is set by the node")
 }
 
 // diskSource 는 여유 부족 출처다 (business-rules.md 6.1 · 6.2). 워크스페이스가 없으면 안 잰다.

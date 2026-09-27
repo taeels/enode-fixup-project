@@ -633,6 +633,17 @@ func TestStepResult_OutOfVocabulary(t *testing.T) {
 	}
 }
 
+// 원인 코드 다섯은 모두 어휘 안이다 — 노드가 lower_changed 로 보고해도 경고가 안 남는다
+// (lower-state 유닛).
+func TestStepResult_ReasonsAreInVocabulary(t *testing.T) {
+	for _, reason := range []string{contract.ReasonFinalizeTimeout, contract.ReasonUploadTimeout,
+		contract.ReasonMergeWaitTimeout, contract.ReasonBakeInProgress, contract.ReasonLowerChanged} {
+		if got := (StepResult{Reason: reason}).OutOfVocabulary(); len(got) != 0 {
+			t.Errorf("reason %q is out of vocabulary: %v", reason, got)
+		}
+	}
+}
+
 // Claimed 는 계약의 새 칸 일곱을 JSON 이름 그대로 싣는다. 안 적은 계약에는 새 이름이
 // 안 나온다. 재전달도 같은 칸을 싣는다.
 func TestClaimed_CarriesTheContractFields(t *testing.T) {

@@ -20,10 +20,14 @@ func (*RuncOverlayRuntime) Open(context.Context, RuntimeSpec) (StepSession, erro
 	return nil, errors.New("runc-overlay is supported only on Linux")
 }
 
+// Capability 는 linux 판과 같은 값이다 — 짓지 못하므로 광고에 오르지 않는다.
+func (*RuncOverlayRuntime) Capability() RuntimeCapability {
+	return RuntimeCapability{Writes: writesIsolated}
+}
+
 func RunRuncOverlayHelper(io.Reader, io.Writer, io.Writer) int { return 1 }
 
-type ExecutionRuntimeVerifier struct{}
-
+// Verify 는 linux 밖에서 native 만 받는다. type 은 lowercheck.go 에 있다.
 func (ExecutionRuntimeVerifier) Verify(_ context.Context, doc execenv.Document, _ execenv.Binding, _ string, _ execenv.Manifest) error {
 	if doc.Profile.Runtime.Driver == "native" {
 		return nil

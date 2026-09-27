@@ -59,6 +59,9 @@ func TestImportBoundaries(t *testing.T) {
 		{"cmd/mediator", "internal/scratch"},
 		// 합치기 규칙도 노드 쪽이다 (merge-rules 유닛 · business-rules.md 11절)
 		{"cmd/mediator", "internal/merge"},
+		// 아래층의 상태와 잠금도 노드 쪽이다 (lower-state 유닛 · business-rules.md 14절). 형제는 파일과 flock 으로만
+		// 만나고 Mediator 는 lower 를 모른다
+		{"cmd/mediator", "internal/lower"},
 	} {
 		if has(deps(rule.from), rule.to) {
 			t.Errorf("%s must not import %s", rule.from, rule.to)
@@ -85,6 +88,11 @@ func TestImportBoundaries(t *testing.T) {
 	// internal/merge 도 봉인이다 (merge-rules 유닛) — 표준 라이브러리와 golang.org/x/sys 만 쓴다.
 	// internal/scratch 도 안 된다: 새 패키지 셋은 서로 임포트하지 않고, lower 쪽을 버리는 일은
 	// 부르는 쪽이 Options.Discard 로 채운다.
+	//
+	// internal/lower 도 봉인이다 (lower-state 유닛) — 표준 라이브러리와 golang.org/x/sys 만 쓴다.
+	// internal/scratch · internal/merge · internal/environment · internal/contract 도 안 된다: 준비도
+	// 점검의 State 는 까닭의 갈래(Cause)로만 내고 internal/enode 가 옮긴다. metadata 의 이름과 IR 을
+	// 계약의 규칙으로 거르는 일도 internal/enode 가 한다. 상태 자리의 뿌리(home)는 부르는 쪽이 준다.
 	for _, sealed := range []struct {
 		pkg   string
 		allow []string // 표준 라이브러리 밖에서 허용하는 모듈 경로의 머리
@@ -93,6 +101,7 @@ func TestImportBoundaries(t *testing.T) {
 		{"internal/transcriptui", nil},
 		{"internal/scratch", []string{"golang.org/x/sys/"}},
 		{"internal/merge", []string{"golang.org/x/sys/"}},
+		{"internal/lower", []string{"golang.org/x/sys/"}},
 	} {
 	deps:
 		for _, dep := range strings.Split(deps(sealed.pkg), "\n") {

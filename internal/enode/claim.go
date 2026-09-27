@@ -329,6 +329,11 @@ type Worker struct {
 	// 삭제자의 Kick 이 앉는다. 막지 않아야 한다. nil 이면 안 부른다.
 	AfterReport func()
 
+	// Guard 는 lower 공유 잠금이다 (lower-state 유닛). 단계를 돌리기 전에 OnClaim 이 굽기 단계면 놓고, 놓은 뒤에
+	// 보인 임대면 다시 쥐거나 거절한다. 세션을 닫은 뒤 StepDone 으로 짝을 맞춘다. nil 이면 아무것도 안 한다 —
+	// runc-overlay 가 아닌 노드 · 시험.
+	Guard *LowerGuard
+
 	// drainingNoted 는 「안 집는다」를 이미 찍었는가다 — 광고 주기마다 다시 안 찍는다.
 	drainingNoted bool
 
@@ -508,6 +513,23 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	// 실행이 멈추는 장치가 이것이다.
 	if _, ok := w.Held.Valid(step.RunID); !ok {
 		log.Warn("lease is not valid; not running")
+		return
+	}
+
+	// lower 공유 잠금 (lower-state 유닛 · business-rules.md 5.3 · 5.4). 짝은 곧바로 defer 로 건다 — 거절이어도,
+	// 패닉에도 돈다. defer 차례가 거꾸로라 아래 세션의 defer Close 보다 늦게 돈다 — 세션을 닫은 뒤에 센다.
+	//
+	// 거절하면 아무것도 준비하지 않고 보고한다 — 워크스페이스 · $IN · 세션이 없고 명령이 돌지 않았으므로 exited 도
+	// 없다. lower 가 바뀐 것을 안 거절만 원인 코드 lower_changed 를 단다.
+	guardErr := w.Guard.OnClaim(step)
+	defer w.Guard.StepDone(step)
+	if guardErr != nil {
+		res := Result{Node: w.Ident.NodeID, Error: guardErr.Error()}
+		var changed *LowerChangedError
+		if errors.As(guardErr, &changed) {
+			res.Reason = contract.ReasonLowerChanged
+		}
+		w.report(ctx, step, res)
 		return
 	}
 

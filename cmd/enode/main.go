@@ -135,15 +135,16 @@ func run() int {
 	// manifest와 지금 host fact가 모두 ready여야 한다 (ADR-073).
 	var stepRuntime enode.StepRuntime
 	var runtimeRecord *execenv.Record
-	// scratchDir 는 runc-overlay 의 작업 폴더와 trash 의 자리다. native 노드는 없다.
-	var scratchDir string
+	// scratchDir 는 runc-overlay 의 작업 폴더와 trash 의 자리다. lowerRoot 는 형제 노드와 함께 쓰는 아래층이다
+	// (lower-state 유닛). native 노드는 둘 다 없다.
+	var scratchDir, lowerRoot string
 	if local.Environment != nil {
 		doc, binding, err := enode.LoadExecutionEnvironment(confPath, local)
 		if err != nil {
 			log.Error("cannot load execution environment", "err", err)
 			return 1
 		}
-		verifier := enode.ExecutionRuntimeVerifier{}
+		verifier := enode.ExecutionRuntimeVerifier{Notice: enode.LogNotice(log)}
 		report := execenv.CheckWithRuntime(context.Background(), doc, binding, nil, verifier)
 		if report.State != execenv.StateReady {
 			log.Error("execution environment is not ready; run enodectl env check and apply",
@@ -166,7 +167,7 @@ func run() int {
 				log.Error("cannot construct runc-overlay runtime", "err", err)
 				return 1
 			}
-			scratchDir = binding.Scratch
+			scratchDir, lowerRoot = binding.Scratch, binding.Workspace
 		}
 	}
 	if *mediator != "" {
@@ -244,6 +245,8 @@ func run() int {
 	// 다른 고루틴에서 같은 파일을 쓴다 (ADR-068 = A).
 	book := enode.NewStatusBook(ident.Config, log)
 
+	// lower 공유 잠금 — 상태 자리를 열고 놓은 상태로 시작한다. 첫 광고가 쥔다 (lower-state 유닛).
+	guard := enode.StartLowerGuard(lowerRoot, ident, log)
 	adv := &enode.Advertiser{
 		Client: client, Ident: ident, Every: *every, Log: log,
 		Caps:     det.Capabilities, // 여기서 탐지하지 않는다 (ADR-068)
@@ -251,6 +254,8 @@ func run() int {
 		Held:     held,             // 응답의 drain 을 Worker 에 나른다 (ADR-063 §4)
 		Local:    local,            // 여유가 min_free_gb 아래면 노드가 스스로 drain 한다
 		Status:   book,
+		Guard:    guard,                              // 굽기 · 상태 자리 출처와 metadata 의 광고 키
+		Writes:   enode.WorkspaceWrites(stepRuntime), // workspace.writes — 런타임이 없으면 in-place
 	}
 
 	// 떴다는 신호 — 첫 광고가 성공한 뒤 한 번 (docs/elastic-nodes.md §4.4).
@@ -294,7 +299,7 @@ func run() int {
 		}
 	}
 	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log,
-		Runtime: stepRuntime, RuntimeRecord: runtimeRecord}
+		Runtime: stepRuntime, RuntimeRecord: runtimeRecord, Guard: guard}
 
 	// 단계가 남긴 작업 폴더를 지우는 자리 (ADR-076 §4.1) — runc-overlay 노드만 있다.
 	//

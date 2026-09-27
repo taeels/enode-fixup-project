@@ -9,11 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
 
 	execenv "github.com/taeels/enode/internal/environment"
+	"github.com/taeels/enode/internal/lower"
 	"github.com/taeels/enode/internal/scratch"
 )
 
@@ -310,4 +312,121 @@ func discovered(d *Discovery, path string) bool {
 		}
 	}
 	return false
+}
+
+// TestMain 은 이 시험 바이너리가 runtime-helper 로도 돌게 한다 — Verify 는 os.Executable() 을 helper 로 쓰므로,
+// smoke 를 진짜로 돌리려면 시험 바이너리가 그 입구를 알아야 한다 (cmd/enode 의 run 과 같은 갈래).
+func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "runtime-helper" {
+		os.Exit(RunRuncOverlayHelper(os.Stdin, os.Stdout, os.Stderr))
+	}
+	os.Exit(m.Run())
+}
+
+// 다른 Dir 이 lower 의 배타를 쥔 동안 smoke 는 기다리고, 놓으면 돈다 (lower-state 답 5 · 계획 4절 ⑰). HOME 을 버려도
+// 되는 자리로 옮겨 상태 자리도 그 안에 둔다. rootfs 는 읽기 전용으로 쓴다 — /bin/sh 와 id · cat · printf · test ·
+// chmod 가 있으면 된다 (busybox 하나로 지은 것도 된다).
+func TestRuncOverlaySmokeWaitsForAMerge(t *testing.T) {
+	rootfs := os.Getenv("ENODE_RUNC_ROOTFS")
+	testRoot := os.Getenv("ENODE_RUNC_TEST_ROOT")
+	if rootfs == "" || testRoot == "" {
+		t.Skip("set ENODE_RUNC_ROOTFS and ENODE_RUNC_TEST_ROOT for the real namespace gate")
+	}
+	doc, err := execenv.Parse([]byte(`api_version: enode.dev/v1alpha1
+kind: execution-environment
+name: runc-smoke-lock
+host:
+  provider: apt
+  packages: [debootstrap, runc, uidmap, util-linux]
+  require: {subuid_size: 65536, subgid_size: 65536, unprivileged_userns: true}
+rootfs:
+  builder: debootstrap
+  release: noble
+  arch: amd64
+  apt: {components: [main], packages: [bash]}
+  locale: C.UTF-8
+  user: {name: enode, uid: 1000, gid: 1000}
+runtime:
+  driver: runc-overlay
+  workspace_target: /work
+  tmp: {size: 16MiB, executable: true}
+  credentials: {}
+verify: {executables: [sh], locale: C.UTF-8}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := os.MkdirTemp(testRoot, "smoke-lock-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(base)
+	binding := execenv.Binding{Scratch: filepath.Join(base, "scratch"), Workspace: filepath.Join(base, "workspace"),
+		Store: filepath.Join(base, "store")}
+	if err := os.MkdirAll(binding.Workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", filepath.Join(base, "home"))
+	lowers, err := LowersDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := lower.ReadRoot(binding.Workspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	merge, err := lower.Open(lowers, root, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	bake, _, err := merge.TryBake()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bake.WriteState(lower.State{Phase: lower.PhaseMerging, Owner: &lower.Owner{Run: "R-M", Node: "baker"},
+		Since: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	ex, err := merge.Exclusive(context.Background(), time.Hour, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	was := smokePoll
+	smokePoll = 50 * time.Millisecond
+	defer func() { smokePoll = was }()
+
+	var notice lockedBuffer
+	manifest := execenv.Manifest{Profile: execenv.ManifestProfile{Name: doc.Profile.Name, SHA256: doc.SHA256}}
+	done := make(chan error, 1)
+	go func() {
+		done <- ExecutionRuntimeVerifier{Notice: &notice}.Verify(context.Background(), doc, binding, rootfs, manifest)
+	}()
+	select {
+	case err := <-done:
+		t.Fatalf("the smoke did not wait for the merge: %v", err)
+	case <-time.After(time.Second):
+	}
+	if !strings.Contains(notice.String(), "env check: waiting for the lower merge to finish (run R-M on node baker, since ") {
+		t.Fatalf("notice = %q", notice.String())
+	}
+	released := time.Now()
+	ex.Release()
+	bake.Release()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("the smoke after the merge: %v", err)
+		}
+	case <-time.After(2 * time.Minute):
+		t.Fatal("the smoke did not finish")
+	}
+	t.Logf("the smoke ran %v after the merge let go; notice %q", time.Since(released), notice.String())
+	// smoke 는 세션을 닫은 뒤 공유를 놓았다 — 배타가 곧바로 잡힌다
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	again, err := merge.Exclusive(ctx, time.Hour, nil)
+	if err != nil {
+		t.Fatalf("the smoke kept the lower lock: %v", err)
+	}
+	again.Release()
 }

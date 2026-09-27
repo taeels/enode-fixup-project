@@ -84,3 +84,26 @@ func TestConfDir_HonoursTheEnvironment(t *testing.T) {
 		t.Fatalf("ConfigPaths[0] = %q", ConfigPaths()[0])
 	}
 }
+
+// 아래층 상태 자리는 늘 $HOME 아래다 — ENODE_STATEDIR 를 둬도 같다 (lower-state 답 9). 두 데몬이 그 변수를
+// 다르게 두면 lower.lock 이 두 파일이 된다. home 을 못 찾으면 오류다.
+func TestLowersDir_IgnoresStateDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Log("the home directory on windows is USERPROFILE; the unix rule is what matters here")
+		return
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("ENODE_STATEDIR", "/tmp/elsewhere")
+	got, err := LowersDir()
+	if err != nil || got != filepath.Join(home, ".local", "state", "enode", "lowers") {
+		t.Fatalf("LowersDir = %q, %v", got, err)
+	}
+	if StateDir() != "/tmp/elsewhere" {
+		t.Fatalf("StateDir = %q — the log directory still follows ENODE_STATEDIR", StateDir())
+	}
+	t.Setenv("HOME", "")
+	if got, err := LowersDir(); err == nil {
+		t.Fatalf("LowersDir without HOME = %q", got)
+	}
+}

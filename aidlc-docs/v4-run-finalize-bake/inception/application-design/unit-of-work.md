@@ -231,14 +231,17 @@ Run 을 조회할 때마다 매칭을 두 번 부르는 비용.
 - 굽기 출처의 drain — 상태가 pending · merging 이거나 공유 잠금을 못 쥐면 graceful drain
 - 광고 키 — `workspace.writes`(runtime 에서) · `ir` · `repo.built.<이름>` · `bake.run` ·
   `bake.resumed`(metadata 에서)
-- 준비도 점검 셋 — scratch 와 워크스페이스가 같은 filesystem 인가 · 아래층 루트 소유 uid 가 노드
+- 준비도 점검 셋 — scratch 와 워크스페이스가 같은 filesystem 이고 같은 마운트인가 (bind 별칭이면
+  rename 이 EXDEV 다 — lower-state FD 답 6 · 2026-09-26 고침) · 아래층 루트 소유 uid 가 노드
   uid 인가 · `lower.json` 신원이 맞는가. 어긋나면 not ready 이고 어긋난 것을 이름으로 말한다.
   `internal/environment` 에는 「노드 쪽이 Fact 를 더 낼 수 있다」는 좁은 이음매 하나만 더한다
 - 상태 파일과 제어판에 굽기 출처
 - 코드 경계 시험에 두 줄
 
 **만지는 자리** — `internal/lower` (새) · `internal/enode` (광고 · 후보 잠금 · 준비도 점검) ·
-`internal/environment/check.go` · `internal/panel` · `cmd/enode`
+`internal/environment/check.go` · `internal/panel` · `cmd/enode`. lower-state FD 가 더한 행렬 밖 넷 (2026-09-26) —
+`internal/store/acquire.go` (실행 중 획득이 drain 을 본다 · 답 2 · ADR-063) · `internal/store/claim.go` (result 어휘에
+`lower_changed`) · `internal/contract/result.go` · `internal/contract/bake.go` (원인 코드 하나 · 이름과 IR 판정 내보내기)
 
 **하지 않는 것** — build · merge 단계와 시작 때 재개(`bake`). Mediator 는 아래층을 모른다
 

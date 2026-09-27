@@ -146,6 +146,8 @@ func TestFinalize_DiscoverListsWhatTheStepWrote(t *testing.T) {
 // stuckRuntime 은 Finalize 가 마감까지 안 끝나는 세션을 연다. 나머지는 native 다.
 type stuckRuntime struct{ spec *FinalizeSpec }
 
+func (stuckRuntime) Capability() RuntimeCapability { return NativeRuntime{}.Capability() }
+
 func (r stuckRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSession, error) {
 	s, err := NativeRuntime{}.Open(ctx, spec)
 	return &stuckSession{StepSession: s, seen: r.spec}, err
@@ -196,6 +198,8 @@ func TestFinalize_OverTheFinalizeBudget(t *testing.T) {
 
 // lateCloseRuntime 은 닫기가 느린 세션을 연다 — Finalize 는 제시간에 끝난다.
 type lateCloseRuntime struct{ delay time.Duration }
+
+func (lateCloseRuntime) Capability() RuntimeCapability { return NativeRuntime{}.Capability() }
 
 func (r lateCloseRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSession, error) {
 	s, err := NativeRuntime{}.Open(ctx, spec)
@@ -404,6 +408,8 @@ printf '{"type":"result","subtype":"error_during_execution","is_error":true}\n'
 
 // failingRuntime 은 Finalize 가 오류를 내는 세션을 연다.
 type failingRuntime struct{}
+
+func (failingRuntime) Capability() RuntimeCapability { return NativeRuntime{}.Capability() }
 
 func (failingRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSession, error) {
 	s, err := NativeRuntime{}.Open(ctx, spec)

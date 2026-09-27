@@ -94,6 +94,9 @@ const (
 	ReasonUploadTimeout    = "upload_timeout"
 	ReasonMergeWaitTimeout = "merge_wait_timeout"
 	ReasonBakeInProgress   = "bake_in_progress"
+	// ReasonLowerChanged 는 놓은 뒤에 보인 임대의 Run 이 바뀐 lower 위에서 돌 뻔했다는 뜻이다
+	// (lower-state 유닛 · ADR-077 §6). 노드가 단계를 돌리지 않고 곧바로 보고한다 — 다시 내면 된다.
+	ReasonLowerChanged = "lower_changed"
 )
 
 // Diagnostics 는 result 의 진단 칸이다 (Application Design Q5 · FR-1).
