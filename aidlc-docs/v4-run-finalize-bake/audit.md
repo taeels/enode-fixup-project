@@ -882,3 +882,45 @@
 **Context**: Construction · U5 merge-rules · Code Generation 승인 · 커밋 · PR
 
 ---
+## Construction · U5 `merge-rules` · PR #65 CI · 병합을 묻는다
+**Timestamp**: 2026-09-26T16:48:28Z
+**User Input**: (없음 — CI 가 끝났다)
+**AI Response**: 한 커밋 fedc80e 를 넣고 unit/merge-rules 를 push 해 PR #65 를 열었다. PR #65 의 CI 가 초록이다 — test 3분 38초 (린트 38 건 · 커버리지 전체 86.6% · 하한 80% 미달 0 · internal/merge 89.1% · 허용목록 밖 스킵 0) · cross 58초 (enodectl crypto/tls 1 · net/http 6) · bounded-demo 9초. mergeable CLEAN. PR 번호와 CI 결과는 이 항목과 상태 파일의 U5 블록에 적고 커밋하지 않는다 — U4 가 그렇게 해서 병합 결정과 함께 다음 커밋(f155faf)에 실었다. 병합할지 묻는다 (앞 유닛처럼 병합 커밋).
+**Context**: Construction · U5 merge-rules · 병합 대기
+
+---
+## Construction · U5 `merge-rules` 병합 · U6 `lower-state` 착수
+**Timestamp**: 2026-09-26T16:50:09Z
+**User Input**: "병합 커밋으로 합침 (Recommended)" (질문 — PR #65 (merge-rules 유닛) 의 CI 가 초록입니다. 병합할까요? 선택지: 병합 커밋으로 합침 / 병합만 한다 / 아직 합치지 않는다)
+**AI Response**: #65 를 병합 커밋으로 합쳤다 (56ce415 · 2026-09-26T16:50:25Z). U5 merge-rules 가 닫혔다. origin/main 에서 unit/lower-state 를 땄다 (upstream 없음 — push 때 origin/unit/lower-state 로 건다). 커밋하지 않은 상태 · 감사 변경은 새 브랜치로 그대로 따라왔다 (origin/main 의 나무가 fedc80e 와 같다). 상태 파일에 U5 의 병합 줄과 U6 블록 (Functional Design 착수) 을 적었다. 이 변경들은 U6 Functional Design 단계의 커밋에 실린다. U6 의 Functional Design 을 시작한다.
+**Context**: Construction · U5 merge-rules 병합 · U6 lower-state Functional Design 착수
+
+---
+## Construction · U6 `lower-state` · Functional Design 계획과 물음
+**Timestamp**: 2026-09-26T17:15:51Z
+**User Input**: (없음 — 병합에 이어 착수)
+**AI Response**: Functional Design Step 1 ~ 4. 계획 construction/plans/lower-state-functional-design-plan.md (535 줄). 읽은 것 — 유닛 정의 (unit-of-work.md 6절 · 0절 · 10절) · requirements.md FR-8 · FR-9 · 5.2 · 5.3 · 5.5 · 6절 조각 8 · components.md 2.1 · 3.1 · 3.6 · 5절 · component-methods.md 1절 · 4.3 · 6절 · services.md 2 ~ 5절 · component-dependency.md 2 · 3절 · Application Design 계획의 Q1 · Q2 · Q4 답과 1.1 · 1.4 · 1.10 · 스토리 US-1 · US-4 와 완료 조건 1 · 3 ② · 팩 decisions 3-9 ~ 3-22 · scene-gates 조각 8 · 정본 ADR-077 · ADR-063 §4 · §6 · ADR-024 · 앞 유닛 다섯의 넘김 절과 code-summary · 코드 (advertise.go · leases.go · claim.go · paths.go · runc_overlay_linux.go 의 smoke · environment/check.go · apply.go · cmd/enode/main.go · store 의 queue.go · acquire.go · store.go · api.go 의 광고와 제출). 받는 일 일곱 줄을 1절에 모았다 — Application Design (놓는 울타리 · 쥔 사람 기록 · mountinfo · FactSource 의 자리와 State · 결정 3-24 문구 제안) · contract-grammar (workspace.writes) · finalize (RuntimeCapability 의 Writes) · trash (bake 출처와 제어판 문구) · merge-rules (마운트 0 의 증거 · 그 계획 1.3 · 옛 노드의 틈) · 유닛 정의 10절 (linux/arm). 측정 (이 기계 · 특권 없음 · 스크래치 폴더에서 하고 지웠다 · SunnyVM 은 읽기만) — (1) flock: 공유끼리 됨 · 공유 중 배타 거절 · 배타가 기다려도 새 공유가 됨 (우선권 없음) · kill -9 뒤 2 ms 안에 풀림 · 한 프로세스의 fd 둘은 서로 부딪침 · 물려받은 fd 는 부모가 죽어도 잠금이 남음 · /proc/locks 가 쥔 쪽과 기다리는 쪽을 보임 (2) f_fsid: ext4 는 stat -f %i 와 같은 순서 (Val[0] 다음 Val[1]) · tmpfs 도 0 이 아님 · SunnyVM 의 ext4 fsid 는 filesystem UUID 두 반쪽의 XOR 과 같음 · bind 별칭은 fsid · st_dev · inode · btime 이 같고 mnt_id 만 다름 (3) ext4 는 rmdir 뒤 mkdir 에 같은 inode 번호를 다시 씀 · btime 은 다름 (4) st_dev 가 같아도 bind 별칭 마운트 안으로의 rename 은 EXDEV · 원래 경로로는 됨. merge-rules 의 Preflight 는 st_dev 만 본다 (5) state.json 제자리 쓰기는 읽기 265,358 중 192,255 가 깨짐 · 임시 파일 + rename 은 0 (6) helper 모양의 마운트는 호스트 mountinfo 에 0 줄 · /proc/<pid>/mountinfo 로 읽힘 · 같은 uid 훑기 4.7 ms · 못 읽은 것 권한 6 · 좀비 233. 준비도 smoke 가 실제 워크스페이스를 마운트함 (runc_overlay_linux.go:1341) (7) 시험 DB 에 go test -overlay 로 (작업 트리 불변) — 실행 중 획득(acquire)이 graceful drain 이 받아 적힌 노드를 잡음 · 같은 노드를 요구한 제출은 202 (8) linux/arm 에서 statfs · statx 코드 빌드됨. SunnyVM — yocto 노드의 워크스페이스 /srv/yocto 와 scratch /srv/enode-env/scratch 는 같은 마운트 / · /work 는 bind 별칭 · ~/bin/enode 는 2026-09-22 22:36 +0900 판. 못 한 것 — ext4 밖 filesystem 의 fsid 가 재부팅 뒤에도 같은지 · 전원이 나간 뒤 state.json · 옛 노드가 있는 lower 에서의 굽기 (bake 유닛의 조각). 묻지 않고 정한 것 여섯 (3절 — 상태 기계와 잠금 · 키와 자리 · 합치기 없이 끝난 굽기의 치우기 · 굽기 drain 과 새 Kind lower · 광고 키 · 경계와 크로스 빌드). 물음 아홉 (권장은 모두 A) — 1 공유 잠금을 놓는 울타리 (A 두 번 연속 · 놓은 뒤에 보인 임대는 다시 잡고 lower 가 바뀌었으면 새 원인 코드 lower_changed 로 실패) · 2 실행 중 획득이 drain 을 안 본다 (A 이 유닛이 acquire.go 한 줄 · 행렬 밖) · 3 쥔 사람 기록 (A 노드마다 잠금 파일과 기록 파일 한 쌍) · 4 마운트 0 과 옛 노드 (A 잠금이 증거 + 배타 뒤 마운트 훑기 그물 + 모두 새 판으로 올린 뒤 굽는 규칙) · 5 smoke 도 lower 를 마운트한다 (A smoke 도 공유를 잡고 합치는 중이면 기다림) · 6 같은 filesystem 확인 (A st_dev 와 마운트까지 · merge Preflight 의 같은 확인은 bake 에 넘김) · 7 lower.json 신원 (A btime 으로 inode 재사용을 잡음) · 8 점검 셋의 State (A scratch · uid 는 invalid · 신원은 external-blocked · host 점검 뒤 smoke 앞) · 9 상태 자리의 뿌리 (A ENODE_STATEDIR 를 따르지 않음). 내기 전에 U5 다시 검토의 흠 넷 (Application Design 이 정한 것 다시 묻기 · 측정 없는 근거 · 넘김과 어긋난 선택지 · 요구를 빼는 선택지) 에 물음마다 대 봤고 결과를 계획 4절 머리에 적었다. 새 축약어 0 (lower_changed 와 Kind lower 는 wire 값이다). 표기 검사 (emphasis-check.py) exit 0 · 말투 0 (걸린 여섯은 빠진다 · 지켜진다 · 깨진다 · 경로에서는) · 사내 이름 0. 커밋은 승인 뒤다.
+**Context**: Construction · U6 lower-state · Functional Design Step 1 ~ 4 · 답 대기
+
+---
+## Construction · U6 `lower-state` · 물음 아홉의 답
+**Timestamp**: 2026-09-26T18:14:21Z
+**User Input**: "권장대로"
+**AI Response**: 진행자가 앞서 사용자에게 두 가지를 알렸다 — 물음 2 의 A 는 파일 행렬 밖의 Mediator 파일(internal/store/acquire.go)을 고친다 · 물음 6 은 main 의 merge Preflight 가 bind 별칭을 통과시키는 틈을 bake 유닛에 넘긴다. 그것을 본 뒤의 답이다. 계획 파일의 [Answer]: 아홉 칸에 A 를 적었다. 답을 서로 대 봤다 — 1 과 2 (놓은 뒤에 보인 임대의 규칙은 획득을 고친 뒤에도 남는다) · 4 와 5 (smoke 가 공유를 쥐므로 배타 뒤 훑기가 smoke 의 마운트를 볼 일이 없다) · 6 · 7 과 8 (State 의 짝이 겹치지 않는다) · 3 과 5 (smoke 는 기록을 안 남긴다 — 산출물에서 정한다) · 9 와 시험 (상태 자리의 뿌리는 인자로 받는다). 막히는 짝이 없고 모호한 답도 없어 되물음 파일을 만들지 않는다. Functional Design Step 6 (산출물 셋) 으로 간다.
+**Context**: Construction · U6 lower-state · Functional Design Step 5 · 답 · 되물음 없음
+
+---
+## Construction · U6 `lower-state` · Functional Design 산출물
+**Timestamp**: 2026-09-26T18:28:41Z
+**User Input**: (없음 — 답에 이어 산출물)
+**AI Response**: Functional Design Step 6. construction/lower-state/functional-design/ 에 셋 — domain-entities.md (internal/lower 의 Key · Root · Dir · Identity 와 판정 다섯 · State · 잠금 셋과 Holder · WaitShared · Waiting · Metadata 와 Marker · ForeignMounts · Finding 과 Cause · internal/enode 의 RuntimeCapability · Kind 둘 · 예약 광고 키 · LowersDir · LowerGuard · contract 의 ReasonLowerChanged 와 판정 둘 · environment 의 FactSource) · business-rules.md (키와 자리 · 신원 판정 표 · 상태 기계와 쓰기 차례 · 잠금 셋 · 후보 잠금의 쥐는 때 · 두 번 연속 울타리 · prepare claim · 놓은 뒤에 보인 임대 · 기동 · 실행 중 획득 한 줄 · 쥔 사람 기록 · 마운트 0 의 증거와 그물과 smoke 와 규칙과 못 잡는 것 · bake · lower 출처 · 합치기 없이 끝난 굽기 · 광고 키 · 점검 셋과 State 와 영어 문구 · 로그 문구 · 경계 시험) · business-logic-model.md (하루치 굽기의 시간표 · 광고 주기 · claim · 늦은 임대 장면 표 · merge 가 부르는 모양 · 기동 · env check · 시험 모양 · 커버리지 · 행렬 밖 파일 · 넘김 · 되돌림). 답 아홉 A 와 계획 3절을 모두 옮겼다. 답에 없던 설계 결정 — (1) 공유는 도는 단계가 없어야 놓는다 (취소된 Run 의 세션이 조금 늦게 닫힌다 · claim.go:643) · Worker 가 StepDone 을 부른다 (2) 늦게 보인 임대에서 state 가 merging 이면 거절 · prepare 와 merge 단계는 거절하지 않음 · 상태 자리를 못 연 노드는 prepare 가 아닌 단계를 돌리지 않음 (원인 코드 없이) (3) 광고가 실패하면 울타리 셈을 그대로 둔다 (4) 배타는 1초마다 LOCK_EX|LOCK_NB 로 기다린다 · Waiting.Unnamed (5) smoke 는 기록을 안 남긴다 · 자리가 없으면 잠그지 않는다 · 30초마다 한 줄 (6) Holder 에 Label · Acks · PID (7) WriteState 는 *Bake 의 메서드 · state.json 이 없으면 committed · 못 읽으면 lower 출처 drain (8) 합치기 없이 끝난 굽기는 pending 에서만 · building 은 build 단계 끝에서 (bake) (9) 예약 광고 키 다섯은 라벨이 못 덮는다 · metadata 는 O_NOFOLLOW · 1 MiB · 이름과 IR 은 contract 의 판정을 내보내 쓴다 (contract/bake.go 도 행렬 밖) (10) lower_changed 를 Mediator 의 result 어휘 목록(store/claim.go)에도 더한다 (11) 마운트 훑기는 overlay 줄의 lowerdir 로만 찾는다 — 이 기계에서 helper 모양의 overlay 줄이 lowerdir=<bind 자리> 를 싣는 것을 다시 측정했다 (스크래치 · 지웠다) (12) 신원 판정 Reused 에서 last_attempt 를 지운다 (13) scratch 가 없으면 가장 가까운 조상으로 마운트를 본다 (14) Fact 의 Source 는 /runtime. 회차 문서를 고쳤다 — unit-of-work.md 6절 (점검의 마운트 · 만지는 자리의 행렬 밖 넷) · components.md 2.1 (확인 셋의 마운트 · mountinfo 읽기) · 3.3 (실행 중 획득) · 5절 (실패 등급 한 줄) · component-methods.md 1절 (Key 의 차례 · Identity · WriteState · Exclusive · Finding) · 4.1 (Capability 를 StepRuntime 으로) · 4.2 (lower_changed) · 4.3 (LowerGuard 겉면). requirements.md FR-8 의 st_dev 문구는 거짓이 되지 않아 두었다. 정본 되돌림 목록과 bake 에 넘기는 것은 business-logic-model.md 12 · 13절. 계획 5절 체크박스 일곱 모두 [x]. 표기 검사 (emphasis-check.py) — 새 문서 셋 · 계획 · 고친 회차 문서 셋 · 상태 · 감사 모두 exit 0. 사내 이름 0 · 지은 동사 0 (걸린 것은 깨진다 · 떨어진다 · 빠진다). 새 축약어 0. 완료 메시지를 내고 승인을 기다린다. 커밋은 승인 뒤다.
+**Context**: Construction · U6 lower-state · Functional Design Step 6 ~ 7 · 승인 대기
+
+---
+## Construction · U6 `lower-state` · Functional Design 승인 · NFR 건너뜀
+**Timestamp**: 2026-09-27T01:27:20Z
+**User Input**: "nfr 건너뛰고 다음"
+**AI Response**: Functional Design 을 승인으로 받았다 (U5 merge-rules 와 같은 말이다). NFR Requirements 와 NFR Design 을 건너뛴다 — 실행 계획은 「한다 (최소)」였다. 유닛 정의 6절이 NFR 에 둔 둘은 Code Generation 계획이 받는다 — (1) 보안: 상태 자리의 권한 (만들 때 0700 · 0600 은 FD 규칙 1절이 정했고, 이미 있는 것의 권한을 어떻게 확인할지는 그 줄이 NFR 에 넘겼다) (2) 동시성: 같은 기계의 여러 노드가 같은 lower 의 파일과 잠금을 함께 쓴다. Functional Design 단계의 산출물 (계획 · 산출물 셋 · 회차 문서 셋의 고친 줄 · 상태 · 감사) 을 한 커밋으로 넣는다 (CONVENTIONS 3.3 · 3.4). 그다음 Code Generation Part 1 (계획) 로 간다.
+**Context**: Construction · U6 lower-state · Functional Design 승인 · NFR Requirements · NFR Design 건너뜀 · Code Generation 착수
+
+---

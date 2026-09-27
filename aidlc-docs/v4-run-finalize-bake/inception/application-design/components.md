@@ -54,9 +54,10 @@
               두 잠금 — lower.lock (형제 공유 · merge 배타) · bake.lock (굽기 Run 배타)
               잠금 옆 쥔 사람 기록 — 누가(노드) 무엇으로(후보 · Run) 언제부터 (Q1 · Q4)
               <lower>/.enode-metadata.json 을 읽고 쓴다
-              env check 의 확인 셋 — scratch 와 워크스페이스의 st_dev · lower 루트 소유 uid ·
-              lower.json 신원 (1.4)
-   아는 것    경로 · 파일 · flock · 상태 넷(committed · building · pending · merging)
+              env check 의 확인 셋 — scratch 와 워크스페이스의 st_dev 와 마운트 · lower 루트 소유 uid ·
+              lower.json 신원 (1.4 · 마운트는 lower-state FD 답 6 이 더했다)
+   아는 것    경로 · 파일 · flock · 상태 넷(committed · building · pending · merging) ·
+              /proc 의 mountinfo 읽기 (배타 뒤 마운트 훑기 · lower-state FD 답 4)
    모르는 것  합치기 규칙 · trash · 단계 · Run 의 계약 · Mediator · environment 의 타입
    실패       상태 자리를 못 열면 그 노드는 굽기와 후보 잠금을 못 한다 -> 노드가 drain 한다.
               단계를 죽이지 않는다
@@ -167,6 +168,8 @@ verifier(`internal/enode`)다. 그래야 `internal/lower` 가 Mediator 가 링�
    result           exited_at · finalize · upload · reason · 진단 · receipt 칸을 봉인한다
    진행 조회         단계마다 phase · phase_since · exit
    QUEUED 의 사유    요구 줄마다 후보 셋 — 살아 있음 · 점유 · drain (완료 조건 4 · 1.7)
+   실행 중 획득      drain 중인 노드를 잡지 않는다.  오늘은 안 봤다 (ADR-063 §6 과 어긋남) —
+                    lower-state FD 답 2 가 한 줄로 고친다 (2026-09-26)
 ```
 
 **`internal/match` 는 안 바뀐다.** 점유 집합과 drain 집합을 따로 넘겨 두 번 부른다.
@@ -244,6 +247,7 @@ Mediator 는 여전히 이 패키지를 링크하지만 lower 코드는 안 딸�
 | merge 시작 전 확인 | 시작하지 않는다. 상태를 어디로 돌리는지는 Functional Design | 단계 |
 | 합치기 도중 | 멈춘다. 재개가 남은 upper 로 끝낸다 (재개는 굽기 잠금을 먼저 잡은 노드가) | 노드 |
 | 상태 자리 · 잠금 | 굽기와 후보 잠금을 못 한다. 노드가 drain 한다 | 노드 |
+| 공유 잠금을 놓은 뒤에 보인 임대 | lower 가 그새 바뀌었거나 합치는 중이면 그 Run 의 단계를 돌리지 않고 `lower_changed` 로 보고한다 (lower-state FD 답 1) | 단계 |
 | env check 확인 셋 | not ready · 어긋난 것을 이름으로 (FR-8 · 사실 9) | 노드 |
 | 상태 파일 쓰기 | 제어판이 「모름」으로 그린다. 광고는 안 막는다 (오늘 규칙) | 보조 |
 
