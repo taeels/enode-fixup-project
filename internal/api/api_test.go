@@ -2023,6 +2023,64 @@ func TestAcquire_AFailedGrabTakesTheBranch(t *testing.T) {
 	}
 }
 
+// drain 을 광고한 노드는 획득도 안 잡는다 (ADR-063 §2.1 · §6 · lower-state 유닛). 제출과 대기열 승격이
+// 이미 그렇다. graceful 도 at-boundary 도 못 잡음 갈래로 가고, 이미 쥔 노드는 안 놓는다. drain 이 없는
+// 노드는 오늘 그대로 잡힌다.
+func TestAcquire_ADrainingNodeIsNotGrabbed(t *testing.T) {
+	for _, c := range []struct{ drain, want string }{
+		{"", "on_board"},
+		{"graceful", "fallback"},
+		{"at-boundary", "fallback"},
+	} {
+		t.Run("drain="+c.drain, func(t *testing.T) {
+			srv, _ := newServerFast(t)
+			do(t, srv, "POST", "/v1/nodes", advert("d1", "holder", map[string]string{"role": "x"}), nil)
+			do(t, srv, "POST", "/v1/nodes", advertWithDrain(t, "d2", "drained", map[string]string{"role": "y"}, c.drain), nil)
+			body := contractJSON("acqd", []map[string]any{req("b", map[string]any{"role": "x"})},
+				[]map[string]any{
+					runStep("first", "b"),
+					acquireStep("try", "board", map[string]any{"role": "y"},
+						[]string{"on_board", "fallback"}),
+					runStep("on_board", "board"), runStep("fallback", "b"),
+				})
+			if code, _ := do(t, srv, "POST", "/v1/runs", body, nil); code != 201 {
+				t.Fatalf("submit failed: %d", code)
+			}
+			do(t, srv, "POST", "/v1/nodes/d1/claim", "", nil)
+			do(t, srv, "POST", "/v1/runs/acqd/steps/1/result", `{"node":"d1","exit_code":0}`, nil)
+
+			_, v := do(t, srv, "GET", "/v1/runs/acqd", "", nil)
+			raw, _ := json.Marshal(v["steps"])
+			var steps []struct {
+				ID    string `json:"id"`
+				State string `json:"state"`
+			}
+			_ = json.Unmarshal(raw, &steps)
+			got := map[string]string{}
+			for _, st := range steps {
+				got[st.ID] = st.State
+			}
+			if got["try"] != "DONE" {
+				t.Fatalf("the acquire step did not settle: %q", got["try"])
+			}
+			skipped := "fallback"
+			if c.want == "fallback" {
+				skipped = "on_board"
+			}
+			if got[skipped] != "SKIPPED" {
+				t.Fatalf("drain %q: the %s branch is alive: %v", c.drain, skipped, got)
+			}
+			claimer := "d1"
+			if c.want == "on_board" {
+				claimer = "d2"
+			}
+			if code, s := do(t, srv, "POST", "/v1/nodes/"+claimer+"/claim", "", nil); code != 200 || s["name"] != c.want {
+				t.Fatalf("drain %q: %s claimed %d %v, want %s", c.drain, claimer, code, s, c.want)
+			}
+		})
+	}
+}
+
 // ═══ 구간 반복 — 뒤로 가는 간선 (ADR-026) ════════════════════════════
 //
 // needs 와 dispatch 는 뒤로 못 간다. 이것만 간다. 구간은 블록을 안 적어도

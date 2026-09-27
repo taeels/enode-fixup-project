@@ -143,6 +143,16 @@ func (s *Store) tryGrab(ctx context.Context, tx pgx.Tx, runID string,
 	if err != nil {
 		return "", "", err
 	}
+	// drain 중인 노드는 busy 와 같이 후보에서 빠진다 (ADR-063 §2.1 · §6). 제출(api.go)과 대기열
+	// 승격(queue.go)이 이미 하는 모양 그대로다. 이 줄이 없으면 drain 을 광고한 노드를 획득이 잡는다 —
+	// 소유자의 drain 도, 굽기가 lower 를 바꾸는 동안의 drain 도 여기서는 안 먹었다 (lower-state 유닛).
+	draining, err := drainingIn(ctx, tx)
+	if err != nil {
+		return "", "", err
+	}
+	for id := range draining {
+		busy[id] = true
+	}
 	// 폭의 상한 (ADR-024 §4.2) — 이 Run 이 이미 상한만큼 쥐고 있으면
 	// 못 잡는 것이다. 함대 사정으로 못 잡는 것과 같은 출구로 나간다:
 	// "unavailable" 이라는 이름이 되어 분기로 흐른다. 중단이 아니다.

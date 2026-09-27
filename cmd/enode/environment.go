@@ -13,7 +13,7 @@ import (
 )
 
 func runEnvironmentCmd(args []string) int {
-	return runEnvironmentCmdWith(args, nil, enode.ExecutionRuntimeVerifier{})
+	return runEnvironmentCmdWith(args, nil, enode.ExecutionRuntimeVerifier{Notice: os.Stderr})
 }
 
 func runEnvironmentCmdWith(args []string, inspector execenv.Inspector, verifier execenv.RuntimeVerifier) int {

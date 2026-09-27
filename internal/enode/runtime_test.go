@@ -28,6 +28,10 @@ func (r *trackingRuntime) Open(_ context.Context, spec RuntimeSpec) (StepSession
 	return &trackingSession{owner: r, spec: spec}, nil
 }
 
+func (r *trackingRuntime) Capability() RuntimeCapability {
+	return RuntimeCapability{Writes: "isolated"}
+}
+
 type trackingSession struct {
 	owner *trackingRuntime
 	spec  RuntimeSpec
@@ -108,6 +112,30 @@ func TestWorkerRoutesCommandAndAgentThroughStepRuntime(t *testing.T) {
 		})
 	}
 }
+
+// workspace.writes 의 값 — 런타임이 낸다. 런타임이 없는 노드는 in-place 다 (ADR-077 §8).
+func TestWorkspaceWrites(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		rt   StepRuntime
+		want string
+	}{
+		{"no runtime", nil, "in-place"},
+		{"native", NativeRuntime{}, "in-place"},
+		{"runc-overlay", &RuncOverlayRuntime{}, "isolated"},
+		{"a runtime that says isolated", &trackingRuntime{}, "isolated"},
+		{"a runtime that says nothing", silentRuntime{}, "in-place"},
+	} {
+		if got := WorkspaceWrites(c.rt); got != c.want {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// silentRuntime 은 Capability 에 값을 안 내는 런타임이다.
+type silentRuntime struct{ NativeRuntime }
+
+func (silentRuntime) Capability() RuntimeCapability { return RuntimeCapability{} }
 
 func TestNativeRuntimePreservesExitCodeAndOutput(t *testing.T) {
 	session, err := (NativeRuntime{}).Open(context.Background(), RuntimeSpec{})

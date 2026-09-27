@@ -165,11 +165,16 @@ func (r *policyReader) checkPerms() {
 const (
 	DrainOwner = "owner" // 소유자가 정책 파일에 건 것.  여기서 풀 수 있다
 	DrainDisk  = "disk"  // 워크스페이스의 여유가 min_free_gb 아래라 노드가 스스로 건 것
+	// DrainBake 는 이 lower 의 굽기가 pending · merging 이거나 합치는 중이라 공유를 못 잡았다 (lower-state 유닛).
+	// 합치기가 끝나면 저절로 풀린다.
+	DrainBake = "bake"
+	// DrainLower 는 lower 의 상태 자리를 못 열었거나 state.json 을 못 읽었다. 자리를 고치면 다음 광고에서 풀린다.
+	DrainLower = "lower"
 )
 
 // DrainSource 는 drain 의 출처 하나다.
 type DrainSource struct {
-	Kind   string `yaml:"kind" json:"kind"`     // owner | disk.  bake 는 lower-state 유닛이 더한다
+	Kind   string `yaml:"kind" json:"kind"`     // owner | disk | bake | lower
 	Mode   string `yaml:"mode" json:"mode"`     // graceful | at-boundary
 	Detail string `yaml:"detail" json:"detail"` // 영어 한 줄 (business-rules.md 6절)
 	Owner  bool   `yaml:"owner" json:"owner"`   // 소유자가 정책 파일에서 풀 수 있나

@@ -115,7 +115,7 @@ func checkBuildStep(s Step) error {
 	}
 	seen := map[string]bool{}
 	for i, b := range s.Builds {
-		if !buildName(b.Name) {
+		if !ValidBuildName(b.Name) {
 			return fmt.Errorf("step %q: builds[%d].name %q must be 1 to 64 characters of a-z, 0-9 and -",
 				s.ID, i, b.Name)
 		}
@@ -130,13 +130,17 @@ func checkBuildStep(s Step) error {
 	if s.IR == "" {
 		return fmt.Errorf("step %q: a build step needs ir, the exact tag to bake", s.ID)
 	}
-	if why := irProblem(s.IR); why != "" {
+	if why := IRProblem(s.IR); why != "" {
 		return fmt.Errorf("step %q: ir %q is not a valid tag name: %s", s.ID, s.IR, why)
 	}
 	return nil
 }
 
-func buildName(n string) bool {
+// ValidBuildName 은 구성 이름의 규칙이다 — 1 ~ 64 자의 a-z · 0-9 · -.
+//
+// 내보내는 까닭 — 노드가 .enode-metadata.json 에서 읽은 이름을 광고 키(repo.built.<이름>)로
+// 싣기 전에 같은 규칙으로 거른다 (lower-state 유닛). 규칙을 두 벌로 두지 않는다.
+func ValidBuildName(n string) bool {
 	if n == "" || len(n) > 64 {
 		return false
 	}
@@ -157,13 +161,16 @@ func irRune(r rune) bool {
 		r == '.' || r == '_' || r == '-' || r == '/'
 }
 
-// irProblem 은 ir 이 어긴 규칙 하나를 말한다. 어긴 것이 없으면 "" 다.
+// IRProblem 은 ir 이 어긴 규칙 하나를 말한다. 어긴 것이 없으면 "" 다. 빈 ir 도 "" 다 —
+// 있어야 하는지는 부르는 쪽이 본다.
 //
 // git 태그 이름으로 쓸 수 있는 것 가운데, 환경 변수 값과 광고 값과 셸 인용에서
 // 문제가 없는 좁은 집합이다. 날짜 모양 같은 형식 규칙은 없다 — 사내 형식은
 // 제품이 모른다. 조각과 끝의 . 줄은 git 의 참조 이름 규칙(git check-ref-format)이
 // 거절하는 것이다. 받으면 노드가 sync 뒤 대조에서 반드시 실패한다.
-func irProblem(ir string) string {
+//
+// 노드가 metadata 의 ir 을 광고하기 전에도 이것으로 거른다 (lower-state 유닛).
+func IRProblem(ir string) string {
 	if len(ir) > 128 {
 		return "it is longer than 128 characters"
 	}

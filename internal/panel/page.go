@@ -305,9 +305,10 @@ function render(st){
 }
 
 // drain 출처의 이름과 누가 풀 수 있나 (business-rules.md 8.1)
-function drainName(kind){ return {owner:"소유자 정책", disk:"여유 부족"}[kind] || kind; }
+function drainName(kind){ return {owner:"소유자 정책", disk:"여유 부족", bake:"굽기", lower:"아래층 상태"}[kind] || kind; }
 function drainLift(kind){
-  return {owner:"여기서 풀 수 있다", disk:"저절로 풀린다 — trash 가 비거나 디스크가 늘면"}[kind] || "";
+  return {owner:"여기서 풀 수 있다", disk:"저절로 풀린다 — trash 가 비거나 디스크가 늘면",
+    bake:"저절로 풀린다 — 합치기가 끝나면", lower:"상태 자리를 고치면 다음 광고에서 풀린다"}[kind] || "";
 }
 
 function load(){ fetch("/api/state").then(function(r){return r.json();}).then(render).catch(function(e){ alert("상태를 못 불러왔습니다: "+e); }); }

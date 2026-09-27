@@ -24,6 +24,8 @@ type Key struct {
 
 func KeyOf(root string) (Key, error)
 func (k Key) String() string // "<fsid>-<ino>"
+// (lower-state 코드 · 2026-09-27 — KeyOf 대신 ReadRoot(path) (Root, error) 가 키 · btime · 장치 · 마운트 번호 · 주인을
+//  한 번에 읽는다.  ParseKey 는 String 이 내는 글자만 받는다)
 
 // Dir 은 ~/.local/state/enode/lowers/<key>/ 다. 노드 사용자 전용 권한 (5.3).
 type Dir struct {
@@ -48,6 +50,8 @@ type Identity struct {
 }
 
 func (d *Dir) Identity() (Identity, error)
+// (lower-state 코드 — Open(lowers, root, now) · Peek(lowers, root) 는 FD 그대로.  Dir 에 Notes (Open 이 고친 것 —
+//  좁힌 권한 · 새로 쓴 신원) 와 Loose (Peek 이 본 느슨한 비트) 를 더했다 — 이 패키지는 로그를 모르고 부르는 쪽이 쓴다)
 ```
 
 ### 1.2 상태 파일
@@ -121,6 +125,8 @@ func (d *Dir) TryBake() (*Bake, bool, error) // 주인이 살아 있으면 false
 func (b *Bake) Release() error
 
 func (d *Dir) Holders() ([]Holder, error)
+// (lower-state 코드 — func (s *Shared) Recorded() bool 을 더했다.  node_id 가 파일 이름이 될 수 없거나 같은 이름의 기록
+//  잠금을 남이 쥐면 기록 없이 공유만 쥔다 · WaitShared(ctx, every, notice) 는 기록 없는 공유다)
 ```
 
 ### 1.4 metadata
@@ -190,6 +196,8 @@ type Finding struct {
 }
 
 func Check(stateRoot, lowerRoot, scratch string, uid int) []Finding
+// (lower-state 코드 — 첫 인자는 상태 자리의 뿌리 lowers 다.  "" 면 lower.identity 를 안 낸다.  home 은 부르는 쪽
+//  (internal/enode 의 Facts) 이 LowersDir 로 찾고, 못 찾으면 그쪽이 lower.identity 를 external-blocked 로 낸다)
 ```
 
 ---
@@ -371,6 +379,7 @@ type StepSession interface {
 
 // Capability 는 세션이 아니라 런타임이 낸다 — 광고는 세션 밖에서 돈다 (lower-state FD · 2026-09-26 고침).
 //   StepRuntime 에  Capability() RuntimeCapability
+// (lower-state 코드 — func WorkspaceWrites(rt StepRuntime) string.  nil 이나 값 없는 런타임은 in-place)
 ```
 
 ### 4.2 Worker 와 Client
@@ -455,6 +464,10 @@ func (g *LowerGuard) AfterResponse(drain string, leases []Lease)
 func (g *LowerGuard) OnClaim(step *Step) error // 거절할 Run 이면 lower_changed 로 보고하게 오류 (lower-state FD 답 1)
 func (g *LowerGuard) StepDone(step *Step)       // 세션을 닫은 뒤.  lower-state FD 가 더했다 · HoldBake · DropBake 도
 
+// (lower-state 코드 — 짓는 것은 func StartLowerGuard(lowerRoot string, ident Identity, log *slog.Logger) *LowerGuard.
+//  lowerRoot 가 "" 면 nil 이고 nil 은 아무것도 안 한다.  거절의 오류는 *LowerChangedError.  Advertiser 에 Guard · Writes,
+//  Worker 에 Guard 칸)
+
 // Status 에 더하는 칸 (상태 파일 · 제어판이 읽는다)
 //   Drain   DrainStatus   // Effective · Sources
 //   Scratch scratch.Usage
@@ -468,6 +481,8 @@ func RunMergeHelper(in io.Reader, out, errOut io.Writer) int // merge.Preflight 
 
 // ExecutionRuntimeVerifier 가 environment.FactSource 를 구현한다.
 func (ExecutionRuntimeVerifier) Facts(ctx context.Context, doc execenv.Document, b execenv.Binding) []execenv.Fact
+// (lower-state 코드 — ExecutionRuntimeVerifier{Notice io.Writer} : smoke 가 합치기를 기다린다는 줄의 자리.  enodectl env 는
+//  표준 오류, 데몬 기동은 func LogNotice(log *slog.Logger) io.Writer — 줄마다 노드 로그의 Info 한 줄)
 ```
 
 ---

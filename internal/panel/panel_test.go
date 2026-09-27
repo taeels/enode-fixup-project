@@ -459,6 +459,8 @@ func TestIndexDrawsDrainSourcesAndTrash(t *testing.T) {
 		"drain_sources", "소유자 정책", "여유 부족", "여기서 풀 수 있다",
 		"저절로 풀린다 — trash 가 비거나 디스크가 늘면", "drain 이 남아 노드는 빠져 있다",
 		"if(owner){", "개는 크기 모름", "지우는 중", "GiB", "drain_from",
+		// 노드가 스스로 거는 출처 둘 (lower-state 유닛 · business-rules.md 9절)
+		"굽기", "아래층 상태", "저절로 풀린다 — 합치기가 끝나면", "상태 자리를 고치면 다음 광고에서 풀린다",
 	} {
 		if !strings.Contains(indexHTML, want) {
 			t.Errorf("index page missing %q", want)

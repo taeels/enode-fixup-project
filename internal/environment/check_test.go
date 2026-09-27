@@ -267,3 +267,59 @@ func TestOSInspectorReadsTheActualHostSurfaces(t *testing.T) {
 	defer cancel()
 	_ = inspector.SmokeUserNS(ctx)
 }
+
+// factVerifier 는 Fact 를 더 내는 verifier 다 (FactSource).
+type factVerifier struct {
+	fakeRuntimeVerifier
+	facts []Fact
+	asked int
+}
+
+func (v *factVerifier) Facts(context.Context, Document, Binding) []Fact {
+	v.asked++
+	return v.facts
+}
+
+// verifier 가 FactSource 면 그 Fact 가 host 점검 뒤 · prepared environment 앞에 놓인다. State 순위가 그대로 합치고,
+// 하나라도 ready 가 아니면 smoke 를 부르지 않는다 (lower-state 유닛 · 답 8).
+func TestCheckAddsTheVerifierFactsBeforeTheSmoke(t *testing.T) {
+	doc, _ := Parse([]byte(validProfile))
+	binding := testBinding(t)
+	if _, err := (Preparer{Inspector: readyInspector(), Runner: &applyRunner{}}).
+		Apply(context.Background(), doc, binding); err != nil {
+		t.Fatal(err)
+	}
+	fact := func(name string, state State) Fact { return Fact{Name: name, Source: "/runtime", State: state} }
+	for _, c := range []struct {
+		name  string
+		facts []Fact
+		want  State
+		smoke int
+	}{
+		{"all ready", []Fact{fact("binding.scratch_filesystem", StateReady), fact("lower.identity", StateReady)}, StateReady, 1},
+		{"no facts", nil, StateReady, 1},
+		{"scratch elsewhere", []Fact{fact("binding.scratch_filesystem", StateInvalid)}, StateInvalid, 0},
+		{"foreign lower", []Fact{fact("lower.identity", StateExternalBlocked)}, StateExternalBlocked, 0},
+		{"both", []Fact{fact("lower.identity", StateExternalBlocked), fact("lower.owner_uid", StateInvalid)}, StateInvalid, 0},
+	} {
+		v := &factVerifier{facts: c.facts}
+		r := CheckWithRuntime(context.Background(), doc, binding, readyInspector(), v)
+		if r.State != c.want || v.calls != c.smoke || v.asked != 1 {
+			t.Errorf("%s: state %s smoke %d asked %d, want %s %d", c.name, r.State, v.calls, v.asked, c.want, c.smoke)
+		}
+		at := map[string]int{}
+		for i, f := range r.Facts {
+			at[f.Name] = i
+		}
+		for _, f := range c.facts {
+			if at[f.Name] <= at["host.unprivileged_userns"] || at[f.Name] >= at["prepared_environment"] {
+				t.Errorf("%s: %s sits at %d, not between the host checks and the prepared environment: %+v", c.name, f.Name, at[f.Name], r.Facts)
+			}
+		}
+	}
+	// FactSource 가 아닌 verifier 는 오늘 그대로다 — 이음매가 없으면 묻지 않는다
+	plain := &fakeRuntimeVerifier{}
+	if r := CheckWithRuntime(context.Background(), doc, binding, readyInspector(), plain); r.State != StateReady || plain.calls != 1 {
+		t.Errorf("a plain verifier: state %s smoke %d", r.State, plain.calls)
+	}
+}

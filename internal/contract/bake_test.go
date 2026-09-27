@@ -386,3 +386,25 @@ func TestMergeWait_FillsDefault(t *testing.T) {
 		})
 	}
 }
+
+// 노드가 .enode-metadata.json 을 거르는 판정 둘은 계약의 규칙 그대로다 (lower-state 유닛).
+// 빈 ir 은 규칙을 어긴 것이 아니다 — 있어야 하는지는 부르는 쪽이 본다.
+func TestValidBuildNameAndIRProblem(t *testing.T) {
+	for name, want := range map[string]bool{
+		"config-a": true, "a": true, "0-9": true, strings.Repeat("a", 64): true,
+		"": false, strings.Repeat("a", 65): false, "Config": false, "a_b": false, "a.b": false, "a/b": false,
+	} {
+		if got := ValidBuildName(name); got != want {
+			t.Errorf("ValidBuildName(%q) = %v, want %v", name, got, want)
+		}
+	}
+	for ir, want := range map[string]string{
+		"": "", "your-ir-tag": "", "release/v1.2": "",
+		"a b": "is not allowed", "x.": "must not end with", "a.lock": "may end with '.lock'",
+	} {
+		got := IRProblem(ir)
+		if (want == "") != (got == "") || !strings.Contains(got, want) {
+			t.Errorf("IRProblem(%q) = %q, want %q", ir, got, want)
+		}
+	}
+}

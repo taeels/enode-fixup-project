@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/taeels/enode/internal/contract"
+	"github.com/taeels/enode/internal/lower"
 )
 
 // drain (ADR-063) — 광고가 정책을 나르고, 응답이 Worker 의 태도를 바꾼다.
@@ -401,4 +402,154 @@ func TestDrain_NoWorkspaceOrNoMeasureMeansNoDiskDrain(t *testing.T) {
 	if !strings.Contains(out, "free_gb=unknown") {
 		t.Fatalf("the lift after a failed measure claims a number:\n%s", out)
 	}
+}
+
+// ── lower-state 유닛 — workspace.writes · 굽기와 상태 자리 출처 · 예약 키 ─────────────────
+
+// bodyServer 는 광고 본문을 모으고 policy.drain 을 그대로 되돌려 준다. fail 이 참인 동안 500 이다.
+func bodyServer(t *testing.T, fail func() bool) (*httptest.Server, func() []contract.Advert) {
+	t.Helper()
+	var mu sync.Mutex
+	var seen []contract.Advert
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var ad contract.Advert
+		if err := json.NewDecoder(r.Body).Decode(&ad); err != nil {
+			t.Errorf("cannot decode the advert: %v", err)
+		}
+		mu.Lock()
+		seen = append(seen, ad)
+		mu.Unlock()
+		if fail != nil && fail() {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"leases": []any{}, "drain": ad.Policy.Drain})
+	}))
+	return srv, func() []contract.Advert {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]contract.Advert(nil), seen...)
+	}
+}
+
+func drainsOf(seen func() []contract.Advert) func() []string {
+	return func() []string {
+		var out []string
+		for _, ad := range seen() {
+			out = append(out, ad.Policy.Drain)
+		}
+		return out
+	}
+}
+
+// 모든 노드가 workspace.writes 를 싣는다 — 런타임이 없으면 in-place. 라벨로 적은 예약 키는 빠지고 로그는 키마다
+// 한 번이다. 상태 파일은 탐지 능력 그대로다 (계획 4절 ④). Guard 가 nil 이면 drain 은 오늘 그대로다.
+func TestDrain_WorkspaceWritesAndReservedLabels(t *testing.T) {
+	srv, seen := bodyServer(t, nil)
+	defer srv.Close()
+	cfg := filepath.Join(t.TempDir(), "local.yaml")
+	var logs lockedBuffer
+	snap := Capabilities{At: time.Now(), Caps: []contract.Capability{{Capability: contract.CapabilityAgentReason,
+		Attrs: map[string]string{"os": "linux", "harness.claude": "2.1", "ir": "label-ir", "workspace.writes": "isolated"}}}}
+	a := &Advertiser{
+		Client: &Client{Base: srv.URL, Token: "t", Principal: "p", HTTP: srv.Client()},
+		Ident:  Identity{NodeID: "n1", Label: "l", Config: cfg},
+		Caps:   func() Capabilities { return snap },
+		Every:  time.Millisecond,
+		Log:    slog.New(slog.NewTextHandler(&logs, nil)),
+	}
+	runAdverts(t, a, 3, drainsOf(seen))
+	for _, ad := range seen()[:3] {
+		if ad.Policy.Drain != contract.DrainNone || len(ad.Capabilities) != 1 {
+			t.Fatalf("advert = %+v", ad)
+		}
+		attrs := ad.Capabilities[0].Attrs
+		if attrs["workspace.writes"] != "in-place" || attrs["ir"] != "" || attrs["harness.claude"] != "2.1" {
+			t.Fatalf("attrs = %v", attrs)
+		}
+	}
+	out := logs.String()
+	for _, key := range []string{"ir", "workspace.writes"} {
+		if n := strings.Count(out, "label ignored; "+key+" is set by the node"); n != 1 {
+			t.Errorf("the %s label was reported %d times:\n%s", key, n, out)
+		}
+	}
+	status, err := ReadStatus(cfg)
+	if err != nil || len(status.Caps) != 1 || status.Caps[0].Attrs["ir"] != "label-ir" {
+		t.Fatalf("the status file lost the detected capability: %+v %v", status.Caps, err)
+	}
+	if snap.Caps[0].Attrs["ir"] != "label-ir" {
+		t.Fatal("the advert changed the detected snapshot")
+	}
+}
+
+// 상태 자리를 못 연 노드는 lower 출처로 drain 한다 — 광고에는 합친 값, 상태 파일에는 출처가 남는다.
+// 런타임이 isolated 면 그 값이 실린다.
+func TestDrain_LowerSourceRidesTheAdvert(t *testing.T) {
+	srv, seen := bodyServer(t, nil)
+	defer srv.Close()
+	dir := t.TempDir()
+	cfg := filepath.Join(dir, "local.yaml")
+	lowers := filepath.Join(dir, "lowers")
+	if err := os.WriteFile(lowers, nil, 0o600); err != nil { // lowers 자리에 파일 — 자리를 못 연다
+		t.Fatal(err)
+	}
+	g := newLowerGuard(lowers, dir, Identity{NodeID: "n1"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	g.start()
+	held := NewHeld()
+	a := &Advertiser{
+		Client: &Client{Base: srv.URL, Token: "t", Principal: "p", HTTP: srv.Client()},
+		Ident:  Identity{NodeID: "n1", Label: "l", Config: cfg},
+		Caps: func() Capabilities {
+			return Capabilities{Caps: []contract.Capability{{Capability: contract.CapabilityAgentReason,
+				Attrs: map[string]string{"harness.claude": "2.1"}}}}
+		},
+		Every:  time.Millisecond,
+		Log:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Held:   held,
+		Guard:  g,
+		Writes: "isolated",
+	}
+	got := runAdverts(t, a, 2, drainsOf(seen), func() bool { return held.Drain() == contract.DrainGraceful })
+	if got[0] != contract.DrainGraceful || got[1] != contract.DrainGraceful {
+		t.Fatalf("adverts carried %q", got)
+	}
+	if w := seen()[0].Capabilities[0].Attrs["workspace.writes"]; w != "isolated" {
+		t.Fatalf("workspace.writes = %q", w)
+	}
+	status, err := ReadStatus(cfg)
+	if err != nil || status.Drain == nil || len(status.Drain.Sources) != 1 || status.Drain.Sources[0].Kind != DrainLower ||
+		status.Drain.Sources[0].Owner || !strings.HasPrefix(status.Drain.Sources[0].Detail, "cannot open the lower state: ") {
+		t.Fatalf("status drain = %+v err = %v", status.Drain, err)
+	}
+}
+
+// metadata 의 기록과 계약의 기록은 JSON 칸이 같다 (계획 4절 ⑭) — 봉인 때문에 타입이 두 벌이다.
+func TestMetadataRecordsMatchTheContract(t *testing.T) {
+	at := time.Date(2026, 9, 27, 5, 0, 0, 0, time.UTC)
+	roundTrip := func(name string, from, to, back any) {
+		t.Helper()
+		b, err := json.Marshal(from)
+		if err != nil {
+			t.Fatal(err)
+		}
+		dec := json.NewDecoder(bytes.NewReader(b))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(to); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		b2, _ := json.Marshal(to)
+		dec = json.NewDecoder(bytes.NewReader(b2))
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(back); err != nil {
+			t.Fatalf("%s back: %v", name, err)
+		}
+		if b3, _ := json.Marshal(back); !bytes.Equal(b, b3) || !bytes.Equal(b, b2) {
+			t.Fatalf("%s: %s -> %s -> %s", name, b, b2, b3)
+		}
+	}
+	roundTrip("BuildRecord", contract.BuildRecord{Name: "config-a", Command: "make", StartedAt: at, FinishedAt: at, ExitCode: 2},
+		&lower.BuildRecord{}, &contract.BuildRecord{})
+	roundTrip("Pinned", contract.Pinned{File: "default.xml", SHA256: "abc"}, &lower.Pinned{}, &contract.Pinned{})
 }
