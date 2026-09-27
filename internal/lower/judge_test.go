@@ -21,7 +21,9 @@ func TestKeyString(t *testing.T) {
 		{int32(hi), int32(lo), 2905094, "3b167980fdd76b7b-2905094"},
 		{int32(lo), int32(hi), 1, "fdd76b7b3b167980-1"},
 		{-1, -1, 0, "ffffffffffffffff-0"},
-		{0, 1, 18446744073709551615, "0000000000000001-18446744073709551615"},
+		{0, 1, 18446744073709551615, "1-18446744073709551615"},
+		// 위 네 비트가 0 이면 열다섯 자리다 — CI 의 러너에서 stat -f -c %i 가 이렇게 찍었다
+		{0x035b60f8, 0x473d0c15, 7, "35b60f8473d0c15-7"},
 	} {
 		k := keyOf(c.val0, c.val1, c.ino)
 		if got := k.String(); got != c.want {
@@ -39,7 +41,7 @@ func TestKeyString(t *testing.T) {
 
 func TestParseKeyRejects(t *testing.T) {
 	for _, s := range []string{
-		"", "3b167980fdd76b7b", "3b167980fdd76b7b-", "3B167980FDD76B7B-1", "3b167980fdd76b7-1",
+		"", "3b167980fdd76b7b", "3b167980fdd76b7b-", "3B167980FDD76B7B-1", "03b167980fdd76b7-1", "0-1x", "-1",
 		"3b167980fdd76b7bb-1", "zzzzzzzzzzzzzzzz-1", "3b167980fdd76b7b-01", "3b167980fdd76b7b-+1",
 		"3b167980fdd76b7b--1", "3b167980fdd76b7b-1-2", "3b167980fdd76b7b-99999999999999999999",
 	} {

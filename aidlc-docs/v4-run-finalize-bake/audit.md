@@ -959,3 +959,10 @@
 **Context**: Construction · U6 lower-state · Code Generation 승인 · 커밋과 PR
 
 ---
+## Construction · U6 `lower-state` · PR #66 의 CI 가 빨갛다 — 키의 fsid 글자
+**Timestamp**: 2026-09-27T04:13:23Z
+**User Input**: (없음 — CI 결과)
+**AI Response**: 커밋 9d7197f 를 push 하고 PR #66 을 열었다. CI 의 cross · bounded-demo 는 초록, test 는 빨갛다 — internal/lower 의 TestReadRoot `stat -f -c %i = 35b60f8473d0c15, key fsid 035b60f8473d0c15`. FD 는 키의 fsid 를 「stat -f -c %i 와 같은 16 자리 16진」이라 적었는데 stat 은 앞의 0 을 안 찍는다. 러너의 fsid 는 위 네 비트가 0 이라 열다섯 자리였다. 이 기계와 SunnyVM 은 위 네 비트가 0 이 아니라 Part 2 와 진행자의 다시 돌리기에서 드러나지 않았다. FD 가 키를 둔 까닭 (사람이 stat 으로 상태 자리를 찾는다) 을 따라 fsid 를 %x (앞의 0 없이) 로 바꿨다 — Key.String · fsidString · ParseKey (한 자리부터 열여섯 자리 · 앞의 0 거절) · 시험 표에 러너의 값 한 줄과 거절 셋. 아직 이 키로 만든 상태 자리가 없어 옮길 것이 없다. FD 두 장 (business-rules.md 1절 · domain-entities.md) · component-methods.md 의 그 줄 · code-summary.md 4절을 고쳤다. go vet · go test ./internal/lower/ 통과. 고친 커밋을 unit/lower-state 에 더해 push 한다. 병합은 CI 가 초록이 된 뒤 묻는다.
+**Context**: Construction · U6 lower-state · PR #66 CI · 고침
+
+---

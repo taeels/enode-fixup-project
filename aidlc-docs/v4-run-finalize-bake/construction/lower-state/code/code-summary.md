@@ -97,6 +97,12 @@
 
 정본과 FD 의 결정을 바꾼 자리는 없다. 겉면에 이름을 몇 개 더했고 FD 가 말하지 않은 갈래를 정했다.
 
+- **키의 fsid 는 앞의 0 을 찍지 않는다 (PR #66 의 CI 에서 고침).** FD 는 fsid 를 「`stat -f -c %i` 와 같은 16 자리 16진」이라 적었다.
+  `stat` 은 앞의 0 을 안 찍는다 — CI 러너의 fsid 는 위 네 비트가 0 이라 `35b60f8473d0c15` (열다섯 자리) 였고 `TestReadRoot` 가 실패했다.
+  이 기계와 SunnyVM 은 위 네 비트가 0 이 아니라 드러나지 않았다. FD 가 키를 둔 까닭 (사람이 `stat` 으로 자리를 찾는다) 을 따라 `%x` 로
+  바꿨다. `ParseKey` 는 한 자리부터 열여섯 자리까지 받고 앞의 0 은 거절한다. 아직 이 키로 만든 상태 자리가 없어 옮길 것이 없다.
+  FD 두 장 · `component-methods.md` 의 그 줄을 함께 고쳤다
+
 - **새로 내보낸 이름 셋.** `Dir.Notes` (Open 이 고친 것) · `Dir.Loose` (Peek 이 본 느슨한 비트) · `Shared.Recorded()` (기록 없이 쥔
   공유인가). `internal/lower` 는 로그를 모르므로 알릴 것을 값으로 내고 `LowerGuard` 가 로그에 쓴다. `component-methods.md` 1.1 · 1.3 에 적었다
 - **metadata 의 권한은 0644 다.** 계획은 권한을 말하지 않았다. CreateTemp 의 0600 이면 lower 안에서 그 파일만 단계 사용자가 못 읽는다 —

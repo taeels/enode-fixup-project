@@ -18,7 +18,7 @@ code 요약이 새 이름을 진다.
 // Key 는 lower 루트 디렉터리의 신원이다. statfs 의 f_fsid 와 inode.
 // bind 별칭도 같은 키가 된다 (결정 3-14).
 type Key struct {
-	FSID uint64 // f_fsid.Val[0]<<32 | Val[1] — %016x 가 stat -f -c %i 와 같다 (lower-state FD)
+	FSID uint64 // f_fsid.Val[0]<<32 | Val[1] — %x 가 stat -f -c %i 와 같다 (lower-state FD · 앞의 0 없이)
 	Ino  uint64
 }
 
@@ -41,7 +41,7 @@ func Open(stateRoot, lowerRoot string) (*Dir, error) // 자리를 만들고 lowe
 //  Dir · Open 의 겉면도 바뀌었다 — 그 FD 의 domain-entities.md 1 · 2절)
 type Identity struct {
 	Schema   int       `json:"schema"`
-	FSID     string    `json:"fsid"`     // 16 자리 16진 — stat -f -c %i 와 같은 글자
+	FSID     string    `json:"fsid"`     // 16진 (앞의 0 없이) — stat -f -c %i 와 같은 글자
 	Ino      uint64    `json:"ino"`
 	BirthNs  int64     `json:"birth_ns"` // statx btime — inode 재사용을 잡는다
 	Paths    []string  `json:"paths"`

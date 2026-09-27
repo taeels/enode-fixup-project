@@ -16,17 +16,18 @@ func keyOf(val0, val1 int32, ino uint64) Key {
 	return Key{FSID: uint64(uint32(val0))<<32 | uint64(uint32(val1)), Ino: ino}
 }
 
-// String 은 상태 자리의 이름이다 — "3b167980fdd76b7b-2905094" (16 자리 16진 · 10진 inode).
-func (k Key) String() string { return fmt.Sprintf("%016x-%d", k.FSID, k.Ino) }
+// String 은 상태 자리의 이름이다 — "3b167980fdd76b7b-2905094" (16진 fsid · 10진 inode). 앞의 0 을 찍지 않는다 —
+// `stat -f -c %i` 도 안 찍는다. 위 네 비트가 0 인 fsid 는 열다섯 자리 이하다.
+func (k Key) String() string { return fmt.Sprintf("%x-%d", k.FSID, k.Ino) }
 
 // fsidString 은 lower.json 의 fsid 글자다.
-func (k Key) fsidString() string { return fmt.Sprintf("%016x", k.FSID) }
+func (k Key) fsidString() string { return fmt.Sprintf("%x", k.FSID) }
 
 // ParseKey 는 자리 이름을 키로 푼다. String 이 내는 글자만 받는다 — 대문자 · 앞의 0 · 부호는 거절한다.
 func ParseKey(s string) (Key, error) {
 	fsid, ino, ok := strings.Cut(s, "-")
-	if !ok || len(fsid) != 16 {
-		return Key{}, fmt.Errorf("lower: %q is not a state directory name (<16 hex digits>-<inode>)", s)
+	if !ok || fsid == "" || len(fsid) > 16 {
+		return Key{}, fmt.Errorf("lower: %q is not a state directory name (<hex fsid>-<inode>)", s)
 	}
 	f, err := strconv.ParseUint(fsid, 16, 64)
 	if err != nil {

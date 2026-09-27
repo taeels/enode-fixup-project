@@ -51,13 +51,13 @@
 ```go
 // Key 는 lower 루트 디렉터리의 신원이다. statfs 의 f_fsid 와 inode (결정 3-14 · bind 별칭도 같은 키).
 type Key struct {
-	// FSID 는 f_fsid.Val[0]<<32 | Val[1] 이다. %016x 로 찍으면 `stat -f -c %i` 와 같은 글자가 된다 (계획 2.2).
+	// FSID 는 f_fsid.Val[0]<<32 | Val[1] 이다. %x 로 찍으면 `stat -f -c %i` 와 같은 글자가 된다 (계획 2.2 · 앞의 0 없이 — Code Generation 에서 고침).
 	// Val 은 int32 둘이라 uint32 로 바꾼 뒤 붙인다.
 	FSID uint64
 	Ino  uint64
 }
 
-// String 은 상태 자리의 이름이다 — "3b167980fdd76b7b-2905094" (16 자리 16진 · 10진 inode).
+// String 은 상태 자리의 이름이다 — "3b167980fdd76b7b-2905094" (16진 fsid 앞의 0 없이 · 10진 inode).
 func (k Key) String() string
 func ParseKey(s string) (Key, error)
 
@@ -99,7 +99,7 @@ func Peek(lowers string, root Root) (*Dir, error)
 // Identity 는 lower.json 이다.
 type Identity struct {
 	Schema   int       `json:"schema"`   // 1
-	FSID     string    `json:"fsid"`     // Key.FSID 의 16 자리 16진 — stat -f -c %i 와 같은 글자
+	FSID     string    `json:"fsid"`     // Key.FSID 의 16진 (앞의 0 없이) — stat -f -c %i 와 같은 글자
 	Ino      uint64    `json:"ino"`
 	BirthNs  int64     `json:"birth_ns"` // 답 7.  0 이면 모름
 	Paths    []string  `json:"paths"`    // 이 lower 를 본 경로들 (별칭).  정보다 — 대조하지 않는다

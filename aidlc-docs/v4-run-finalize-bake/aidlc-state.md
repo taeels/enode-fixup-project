@@ -316,7 +316,9 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           요약은 construction/lower-state/code/code-summary.md.
                           진행자의 다시 돌리기 2026-09-27T03:23:42Z — TestLocks 가 6번 중 5번 실패 (이 유닛이 들인 시험의 시간 경쟁 · 시험만
                           고쳤다) · 고친 뒤 go test ./... 세 번 통과.  CPU 부하에서 internal/enode 의 시험 셋이 가끔 실패 — 유닛 전 나무도 같다
-                          (code-summary.md 5절 끝).  승인 2026-09-27T04:07:18Z (「승인」).  한 커밋 · PR 로 main 에
+                          (code-summary.md 5절 끝).  승인 2026-09-27T04:07:18Z (「승인」).
+                          한 커밋 (9d7197f) · PR #66.  CI 의 test 가 빨갛다 — TestReadRoot 가 러너의 fsid (위 네 비트가 0) 에서
+                          stat -f -c %i 와 글자가 어긋났다.  키의 fsid 를 앞의 0 없이 쓰도록 고친 커밋을 더했다 2026-09-27T04:13:23Z (code-summary.md 4절 첫 줄)
 ```
 
 ## Stage Progress

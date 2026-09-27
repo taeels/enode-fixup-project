@@ -20,7 +20,8 @@
 - **자리의 뿌리는 `$HOME/.local/state/enode/lowers` 다.** `ENODE_STATEDIR` 를 따르지 않는다 — 두 데몬이 그 변수를 다르게 두면
   lower.lock 이 두 파일이 되어 서로를 못 본다 (계획 2.1 · 2.9). home 을 못 찾으면 lower 상태를 쓰는 일을 못 한다 (9절 Kind lower)
 - **lower 루트는 노드 설정의 워크스페이스다** (runc-overlay 의 binding). symlink 를 푼 경로로 읽는다
-- **키는 `<fsid>-<ino>` 다.** fsid 는 `stat -f -c %i` 와 같은 16 자리 16진, ino 는 10진이다 (계획 2.2)
+- **키는 `<fsid>-<ino>` 다.** fsid 는 `stat -f -c %i` 와 같은 16진 (앞의 0 없이 · 16 자리까지), ino 는 10진이다 (계획 2.2 ·
+  Code Generation 에서 고침 2026-09-27 — `stat` 은 앞의 0 을 안 찍어 16 자리로 채우면 글자가 어긋난다)
 - **권한.** 만들 때 디렉터리는 0700, 파일은 0600 이다 (FR-8 · 보안 표). 이미 있는 것의 권한을 어떻게 확인할지는 NFR 이다
 - **데몬만 자리를 만든다** (`Open`). env check 와 smoke 는 만들지 않는다 (`Peek`) — 점검은 고치지 않는다 (ADR-073)
 
