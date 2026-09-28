@@ -137,13 +137,19 @@ func stubIn(t *testing.T, dir, name string) string {
 // pid 가 있고 그 pid 가 살아서 이 설정을 열고 있어야 한다. 그래서 가짜도
 // 그 둘을 실제로 한다: 자기 pid 를 <conf>.lock 에 쓰고 산다. 자기 argv 에
 // --config <경로> 가 이미 들어 있으므로 ps 쪽 조건은 저절로 맞는다.
+//
+// --config 로 불리지 않은 호출(setup 위임 같은 것)은 한 줄 찍고 곧 끝난다.
+// 그때 둘째 인자는 설정 경로가 아니다. 그대로 잠금을 쓰면 시험의 작업
+// 디렉터리에 <인자>.lock 이 남고 60초짜리 sleep 이 뒤에 남는다 — 추적되던
+// cmd/enodectl/probe.lock 이 그렇게 생겼다.
 func fakeEnode(t *testing.T, comesUp bool) string {
 	t.Helper()
 	bin := filepath.Join(t.TempDir(), "enode")
 	body := "#!/bin/sh\n" +
 		"echo \"fake enode: $*\"\n"
 	if comesUp {
-		body += "echo $$ > \"$2.lock\"\nsleep 60\nexit 0\n"
+		body += "[ \"$1\" = --config ] || exit 0\n" +
+			"echo $$ > \"$2.lock\"\nsleep 60\nexit 0\n"
 	} else {
 		body += "echo 'config rejected: mediator is required' >&2\nexit 1\n"
 	}
