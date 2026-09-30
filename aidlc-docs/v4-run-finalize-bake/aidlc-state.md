@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U7 bake 의 병합 조건 (조각 5 · 6 · 7 · 8) 초록 2026-09-30T12:50:12Z (사용자 판정) · unit/bake 를 push 하고 main 으로 PR · 병합은 CI 뒤 묻는다. 다음 유닛 U8 checkpoint. Code Generation 승인 2026-09-30T05:50:37Z (7116e8d) · 흠 고침 6d9e6c7.
+- **Current Stage**: CONSTRUCTION — U8 checkpoint Functional Design 승인 2026-09-30T14:05:25Z · NFR Requirements 착수 (브랜치 unit/checkpoint · main 3c33730 에서 땄다). U7 bake 는 PR #68 로 병합 2026-09-30T12:55:24Z (3c33730) · U6 lower-state 는 PR #66 · U5 merge-rules 는 PR #65 · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -388,7 +388,20 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           때 푼 경로) · 시험 둘 · 진행자 확인 초록 (통과 2,564).  조각을 다시 돈다
                           조각 6 · 7 · 8 · 8.4 다시 돎 2026-09-30T12:47:41Z (6d9e6c7 · 흠 없음 · 못 본 줄 없음 · code-summary 8.6).
                           사용자 판정 초록 2026-09-30T12:50:12Z — 병합 조건이 섰다.  조각 자리를 지웠다.  push · PR
+                          PR #68 CI 셋 초록 · 병합 2026-09-30T12:55:24Z (3c33730 · merge commit)
                           병합 조건 — 조각 5 green (slice-5.sh) · 조각 6 · 7 · 8 은 사람이 SunnyVM 에서 돈다 (code-summary 8절 · 아직 안 돌았다)
+```
+
+### U8 `checkpoint` — 브랜치 `unit/checkpoint` (`3c33730` 에서 땄다)
+
+```text
+   착수 기록              2026-09-30T12:55:49Z.  맡는 조각 9 (보존 · 사람 · SunnyVM).  Functional Design 은 새 세션에서 시작한다.
+                          받을 것 — bake 가 넘긴 것 (code-summary.md 10절 · 실패한 굽기의 upper 를 spool 로 받을지 ·
+                          Close(Keep{Upper}) 는 keep 자리가 이미 있으면 실패한다)
+   Functional Design      계획과 물음 2026-09-30T13:16:17Z (물음 아홉 + 진행자가 더한 물음 10).  답 열 모두 A 2026-09-30T13:41:44Z.
+                          산출물 셋 2026-09-30T13:53:30Z (domain-entities 220 · business-rules 254 · business-logic-model 222 줄).
+                          되물음 없음.  QA 에이전트 없음 (진행자가 좁게 확인).  고친 회차 문서 component-methods.md 세 곳.
+                          승인 2026-09-30T14:05:25Z (「다음」).  다음은 NFR Requirements (유닛 정의 8절 — N2 · 보안 · 성능)
 ```
 
 ## Stage Progress
@@ -403,11 +416,11 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Units Generation — 착수 2026-09-24T06:42:48Z. 계획 · 질문 넷 2026-09-24T06:50:29Z. 채팅 논의로 일곱이 닫힘 2026-09-24T09:50:00Z (Q1 A · Q2 A · Q3 A 순연 · Q4 B · Q7 A). 계획 승인 2026-09-24T12:14:10Z. 산출물 넷 2026-09-24T12:22:43Z · 승인 2026-09-24T12:31:50Z
 
 ### CONSTRUCTION PHASE
-- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z · U3 finalize 완료 2026-09-25T12:53:36Z · U4 trash 완료 2026-09-26T14:24:01Z · U5 merge-rules 완료 2026-09-26T16:11:17Z · U6 lower-state 완료 2026-09-27T01:27:20Z · U7 bake 완료 2026-09-27T12:54:46Z — 위 「Construction」 절
+- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z · U3 finalize 완료 2026-09-25T12:53:36Z · U4 trash 완료 2026-09-26T14:24:01Z · U5 merge-rules 완료 2026-09-26T16:11:17Z · U6 lower-state 완료 2026-09-27T01:27:20Z · U7 bake 완료 2026-09-27T12:54:46Z · U8 checkpoint 완료 2026-09-30T14:05:25Z — 위 「Construction」 절
 - [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 ~ U7 은 건너뜀 (U1 유닛 정의 · U2 ~ U7 사용자 결정)
 - [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 ~ U7 은 건너뜀
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z · U6 lower-state 완료 2026-09-27T04:07:18Z · U7 bake 완료 2026-09-30T05:50:37Z (커밋 · 병합은 사람 조각 6 · 7 · 8 뒤)
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z · U6 lower-state 완료 2026-09-27T04:07:18Z · U7 bake 완료 2026-09-30T05:50:37Z (조각 6 · 7 · 8 초록 뒤 PR #68 병합 2026-09-30T12:55:24Z)
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE

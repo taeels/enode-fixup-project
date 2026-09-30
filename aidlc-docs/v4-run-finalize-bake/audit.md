@@ -1260,3 +1260,73 @@
 **Context**: Construction · U7 bake · 조각 6 · 7 · 8 초록 · 커밋 · PR
 
 ---
+## Construction · U7 `bake` · PR #68
+**Timestamp**: 2026-09-30T12:51:39Z
+**User Input**: (없음 — 「초록 · 커밋 · PR 올림」 에 이어)
+**AI Response**: 커밋 511482d (조각 판정 · 기록 · 스크립트 고침). 올리기 전 확인 — origin/main 이 52af9c0 (probe.lock 을 추적에서 뺌 · cmd/enodectl 두 파일) 으로 한 커밋 앞서 있으나 merge-tree 로 충돌 없음 · origin/main 기준 브랜치 diff 와 PR 본문에 사내 이름 0 · PR 본문 emphasis-check exit 0. unit/bake 를 push 하고 main 으로 PR #68 을 열었다 (https://github.com/taeels/enode-fixup-project/pull/68). CI (test · cross · bounded-demo) 대기. 병합은 CI 결과를 보고 묻는다.
+**Context**: Construction · U7 bake · PR · CI 대기
+
+---
+## Construction · 유닛 현황 물음
+**Timestamp**: 2026-09-30T12:52:28Z
+**User Input**: "유닛 현황"
+**AI Response**: 상태 파일의 유닛 표와 gh pr list 로 답했다 — U1 ~ U6 병합 (PR #61 ~ #66) · U7 bake PR #68 CI 진행 중 (bounded-demo 통과 · test · cross 대기) · U8 checkpoint (조각 9) 착수 전 · 그 뒤 Build and Test (조각 0 ~ 12 · 조각 11 · 12 는 유닛 없이 사람).
+**Context**: Construction · 현황
+
+---
+## Construction · U7 `bake` · PR #68 CI 결과
+**Timestamp**: 2026-09-30T12:54:55Z
+**User Input**: (없음 — CI 가 끝났다)
+**AI Response**: PR #68 의 CI 셋 모두 통과 — test (2분 56초) · cross (52초) · bounded-demo (11초). mergeable CLEAN. 사용자에게 병합을 묻는다.
+**Context**: Construction · U7 bake · CI 초록 · 병합 물음
+
+---
+## Construction · U7 `bake` 병합 · U8 `checkpoint` 착수 기록
+**Timestamp**: 2026-09-30T12:55:49Z
+**User Input**: "병합 · U8 착수 (Recommended)" (질문 — PR #68 (U7 bake)을 병합할까요? 선택지: 병합 · U8 착수 / 병합만 / 아직 병합 안 함) · 이어서 "착수 시작까지만 기록. 새 세션에서 할 것"
+**AI Response**: PR #68 을 merge commit 으로 병합했다 (3c33730 · 2026-09-30T12:55:24Z). U7 bake 가 끝났다 — 조각 5 · 6 · 7 · 8 초록. main 에서 unit/checkpoint 를 땄다 (3c33730). U8 checkpoint 의 Functional Design 은 새 세션에서 한다 — 이 세션은 착수 기록까지. 커밋 안 된 audit · 상태는 unit/checkpoint 작업 트리에 있고 U8 의 첫 단계 커밋이 함께 싣는다 (앞 유닛들과 같다).
+**Context**: Construction · U7 병합 · U8 착수 기록 · 작업은 새 세션
+
+---
+## Construction · U8 `checkpoint` · Functional Design 착수
+**Timestamp**: 2026-09-30T12:57:56Z
+**User Input**: "/home/sunny/enode-fixup-v4의 unit/checkpoint에서 U8의 Functional Design부터 시작"
+**AI Response**: 새 세션에서 착수했다. 브랜치 unit/checkpoint (3c33730) · 작업 트리에 앞 세션의 착수 기록 (상태 · 감사) 이 커밋 안 된 채 있다 — 이 단계의 커밋이 함께 싣는다. Office 원장은 회차 상태 파일과 README 가 적은 f806768d 에 붙였다. Functional Design Step 1 ~ 4 (유닛 맥락 · 계획 · 물음) 를 작성 서브에이전트 (aidlc-xhigh) 하나에게 맡긴다 — 하위 에이전트를 띄우지 않는다. 진행자는 계획을 확인하고 물음을 사용자에게 낸다.
+**Context**: Construction · U8 checkpoint · Functional Design Step 1 ~ 4 착수
+
+---
+## Construction · U8 `checkpoint` · Functional Design 계획과 물음
+**Timestamp**: 2026-09-30T13:16:17Z
+**User Input**: (없음 — 착수에 이어)
+**AI Response**: 작성 서브에이전트 (aidlc-xhigh · 하위 에이전트 없음 · 약 33만 토큰 · 16분) 가 Functional Design Step 1 ~ 4 를 마쳤다. 계획 construction/plans/checkpoint-functional-design-plan.md — 받는 일 스물 (1절) · 오늘의 코드와 측정 (2절) · 묻지 않고 정한 것 열다섯 (3절) · 물음 아홉 (4절 · 권장 모두 A) · Step 5 이후 체크박스 (5절). 물음 — 1 on-failure 가 보존하는 실패 · 2 요구하지 않은 단계와 native 노드의 receipt 상태 · 3 실패한 굽기 build 의 upper (bake 넘김) · 4 설정 블록의 키 이름과 단위 · 5 기본값과 양을 소유자가 보는 자리 · 6 보존본을 여는 길과 일찍 버리는 길 · 7 퇴출 · 만료된 보존본을 조회가 기억하는 기간 · 8 불투명 ID 의 모양 · 9 diagnostics 의 실패 상세 자리. 측정 못 한 것 — namespace 안에서 subordinate uid 소유 0600 파일 읽기 (이 기계에서 newuidmap 이 Operation not permitted · 물음 6 의 A 가 기댄다). 진행자 확인 — 인용 주소 (finalize.go:230-235 의 Close 오류가 finalize 칸을 error 로 · result.go 의 CheckpointCapture 칸 일곱과 Diagnostics 에 보존 칸 없음 · bake_build.go failEnd 의 Keep{} · config.go:97 min_free_gb · bake code-summary 6절의 커버리지 86.7 · 80.8 · 결정 2-2 · 2-3 · 2-7 · 2-8 · 2-10 · 2-11 · scene-gates 조각 9 줄 · ADR-076 §4 · §5 · §10) 가 맞다. 진행자가 물음 10 을 더했다 — 결과 보고가 거절되거나 임대가 만료된 단계의 보존본 (3절 7번은 TTL 까지 남긴다고 정했는데 ADR-076 §4 끝 「정책에 따라 만료 · 정리」가 곧바로 치우는 것으로도 읽힌다 · 권장 A TTL 까지). 3절 7번에 (물음 10) 을 달고 5절 첫 체크박스에 7 과 10 의 짝을 더했다. Step 5 에 넘길 것 하나 — 3절 2번 (keep 실패를 Close 오류에서 뗀다) 은 ADR-076 §4 의 「Close 오류를 무시해 성공으로 봉인하지 않는 기존 수명 규칙은 유지한다」와 함께 서려면 spool 로 옮기기의 실패만 떼고 unmount · trash 옮기기 같은 나머지 Close 오류는 오늘처럼 error 로 남는다고 규칙에 적어야 한다. 검사 — emphasis-check.py exit 0 · 말투 grep 0 · [Answer]: 열 · 새 축약어 0 · 새 파일은 계획 하나. 커밋은 승인 뒤다.
+**Context**: Construction · U8 checkpoint · Functional Design Step 1 ~ 4 · 답 대기
+
+---
+## Construction · U8 `checkpoint` · 물음 5 설명
+**Timestamp**: 2026-09-30T13:30:00Z
+**User Input**: "5번 설명"
+**AI Response**: 물음 5 를 풀어 설명했다 — 기본 보존 (on-failure · 48시간 · 20%) 이 설정 없이도 켜지는데 소유자가 그것과 끄는 법을 읽을 자리가 없다 (완료 조건 3 ③ · US-5) · spool 양을 보여야 한다 (완료 조건 2). 오늘 자리는 상태 파일의 scratch 칸과 제어판의 trash 한 줄. A 는 그 두 자리에 보존 양 · 수 · 실효 정책 한 줄 · 바꾸는 자리 · 자격증명 캐시 안내 (제어판 모형을 보였다) · 기동 로그 영어 한 줄 · native 는 한 줄. B 는 SampleLocal (설정이 없을 때만 보임) 주석 · C 는 packaging/macos/examples 넷 (native 라 보존이 안 되고 행렬 밖). 제어판 문구는 화면 안의 글이라 오늘처럼 한국어 · 영어 규약은 로그 줄에만 걸린다.
+**Context**: Construction · U8 checkpoint · Functional Design · 물음 설명
+
+---
+## Construction · U8 `checkpoint` · 물음 열의 답
+**Timestamp**: 2026-09-30T13:41:44Z
+**User Input**: "답했다."
+**AI Response**: 계획 파일의 [Answer]: 열이 모두 A 다 (1 노드가 아는 실패 전부 · 2 정책이 먼저 · 3 build 끝의 실패만 보존 · 4 단위를 이름에 · 5 상태 파일과 제어판 · 6 새 명령 없이 show 가 알림 · 7 퇴출은 원래 만료까지 기억 · 8 무작위 12 hex · 9 diagnostics.checkpoint 영어 문장 · 10 보고가 안 닿아도 TTL 까지). QA 를 돌릴지의 물음에는 답이 없어 진행자의 권장 (QA 에이전트 없음 · 진행자가 좁게 확인) 으로 간다. Functional Design Step 5 ~ 7 (답 분석 · 되물음이 필요하면 되물음 파일 · 산출물 셋) 을 같은 작성 서브에이전트에게 이어 맡긴다.
+**Context**: Construction · U8 checkpoint · Functional Design Step 5 · 답
+
+---
+## Construction · U8 `checkpoint` · Functional Design 산출물
+**Timestamp**: 2026-09-30T13:53:30Z
+**User Input**: (없음 — 답에 이어 산출물)
+**AI Response**: 같은 작성 서브에이전트 (aidlc-xhigh · 하위 에이전트 없음 · 약 43만 토큰 · 10분) 가 Step 5 ~ 7 을 마쳤다. 짝 넷 (1 과 3 · 2 와 5 · 4 와 7 · 7 과 10) 에 사용자가 정할 모순이 없어 되물음 파일을 만들지 않았다. 산출물 셋 construction/checkpoint/functional-design/ — domain-entities.md 220 줄 · business-rules.md 254 줄 (보존을 요구하는가 · 판정 차례와 전이 · keep 의 실패와 Close 의 오류 · 칸이 있는 때 · 받아들임 · 보고 뒤 판정과 퇴출 · TTL · 보고의 성패 · 재시작 조정 · 설정 · spool 과 보안 · 보이는 자리 · 조회 · 노드 로그) · business-logic-model.md 222 줄 (closeOut 흐름 · 굽기 build 의 끝 · 보고 뒤 · 기동 · 측정 입구 · 조회 · 시험과 조각 9 여덟 줄 · 코드 자리와 커버리지 · 행렬 밖 · 고친 회차 문서 · 넘기는 것 · 정본 되돌림 열둘 · 추적). 계획 5절 체크박스 여섯 [x]. 고친 회차 문서 — inception/application-design/component-methods.md 세 곳 (MaxInodes 는 보존본 전체 · Store.Keep 을 Reserve · Commit 으로 · result 의 보존 칸 타입). 답에 없던 결정 가운데 사용자에게 보이는 것 — 설정 검증 (ttl_hours 1 이상 · capacity_percent 1 ~ 100 · max_gb · max_total_inodes 1 이상 · 0 은 기본값 · 끄는 길은 policy: off 하나 · 틀리면 노드가 안 뜬다) · 상태 파일 칸 · 제어판 문구 다섯 · 기동 로그 셋 · diagnostics 문장 아홉 · list 칸과 상태 글자 · show 모양 · 보고의 성패 값 넷 (delivered · rejected · lease_ended · unknown) · 판정 주기 10분 · 노드 로그 일곱. 진행자 확인 — git status (새 폴더 · 계획 · component-methods.md 만) · emphasis-check.py 새 문서 셋 · 계획 · component-methods.md 모두 exit 0 · 사내 이름 grep 0 · 말투 grep 0 · component-methods.md diff 를 읽었다 · 규칙 1 ~ 3절 (진행자가 짚은 keep 실패 분리가 ADR-076 §4 두 문장과 함께 선다) · 10 ~ 14절 (사용자에게 보이는 값) · 흐름 7절 (조각 9) · 9 ~ 12절 (행렬 밖 · 넘김 · 되돌림) 을 읽었다. bake business-rules.md:118-120 은 이미 「checkpoint 유닛이 보존하면 다시 본다」로 적혀 있고 답 3 A 로 결론 (첫 실패에서 멈춤) 이 그대로라 고치지 않는다. 사용자에게 알릴 것 — ttl_hours 가 정수 시간이라 조각 9 의 TTL 확인 (4번) 이 한 시간 넘게 걸린다. 승인을 묻는다 — Request Changes 또는 Continue to Next Stage (다음은 이 유닛의 NFR Requirements).
+**Context**: Construction · U8 checkpoint · Functional Design Step 6 · 7 · 승인 대기
+
+---
+## Construction · U8 `checkpoint` · Functional Design 승인
+**Timestamp**: 2026-09-30T14:05:25Z
+**User Input**: "다음"
+**AI Response**: Functional Design 승인 (Continue to Next Stage). 조각 9 의 TTL 확인이 한 시간 넘게 걸리는 것은 그대로 둔다 (진행자 권장 — Code Generation 이 TTL 단계를 먼저 걸고 기다리는 동안 나머지를 돌린다). 상태 파일에 승인을 적고 이 단계의 산출물 (계획 · 산출물 셋 · component-methods.md 고침 · 상태 · 감사 · 앞 세션의 착수 기록) 을 unit/checkpoint 에 커밋한다. 다음은 이 유닛의 NFR Requirements (유닛 정의 8절 — N2 · 보안 · 성능) · 계획과 물음은 같은 작성 서브에이전트에게 맡긴다.
+**Context**: Construction · U8 checkpoint · Functional Design 승인 · NFR Requirements 착수
+
+---
