@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U7 bake 의 Code Generation 승인 2026-09-30T05:50:37Z (「승인. 커밋해」) · unit/bake 에 한 커밋 · push 와 PR 은 안 함. 병합 조건 — 사람 조각 6 · 7 · 8 (SunnyVM · code-summary 8절) 이 아직 안 돌았다. PR 은 그 뒤이고 올리기 전에 묻는다. 다음 유닛 U8 checkpoint. 계획 construction/plans/bake-code-generation-plan.md (단계 스물둘 · 체크박스 88 · 4절 서른넷 · 물음 다섯 답함). QA 지적 마흔여섯은 작성 서브에이전트의 반영 보고뿐이고 진행자는 넷만 확인 · 4절 30 ~ 34 번은 검수받지 않음 · NFR 건너뜀 2026-09-27T13:14:53Z · Functional Design 은 승인 2026-09-27T12:54:46Z · 커밋 fb86ad2 (브랜치 `unit/bake` · main `0262155` 에서 땄다). U6 lower-state 는 PR #66 으로 병합 2026-09-27T04:23:29Z · U5 merge-rules 는 PR #65 로 병합 2026-09-26T16:50:25Z · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U7 bake 조각 6 · 7 · 8 진행 중. 조각 7 에서 찾은 흠 (symlink 워크스페이스의 metadata fsync ENOTDIR) 을 고쳐 커밋 (2026-09-30T11:55:09Z · 사용자 선택 「굽기 코드에서 고침」). 다음 — 집행 에이전트가 고친 빌드로 조각 6 · 7 · 8 을 다시 돈다 · 판정은 사용자. PR 은 조각이 초록인 뒤이고 올리기 전에 묻는다. Code Generation 승인 2026-09-30T05:50:37Z (7116e8d).
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -383,6 +383,9 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           integration — SunnyVM 에서 다섯 모두 초록.  진행자의 다시 돌리기 — 통과 2,562 · 실패 0 · 스킵 0 · 80% 하한 미달 0 ·
                           전체 87.7% · 노드 패키지 여섯 -count=5 통과 6,800 실패 0 · race 경합 0.
                           Code Generation 승인 2026-09-30T05:50:37Z (「승인. 커밋해」) — unit/bake 에 한 커밋 · push 와 PR 은 안 함.
+                          조각 6 · 7 첫 실행 2026-09-30T10:00:23Z (집행 에이전트 · SunnyVM) — 조각 6 끝까지 · 조각 7 에서 흠 (symlink 형제의 재개가
+                          metadata fsync 에서 ENOTDIR · 10분 뒤 광고 재개가 끝냄) 으로 멈춤 · 조각 8 안 돎.  고침 2026-09-30T11:55:09Z — lowerRootOf (상태 자리를 연
+                          때 푼 경로) · 시험 둘 · 진행자 확인 초록 (통과 2,564).  조각을 다시 돈다
                           병합 조건 — 조각 5 green (slice-5.sh) · 조각 6 · 7 · 8 은 사람이 SunnyVM 에서 돈다 (code-summary 8절 · 아직 안 돌았다)
 ```
 

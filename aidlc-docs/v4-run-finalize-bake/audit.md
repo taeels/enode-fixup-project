@@ -1211,3 +1211,38 @@
 **Context**: Construction · U7 bake · Code Generation 승인 · 커밋
 
 ---
+## Construction · U7 `bake` · 사람 조각을 사람이 해야 하는 까닭
+**Timestamp**: 2026-09-30T07:37:40Z
+**User Input**: "사람이 꼭 직접 해야 하는 이유는"
+**AI Response**: 근거를 찾아 답했다 — 요구 팩 scene-gates.md 머리 「집행자는 그 유닛을 구현하지 않은 사람」 · 4절 「사람이 보는 조각을 코드 테스트가 초록이라는 것으로 대신하지 않는다」 · US-14. 까닭은 만든 쪽의 자기 채점을 막는 것 (코드 · 시험 · 조각 스크립트를 모두 같은 작성 에이전트가 썼다 · 단위 시험은 가짜 helper 와 가짜 세션으로 돈다 · U6 의 거짓 초록). 사람이 꼭 해야 하는 것은 판정이고 손으로 돌리는 것은 아니다 — U3 조각 2 는 에이전트가 PAUSE=0 으로 돌리고 사용자가 판정했다 (이 audit 의 U3 조각 2 항목). 진행자가 SunnyVM 에서 확인했다 — 비밀번호 없는 sudo 가 된다 (조각 8 의 bind mount 가 가능) · 사용자 계정은 sunny 하나 (조각 8 의 5 「다른 uid 의 노드」 는 계정을 새로 만들어야 한다). 사용자에게 에이전트가 돌리고 사용자가 판정하는 길을 권했다.
+**Context**: Construction · U7 bake · 사람 조각 6 · 7 · 8 을 누가 돌리나
+
+---
+## Construction · U7 `bake` · 조각 6 · 7 · 8 실행 착수
+**Timestamp**: 2026-09-30T08:53:17Z
+**User Input**: "그래 해봐"
+**AI Response**: 권한 방법 (에이전트가 SunnyVM 에서 조각 6 · 7 · 8 을 돌리고 조각마다 볼 것과 실제 출력을 나란히 보인다 · 판정은 사용자) 과 조각 8 의 5 를 위한 SunnyVM 시험용 계정을 만드는 것을 함께 물은 데 대한 답으로 받았다. 돌리는 쪽은 코드를 쓴 작성 에이전트가 아니라 새 에이전트 하나 (하위 에이전트 없음) — scene-gates.md 의 「집행자는 그 유닛을 구현하지 않은 사람」 에 가깝게 둔다. 차림은 U4 조각 4 와 같다 — 이 기계의 스크래치 Mediator (이 브랜치 7116e8d 빌드 · 새 DB) 와 SunnyVM 의 조각 전용 노드 둘 (같은 빌드). SunnyVM 에서는 버려도 되는 자리에서만 · /srv/yocto 와 사용자의 떠 있는 노드 · 공유 rootfs 는 건드리지 않는다. sudo 는 bind mount 와 시험용 계정 (끝에 지운다) 에만. 제품 코드는 고치지 않는다 — 제품의 흠으로 보이면 멈추고 보고한다. 조각 스크립트의 작은 고침은 diff 와 함께 보고한다.
+**Context**: Construction · U7 bake · 조각 6 · 7 · 8 실행
+
+---
+## Construction · U7 `bake` · 조각 6 · 7 실행 결과와 제품의 흠
+**Timestamp**: 2026-09-30T10:00:23Z
+**User Input**: (없음 — 조각 집행 에이전트가 끝났다)
+**AI Response**: 조각 집행 에이전트 (general-purpose 하나 · 하위 에이전트 없음 · 약 32만 토큰 · 65분) 가 조각 6 을 끝까지 · 조각 7 을 일부 돌리고 제품의 흠으로 멈췄다. 조각 8 과 8.4 는 안 돌았다. 기록은 code-summary.md 8.5 (판정은 사용자). 차림 — 스크래치 Mediator 192.168.219.203:18080 · DB enode_slice_bake · 광고 주기 60초 · SunnyVM ~/bake-slice-20260930-1800/ 의 노드 둘 (bake-a 굽는 노드 · bake-b symlink 형제 · env check 21줄 ready) · rootfs 는 /srv/enode-env/store 를 읽기만 · SYNC_URL 은 조각 자리의 git daemon. bind mount 와 시험용 계정은 만들지 않았다. 흠 — symlink 형제가 끊긴 합치기를 이을 때 metadata 를 쓴 뒤 lower 뿌리 fsync 에서 ENOTDIR (resume failed; trying again in 10m · 두 번). 진행자가 코드로 확인했다 — Baker.lowerRoot 가 설정의 symlink 글자 그대로 lower.WriteMetadata 로 가고 syncDir 가 O_NOFOLLOW 로 연다 (bake_resume.go:219 · bake_merge.go:153 · lower/dir_linux.go:250 · perm_linux.go:27). 시작 전 확인은 symlink 를 풀어 통과하므로 lower 는 이미 합쳐진 뒤다. 재개는 약 10분 뒤 광고 주기가 committed 로 옮기고, 굽는 노드의 워크스페이스가 symlink 면 merge 단계가 lower 를 합친 뒤 실패로 끝난다 (추정 · 같은 호출). 조각 6 의 기대와 다른 점 — pinned null · branch 빈 글자 (sync 가 git 모양이라서) · 빈 lower 인데 merge 가 1분 52초 기다림 (형제가 후보로 쥔 공유를 drain 두 번 뒤 놓는다 · lower-state 답 1 의 설계값) · draining 을 한 광고 주기 전에 찍음 (스크립트) · took 시각이 0.3초 어긋남 (스크립트의 반올림) · A 와 B 가 같은 IR (차림). 조각 스크립트 고침 (커밋 안 됨) — bake-common.sh 의 step_log 에 ?name= · hold_lower 를 flock -s -o 와 pkill -P 로. 사용자에게 흠과 고치는 길을 묻는다.
+**Context**: Construction · U7 bake · 조각 6 · 7 · 흠 발견 · 사용자에게 묻는다
+
+---
+## Construction · U7 `bake` · symlink 워크스페이스 흠을 고치는 길
+**Timestamp**: 2026-09-30T11:34:34Z
+**User Input**: "굽기 코드에서 고침 (Recommended)" (질문 — symlink 워크스페이스의 metadata 흠을 어떻게 할까요? 선택지: 굽기 코드에서 고침 / lower 패키지에서 고침 / 조각 8 먼저 돌리고 고침은 뒤에)
+**AI Response**: 코드를 쓴 작성 에이전트를 이어 불러 굽기가 시작할 때 워크스페이스 경로를 symlink 를 푼 진짜 경로로 한 번 바꿔 쥐게 고치고, 워크스페이스가 symlink 인 노드의 merge 단계와 재개 시험 둘을 더하게 한다. lower 패키지 (앞 유닛 코드) 는 고치지 않는다. 진행자가 다시 돌려 확인한 뒤 고침 커밋 하나. 이어서 조각 집행 에이전트가 조각 7 · 8 전부와 조각 6 의 스크립트 어긋남 셋 (draining 시각 · took 반올림 · A 와 B 의 같은 IR) 을 고친 부분을 다시 돈다. 판정은 그 뒤 사용자가 한 번에.
+**Context**: Construction · U7 bake · 흠 고침 착수
+
+---
+## Construction · U7 `bake` · symlink 워크스페이스 흠 고침 · 진행자 확인 · 커밋
+**Timestamp**: 2026-09-30T11:55:09Z
+**User Input**: (없음 — 「굽기 코드에서 고침」 에 이어)
+**AI Response**: 작성 에이전트 (이어 부름 · 약 47만 토큰 · 13분) 가 고쳤다 — Baker 의 lowerRoot 칸 (설정의 ws 글자) 을 없애고 굽기의 lower 뿌리 파일 일 (metadata 읽기 · 쓰기 · merge-helper 요청의 Lower · previousIR) 을 lowerRootOf(dir) = LowerGuard 가 상태 자리를 열 때 lower.ReadRoot 로 symlink 를 푼 경로 (lower.Dir 의 Root.Path) 로 한다 (bake.go:97 · bake_merge.go:117 · :153 · bake_resume.go:196 · :204 · :219 · bake_build.go:124). 따로 한 번 더 풀지 않고 상태 자리의 키 · 그물 · 시작 전 확인과 같은 값을 쓴다. 못 풀면 상태 자리가 안 열리는 기존 갈래 그대로. internal/lower 와 O_NOFOLLOW 는 그대로. 광고 ws 는 설정 글자 그대로 (계약이 그 글자로 노드를 고른다). 새 시험 둘 — TestMergeStep_ALinkedWorkspaceMerges · TestResume_ALinkedSiblingFinishesAtOnce. code-summary 5절 끝에 항목 · 6절 숫자. 진행자 확인 — 고친 diff 를 읽었다 (merge 단계의 dir 은 nil 이면 먼저 실패로 끝난다) · gofmt · vet (보통 · integration) · build · CI 커버리지 명령 통과 2,564 · 실패 0 · 스킵 0 · 80% 하한 미달 0 · 전체 87.7% · 새 시험 둘 -count=10 초록 · 고치기 전 코드 (7116e8d 를 풀고 새 시험 파일만 얹음) 에서 둘 다 not a directory 로 실패 · internal/enode -count=3 · race 초록. 고침 · 조각 스크립트 고침 (집행 에이전트의 bake-common.sh) · code-summary (5 · 6 · 8.5절) · 상태 · 감사를 unit/bake 에 한 커밋으로 넣는다. 다음 — 집행 에이전트가 고친 빌드로 조각 6 (스크립트 어긋남 셋을 고친 뒤) · 7 · 8 · 8.4 를 다시 돈다.
+**Context**: Construction · U7 bake · 흠 고침 커밋 · 조각 다시 돌리기 앞
+
+---

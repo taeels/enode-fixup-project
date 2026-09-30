@@ -193,7 +193,7 @@ func (b *Baker) completeMerge(dir *lower.Dir, lock *lower.Bake, st lower.State) 
 		// 초안은 pending 보다 먼저 fsync 로 디스크에 있고 committed 뒤에만 옮긴다 — 없으면 사람이 봐야 한다
 		return result, err
 	}
-	md, _ := lower.ReadMetadata(b.lowerRoot)
+	md, _ := lower.ReadMetadata(lowerRootOf(dir))
 	if !finished(md, run, d) {
 		switch _, err := os.Lstat(upper); {
 		case err == nil:
@@ -201,7 +201,7 @@ func (b *Baker) completeMerge(dir *lower.Dir, lock *lower.Bake, st lower.State) 
 			if err := os.MkdirAll(trash, 0o700); err != nil {
 				return result, fmt.Errorf("cannot create the trash of the pending upper: %w", err)
 			}
-			req := mergeHelperRequest{Op: "preflight", Upper: upper, Lower: b.lowerRoot, Trash: trash}
+			req := mergeHelperRequest{Op: "preflight", Upper: upper, Lower: lowerRootOf(dir), Trash: trash}
 			if _, err := callMergeHelper(req); err != nil {
 				return result, err
 			}
@@ -216,7 +216,7 @@ func (b *Baker) completeMerge(dir *lower.Dir, lock *lower.Bake, st lower.State) 
 			return result, err
 		}
 		// Apply 와 rmdir 이 끝났다 — metadata 부터 (12.4). bake.node 는 합친 노드가 아니라 구운 노드다 (12.5)
-		if err := writeMetadata(b.lowerRoot, metadataOf(d, run, d.Node, b.now(), true)); err != nil {
+		if err := writeMetadata(lowerRootOf(dir), metadataOf(d, run, d.Node, b.now(), true)); err != nil {
 			return result, err
 		}
 	}

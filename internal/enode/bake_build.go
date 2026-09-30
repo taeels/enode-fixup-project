@@ -120,8 +120,8 @@ func (b *Baker) takeForBuild(step *Step) (*heldBake, *lower.LastAttempt, string,
 }
 
 // previousIR 은 굽기 잠금을 잡은 뒤 읽은 lower 의 source.ir 이다 — 초안에 둔다 (결정 4). 못 읽으면 null 과 경고 한 줄.
-func (b *Baker) previousIR() *string {
-	md, err := lower.ReadMetadata(b.lowerRoot)
+func (b *Baker) previousIR(dir *lower.Dir) *string {
+	md, err := lower.ReadMetadata(lowerRootOf(dir))
 	if err != nil {
 		b.log.Warn("bake: cannot read the previous metadata; previous_ir is null", "err", err)
 		return nil
@@ -176,7 +176,7 @@ func (w *Worker) runBuildStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	log.Info("bake: holding the lower for run "+step.RunID, "run", step.RunID)
 	r := &buildRun{w: w, b: b, h: h, step: step, runCtx: runCtx, ctx: ctx, log: log, base: base, dir: dir, out: out,
 		owner: &lower.Owner{Run: step.RunID, Step: step.Seq, Node: b.node, Instance: b.instance}}
-	previousIR := b.previousIR()
+	previousIR := b.previousIR(h.dir)
 
 	pending, err := makePending(b.scratch, h.dir.Root.Key.String())
 	if err != nil {

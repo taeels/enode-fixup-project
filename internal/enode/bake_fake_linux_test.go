@@ -181,6 +181,7 @@ func (s *fakeSession) Environment() *execenv.Record { return s.record }
 // bakeFixture 는 굽는 노드 하나다 — 진짜 lower 자리 · Baker · 가짜 런타임 · 가짜 Mediator 와 Worker.
 type bakeFixture struct {
 	guardFixture
+	nodeWS  string // 노드 설정의 워크스페이스 글자 — 보통은 ws 와 같고 linked 면 ws 를 가리키는 symlink 다
 	t       *testing.T
 	scratch string
 	nodeLog *lockedBuffer
@@ -195,7 +196,24 @@ type bakeFixture struct {
 
 func newBakeFixture(t *testing.T) *bakeFixture {
 	t.Helper()
+	return newBakeFixtureAt(t, false)
+}
+
+// newBakeFixtureAt 의 linked 가 참이면 노드의 워크스페이스 (설정의 ws 글자) 가 lower 를 가리키는 symlink 다 — 조각 7
+// 의 symlink 형제 모양. f.ws 는 늘 진짜 lower 다 (시험이 목록과 metadata 를 거기서 읽는다).
+func newBakeFixtureAt(t *testing.T, linked bool) *bakeFixture {
+	t.Helper()
 	f := &bakeFixture{guardFixture: newGuardFixture(t), t: t, nodeLog: &lockedBuffer{}}
+	f.nodeWS = f.ws
+	if linked {
+		f.nodeWS = filepath.Join(filepath.Dir(f.ws), "ws-link")
+		if err := os.Symlink(f.ws, f.nodeWS); err != nil {
+			t.Fatal(err)
+		}
+		f.g = newLowerGuard(f.lowers, f.nodeWS, Identity{NodeID: "node-a", Label: "box-a"},
+			slog.New(slog.NewTextHandler(f.guardFixture.log, nil)))
+		f.g.start()
+	}
 	f.scratch = filepath.Join(filepath.Dir(f.ws), "scratch")
 	if err := os.Mkdir(f.scratch, 0o700); err != nil {
 		t.Fatal(err)
@@ -211,7 +229,7 @@ func newBakeFixture(t *testing.T) *bakeFixture {
 	f.w.RuntimeRecord = &execenv.Record{Runtime: "runc-overlay", PreparedEnvironment: "prep-1", WorkspaceTarget: "/work"}
 	f.w.Guard = f.g
 	f.w.Bake = f.b
-	f.w.Local = Local{Workspace: f.ws}
+	f.w.Local = Local{Workspace: f.nodeWS}
 	return f
 }
 

@@ -27,7 +27,13 @@ import (
 // 를 더하고 d 를 파일로 바꾼다 (lower 의 d 가 trash 로 간다).
 func mergeFixture(t *testing.T) *bakeFixture {
 	t.Helper()
-	f := newBakeFixture(t)
+	return mergeFixtureAt(t, false)
+}
+
+// mergeFixtureAt 의 linked 는 newBakeFixtureAt 과 같다 — 노드의 워크스페이스가 lower 를 가리키는 symlink 다.
+func mergeFixtureAt(t *testing.T, linked bool) *bakeFixture {
+	t.Helper()
+	f := newBakeFixtureAt(t, linked)
 	useTestMergeHelper(t, "")
 	write(t, f.ws, "a.txt", "old a")
 	write(t, f.ws, "d/old", "old")
@@ -110,6 +116,38 @@ func TestMergeStep_Merges(t *testing.T) {
 	if log := f.m.logOf("merge"); !strings.Contains(log, "bake: merged: ops ") || strings.Contains(log, f.scratch) {
 		t.Fatalf("merge step log = %s", log)
 	}
+}
+
+// 워크스페이스가 lower 를 가리키는 symlink 인 노드도 합치고 metadata 를 쓰고 committed 로 끝난다. lower 파일 일은
+// 상태 자리를 연 때 symlink 를 푼 lower 뿌리 (lower.Dir 의 Root.Path) 로 한다 — lower.WriteMetadata 는 O_NOFOLLOW 로
+// 뿌리를 열어 fsync 하므로 설정의 symlink 글자로는 합친 뒤에 ENOTDIR 로 멈췄다 (조각 7 에서 찾았다).
+func TestMergeStep_ALinkedWorkspaceMerges(t *testing.T) {
+	f := mergeFixtureAt(t, true)
+	if fi, err := os.Lstat(f.nodeWS); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("the node workspace is not a symlink: %v %v", fi, err)
+	}
+	f.w.execute(context.Background(), mergeStepOf("r1"))
+	res := f.m.lastResult(t)
+	if res.Error != "" || res.Reason != "" || res.Merge == nil || !reflect.DeepEqual(res.Produced, []string{contract.ArtifactMerged}) {
+		t.Fatalf("result = %+v", res)
+	}
+	if b, _ := os.ReadFile(filepath.Join(f.ws, "new.txt")); string(b) != "new" {
+		t.Fatalf("lower new.txt = %q", b)
+	}
+	md, err := lower.ReadMetadata(f.ws)
+	if err != nil || md == nil || md.Bake.Run != "r1" || md.Bake.Resumed {
+		t.Fatalf("metadata = %+v %v", md, err)
+	}
+	if fi, err := os.Lstat(f.nodeWS); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("the workspace symlink was replaced: %v %v", fi, err)
+	}
+	if st := f.state(t); st.Phase != lower.PhaseCommitted || st.LastAttempt != nil {
+		t.Fatalf("state = %+v", st)
+	}
+	if f.held() != nil || f.guardBake() != "" || f.g.mark.Run != "r1" {
+		t.Fatalf("held %v guard %q mark %+v", f.held(), f.guardBake(), f.g.mark)
+	}
+	released(t, f)
 }
 
 // 형제가 공유를 쥔 동안 기다린다 — 단계 로그와 진행 청크에 쥔 쪽 줄이 있고, 형제가 놓으면 합친다.

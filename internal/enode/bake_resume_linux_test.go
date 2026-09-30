@@ -76,6 +76,26 @@ func resumed(t *testing.T, f *bakeFixture, pending string) {
 	released(t, f)
 }
 
+// 워크스페이스가 lower 를 가리키는 symlink 인 형제가 끊긴 합치기를 한 번에 끝낸다 — 10분 재시도 없이. 조각 7 에서
+// symlink 형제의 재개가 합친 뒤 metadata 쓰기에서 ENOTDIR 로 멈추고 10분 뒤의 재개가 committed 로 옮겼다.
+func TestResume_ALinkedSiblingFinishesAtOnce(t *testing.T) {
+	f := newBakeFixtureAt(t, true)
+	useTestMergeHelper(t, "")
+	pending := f.interrupted(t, lower.PhaseMerging, f.scratch, true, true)
+	f.staleOnce(t)
+	resumed(t, f, pending)
+	if b, _ := os.ReadFile(filepath.Join(f.ws, "built", "out.bin")); string(b) != "out" {
+		t.Fatalf("the upper was not merged: %q", b)
+	}
+	md, err := lower.ReadMetadata(f.ws)
+	if err != nil || md == nil || !md.Bake.Resumed || md.Bake.Run != "R-dead" {
+		t.Fatalf("metadata = %+v %v", md, err)
+	}
+	if fi, err := os.Lstat(f.nodeWS); err != nil || fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("the workspace symlink was replaced: %v %v", fi, err)
+	}
+}
+
 // 끝났는지 먼저 본다 (FD 규칙 12.4 의 넷) · run_id 만 같은 metadata 는 끝나지 않은 것이다.
 func TestResume_WhatIsLeft(t *testing.T) {
 	t.Run("no draft fails and stays merging", func(t *testing.T) {

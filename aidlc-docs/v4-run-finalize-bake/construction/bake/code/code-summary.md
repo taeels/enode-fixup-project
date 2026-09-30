@@ -197,6 +197,33 @@ builds 를 차례로 돌리고, 성공하면 upper 를 대기 자리로 옮긴 �
   코드의 구분선은 안 건드렸다 (Step 20)
 - **`BakeFlows` 시험과 재개 시험의 공유 변수 읽기** — 경합 검출기가 잡은 시험 쪽 읽기 둘 (`m.results` · `b.resuming`) 을 잠금 아래로 옮겼다.
   제품 코드의 경합은 아니다 (Step 20 전의 `-race`)
+- **워크스페이스가 symlink 인 노드의 합치기 뒤 metadata 쓰기 (조각 7 에서 찾았다 · 커밋 `7116e8d` 뒤에 고침)**
+  - 흠 — 조각 7 에서 symlink 형제 (ws 가 lower 를 가리키는 symlink) 의 재개가 lower 를 합친 뒤 `resume failed; trying again in 10m
+    err="lower: <ws>: not a directory"` 로 멈췄다. state 가 merging 에 약 10분 머문 뒤 광고 주기의 재개 (from=advert · ops 0) 가
+    committed 로 옮겼다. 굽는 노드의 ws 가 symlink 면 merge 단계도 같은 자리에서 `merge stopped:` 로 끝난다 (고치기 전의 시험으로 확인)
+  - 원인 — Baker 가 lower 뿌리를 설정의 ws 글자 (`guard.path`) 로 쥐었다. `lower.WriteMetadata` 는 rename 뒤 뿌리를 O_NOFOLLOW 로 열어
+    fsync 한다 (`internal/lower/perm_linux.go` 의 `syncDir`). merge-helper 의 시작 전 확인은 symlink 를 풀어 통과하므로 lower 는 이미
+    합쳐진 뒤에 실패한다. 기존 시험은 ws 를 진짜 경로로만 썼다
+  - 고친 자리 — Baker 의 `lowerRoot` 칸을 없애고 lower 뿌리의 파일 일을 `lowerRootOf(dir)` 로 한다 (`bake.go:97`). 그 값은 상태 자리를 연 때
+    LowerGuard 가 `lower.ReadRoot` 로 symlink 를 푼 진짜 경로 (`lower.Dir` 의 `Root.Path`) 다. 쓰는 자리 — merge 단계의 시작 전 확인과 합치기
+    요청 (`bake_merge.go:117`) · metadata 쓰기 (`:153`) · 재개의 metadata 읽기 (`bake_resume.go:196`) · 요청 (`:204`) · metadata 쓰기 (`:219`) ·
+    build 의 previous_ir 읽기 (`bake_build.go:124` · `previousIR(dir)`). 진행자가 준 길 (「시작할 때 한 번 푼 경로를 쥔다」) 을 한 번 푼 값을
+    다시 쓰는 방법으로 했다 — 상태 자리의 키 · 그물 (`ForeignMounts(dir.Root)`) · 시작 전 확인이 같은 값을 보고, 두 번 풀지 않으므로 그
+    사이에 symlink 가 바뀌어도 키와 파일이 다른 lower 를 보지 않는다. `internal/lower` 는 안 고쳤고 O_NOFOLLOW 도 그대로다
+  - 못 푸는 경우 (시작 때 ws 가 없음 등) — 새 갈래가 없다. 뿌리를 못 풀면 상태 자리를 못 연 것이라 오늘의 모양 그대로다 — build 와 merge
+    단계는 `cannot open the lower state directory` 로 끝나고, 기동 정리는 로그 한 줄로 건너뛰고, 광고 주기가 다시 연다. 판정 · 실패 등급 ·
+    보안 경계는 그대로다
+  - 함께 본 같은 모양과 고치지 않은 까닭 — LowerGuard 의 metadata 읽기 (`lowerguard.go:286` · `:296` 의 `ReadMetadata(g.path)` · 광고 키
+    bake.* 와 표지) 는 읽기라 O_NOFOLLOW 가 마지막 조각 (파일) 에만 걸려 symlink 뿌리를 지나 읽힌다 (새 merge 시험이 DropBake 뒤 표지의
+    Run 으로 확인). 자리를 못 열었을 때도 읽어야 해서 `Root.Path` 로 못 바꾸고, lower-state 코드라 그대로 둔다. 광고 키 `ws` 는 설정의 글자
+    그대로여야 한다 — 계약이 그 글자로 노드를 고르고, symlink 형제는 글자가 달라야 나뉜다 (조각 스크립트의 `SIBLING_WS`). 푼 경로로 바꾸면
+    두 형제의 ws 가 같아진다. bake.* 의 값은 metadata 의 run · node · ir 이라 경로가 없다. 세션 (runc-overlay 의 Open 이 워크스페이스를
+    푼다) · Prepare 의 저장소 확인 (읽기) · scratch 쪽 (대기 자리 · 초안 · trash — 마지막 조각이 노드가 만든 진짜 디렉터리다) 에는 설정의
+    symlink 글자를 O_NOFOLLOW 로 여는 자리가 없다
+  - 시험 — `TestMergeStep_ALinkedWorkspaceMerges` (`bake_merge_linux_test.go` · 워크스페이스가 symlink 인 노드의 merge 단계가 합치고 metadata 를
+    쓰고 committed · symlink 는 그대로) · `TestResume_ALinkedSiblingFinishesAtOnce` (`bake_resume_linux_test.go` · symlink 형제의 재개가 한 번에
+    committed · retryAt 없음 · metadata resumed true). 틀은 `newBakeFixtureAt(t, linked)` 와 `mergeFixtureAt` (`bake_fake_linux_test.go` ·
+    `bake_merge_linux_test.go`). 고치기 전에 둘 다 빨갛다 — `merge stopped: lower: .../ws-link: not a directory` · state merging
 
 ---
 
@@ -207,14 +234,15 @@ builds 를 차례로 돌리고, 성공하면 upper 를 대기 자리로 옮긴 �
 | `gofmt -l .` | 빈 출력 |
 | `go vet ./...` · `go vet -tags integration ./internal/enode/ ./internal/merge/ ./internal/lower/` · `go build ./...` | exit 0 |
 | 시험 단계 `go test ./... -count=1` (`ci.yml:216` · 시험 DB · 가짜 claude 스텁) | exit 0 (77초) |
-| 커버리지 단계 (`ci.yml:267` 의 명령과 `:269` ~ `:300` 의 awk 그대로) | 통과 2,562 (Step 1 2,271 · 하위 시험 포함) · 실패 0 · 스킵 0 · 스물세 패키지 모두 80% 이상 (미달 0) · 전체 87.0% -> 87.6% (12,546/14,318) |
-| Step 1 과 댄 패키지 | `internal/enode` 84.4 -> 86.7 (4,583/5,285) · `cmd/enode` 80.5 -> 80.8 (198/245) · `internal/merge` 89.1 -> 88.9 (311/350 — 새 문장 가운데 statx 실패와 번호 없는 커널의 두 갈래는 못 닿는다) · `internal/contract` 92.5 · `internal/store` 82.9 · `internal/api` 82.5 (셋 그대로) · `internal/lower` 93.2 -> 93.3 |
+| 커버리지 단계 (`ci.yml:267` 의 명령과 `:269` ~ `:300` 의 awk 그대로) | 통과 2,564 (Step 1 2,271 · 하위 시험 포함) · 실패 0 · 스킵 0 · 스물세 패키지 모두 80% 이상 (미달 0) · 전체 87.0% -> 87.6% (12,550/14,319) — symlink 고침 뒤 다시 돈 값 (고치기 전 2,562 · 12,546/14,318) |
+| Step 1 과 댄 패키지 | `internal/enode` 84.4 -> 86.7 (4,583/5,286) · `cmd/enode` 80.5 -> 80.8 (198/245) · `internal/merge` 89.1 -> 88.9 (311/350 — 새 문장 가운데 statx 실패와 번호 없는 커널의 두 갈래는 못 닿는다) · `internal/contract` 92.5 그대로 · `internal/store` 82.9 -> 83.0 · `internal/api` 82.5 -> 82.7 (둘은 코드를 안 고쳤다 — 실행마다 몇 문장씩 흔들린다) · `internal/lower` 93.2 -> 93.3 |
 | 스킵 감시 (`ci.yml:343` ~ `:441` 의 awk 그대로) | 패키지 24 의 결과 · 허용목록 항목 0 · 허용목록 밖의 스킵 0 |
 | `go test -race -count=1 -timeout 30m ./internal/enode/ ./internal/lower/ ./internal/merge/` | exit 0 (135초) · 통과 977 · 경합 0 |
 | `go test -race -count=10 -run '^TestHeldBake_OneBodyUnderRace$' ./internal/enode/` | exit 0 |
 | 흔들림 — 새 시험 `-count=20 -timeout 30m` (다섯 패키지 · `-run` 은 Step 1 의 목록과 지금 `go test -list .` 의 차이 · 이름 91) | exit 0 (377초) · 통과 1,820 (91 x 20) · 실패 0 · 스킵 0 |
 | 흔들림 — CPU 부하 아래 (`taskset -c 0,1` 로 새 시험 `-count=3` · 옆에서 `taskset -c 0,1 go test -count=3 ./internal/lower/ ./internal/scratch/ ./internal/merge/` 를 끝날 때까지 되풀이) | exit 0 (71초) · 통과 264 (88 x 3) · 실패 0 · 옆의 다섯 번 실패 0 |
 | 흔들림 — `internal/enode` 전체 `-count=5 -timeout 30m` | exit 0 (226초) · 윗 시험 통과 2,730 (546 x 5) · 실패 0 |
+| symlink 고침 뒤 — 새 시험 둘 `-count=20` · `internal/enode` `-count=3` · `go test -race ./internal/enode/` | 통과 40 · 실패 0 · 스킵 0 / exit 0 (137초) · 윗 시험 통과 1,644 (548 x 3) · 실패 0 / exit 0 (180초) · 통과 843 · 경합 0 |
 | 크로스 빌드 셋 (windows/amd64 · linux/arm GOARM=7 · darwin/arm64) | exit 0 |
 | `GOOS=windows go test -c -o /dev/null ./internal/enode/` | Step 1 과 같은 오류 셋 (`overlay_test.go:41` · 이 유닛 전부터) |
 | `enodectl.exe` 심볼 | crypto/tls 1 · net/http 6 (상한 10 · 50) |
@@ -392,6 +420,192 @@ SIBLING_WS=<alias place>/lower scripts/finalize-bake/slice-8.sh
   (runc-overlay 면 lower 위에 overlay 를 건다) 굽기를 내면, merge 가 배타를 잡은 뒤 단계 로그에 `found 1 overlay mount of this lower in
   another mount namespace; releasing the lock and waiting 60s` 와 그 마운트 줄이 나오고 그 명령이 끝날 때까지 합치지 않는다. 그물은 증거가
   아니다 — 옛 판을 모두 올린 뒤 굽는 것이 규칙이다 (스크립트의 첫 확인)
+
+### 8.5 실행 기록 (판정은 사용자)
+
+2026-09-30 에 조각을 돌리는 에이전트가 적었다. 이 유닛의 코드를 쓴 에이전트가 아니다 (8절 머리의 문장은 그 에이전트를 말한다). 초록과
+빨강은 적지 않는다 — 사용자가 판정한다. **조각 7 의 둘째 끊기에서 제품의 흠으로 보이는 것을 보고 그 자리에서 멈췄다.** 조각 7 의 나머지와
+조각 8 은 돌리지 않았다. 시각은 SunnyVM 노드 로그의 KST 다. SunnyVM 시계는 이 기계보다 약 0.3초 늦다 (Record 를 풀 때 tar 가 「타임스탬프가
+0.32초 앞」 이라고 알렸다).
+
+#### 차림
+
+```text
+   Mediator      HEAD 7116e8d 로 빌드 · 이 기계 192.168.219.203:18080 · DB enode_slice_bake (시험 Postgres 127.0.0.1:55434)
+   광고 주기      60초.  Mediator 기본 lease.renew_seconds 를 바꾸지 않았다 — 조각 6 의 4 · 조각 8 의 2 의 기대 창 그대로
+   조각 자리      SunnyVM ~/bake-slice-20260930-1800/
+                    src     git archive 7116e8d 에 go mod vendor 를 더했다 (go 모듈과 캐시를 조각 자리 밖에 쓰지 않으려고)
+                    bin     그 소스로 SunnyVM 에서 빌드한 enode · enodectl (go 1.26.8)
+                    home    노드와 스크립트의 HOME.  lower 상태 자리 (home/.local/state/enode/lowers) 가 여기 생긴다.  스크립트에는
+                            LOWERS 로 같은 자리를 줬다
+                    place   lower · sibling (symlink) · scratch-a · scratch-b.  모두 / (sda2) 의 한 마운트
+   노드 둘        bake-a  굽는 노드 · ws place/lower · scratch place/scratch-a
+                  bake-b  형제 · ws place/sibling (-> place/lower) · scratch place/scratch-b
+                  둘 다 runc-overlay · workspace.writes=isolated 를 광고 · uid 1000 (lower 의 주인) · enodectl env check 21줄 모두 ready
+                  설정에 더한 둘 — labels slice=bake (그것 없이는 광고할 능력이 없다) · credentials.ssh_dir 에 빈 디렉터리 (프로필이 ssh
+                  readonly 라 없으면 env check 가 binding invalid)
+   rootfs        /srv/enode-env/store 의 준비된 실행 환경 (samsung-eabsp · sha256:c2a27ab9…) 을 읽기만 했다.  프로필 파일은 조각 자리로
+                  바이트 그대로 복사했다 (sha256 a9f3838d… 가 store 의 색인과 같다).  rootfs 에 bash 와 git 이 있다
+   SYNC_URL      git://127.0.0.1:19418/src.git — 조각 자리 안의 git daemon.  세션에 network namespace 가 없어 컨테이너가 호스트의
+                  127.0.0.1 에 닿는다.  IR=ir-1 (커밋 하나 · README 와 src/main.c)
+   BUILD_A · B   비웠다 — 스크립트의 기본 (워크스페이스에 파일 하나)
+   형제 모양      조각 6 · 7 은 symlink 형제.  조각 8 의 bind 별칭은 가지 못해 걸지 않았다
+   사람의 일      >> do: 의 노드 멈추기와 띄우기는 조각 자리의 driver.sh 가 했다 (SIGTERM 과 node.sh · 시각은 slice/driver-7.log).
+                  PAUSE=0
+```
+
+#### 조각 스크립트를 고친 것
+
+`scripts/finalize-bake/bake-common.sh` 한 파일 (+12 -3 · 커밋하지 않았다). 확인과 기대 창은 그대로다.
+
+```text
+   1  step_log     노드는 단계 로그를 단계 이름 (build · merge) 으로 올리는데 GET 에 name 이 없어 Mediator 가 기본 이름 step 의
+                   빈 로그를 돌려줬다.  조각 6 의 2 · 3 이 「waiting for the lower lock」 을 끝내 못 찾았다 (첫 판).
+                   고침 — seq 1 이면 ?name=build · 그 밖은 ?name=merge
+   2  hold_lower   flock 이 잠금 fd 를 자식 sleep 에 넘겨, release_lower 가 flock 만 죽이면 sleep 이 공유를 계속 쥐었다.  조각 7 의
+                   첫 끊기에서 merge 가 60초 안에 merging 에 들지 못해 스크립트가 멈췄다 (첫 판).
+                   고침 — flock -s -o (fd 를 자식에 넘기지 않는다) · release_lower 가 자식도 끝낸다 (pkill -P)
+```
+
+`slice-6.sh` 머리 주석의 「a bind alias of WS」 는 그대로 두었다 (8.1 이 맞다).
+
+#### 조각 6
+
+첫 판은 고침 1 때문에 2 · 3 에서 멈췄다 (그 판의 1 도 빈 lower 에서 같은 결과였다). lower 를 place/lower-run1 로 옮겨 두고 새 빈 lower 에서
+처음부터 다시 돌렸다. 아래는 둘째 판이다 (Run 이름 끝 1790759783).
+
+```text
+   1      볼 것   build · merge DONE · Run SUCCEEDED · metadata 의 칸 전부 · bake.run · bake.node · pending 까지 · safe.directory 거절 없음
+          실제    slice6-a — build DONE exit 0 · merge DONE · Run SUCCEEDED
+                  metadata — bake {run slice6-a · node 1e53e2bc0427 (bake-a) · merged_at · resumed false · previous_ir null} ·
+                  source {url · branch "" · repo_id 127.0.0.1/src · head 2e665c6 · ir ir-1 · pinned null · sync_command · synced_at} ·
+                  builds 둘 (명령 · 시각 · exit) · environment sha256:c2a27ab9… · workspace_target /work · schema 1
+                  build 로그 — sync exited 0 · ir ir-1 matches HEAD · 두 빌드 exited 0 · the upper is pending the merge step.  거절 줄 없음
+                  합치기 14 ms — 새 디렉터리 셋 · 새 파일 하나
+          다른 점  pinned 은 null · branch 는 빈 글자 — 저장소가 repo 모양이 아니라 git 이고 checkout 이 detached 다.
+                  merge 가 합치기 전에 1분 52초 기다렸다 — 빈 lower 여도 형제가 후보로 쥔 공유를 drain 이 두 번 받아들여진 뒤에
+                  놓는다 (대기 로그 「holds it as a candidate; its drain was acknowledged 0 of 2 times」)
+
+   2 · 3  볼 것   build 는 곧바로 · merge 가 기다린다 · 로그에 쥔 쪽 (형제 · 그 Run) · 노드 시계의 마감 · 남은 시간 · 형제 draining
+          실제    build 18:19:17.599 ~ 17.810 (0.21초) · merge 가 18:19:17.810 부터 기다림
+                  로그 「waiting for the lower lock; deadline 2026-09-30T13:19:17Z node clock (4h0m left)」 ·
+                  「node bake-slice@sunnyvm:bake-b holds it for run slice6-sibling-1790759783 since 2026-09-30T09:19:16Z」
+          다른 점  스크립트가 노드를 찍은 때 (merge 가 기다리기 시작한 직후) 두 노드 모두 draining "" 였다.  drain 은 다음 광고
+                  18:20:16 에 켜졌고 (두 노드 로그 「the lower is pending a merge; draining this node」) 에이전트가 18:20:17 에
+                  GET /v1/nodes 를 다시 보니 두 노드 모두 graceful.  스크립트가 한 광고 주기를 기다리지 않고 곧바로 찍는다
+
+   4      볼 것   released 는 형제 Run 끝에서 두 광고 주기 (120초) 안 · took 는 released 뒤 1초 안 · took 부터 committed 가 「몇 초」
+          실제    형제 Run 끝      18:24:17.015 (bake-b 로그 step finished · Record ended_at 09:24:17.033Z)
+                  형제 released    18:26:16.171 — Run 끝에서 1분 59.2초
+                  merge took       18:26:17.131 — released 뒤 0.960초
+                  합치기 · committed 18:26:17.173 (14 ms · ops 20 · replaced 5) · state.json since 09:26:17.174Z — took 부터 0.043초
+          다른 점  스크립트가 찍은 took (09:26:16.817Z) 과 took -> committed 0.348 s 는 Record 의 merge 시작에 대기 로그의 길이
+                  (6m59s · 초로 반올림) 를 더한 값이라 약 0.3초 어긋난다.  위의 값은 노드 로그의 event=took 줄이다
+
+   5      볼 것   두 노드가 ir 과 repo.built.config-a · config-b 를 광고
+          실제    /v1/capabilities (스크립트 · 합친 직후) — ir ir-1 · repo.built.config-a yes · config-b yes · ws 둘.  bake.run 은 아직
+                  slice6-a (다음 광고 전).  /v1/nodes (18:27:52) — 두 노드 모두 ir ir-1 · repo 127.0.0.1/src · repo.built.config-a ·
+                  config-b yes · bake.run slice6-b · bake.resumed false
+          다른 점  굽기 A 와 B 가 같은 IR (ir-1) 이라 광고의 ir 이 새 값으로 바뀌는 것은 보이지 않는다 — 스크립트가 IR 하나만 쓴다.
+                  /v1/capabilities 는 노드를 모은 값이라 노드마다는 /v1/nodes 로 봤다
+
+   6      볼 것   합치기 전 merged view 목록 == 합친 lower 목록
+          실제    50 항목 · 차이 없음
+
+   7      볼 것   빌드 실패 — build DONE exit 3 · config-b skipping · merge 는 합칠 것 없음 DONE · Run FAILED · last_attempt.
+                  IR 어긋남 — build DONE ir_mismatch · head · head_tags · manifest 없음 · 로그 끝의 문장 · Run FAILED
+          실제    slice6-fail — build DONE exit_code 3 · 로그 「bake: build config-a exited 3 after 0s」 「bake: skipping config-b;
+                  config-a failed」 · merge DONE · 로그 「bake: nothing to merge; the build step left no pending upper」 · Run FAILED ·
+                  last_attempt {run slice6-fail · reason "build config-a exited 3" · builds [config-a exit 3]}
+                  slice6-ir (계약 ir enode-slice-no-such-tag-1790759783 · sync 는 ir-1) — build DONE reason ir_mismatch · exit_code 0
+                  (마지막 계약 명령인 sync) · head 2e665c6 · head_tags [ir-1] · Record 에 blob 없음 · 로그는 두 빌드의 skipping 줄
+                  다음에 「bake: ir enode-slice-no-such-tag-1790759783 is not in the local repository after sync; the sync command must
+                  fetch that tag (HEAD is 2e665c6…, tags at HEAD: ir-1)」 로 끝난다 · merge DONE (합칠 것 없음) · Run FAILED ·
+                  last_attempt {run slice6-ir · reason ir_mismatch}
+          다른 점  없음.  둘 다 lower 를 바꾸지 않아 광고의 ir 은 굽기 B 의 ir-1 그대로다.  팩 조각 6 줄의 「manifest HEAD 에 IR
+                  태그가 없으면 ir 은 null 이고 광고하지 않는다」 모양은 이 스크립트가 따로 만들지 않는다
+```
+
+조각 6 과 7 의 merge 로그마다 `1 processes could not be read while scanning mounts` 한 줄이 있다 — 그물이 마운트를 훑다가 읽지 못한
+프로세스 하나다 (어느 것인지는 찾지 않았다). 찾은 마운트는 없었다.
+
+#### 조각 7
+
+첫 판은 고침 2 때문에 첫 끊기 전에 멈췄다. 남은 sleep 을 에이전트가 끝내자 그 굽기 (slice7-kill1-1790760536) 는 끊기지 않고 합쳤다 (ops
+50,024 · 540 ms) — 끊기 시험이 아니다. 아래는 둘째 판이다 (Run 이름 끝 1790760797).
+
+```text
+   준비            slice7-prime — Run SUCCEEDED · replaced 50,004 · resumed false
+
+   경우 1 · 0초    bake-b 는 이미 멈춰 있었다 · bake-a 떠 있음
+                   merging since 09:33:27.527Z · 0초 뒤 스크립트가 bake-a 를 SIGKILL (pid 3697014) · bake-b 띄움 18:33:28.036
+                   18:33:28.029  bake: resuming an interrupted merge  run=slice7-kill1 · node=1e53e2bc0427 · from=start
+                   18:33:28.629  WARN resume failed; trying again in 10m
+                                 err="lower: /home/sunny/bake-slice-20260930-1800/place/sibling: not a directory"
+                                 이때 합치기와 metadata 는 이미 끝났다 — bake {run slice7-kill1 · node 1e53e2bc0427 · merged_at
+                                 09:33:28.614Z · resumed true · previous_ir ir-1} · pending upper 는 없다 · state.json 은 merging
+                   18:44:28.223  bake: resuming an interrupted merge  from=advert
+                   18:44:28.247  bake: resumed the merge of run slice7-kill1 · ops=0 · took=24ms  -> committed
+                   합친 lower 목록 == 합치기 전 merged view 목록 (50,051 항목 · 차이 없음)
+                   원래 Run 은 Mediator 에서 FAILED — merge 단계 FAILED.  bake-a 를 다시 띄운 18:44:28 에 Mediator 로그
+                   「node restarted; in-flight steps marked failed」
+
+   경우 1 · 0.3초  merging since 09:44:35.532Z · 0.3초 뒤 SIGKILL (pid 3797897) · bake-b 띄움 18:44:36.173
+                   18:44:36.172  resuming from=start
+                   18:44:36.434  WARN resume failed; trying again in 10m  (같은 err)
+                   여기서 멈췄다 (09:45:08Z).  멈춘 뒤 노드를 그대로 두고 본 것:
+                   18:55:36.422  resuming from=advert · 18:55:36.456 resumed ops=0 -> committed (09:55:36.430Z)
+                   metadata bake {run slice7-kill2 · resumed true · merged_at 09:44:36.414Z}
+                   합친 목록 == 합치기 전 merged view (50,051 항목 · 스크립트의 listing 과 같은 find 로 에이전트가 손으로 견줬다)
+
+   경우 1 · 1초    못 봄
+   경우 2          못 봄 (떠 있는 형제가 한 광고 주기 안에 잇는다 · from=advert)
+```
+
+다른 점 — look 은 「형제가 시작 때 잇는다 (from=start 다음에 resumed 줄) · state.json committed」 다. 두 번 모두 from=start 의 재개가 합치기와
+metadata 까지 끝낸 뒤 state.json 을 committed 로 옮기지 못하고 실패했다. 10분 뒤 광고 주기의 재개 (from=advert) 가 committed 로 옮겼다.
+그 11분 동안 lower 는 merging 이다 (노드는 drain 하고 새 매칭이 없다). 목록 · metadata 의 resumed · 원래 Run 이름은 look 대로다.
+
+#### 제품의 흠으로 보이는 것 — 여기서 멈췄다
+
+**symlink 형제의 재개가 metadata 를 쓴 뒤 lower 뿌리의 fsync 에서 실패한다.**
+
+```text
+   경로       completeMerge (bake_resume.go:219) -> writeMetadata(b.lowerRoot, …) -> lower.WriteMetadata -> writeJSON (durable)
+              -> rename 뒤 syncDir(lowerRoot) -> unix.Open(dir, O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)  (perm_linux.go:224)
+   원인       b.lowerRoot 는 설정의 ws 글자 (symlink) 그대로다.  O_NOFOLLOW 와 O_DIRECTORY 로 symlink 를 열면 ENOTDIR 이고,
+              pathError 가 「lower: <ws>: not a directory」 로 적는다.  rename 은 이미 끝나 metadata 는 새것이다.  writeLowerState
+              앞에서 돌아가 state.json 은 merging 에 남는다.  staleRetry (10분) 뒤 광고 주기의 재개가 finished 를 참으로 보고 (ops 0)
+              committed 를 쓴다
+   확인       SunnyVM 에서 python3 os.open(<place>/sibling, O_RDONLY|O_DIRECTORY|O_NOFOLLOW) -> ENOTDIR · <place>/lower 는 열린다
+   로그       bake-b 18:33:28.629 · 18:44:36.434  WARN resume failed; trying again in 10m
+              err="lower: /home/sunny/bake-slice-20260930-1800/place/sibling: not a directory"
+   추정       굽는 노드의 ws 가 symlink 면 merge 단계도 같은 자리 (bake_merge.go:153 의 writeMetadata) 를 지나 Apply 뒤에 같은
+   (못 봄)    오류가 날 것이다.  이 조각은 굽는 노드를 진짜 경로로 두어 보지 않았다
+   문서       5절의 「lower 키와 merge 의 시작 전 확인은 symlink 를 푼다」 는 맞다.  metadata 쓰기의 디렉터리 fsync 는 풀지 않는다.
+              8.1 의 「symlink — 같은 마운트라 형제가 굽는 노드의 합치기를 이을 수 있다」 — 형제가 10분 넘게 지난 뒤에야 잇는다
+```
+
+#### 못 본 줄과 까닭
+
+- 조각 7 경우 1 의 1초 · 경우 2 — 위의 흠을 보고 멈췄다
+- 조각 8 의 1 ~ 6 모두와 8.4 (옛 판 노드가 있는 lower) — 같은 까닭. bind 별칭 (sudo mount --bind) 과 시험용 계정 (8 의 5) 은 만들지
+  않았다
+
+#### 남은 자리 (사용자 판정 전까지 둔다)
+
+```text
+   이 기계    /home/sunny/.claude/jobs/da000f06/tmp/slices/ — mediator · runctl · mediator.yaml (토큰) · mediator.log ·
+              artifacts (Record) · src (vendor 를 더한 소스)
+              DB enode_slice_bake (시험 Postgres 127.0.0.1:55434)
+   SunnyVM    ~/bake-slice-20260930-1800/ — src · bin · conf (노드 설정 둘 · 프로필 사본) · home (lower 상태 자리 둘 —
+              lowers/b517932fee9168d5-3159112 는 조각 6 첫 판 · …-3161070 은 그 뒤) · place (lower · lower-run1 · sibling ·
+              scratch-a · scratch-b) · log (노드 로그 · git daemon · env check) · git (sync 저장소) · slice (out-6 · out-6.run1 ·
+              out-7 · out-7.run1 · driver-7 · Record 와 목록 파일) · node.sh · slice-run.sh · driver.sh · slice.env (토큰)
+   멈춘 것    스크래치 Mediator · 노드 둘 (bake-a 는 경우 1 의 0.3초에서 SIGKILL 된 뒤 띄우지 않았다 · bake-b 는 SIGTERM) · git daemon
+   만들지 않음  bind mount · 시험용 계정.  cmd/enodectl/probe.lock 은 바뀌지 않았다
+   안 건드림   사용자의 노드 둘 (~/bin/enode · bench · yocto) 과 그 설정 · 상태 자리 · /srv/yocto.  /srv/enode-env/store 는 읽기만 했다
+```
 
 ---
 

@@ -219,8 +219,13 @@ steps() {
   fi
 }
 
-# step_log 은 단계 로그다 (seq 1 은 build · 2 는 merge).
-step_log() { api "$M/v1/runs/$1/steps/$2/log"; }
+# step_log 은 단계 로그다 (seq 1 은 build · 2 는 merge). 노드는 단계 이름으로 로그를 올리므로 name 을 준다 —
+# 없으면 Mediator 는 기본 이름 step 의 빈 로그를 돌려준다.
+step_log() {
+  local name=build
+  [ "$2" = 1 ] || name=merge
+  api "$M/v1/runs/$1/steps/$2/log?name=$name"
+}
 
 # record 는 Run 의 Record 를 받아 풀어 둔다.
 record() {
@@ -236,13 +241,17 @@ metadata() { jq '{bake, source, builds: [.builds[].name], fields: keys}' "$WS/.e
 
 # hold_lower 는 lower 공유 잠금을 쥔다 — 기록이 없는 쥔 쪽 (smoke 모양) 이다. merge 가 배타를 기다리게 해 합치기
 # 전의 merged view 를 볼 자리를 만든다. release_lower 가 놓는다.
+#
+# -o 로 잠금 fd 를 자식 (sleep) 에 넘기지 않는다. 넘기면 flock 만 죽여도 남은 sleep 이 공유를 계속 쥐어 merge 가
+# 합치기에 들어가지 못한다. 놓을 때는 자식 sleep 도 함께 끝낸다.
 hold_lower() {
-  flock -s "$(state_dir)/lower.lock" sleep 86400 &
+  flock -s -o "$(state_dir)/lower.lock" sleep 86400 &
   HOLD_PID=$!
   sleep 0.5
 }
 release_lower() {
   if [ -n "${HOLD_PID:-}" ]; then
+    pkill -P "$HOLD_PID" 2>/dev/null || true
     kill "$HOLD_PID" 2>/dev/null || true
     wait "$HOLD_PID" 2>/dev/null || true
     HOLD_PID=""

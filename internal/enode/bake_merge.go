@@ -114,7 +114,7 @@ func (w *Worker) runMergeStep(runCtx, ctx context.Context, step *Step, log *slog
 		m.fail("cannot create the trash of the pending upper: "+err.Error(), "")
 		return
 	}
-	req := mergeHelperRequest{Op: "preflight", Upper: upper, Lower: b.lowerRoot, Trash: trash}
+	req := mergeHelperRequest{Op: "preflight", Upper: upper, Lower: lowerRootOf(dir), Trash: trash}
 	if _, err := callMergeHelper(req); err != nil {
 		// 시작 전 확인은 아무것도 바꾸지 않는다 — lower 는 그대로 · upper 는 trash · committed (FD 규칙 10절)
 		_ = ex.Release()
@@ -150,7 +150,7 @@ func (w *Worker) runMergeStep(runCtx, ctx context.Context, step *Step, log *slog
 	d := m.h.currentDraft()
 	mergedAt := b.now().UTC()
 	if err == nil {
-		err = writeMetadata(b.lowerRoot, metadataOf(*d, step.RunID, b.node, mergedAt, false))
+		err = writeMetadata(lowerRootOf(dir), metadataOf(*d, step.RunID, b.node, mergedAt, false))
 	}
 	if err != nil {
 		m.stopped(ex, err)

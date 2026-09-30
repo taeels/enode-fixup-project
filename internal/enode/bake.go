@@ -46,17 +46,19 @@ const (
 
 // Baker 는 이 노드의 굽기다 — build · merge 단계 · 기동 정리 · 재개. Worker(단계)와 LowerGuard(광고 주기)가 나눠
 // 쓴다. runc-overlay 노드에만 있다 (LowerGuard 와 같은 조건). 그 밖의 노드는 nil 이고 굽기 단계를 거절한다.
+//
+// lower 뿌리의 파일 일 (metadata 읽기와 쓰기 · merge-helper 요청의 Lower) 은 설정의 ws 글자가 아니라 lowerRootOf 로
+// 한다 — 아래 lowerRootOf 의 주석.
 type Baker struct {
-	ctx       context.Context // 데몬의 ctx — 배경 재개가 쓴다
-	lowerRoot string
-	scratch   string
-	node      string
-	label     string
-	instance  string
-	uid       int // 노드 uid — 초안의 주인
-	log       *slog.Logger
-	now       func() time.Time
-	guard     *LowerGuard
+	ctx      context.Context // 데몬의 ctx — 배경 재개가 쓴다
+	scratch  string
+	node     string
+	label    string
+	instance string
+	uid      int // 노드 uid — 초안의 주인
+	log      *slog.Logger
+	now      func() time.Time
+	guard    *LowerGuard
 
 	mu       sync.Mutex
 	held     *heldBake // 이 프로세스가 쥔 굽기 (build · merge 단계) — 노드마다 임대 하나 (I1)
@@ -78,11 +80,22 @@ func StartBaker(ctx context.Context, guard *LowerGuard, scratchDir string, ident
 	if guard == nil {
 		return nil
 	}
-	b := &Baker{ctx: ctx, lowerRoot: guard.path, scratch: scratchDir, node: ident.NodeID, label: ident.Label,
+	b := &Baker{ctx: ctx, scratch: scratchDir, node: ident.NodeID, label: ident.Label,
 		instance: instance, uid: os.Getuid(), log: log, now: time.Now, guard: guard}
 	guard.OnStale(b.onStale)
 	b.startUp()
 	return b
+}
+
+// lowerRootOf 는 굽기가 lower 뿌리의 파일을 다루는 경로다 — 상태 자리를 연 때 (LowerGuard 가 lower.ReadRoot 로)
+// symlink 를 푼 진짜 경로 (lower.Dir 의 Root.Path) 다. 설정의 ws 글자를 쓰지 않는다: 워크스페이스가 lower 를
+// 가리키는 symlink 인 노드에서 lower.WriteMetadata 는 뿌리를 O_NOFOLLOW 로 열어 fsync 하므로 합친 뒤에 ENOTDIR 로
+// 멈춘다 (조각 7 에서 찾았다). 상태 자리의 키 · 그물 (ForeignMounts) · merge-helper 의 시작 전 확인이 모두 푼 경로를
+// 보므로 한 lower 를 한 글자로 가리킨다 — 두 번 풀지 않으므로 그 사이에 symlink 가 바뀌어도 키와 파일이 다른 lower 를
+// 보지 않는다.
+// 자리를 못 열었으면 (뿌리를 못 풀었으면) 굽기 흐름은 dir 이 nil 인 갈래로 가서 이 함수에 닿지 않는다.
+func lowerRootOf(dir *lower.Dir) string {
+	return dir.Root.Path
 }
 
 // startUp 은 기동 정리다 (business-rules.md 12.1 · 12.2).
