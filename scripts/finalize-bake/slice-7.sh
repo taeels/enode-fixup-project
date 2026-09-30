@@ -18,7 +18,10 @@
 # 들어가므로 먼저 한 번 굽고, 그 뒤의 굽기가 같은 파일을 모두 다시 써 항목마다 합친다. 합치기 전의 merged view 를
 # 보려고 lower 의 공유 잠금을 잠깐 쥔다 (기록 없는 쥔 쪽 — smoke 와 같은 모양).
 #
-# 환경 변수 — KILL_AFTER (merging 을 본 뒤 SIGKILL 까지의 초 · 기본 "0 0.3 1") · MANY (기본 50000)
+# 환경 변수 — KILL_AFTER (merging 을 본 뒤 SIGKILL 까지의 초 · 기본 "0 0.3 1") · MANY (기본 50000) ·
+#   ADVERT (광고 주기의 초 · 기본 60 · Mediator 의 lease.renew_seconds 와 같게 둔다)
+# 합치기가 KILL_AFTER 의 가장 긴 값보다 빨리 끝나면 그 끊기는 committed 뒤에 떨어진다 (스크립트가 「the lower is committed」
+# 로 알린다) — 그 기계에서 MANY 를 늘린다.
 SLICE="slice 7"
 cd "$(dirname "$0")/../.."
 # shellcheck source=scripts/finalize-bake/bake-common.sh
@@ -26,6 +29,7 @@ cd "$(dirname "$0")/../.."
 : "${NODE_CONFIG:?set NODE_CONFIG to the config file of the baking node}"
 KILL_AFTER=${KILL_AFTER:-"0 0.3 1"}
 MANY=${MANY:-50000}
+ADVERT=${ADVERT:-60}
 MANY_BUILD="mkdir -p .slice7 && cd .slice7 && seq -f 'f%06g' 1 $MANY | xargs touch"
 mkdir -p "$SLICE_DIR"
 
@@ -57,7 +61,8 @@ kill_mid_merge() {
   done
   merged_view "$(state_json | jq -r '.pending_upper')" > "$SLICE_DIR/$id.before"
   release_lower
-  wait_phase merging 600
+  # 떠 있는 형제 (경우 2) 는 후보로 쥔 공유를 drain 이 두 번 받아들여진 뒤에 놓는다 — 두 광고 주기 (+30초) 까지 기다린다
+  wait_phase merging $(((2 * ADVERT + 30) * 10))
   sleep "$delay"
   local pid
   pid=$(daemon_pid "$NODE_CONFIG")

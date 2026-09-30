@@ -1246,3 +1246,17 @@
 **Context**: Construction · U7 bake · 흠 고침 커밋 · 조각 다시 돌리기 앞
 
 ---
+## Construction · U7 `bake` · 조각 6 · 7 · 8 · 8.4 다시 돈 결과 (판정은 사용자)
+**Timestamp**: 2026-09-30T12:47:41Z
+**User Input**: (없음 — 집행 에이전트가 끝났다)
+**AI Response**: 집행 에이전트 (이어 부름 · 약 46만 토큰 · 51분) 가 고친 빌드 6d9e6c7 로 조각 6 · 7 · 8 · 8.4 를 모두 돌렸다. 제품의 흠으로 보이는 것 없음 · 못 본 줄 없음. 기록은 code-summary.md 8.6 (8.5 는 첫 실행). 차림 — 스크래치 Mediator (DB enode_slice_bake2 · 광고 60초) · SunnyVM ~/bake-slice-20260930-2100/. 조각 6 (A ir-1 · B ir-2) — 1 DONE · SUCCEEDED · metadata 칸 전부 (pinned null · branch 빈 글자 — git 모양) · 2 · 3 build 0.26초 · 쥔 쪽 줄과 남은 시간 · 형제 draining 58.4초 (창 60초) · 4 released 119.07초 (창 120초) · took 0.913초 (창 1초) · committed 0.034초 · 5 두 노드가 ir-2 와 repo.built 둘 · 6 61 항목 차이 없음 · 7 빌드 실패와 ir_mismatch 모두 기대대로. 조각 7 (MANY=200000) — 경우 1 의 0 · 0.3 · 1초 모두 from=start 로 이음 · committed · resumed true · 원래 Run · 목록 200,061 항목 같음 · 경우 2 약 47초에 from=advert. 첫 판 (MANY 50,000) 은 1초 끊기가 합치기 뒤에 떨어졌고 경우 2 가 스크립트의 60초 기다림에 걸렸다. 조각 8 (bind 별칭 형제) — 1 0.67초에 bake_in_progress · 2 55초에 cleaned a stale bake · abandoned · drain 115초에 풀림 (trash 로 간 것은 정리 줄과 빈 pending 으로만 봄) · 3 build DONE 과 merge FAILED merge_wait_timeout 이 따로 · committed · 4 두 키 같음 · 한 상태 자리에 두 노드 · 5 not ready 셋 (owner_uid · scratch_filesystem · identity external-blocked · lower.json 만 다르고 committed 면 ready 는 설계대로) · 6 늦게 매칭된 형제 Run 이 합치기 전에 끝남 (merge 가 형제의 공유를 기다렸다 · 바뀐 lower 에서 돈 Run 없음). 8.4 (옛 판 56ce415) — 스크립트가 an older enode is on this lower 로 멈춤 · merge 가 옛 판의 overlay 를 찾아 기다린 뒤 합침. 스크립트 고침 (커밋 안 됨) — slice-6.sh (draining 을 한 주기 +5초 기다림 · took 과 merged 는 노드 로그 시각 BAKING_LOG · IR_B · 머리 주석) · bake-common.sh (same_mount 를 findmnt -T 로 — stat %m 은 bind 별칭을 같은 마운트로 봤다) · slice-7.sh (merging 기다림 60 -> 150초 · MANY 기본값은 그대로) · code-summary 8.2. 시험용 계정과 bind mount 는 지웠다. 조각 자리 둘씩 (이 기계 · SunnyVM) 과 DB 둘은 판정 전까지 남김. 진행자 확인 — 스크립트 다섯 bash -n · 더한 줄의 장식 문자 · 사내 이름 · 말투 0. 사용자에게 판정을 묻는다.
+**Context**: Construction · U7 bake · 조각 6 · 7 · 8 판정 대기
+
+---
+## Construction · U7 `bake` · 조각 6 · 7 · 8 판정 · PR
+**Timestamp**: 2026-09-30T12:50:12Z
+**User Input**: "초록 · 커밋 · PR 올림 (Recommended)" (질문 — 조각 6·7·8을 어떻게 판정할까요? 선택지: 초록 · 커밋 · PR 올림 / 초록 · 커밋만 / 다시 볼 것 있음)
+**AI Response**: 조각 6 · 7 · 8 을 사용자 판정으로 초록으로 적었다. 병합 조건 (조각 5 · 6 · 7 · 8) 이 섰다. 계획 Step 21 의 마지막 체크박스를 채워 88/88 · code-summary 8절 머리에 판정. 조각 전용 자리를 지웠다 — 먼저 도는 프로세스 · 마운트 · 계정을 봤다 (이 기계에서 도는 Mediator 는 사용자의 개발용 ~/.local/state/enode-dev 라 두었다 · SunnyVM 에 도는 것 · bind mount · 시험용 계정 없음). DB enode_slice_bake · enode_slice_bake2 · SunnyVM ~/bake-slice-20260930-1800 · -2100 · 이 기계의 스크래치 (봉인된 산출물은 쓰기 권한을 준 뒤) 를 지웠다. 조각 스크립트 고침 (slice-6.sh · slice-7.sh · bake-common.sh) · code-summary 8.6 · 계획 · 상태 · 감사를 한 커밋으로 넣고, 브랜치 diff 에 사내 이름 0 을 확인한 뒤 unit/bake 를 push 하고 main 으로 PR 을 연다. 병합은 CI 결과를 보고 다시 묻는다.
+**Context**: Construction · U7 bake · 조각 6 · 7 · 8 초록 · 커밋 · PR
+
+---

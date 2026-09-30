@@ -27,7 +27,7 @@ set -euo pipefail
 : "${M:?set M to the mediator address}"
 : "${T:?set T to the bootstrap token}"
 : "${WS:?set WS to the workspace (lower root) of the baking node}"
-: "${SIBLING_WS:?set SIBLING_WS to the workspace of a sibling node on the same lower (a bind alias of WS)}"
+: "${SIBLING_WS:?set SIBLING_WS to the workspace of a sibling node on the same lower (a symlink to WS for slices 6 and 7, a bind alias for slice 8)}"
 : "${SYNC_URL:?set SYNC_URL to the git repository the sync fetches from}"
 : "${IR:?set IR to a tag in SYNC_URL}"
 BUILD_A=${BUILD_A:-"mkdir -p .slice-bake && printf 'config-a\\n' > .slice-bake/config-a"}
@@ -38,7 +38,7 @@ STAMP=$(date +%s)
 SLICE=${SLICE:-slice}
 LOWERS=${LOWERS:-$HOME/.local/state/enode/lowers}
 
-for tool in go jq curl git stat unshare flock; do
+for tool in go jq curl git stat unshare flock findmnt; do
   command -v "$tool" >/dev/null || { echo "$SLICE: $tool is not installed"; exit 1; }
 done
 git config --get user.email >/dev/null ||
@@ -89,7 +89,8 @@ check_target() {
 }
 
 # same_mount 는 SIBLING_WS 가 WS 와 같은 마운트로 lower 에 닿는지다 — symlink 면 참 · bind 별칭이면 거짓.
-same_mount() { [ "$(stat -L -c %m "$WS")" = "$(stat -L -c %m "$SIBLING_WS")" ]; }
+# stat 의 %m 은 장치 번호로 마운트 자리를 찾아 bind 별칭도 같은 마운트로 본다 — findmnt -T 의 마운트 자리를 댄다.
+same_mount() { [ "$(findmnt -n -o TARGET -T "$WS")" = "$(findmnt -n -o TARGET -T "$SIBLING_WS")" ]; }
 sibling_kind() {
   if same_mount; then
     echo "on the same mount as WS (a symlink or the same mount): the sibling can resume the baking node's merge"

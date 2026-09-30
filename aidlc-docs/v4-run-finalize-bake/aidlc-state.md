@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U7 bake 조각 6 · 7 · 8 진행 중. 조각 7 에서 찾은 흠 (symlink 워크스페이스의 metadata fsync ENOTDIR) 을 고쳐 커밋 (2026-09-30T11:55:09Z · 사용자 선택 「굽기 코드에서 고침」). 다음 — 집행 에이전트가 고친 빌드로 조각 6 · 7 · 8 을 다시 돈다 · 판정은 사용자. PR 은 조각이 초록인 뒤이고 올리기 전에 묻는다. Code Generation 승인 2026-09-30T05:50:37Z (7116e8d).
+- **Current Stage**: CONSTRUCTION — U7 bake 의 병합 조건 (조각 5 · 6 · 7 · 8) 초록 2026-09-30T12:50:12Z (사용자 판정) · unit/bake 를 push 하고 main 으로 PR · 병합은 CI 뒤 묻는다. 다음 유닛 U8 checkpoint. Code Generation 승인 2026-09-30T05:50:37Z (7116e8d) · 흠 고침 6d9e6c7.
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -386,6 +386,8 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           조각 6 · 7 첫 실행 2026-09-30T10:00:23Z (집행 에이전트 · SunnyVM) — 조각 6 끝까지 · 조각 7 에서 흠 (symlink 형제의 재개가
                           metadata fsync 에서 ENOTDIR · 10분 뒤 광고 재개가 끝냄) 으로 멈춤 · 조각 8 안 돎.  고침 2026-09-30T11:55:09Z — lowerRootOf (상태 자리를 연
                           때 푼 경로) · 시험 둘 · 진행자 확인 초록 (통과 2,564).  조각을 다시 돈다
+                          조각 6 · 7 · 8 · 8.4 다시 돎 2026-09-30T12:47:41Z (6d9e6c7 · 흠 없음 · 못 본 줄 없음 · code-summary 8.6).
+                          사용자 판정 초록 2026-09-30T12:50:12Z — 병합 조건이 섰다.  조각 자리를 지웠다.  push · PR
                           병합 조건 — 조각 5 green (slice-5.sh) · 조각 6 · 7 · 8 은 사람이 SunnyVM 에서 돈다 (code-summary 8절 · 아직 안 돌았다)
 ```
 

@@ -317,11 +317,12 @@ git checkout -- cmd/enodectl/probe.lock    # 시험이 바꾼다
 
 ---
 
-## 8. 사람 조각 6 · 7 · 8 — 돌리는 법 (병합 게이트 · 에이전트는 돌리지 않았다)
+## 8. 사람 조각 6 · 7 · 8 — 돌리는 법과 실행 기록 (병합 게이트)
 
-**에이전트는 조각 6 · 7 · 8 을 돌리지 않았다** — 사람이 보는 조각이다 (US-14). 코드 시험이 초록이라는 것으로 대신하지 않는다. SunnyVM 은
-닿는다 (2026-09-30 · Step 1 · 18) — 보류가 아니다. 조각이 아직 안 돌았으므로 병합 지점도 아니다 (CONVENTIONS 3.3). 사용자가 돈 결과는
-PR 전에 audit 과 이 절에 적는다.
+**코드를 쓴 에이전트는 조각 6 · 7 · 8 을 돌리지 않았다** — 사람이 판정하는 조각이다 (US-14). 코드 시험이 초록이라는 것으로 대신하지 않는다.
+사용자 지시로 코드를 쓰지 않은 집행 에이전트가 SunnyVM 에서 돌리고 조각마다 볼 것과 실제 값을 적었다 (8.5 · 8.6). 첫 실행 (7116e8d) 은
+조각 7 에서 흠 (워크스페이스가 symlink 인 노드의 metadata fsync) 을 찾아 멈췄고, 고친 뒤 (6d9e6c7 · 5절 끝) 조각 6 · 7 · 8 · 8.4 가 모두 돌았다.
+**사용자 판정 — 초록 (2026-09-30T12:50:12Z).** 조각 자리 (DB 둘 · SunnyVM 의 ~/bake-slice-* 둘 · 스크래치) 는 판정 뒤 지웠다.
 
 ### 8.1 준비
 
@@ -361,12 +362,13 @@ PR 전에 audit 과 이 절에 적는다.
 ```bash
 export M=http://<mediator>:8080 T=<bootstrap token>
 export WS=<place>/lower SIBLING_WS=<place>/sibling
-export SYNC_URL=<git repository reachable from the session> IR=<a tag in it>
+export SYNC_URL=<git repository reachable from the session> IR=<a tag in it> IR_B=<another tag in it>   # slice 6: bake B uses IR_B
 export BUILD_A='<your build command for config-a>' BUILD_B='<your build command for config-b>'
-export SIBLING_LOG=<the sibling node log file>        # slice 6: the released time; empty means read it by hand
+export SIBLING_LOG=<the sibling node log file>        # slice 6: the run end and released times; empty means read them by hand
+export BAKING_LOG=<the baking node log file>          # slice 6: the took and merged times; empty means read them by hand
 export NODE_CONFIG=<the baking node config file>      # slices 7 and 8: the pid is the first line of <config>.lock
 scripts/finalize-bake/slice-6.sh
-scripts/finalize-bake/slice-7.sh                      # KILL_AFTER="0 0.3 1" and MANY=50000 by default
+scripts/finalize-bake/slice-7.sh                      # KILL_AFTER="0 0.3 1" and MANY=50000 by default; raise MANY when the merge ends before the last kill
 SIBLING_WS=<alias place>/lower scripts/finalize-bake/slice-8.sh
 ```
 
@@ -605,6 +607,200 @@ metadata 까지 끝낸 뒤 state.json 을 committed 로 옮기지 못하고 실�
    멈춘 것    스크래치 Mediator · 노드 둘 (bake-a 는 경우 1 의 0.3초에서 SIGKILL 된 뒤 띄우지 않았다 · bake-b 는 SIGTERM) · git daemon
    만들지 않음  bind mount · 시험용 계정.  cmd/enodectl/probe.lock 은 바뀌지 않았다
    안 건드림   사용자의 노드 둘 (~/bin/enode · bench · yocto) 과 그 설정 · 상태 자리 · /srv/yocto.  /srv/enode-env/store 는 읽기만 했다
+```
+
+### 8.6 고친 뒤 다시 돈 기록 (6d9e6c7 · 판정은 사용자)
+
+2026-09-30 21:00 ~ 21:43 (KST) 에 조각을 돌리는 에이전트가 다시 돌렸다. 빌드는 6d9e6c7 이다 — 워크스페이스가 symlink 인 노드의 굽기가
+lower 뿌리를 푼 경로로 다룬다. **이번에는 제품의 흠으로 보이는 것이 나오지 않았다.** 초록과 빨강은 적지 않는다. 시각은 SunnyVM 노드
+로그의 KST 다.
+
+#### 차림 (8.5 와 다른 점만)
+
+```text
+   Mediator      6d9e6c7 로 새로 빌드 · 같은 주소 192.168.219.203:18080 · 새 DB enode_slice_bake2 · 광고 주기 60초 그대로
+   조각 자리      새 자리 ~/bake-slice-20260930-2100/ (첫 자리 ~/bake-slice-20260930-1800/ 은 그대로 둔다) · 새 빈 lower 와 허용 표지
+                  src 는 git archive 6d9e6c7 에 이 절의 스크립트 고침과 vendor 를 더했다.  bin 에 enode · enodectl (6d9e6c7) 과
+                  enode-old (56ce415 — 0262155 의 첫 부모 · lower-state 병합 전 main) 을 빌드했다
+   SYNC_URL      같은 모양의 git daemon.  태그 둘 — ir-1 (README · src/main.c) · ir-2 (README 를 고치고 src/extra.c 를 더함)
+   노드          bake-a         굽는 노드 · ws place/lower · 조각 6 · 7 · 8 · 8.4
+                  bake-b         symlink 형제 · ws place/sibling · 조각 6 · 7
+                  bake-b-alias   bind 별칭 형제 · ws alias/lower · scratch alias/scratch-b · 조각 8.  sudo mount --bind place alias
+                  old            옛 판 · ws place/old-link (-> place/lower) · scratch place/scratch-old · 8.4
+                  앞의 셋은 env check 21줄 모두 ready.  bake-b-alias 의 binding.scratch_filesystem 은 same mount
+   사람의 일      >> do: 는 driver.sh (8.5 와 같다).  조각 8 의 5 와 8.4 의 둘째는 에이전트가 손으로 (8.4 는 조각 자리의 slice-84b.sh)
+```
+
+#### 조각 스크립트 고침 (커밋하지 않았다)
+
+```text
+   slice-6.sh       2 · 3  노드를 곧바로 찍지 않는다.  merge 단계의 시작 (Mediator 의 started_at) 부터 한 광고 주기 +5초까지 형제가
+                           draining 이 되기를 기다리고, 걸린 시간을 찍는다 (ADVERT · 기본 60)
+                    4      took · merged 는 굽는 노드 로그 (새 입력 BAKING_LOG) 의 event=took 줄과 bake: merged 줄의 시각이다.  형제 Run
+                           끝은 형제 로그 (SIBLING_LOG) 의 step finished 줄 (없으면 Record 의 ended_at).  대기 길이의 반올림을 쓰지
+                           않고, 네 시각 사이의 간격을 찍는다
+                    5      굽기 B 는 IR_B (새 입력 · IR 과 다른 태그 · 없거나 같으면 멈춘다).  committed 부터 한 광고 주기 +5초까지
+                           두 노드가 IR_B 를 광고하기를 기다리고 노드마다 찍는다 (/v1/capabilities 대신 /v1/nodes)
+                    7      두 굽기가 IR_B 로 sync 한다 (lower 를 뒤로 돌리지 않는다)
+                    머리    SIBLING_WS 는 WS 의 symlink (ln -s) · IR_B · BAKING_LOG · ADVERT
+   bake-common.sh          same_mount 가 stat 의 %m 대신 findmnt -T 의 마운트 자리를 본다.  %m 은 장치 번호로 마운트 자리를 찾아 bind
+                           별칭도 같은 마운트로 봤다 (조각 8 의 차림에서 알았다 — 고치기 전이면 check_target 이 bind 별칭을 same mount
+                           로 찍고, slice-7.sh 의 멈춤과 8 의 4 의 알림이 bind 별칭을 못 알아본다).  도구 목록에 findmnt.  SIBLING_WS
+                           알림 글의 「a bind alias of WS」 를 고쳤다
+   slice-7.sh              merging 을 기다리는 창을 60초에서 두 광고 주기 +30초 (기본 150초) 로.  경우 2 는 떠 있는 형제가 후보 공유를
+                           drain 이 두 번 받아들여진 뒤에 놓아 60초 안에 merging 에 못 든다 (첫 판이 거기서 멈췄다).  머리에 MANY 를
+                           늘릴 때를 적었다
+   diff                    bake-common.sh +4 -3 · slice-6.sh +105 -39 · slice-7.sh +7 -2 (8.5 의 두 고침은 6d9e6c7 에 들어갔다)
+```
+
+8.2 의 명령에 IR_B · BAKING_LOG 와 MANY 를 늘릴 때를 더했다.
+
+#### 조각 6 (Run 이름 끝 1790769607)
+
+```text
+   1      볼 것   build · merge DONE · Run SUCCEEDED · metadata 의 칸 전부 · bake.run · bake.node · safe.directory 거절 없음
+          실제    Run SUCCEEDED · build DONE exit 0 (head b34499f · head_tags [ir-1]) · merge DONE · 합치기 14 ms (새 디렉터리 셋 ·
+                  새 파일 하나) · 거절 줄 없음.  metadata — bake {run slice6-a · node 3fd2495192b2 (bake-a) · resumed false ·
+                  previous_ir null} · source {url · branch "" · repo_id 127.0.0.1/src · head · ir ir-1 · pinned null · sync_command ·
+                  synced_at} · builds 둘 · environment · workspace_target /work · schema 1
+          다른 점  8.5 와 같다 — pinned null · branch "" (git 모양 · detached).  merge 는 형제의 후보 공유를 1분 50초 기다렸다
+
+   2 · 3  볼 것   build 곧바로 · merge 기다림 · 쥔 쪽 줄 · 노드 시계의 마감 · 남은 시간 · 형제 draining (한 광고 주기 안)
+          실제    build 0.26초 · 로그 「waiting for the lower lock; deadline 2026-09-30T16:03:00Z node clock (4h0m left)」 ·
+                  「node bake-slice@sunnyvm:bake-b holds it for run slice6-sibling-1790769607 since 2026-09-30T12:02:58Z」 ·
+                  형제 draining 은 merge 단계 시작 (21:03:00.131) 뒤 58.413초 · 두 노드 모두 graceful
+          다른 점  없음
+
+   4      볼 것   released 는 형제 Run 끝에서 두 광고 주기 (120초) 안 · took 는 released 뒤 1초 안 · took -> committed 가 「몇 초」
+          실제    형제 Run 끝 21:07:59.434 -> released 21:09:58.508 (119.074초 뒤) -> took 21:09:59.421 (0.913초 뒤) ->
+                  merged 21:09:59.455 -> committed 12:09:59.455Z (took 부터 0.034초 · ops 49 · 14 ms)
+          다른 점  없음.  released 는 창의 끝 (120초) 에 가깝다 — 형제 Run 이 끝난 뒤 둘째 광고에서 놓는다
+
+   5      볼 것   두 노드가 새 ir 과 repo.built.config-a · config-b
+          실제    committed 뒤 59.250초에 두 노드 모두 ir ir-2 (굽기 A 는 ir-1) · repo.built.config-a · config-b yes ·
+                  bake.run slice6-b · bake.resumed false.  metadata 의 previous_ir 은 ir-1
+          다른 점  없음
+
+   6      볼 것   합치기 전 merged view 목록 == 합친 lower 목록
+          실제    61 항목 · 차이 없음
+
+   7      볼 것   8.3 과 같다
+          실제    slice6-fail — build DONE exit 3 · config-b skipping · merge DONE (합칠 것 없음) · Run FAILED · last_attempt {run
+                  slice6-fail · reason "build config-a exited 3"}.  slice6-ir — build DONE reason ir_mismatch · exit_code 0 ·
+                  head 858410b · head_tags [ir-2] · blob 없음 · 로그 끝 「bake: ir enode-slice-no-such-tag-1790769607 is not in the
+                  local repository after sync; the sync command must fetch that tag (HEAD is 858410b…, tags at HEAD: ir-2)」 ·
+                  merge DONE · Run FAILED · last_attempt {run slice6-ir · reason ir_mismatch}
+          다른 점  없음
+```
+
+#### 조각 7
+
+첫 판 (MANY 50,000 · Run 이름 끝 1790770281) — 경우 1 의 0초와 0.3초는 형제가 시작 때 이었다 (ops 47,383 · 684 ms · ops 14,623 · 262 ms).
+1초는 합치기가 약 0.7초에 끝나 committed 뒤에 끊겼다 (스크립트 「the lower is committed」 · 재개 없음 · resumed false). 경우 2 는 merging 을
+60초 안에 못 봐 스크립트가 멈췄다 (위의 slice-7.sh 고침). 그 굽기는 형제가 공유를 놓은 뒤 끊기지 않고 합쳤다. 아래는 둘째 판이다 (MANY=200000 ·
+Run 이름 끝 1790770588).
+
+```text
+   준비            slice7-prime — Run SUCCEEDED · replaced 50,004 · created 150,000 · resumed false
+
+   경우 1 · 0초    bake-b 멈춤 · merging 을 본 뒤 0초에 bake-a SIGKILL · bake-b 띄움
+                   21:20:32.532  bake: resuming an interrupted merge  from=start
+                   21:20:35.502  bake: resumed the merge of run slice7-kill1  ops 200,004 · 2.969초 (첫 연산 전에 끊겼다)
+                   state committed · metadata {run slice7-kill1 · node 3fd2495192b2 · resumed true} · 목록 == merged view (200,061 항목)
+   경우 1 · 0.3초  21:20:49.069 from=start -> 21:20:51.620 resumed · ops 171,576 · 2.551초 · 나머지 같음
+   경우 1 · 1초    21:21:05.505 from=start -> 21:21:07.095 resumed · ops 103,302 · 1.589초 · 나머지 같음
+   경우 2          bake-b 가 떠 있는 채 took (21:21:18.493) 0.3초 뒤 bake-a SIGKILL -> 21:22:05.569 from=advert (끊은 뒤 약 47초) ->
+                   21:22:08.197 resumed · ops 177,377 · 2.628초.  스크립트 「the sibling finished the merge 49 s after the kill」 ·
+                   metadata {run slice7-live · resumed true}
+
+   다른 점          없음.  경우 2 는 스크립트가 목록을 견주지 않는다 (look 에 없다)
+```
+
+#### 조각 8 (bind 별칭 형제 · Run 이름 끝 1790770987)
+
+```text
+   1      볼 것   굽기 중 형제에 두 번째 굽기 -> 곧바로 FAILED bake_in_progress 와 주인 문장 (US-16)
+          실제    slice8-first 가 building (sleep 60) 인 동안 slice8-second 를 bake-b-alias 에 -> 만든 뒤 0.67초에 Run FAILED ·
+                  build FAILED reason bake_in_progress · 「another bake holds this lower: run slice8-first-1790770987 on node
+                  3fd2495192b2 since 2026-09-30T12:23:07Z (building); submit the bake again later」 · merge PENDING
+          다른 점  없음.  주인 문장의 노드는 node_id 다
+
+   2      볼 것   pending 에서 SIGKILL -> 떠 있는 형제가 두 광고 주기 (120초) 안에 정리 · last_attempt abandoned · 대기 자리는
+                  그 scratch 의 trash · drain 풀림
+          실제    21:26:09 pending 에서 bake-a SIGKILL -> 21:27:04.625 bake-b-alias 「bake: cleaned a stale bake」 phase=pending
+                  path=<place>/scratch-a/pending/<키>/bake-2139058313/upper from=advert (끊은 뒤 55초) · last_attempt {run
+                  slice8-pending · reason "abandoned: no process held the bake while it was pending" · builds 둘} · drain 은 끊은
+                  뒤 115초에 풀림 · 지금 scratch-a 의 pending/<키>/ 와 trash 는 비었다
+          다른 점  대기 자리가 trash 로 간 것은 정리 줄과 빈 pending 으로만 봤다 — 삭제자가 이미 비웠고 그 줄은 로그에 없다
+
+   3      볼 것   merge.wait 1m + 형제에 5분 Run -> build DONE · merge FAILED merge_wait_timeout · Record 에서 따로 · upper trash ·
+                  committed · drain 풀림 (완료 조건 9 · US-17)
+          실제    build DONE exit 0 · merge FAILED reason merge_wait_timeout · 「gave up waiting for the lower lock after 1m0s
+                  (merge.wait)」 (21:28:06 -> 21:29:06) · 노드 로그 「bake: discarded the bake reason=merge_wait_timeout」 · state
+                  committed · last_attempt {run slice8-wait · reason merge_wait_timeout} · 굽는 노드의 drain 은 다음 광고 21:30:05
+                  에 풀림
+          다른 점  없음
+
+   4      볼 것   두 키가 같고 상태 자리 하나에 두 노드의 쥔 사람 기록
+          실제    키 둘 모두 b517932fee9168d5-3442584 · holders 에 3fd2495192b2 (bake-a) 와 b201e0772a02 (bake-b-alias) · 그리고
+                  멈춘 symlink 형제 28771fd21cab 의 기록.  형제 모양 「on another mount (a bind alias)」
+          다른 점  없음 (고친 same_mount 로 본 것이다)
+
+   5      볼 것   env check 의 not ready 셋
+          실제    다른 uid — 시험용 계정 enode-slice-other (uid 1001 · 로그인 셸 없음 · lower 에 닿으려고 sunny 그룹) 의 노드 설정
+                    (ws place/other-link) -> lower.owner_uid invalid 「uid 1000」 · remediation 「run this node as the owner of the
+                    workspace; one lower is shared by one user」.  prepared_environment 도 stale (store 가 sunny 전용 0700).  그 uid
+                    로 노드를 띄우니 곧바로 멈췄다 — 「execution environment is not ready; run enodectl env check and apply」
+                  다른 마운트의 scratch — ws place/lower · scratch alias/scratch-check -> binding.scratch_filesystem invalid 「same
+                    filesystem, different mount (scratch mount 2395, workspace mount 33); is the workspace a bind alias?」
+                  다른 디렉터리를 적은 lower.json — 따로 둔 HOME 에 같은 키로 birth_ns 와 paths 가 다른 lower.json 과 pending
+                    state.json -> lower.identity external-blocked 「recorded for another directory and a bake is pending (run
+                    slice8-identity-gone)」.  같은 lower.json 에 state 가 committed 면 ready 「recorded for another directory with
+                    the same inode; the node rewrites it on start」
+          다른 점  lower.json 만 다르고 굽기가 없으면 (committed) not ready 가 아니다 — FD 의 Reused 와 Foreign 그대로다
+
+   6      볼 것   늦게 매칭된 형제 Run — 합치기 전에 매칭돼 뒤에 돌면 lower_changed · 뒤에 매칭되면 새 lower 에서 SUCCEEDED
+          실제    slice8-late-bake 가 pending (21:33:55.382) 인 동안 slice8-late-run 이 bake-b-alias 에 매칭돼 21:33:55.549 ~
+                  21:33:56.603 에 돌고 SUCCEEDED.  merge 는 형제가 공유를 놓은 21:35:04.746 뒤 21:35:05.467 에 took 해 합쳤다
+          다른 점  look 의 두 경우 어느 것도 아니다 — 매칭과 실행이 모두 합치기 전에 끝났다 (merge 가 형제의 공유를 기다린다).
+                  바뀐 lower 에서 돈 Run 은 없다
+```
+
+#### 8.4 옛 판 노드가 있는 lower
+
+```text
+   첫째   볼 것   옛 판 노드가 같은 lower 에 떠 있으면 스크립트가 멈춘다
+          실제    old (56ce415 · ws place/old-link) 를 띄운 채 slice-6.sh -> 「db5b827f8e0c ws <place>/place/old-link advertises no
+                  workspace.writes: an older enode is on this lower」 · 「slice 6: move every node on this lower to a build that bakes
+                  before baking; stopping」 (exit 1)
+   둘째   볼 것   옛 판에 긴 명령 단계 (overlay) 를 건 채 굽기 -> merge 가 배타를 잡은 뒤 「found 1 overlay mount ...」 와 그 마운트
+                  줄 · 그 명령이 끝날 때까지 합치지 않는다
+          실제    old 에 sleep 300 (21:36:17 ~ 21:41:17) · 굽기 slice84-bake -> 21:38:04.838 took (형제 후보 공유 1분 44초) ->
+                  「found 1 overlay mount of this lower in another mount namespace; releasing the lock and waiting 60s」 ·
+                  「pid 3900678 namespace mnt:[4026532220] mount <scratch-old>/enode-runc-1122715728/merged lowerdir
+                  <scratch-old>/enode-runc-1122715728/lower-ro」 · 60초마다 네 번 · 옛 판 Run 이 끝난 뒤 21:42:04.897 에 합쳤다
+                  (굽기 Run SUCCEEDED · 옛 판 Run SUCCEEDED)
+          다른 점  없음.  옛 판은 lower 를 세션 안의 lower-ro (lower 의 읽기 전용 bind) 로 걸고, 그물이 그것을 이 lower 로 알아봤다
+```
+
+그 밖 — merge 로그마다 `1 processes could not be read while scanning mounts` 한 줄이 있다 (8.5 와 같다).
+
+#### 남은 자리와 지운 것
+
+```text
+   이 기계    /home/sunny/.claude/jobs/da000f06/tmp/slices/run2/ — mediator (6d9e6c7) · mediator.yaml (토큰) · mediator.log ·
+              artifacts · src · oldsrc.  DB enode_slice_bake2.  첫 실행의 slices/ 와 DB enode_slice_bake 도 그대로
+   SunnyVM    ~/bake-slice-20260930-2100/ — src · oldsrc · bin (enode · enodectl · enode-old) · conf (bake-a · bake-b ·
+              bake-b-alias · old · check-scratch · 프로필 사본) · home (lower 상태 자리 lowers/b517932fee9168d5-3442584) ·
+              idhome-pending · idhome-committed (8 의 5 에 쓴 HOME) · place (lower · sibling · old-link · other-link · scratch-a ·
+              scratch-b · scratch-old · scratch-check) · alias (빈 마운트 자리) · other (비었다) · log · git · slice (out-6 · out-7 ·
+              out-7.run1 · out-8 · out-84a · out-84b · driver-7 · driver-7.run1 · driver-8 · Record · 목록) · node.sh · slice-run.sh ·
+              driver.sh · slice-84b.sh · slice.env (토큰).  첫 자리 ~/bake-slice-20260930-1800/ 도 그대로
+   멈춘 것    스크래치 Mediator · 조각 노드 넷 (bake-a · bake-b · bake-b-alias · old) · git daemon
+   지운 것    bind mount (sudo umount) · 시험용 계정 enode-slice-other (userdel · /etc/subuid 와 subgid 의 줄도 빠졌다) 과 그 파일
+              (other 의 home · conf · scratch).  uid 1001 로 남은 파일을 찾으니 containerd 스냅숏 안의 둘뿐이다 — 컨테이너 이미지
+              안의 uid 로 이 계정과 무관하다 (건드리지 않았다)
+   안 건드림   사용자의 노드 둘과 그 설정 · 상태 자리 · /srv/yocto.  store 는 읽기만.  cmd/enodectl/probe.lock 은 바뀌지 않았다
 ```
 
 ---
