@@ -32,8 +32,8 @@ type CheckpointConfig struct {
 	Policy          string `yaml:"policy,omitempty"`           // off | on-failure | always.  비면 on-failure
 	TTLHours        int    `yaml:"ttl_hours,omitempty"`        // 0 이면 48
 	CapacityPercent int    `yaml:"capacity_percent,omitempty"` // 0 이면 20.  1 ~ 100
-	MaxGB           int    `yaml:"max_gb,omitempty"`           // 보존본 하나의 상한.  0 이면 N2 의 기본값
-	MaxTotalInodes  int64  `yaml:"max_total_inodes,omitempty"` // 보존본 전체의 inode 한도.  0 이면 N2 의 기본값
+	MaxGB           int    `yaml:"max_gb,omitempty"`           // 보존본 하나의 상한.  0 이면 32 (NFR 답 1)
+	MaxTotalInodes  int64  `yaml:"max_total_inodes,omitempty"` // 보존본 전체의 inode 한도.  0 이면 몫 (규칙 10절 · NFR 답 2)
 }
 ```
 
@@ -52,12 +52,13 @@ type Policy struct {
 	TTL             time.Duration
 	CapacityPercent int
 	MaxBytes        int64  // max_gb x 2^30
-	MaxTotalInodes  int64
+	MaxTotalInodes  int64  // 0 이면 capacity_percent 의 몫을 inode 에도 건다 (규칙 10절)
 	MinFree         uint64 // min_free_gb x 2^30 (advertise.go:336 과 같은 단위)
 }
 ```
 
-N2 (NFR 값 둘째 — 하나의 상한과 inode 한도의 값) 는 NFR Requirements 가 정한다. 여기는 이름과 「0 이면 기본값」 만이다.
+N2 (NFR 값 둘째 — 하나의 상한과 inode 한도의 값) 는 NFR Requirements 가 정했다 — `max_gb` 32 · `max_total_inodes` 는 몫 (규칙 10절 ·
+`nfr-requirements.md` 1절 · NFR 답 1 · 2 로 고침).
 
 ---
 

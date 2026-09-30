@@ -23,6 +23,8 @@
   크기와 무관하다 (결정 2-4 — 임대 창에서는 O(1) 소유권 이전만)
 - **기록은 임시 파일과 rename 으로 쓰고 fsync 하지 않는다** — 보고 전 창에 디스크 대기를 들이지 않는다. 전원이 나가 기록을 잃으면
   조정이 주인 없는 미완료로 거둔다 (규칙 9절). 보존본을 잃을 뿐 단계 결과는 그대로다
+- **예약의 자리** — 쓰기 부하에서 예약이 4.2 초 멈췄다. 보존이 finalize 판정을 바꾸지 않게 할 모양을 NFR Design 이 정할 때 바뀐다
+  (`nfr-requirements.md` 2절 P2 · 6절 D1). 지금 모양은 그대로다 (NFR P2 로 고침)
 - **`closing` 에 두 칸** (엔티티 6절) — 부르는 쪽이 아는 실패 (명령의 exit ≠ 0 · signal, agent 의 미완주) 와 굽기 build 인지. 빠진
   산출물과 Finalize 오류는 closeOut 안에서 더한다
 
@@ -152,6 +154,9 @@ flock · `Renameat2` · statfs 를 쓰는 자리는 `_unix` (또는 `_linux`) �
 | `inception/application-design/component-methods.md` | 295 | `MaxInodes` 가 보존본 전체의 inode 한도라고 적었다 (규칙 6절) |
 | 같은 문서 | 318-321 | `Store.Keep` (Store 가 rename 한다) 을 `Reserve` · `Commit` 으로 — rename 은 세션의 Close 가 한다 |
 | 같은 문서 | 417 | result 의 보존 칸을 `CheckpointCapture *contract.CheckpointCapture` 로 (step-phase 가 지은 타입) |
+| 이 폴더 `business-rules.md` (NFR 뒤 · 2026-09-30) | 2절 ② · ⑤ · 6절 4 · 6 · 9절 · 10절 · 11절 · 14절 | spool 자리 거절 (NFR 답 3) · 예약 자리 (P2) · inode 한도 (답 2) · 미완료 조정 (R2) · 기본값 (답 1 · 2) · 기록 읽기 (C7) · 로그 두 줄 (답 3) |
+| 이 폴더 `domain-entities.md` (NFR 뒤) | 1절 | N2 의 값 (NFR 답 1 · 2) |
+| 이 폴더 `business-logic-model.md` (NFR 뒤) | 1 · 11 · 12절 | 예약 자리 (P2) · NFR 이 받은 넘김 · 정본 되돌림의 이어짐 |
 
 ---
 
@@ -159,7 +164,7 @@ flock · `Renameat2` · statfs 를 쓰는 자리는 `_unix` (또는 `_linux`) �
 
 | 누구 | 무엇 |
 |---|---|
-| NFR Requirements | N2 — `max_gb` · `max_total_inodes` 의 기본값 (ADR-076 §10 — 하루치 upper 9 GB · 처음부터 23 GB). 보안 — 0700 · 0600 · 경로가 나가는 자리 셋 (규칙 11절) · `unshare` 안내 · 자격증명 캐시 안내. 성능 — 1절의 보고 전 창에 더한 것 · fsync 없음 · 판정이 spool 잠금을 쥔 채 측정한다 · 형제와 나눈 spool 에서 받아들임이 느슨하다 |
+| NFR Requirements | (받았다 — `nfr-requirements.md` · 2026-09-30) N2 — `max_gb` · `max_total_inodes` 의 기본값 (ADR-076 §10 — 하루치 upper 9 GB · 처음부터 23 GB). 보안 — 0700 · 0600 · 경로가 나가는 자리 셋 (규칙 11절) · `unshare` 안내 · 자격증명 캐시 안내. 성능 — 1절의 보고 전 창에 더한 것 · fsync 없음 · 판정이 spool 잠금을 쥔 채 측정한다 · 형제와 나눈 spool 에서 받아들임이 느슨하다 |
 | Code Generation | 9절의 행렬 밖 · `Keep` 의 두 칸 · `report` 의 네 끝 · `diagnosticsFor` 를 Close 앞으로 · 측정 입구의 argv · 다섯째 고루틴 · `slice-9.sh` · 커버리지 병합 전과 뒤 (`internal/enode` · `cmd/enode` · `internal/scratch`) |
 | 조각 9 | 7절 표. 4번이 한 시간 넘게 걸린다 · 6번은 단계가 여유를 채운다 |
 | 진행자 | bake `business-rules.md:118-120` 의 규칙 3 근거 문장 (2절) · 12절의 정본 되돌림 · audit 와 상태 파일 |
@@ -182,6 +187,7 @@ flock · `Renameat2` · statfs 를 쓰는 자리는 `_unix` (또는 `_linux`) �
 | ADR-076 §10 | 조회는 노드의 `enode checkpoint list \| show` · Mediator API 없음 · 퇴출 기록은 만료까지 (답 6 · 7) |
 | ADR-076 §10 | reason 의 wire 표기는 여섯 글자 그대로 · 새 코드는 더하기만 · Mediator 는 원인을 확인하지 않는다 (`store/claim.go:965`) |
 | ADR-075 §6 · mediator-api 의 result | diagnostics 에 `checkpoint` 문장 한 칸 (답 9) |
+| (NFR 이 더한 넷) | `nfr-requirements.md` 8절 — N2 의 값 · spool 자리 · fsync 없음 · 창의 비용 |
 
 ---
 

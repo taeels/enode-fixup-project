@@ -1330,3 +1330,31 @@
 **Context**: Construction · U8 checkpoint · Functional Design 승인 · NFR Requirements 착수
 
 ---
+## Construction · U8 `checkpoint` · NFR Requirements 계획과 물음
+**Timestamp**: 2026-09-30T14:16:06Z
+**User Input**: (없음 — Functional Design 승인에 이어)
+**AI Response**: Functional Design 을 e6ec0d3 으로 커밋했다. 같은 작성 서브에이전트 (aidlc-xhigh · 하위 에이전트 없음 · 약 49만 토큰 · 9분) 가 NFR Requirements Step 1 ~ 4 를 마쳤다. 계획 construction/plans/checkpoint-nfr-requirements-plan.md — 측정 (이 기계 ext4 · 보고 전 창에 더한 일 p50 0.16 ms · p99 0.46 ms · 쓰기 부하에서 예약 최대 4.2 초 · fsync 를 하면 부하에서 p99 4.4 초 · upper 한 항목 평균 34 ~ 59 KB 라 바이트 몫이 inode 몫보다 먼저 닿는다) · 묻지 않고 정한 것 (성능 P1 ~ P7 · 보안 C1 ~ C7 · 신뢰 R1 ~ R3 · 규모 S1 · 유지 M1 · U1 · 기술 선택 목록 · NFR Design 에 넘기는 패턴 넷) · 물음 넷 (권장 모두 A) — 1 max_gb 기본값 (A 32) · 2 max_total_inodes 기본값 (A 몫과 같은 비율 · statfs 가 inode 를 안 내면 보지 않음) · 3 이미 있는 spool 자리가 symlink · 남의 것 · 느슨한 권한일 때 (A lower-state 선례 · 좁히거나 거절하고 노드는 뜬다) · 4 확인하지 못한 채로 두는 것 (A 받아들인다). 진행자가 고친 것 둘 — SunnyVM 의 디스크 수를 읽기만 해서 2절에 더했다 (ext4 · 539.4 GB · 가용 344.7 GB · inode 33,488,896 · 남은 inode 28,285,100 · 20% 몫은 68.9 GB 와 5,657,020 inode) 그래서 물음 4 의 목록에서 뺐다 · 물음 4 권장 근거의 「SunnyVM 이 켜질 때까지 기다린다 (노트북 VM)」를 지웠다 (미리 단서를 달지 않는다). 작성 에이전트가 찾은 FD 의 고칠 곳 넷 — 규칙 9절이 읽을 수 없는 기록을 건드리지 않게 적어 전원이 나간 뒤 빈 기록의 upper 가 영영 남는다 (항목 잠금을 쥘 수 있으면 trash 로 보내게 고친다) · P2 (보존이 finalize 판정을 바꾸지 않는다) 의 모양이 NFR Design 에서 정해지면 흐름 1절과 규칙 2절 ⑤ 의 예약 자리 · 답 1 · 2 에 따른 「0 이면 N2 의 기본값」 줄 · 답 3 에 따른 spool 자리 확인과 문장과 로그 줄. 검사 — emphasis-check.py exit 0 · 말투 0 · 사내 이름 0 · 새 파일은 계획 하나. 커밋은 승인 뒤다.
+**Context**: Construction · U8 checkpoint · NFR Requirements Step 1 ~ 4 · 답 대기
+
+---
+## Construction · U8 `checkpoint` · NFR Requirements 물음 넷의 답
+**Timestamp**: 2026-09-30T14:24:34Z
+**User Input**: "권장대로"
+**AI Response**: 계획 파일의 [Answer]: 넷에 A 를 적었다 (1 max_gb 32 · 2 max_total_inodes 는 바이트 몫과 같은 비율 · 3 lower-state 선례 · 4 받아들인다). NFR Requirements Step 5 · 6 (답 분석 · 산출물 nfr-requirements.md · tech-stack-decisions.md) 과 FD 의 고칠 곳 넷을 같은 작성 서브에이전트에게 맡긴다.
+**Context**: Construction · U8 checkpoint · NFR Requirements Step 5 · 답
+
+---
+## Construction · U8 `checkpoint` · NFR Requirements 미리 승인
+**Timestamp**: 2026-09-30T14:26:15Z
+**User Input**: "승인 미리 한다 다되면 다음거해"
+**AI Response**: NFR Requirements 의 승인을 미리 받았다. 작성 서브에이전트가 산출물 둘과 FD 고침 넷을 마치면 진행자가 확인하고, 막을 것이 없으면 승인으로 기록 · 커밋한 뒤 NFR Design (계획과 물음) 으로 넘어간다. 확인에서 사용자가 정해야 할 것이 나오면 넘어가지 않고 묻는다.
+**Context**: Construction · U8 checkpoint · NFR Requirements · 미리 승인
+
+---
+## Construction · U8 `checkpoint` · NFR Requirements 산출물과 승인
+**Timestamp**: 2026-09-30T14:29:13Z
+**User Input**: (없음 — 2026-09-30T14:26:15Z 의 미리 승인 「승인 미리 한다 다되면 다음거해」 에 따른다)
+**AI Response**: 같은 작성 서브에이전트 (약 53만 토큰 · 4분) 가 NFR Requirements Step 5 · 6 을 마쳤다. 답 넷에 모호함이 없어 되물음 파일을 만들지 않았다. 산출물 construction/checkpoint/nfr-requirements/ — nfr-requirements.md 132 줄 (N2 값 · 성능 P1 ~ P7 · 보안 C1 ~ C7 · 신뢰 · 규모 · 유지 · NFR Design 에 넘기는 D1 ~ D4 · 정본 되돌림 넷) · tech-stack-decisions.md 27 줄 (새 의존 0). FD 고침 넷 (표지 「NFR 답 N 으로 고침」) — 규칙 9절 (ID 모양 폴더의 기록이 없거나 비었거나 읽을 수 없으면 항목 잠금을 쥘 수 있을 때 trash · 잠금 파일조차 없으면 1시간 뒤) · 규칙 10절과 엔티티 1절 (max_gb 32 · max_total_inodes 는 capacity_percent 몫 · statfs 전체 inode 0 이면 보지 않음) · 규칙 2절 · 11절 · 14절 (spool 자리를 lstat 로 기동 때 확인 · 느슨한 비트는 좁힘 · symlink · 디렉터리 아님 · 남의 것은 failed(io) 와 새 문장 · 로그 두 줄 · 노드는 뜬다) · 규칙 2절과 흐름 1절 (예약 자리는 NFR Design 이 정할 때 바뀐다는 한 줄). 답에서 나온 결과 하나 — spool 이 다른 filesystem 을 가리키는 symlink 면 unsupported(cross_filesystem) 이 아니라 failed(io). 진행자 확인 — git status (새 폴더 · 계획 · FD 셋 · 감사) · emphasis-check.py 새 문서 둘 · FD 셋 · 계획 exit 0 · FD diff 를 읽었다. 사용자가 정할 것이 없어 미리 받은 승인으로 기록하고 커밋한다. 다음은 NFR Design (D1 ~ D4).
+**Context**: Construction · U8 checkpoint · NFR Requirements 승인 · NFR Design 착수
+
+---

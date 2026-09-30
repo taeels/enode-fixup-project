@@ -33,11 +33,12 @@
 |---|---|---|---|
 | ① | 1절이 요구하나 | `not_requested` | 없음 |
 | ② | 런타임의 `Capture.Supported` | `unsupported`(`runtime`) | `this node runs steps without an isolated upper; there is nothing to keep` |
-| ② | `<scratch>` 와 `<scratch>/spool` 의 filesystem 번호 (stat 둘) | `unsupported`(`cross_filesystem`) | `the spool is on another filesystem than the step's upper; the upper is never copied` |
+| ② | `<scratch>` 와 `<scratch>/spool` 의 filesystem 번호 (spool 은 lstat — symlink 면 따라가지 않고 ⑤ 가 거절한다 · NFR 답 3 으로 고침) | `unsupported`(`cross_filesystem`) | `the spool is on another filesystem than the step's upper; the upper is never copied` |
 | ③ | Finalize 가 마감으로 끝났거나 지금이 마감 뒤 | `rejected`(`lease_budget`) | `the finalize budget ran out before the upper could be moved into the spool` |
 | ④ | statfs 여유 < `min_free_gb` | `rejected`(`free_space`) | `free space 8.0 GiB is below min_free_gb 10` |
 | ④ | 보존 총량 ≥ 몫 (5절) | `rejected`(`quota`) | `kept checkpoints already use 41.2 GiB, capacity_percent 20 of kept plus free space` |
 | ⑤ | 예약 (항목 폴더 · 잠금 · `reserved` 기록) 이 실패 | `failed`(`io`) | `reserving a place in the spool failed: <errno>` |
+| ⑤ | spool 자리를 거절했다 — symlink · 디렉터리 아님 · 남의 것 (11절 · NFR 답 3 으로 고침) | `failed`(`io`) | `the spool is not a private directory of this node; nothing is kept` |
 | ⑤ | `Close(Keep{Upper, By, Result})` 뒤 `KeepResult.Late` | `rejected`(`lease_budget`) | ③ 과 같다 |
 | ⑤ | `KeepResult.Err` | `failed`(`io`) | `moving the upper into the spool failed: <errno>` · abort 면 `the session was aborted before the upper could be kept` |
 | ⑥ | 옮긴 뒤 지금이 마감 뒤 | `failed`(`lease_budget`) | `the finalize budget ran out after the upper was moved; the checkpoint was discarded` |
@@ -47,6 +48,8 @@
 - **④ 는 여유를 먼저 본다** — 노드 전체의 여유를 보존 몫보다 먼저 지킨다
 - **⑤ · ⑥ 에서 실패한 예약은 그 자리에서 버린다** — 항목 폴더째 `Trash.Move` 한 번 (상수 시간) 하고 잠금을 놓는다. 버리기도
   실패하면 `reserved` 로 남아 9절 조정이 거둔다 (ADR-076 §4 「spool 미완료 항목은 store 가 정리한다」)
+- **예약의 자리는 NFR Design 이 정할 때 바뀐다** — 쓰기 부하에서 예약이 4.2 초 멈췄다 (`nfr-requirements.md` 2절 P2). 보존이
+  finalize 판정을 바꾸지 않게 할 모양을 NFR Design 이 정하면 ⑤ 의 차례가 바뀐다. 지금 모양은 그대로다 (NFR P2 로 고침)
 - **`<errno>` 는 오류의 뜻만이다** — `syscall.Errno` 의 글 (`file exists` 처럼). `PathError` · `LinkError` 의 문장은 경로를 담으므로
   쓰지 않는다 (11절)
 
@@ -97,9 +100,9 @@ spool 잠금을 쥐고 차례대로 한다. 보고 전 창과 임대 밖이다.
 | 1 | 기록을 다 읽는다. 만료 (지금 ≥ `expires_at`) 인 `kept` · `evicted` 는 항목 폴더째 `Trash.Move` |
 | 2 | 측정 전인 `kept` 를 오래된 것부터 helper 안에서 걷는다 — 바이트 (블록 수 x 512) 와 항목 수. `Measure` 의 경계 그대로 (symlink 를 안 따라가고 다른 filesystem 에 안 들어간다) |
 | 3 | 하나가 `max_gb` 를 넘으면 그 `upper/` 를 `Trash.Move` · 기록은 `evicted` · 사유 `larger than max_gb` |
-| 4 | 몫을 한 번 정한다 — `capacity_percent` x (보존 총량 + 여유). 퇴출한 바이트는 여유로 돌아올 것이므로 몫은 판정 동안 그대로다 |
+| 4 | 몫을 한 번 정한다 — 바이트는 `capacity_percent` x (보존 총량 + 여유), inode 는 10절의 한도. 퇴출한 것은 여유로 돌아올 것이므로 몫은 판정 동안 그대로다 (NFR 답 2 로 고침) |
 | 5 | 보존 총량 > 몫이면 오래된 `kept` 부터 퇴출 · 사유 `over capacity_percent`. 새 것도 예외가 아니다 |
-| 6 | inode 합 > `max_total_inodes` 면 오래된 `kept` 부터 퇴출 · 사유 `over max_total_inodes` |
+| 6 | inode 합 > inode 한도 (10절) 면 오래된 `kept` 부터 퇴출 · 사유 `over max_total_inodes`. statfs 의 전체 inode 가 0 이면 이 차례를 건너뛴다 (NFR 답 2 로 고침) |
 | 7 | 메모리의 보존 총량과 상태 파일의 spool 칸을 고친다. trash 에 넣었으면 삭제자를 깨운다 |
 
 - **측정이 실패하면** 그 항목은 측정 전으로 남고 다음 판정에서 다시 걷는다. helper 를 못 띄우면 (`LaunchError`) 그 판정은 멈추고
@@ -134,11 +137,12 @@ spool 잠금을 쥐고 차례대로 한다. 보고 전 창과 임대 밖이다.
 
 | 찾은 것 | 하는 일 |
 |---|---|
-| 기록이 없거나 `reserved` 이고 항목 잠금을 쥘 수 있다 | 주인이 없는 미완료다. 항목 폴더째 trash |
-| `reserved` 이고 항목 잠금을 못 쥔다 | 살아 있는 형제의 예약이다. 건드리지 않는다 |
+| ID 모양 폴더에 잠금 파일조차 없다 | 만든 지 1시간이 지났을 때만 아래 줄과 같이 다룬다 — 예약의 mkdir 와 잠금 사이를 비킨다 (trash 규칙 3절 선례 · NFR R2 로 고침) |
+| ID 모양 폴더이고 기록이 없거나 · 비었거나 · 읽을 수 없거나 (11절 · 1 MiB 넘음 포함) · `reserved` 이며 항목 잠금을 쥘 수 있다 | 주인이 없는 미완료다 — 전원이 나간 뒤에도 생긴다 (기록에 fsync 가 없다 · 흐름 1절). 항목 폴더째 trash (NFR R2 로 고침) |
+| 위와 같은데 항목 잠금을 못 쥔다 | 형제가 쓰는 중이다. 건드리지 않는다 |
 | `kept` · `evicted` 이고 만료 | 항목 폴더째 trash |
 | `kept` 이고 `report` 가 비었다 | `unknown` 으로 적는다 |
-| 이름이 ID 모양이 아닌 폴더 · 읽을 수 없는 기록 | 건드리지 않고 warn 한 줄 (사람이 둔 것일 수 있다) |
+| 이름이 ID 모양이 아닌 폴더 | 건드리지 않고 warn 한 줄 (사람이 둔 것일 수 있다 · 읽을 수 없는 기록은 위 줄로 옮겼다 · NFR R2 로 고침) |
 
 조정 뒤 곧바로 보고 뒤 판정 (6절) 을 한 번 돈다 — 측정 전 항목을 걷는다. 소유자가 항목 폴더를 trash 로 옮겼으면 (답 6) 폴더도 기록도
 없으므로 할 일이 없다.
@@ -152,10 +156,13 @@ spool 잠금을 쥐고 차례대로 한다. 보고 전 창과 임대 밖이다.
 | `policy` | `on-failure` | `off` · `on-failure` · `always` | `checkpoint: policy "X" is not off, on-failure or always` |
 | `ttl_hours` | 48 | 1 이상 | `checkpoint: ttl_hours must be at least 1` |
 | `capacity_percent` | 20 | 1 ~ 100 | `checkpoint: capacity_percent must be between 1 and 100` |
-| `max_gb` | N2 | 1 이상 | `checkpoint: max_gb must be at least 1` |
-| `max_total_inodes` | N2 | 1 이상 | `checkpoint: max_total_inodes must be at least 1` |
+| `max_gb` | 32 (NFR 답 1 로 고침) | 1 이상 | `checkpoint: max_gb must be at least 1` |
+| `max_total_inodes` | 몫 — 아래 (NFR 답 2 로 고침) | 1 이상 | `checkpoint: max_total_inodes must be at least 1` |
 
 - 블록이 없거나 값이 0 이면 기본값이다 (`min_free_gb` 선례 · `config.go:141`). 보존을 끄는 길은 `policy: off` 하나다
+- **inode 한도의 기본은 몫이다** — `capacity_percent` x (`kept` 의 측정한 inode 합 + statfs 의 남은 inode). statfs 의 전체 inode 가 0 인
+  filesystem (btrfs) 에서는 보지 않는다. 숫자를 적으면 그 숫자다 (NFR 답 2 로 고침 · `nfr-requirements.md` 1절)
+- `max_gb` 의 기본 32 는 측정한 가장 큰 upper (처음부터 굽기 23 GB · ADR-077 §12) 를 받는다 (NFR 답 1 로 고침)
 - 음수는 틀린 값이다. 문장의 머리 `config <path>: ` 는 오늘 `LoadLocal` 이 붙인다
 - 계약과 agent 출력에는 칸이 없다 (결정 2-11). native 노드도 블록을 읽는다 — 상태 파일에 정책을 보이려고 (12절)
 
@@ -164,6 +171,11 @@ spool 잠금을 쥐고 차례대로 한다. 보고 전 창과 임대 밖이다.
 ## 11. spool 과 보안 (계획 3절 10 · 11번 · `requirements.md` 5.3)
 
 - spool 과 항목 폴더는 0700, 기록은 0600 — 노드 uid 만 읽는다
+- **spool 자리를 기동 때 확인한다** (NFR 답 3 으로 고침) — lstat 로 본다. 없으면 0700 으로 만든다. 남에게 열린 비트 (0o077) 는
+  fchmod 0700 으로 좁히고 로그 한 줄. symlink · 디렉터리 아님 · 주인이 노드 uid 가 아님은 고치지 않고 거절한다 — 요구한 단계는 2절
+  ⑤ 의 `failed`(`io`) 와 문장, 기동 로그 warn 한 줄. 노드는 뜨고 drain 하지 않는다 (lower-state 상태 자리의 규칙과 같다 ·
+  `lower-state-code-generation-plan.md:145-162`). 예약은 spool 을 `O_NOFOLLOW` 로 연다 — 기동 뒤에 바뀐 자리도 거절한다
+- 기록은 `O_NOFOLLOW` · 보통 파일 · 1 MiB 까지만 읽는다. 넘으면 읽을 수 없는 기록이다 (9절 · NFR C7 로 고침)
 - host 경로가 나가지 않는 자리 — receipt · `diagnostics.checkpoint` · 단계 로그 (Mediator 로 올라간다) · 광고. 나가는 자리는
   `enode checkpoint show` 와 `list --json` (소유자 화면) 과 노드 로그 (기계 안) 뿐이다
 - 보존 중 암호화는 하지 않는다 (결정 2-9). TTL 에 지운다 (7절)
@@ -252,3 +264,5 @@ discard      move <scratch>/spool/3f9a1c0b7d2e into <scratch>/trash/; the backgr
 | 판정 · 조정의 오류 | warn `checkpoint settle failed` · `checkpoint reconcile failed` — err (경로를 담아도 된다 · 기계 안) |
 | 조정이 남긴 폴더 | warn `unknown entry left in the spool` — name |
 | 보고의 성패 쓰기 실패 | warn `cannot record the report outcome of a checkpoint` — id · err |
+| 기동 · spool 을 좁힘 | info `checkpoint spool permissions narrowed to 0700` — mode (NFR 답 3 으로 고침) |
+| 기동 · spool 을 거절 | warn `the checkpoint spool is not a private directory of this node; nothing will be kept` — why (`symlink` · `not a directory` · `owned by uid N`) (NFR 답 3 으로 고침) |
