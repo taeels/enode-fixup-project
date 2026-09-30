@@ -1358,3 +1358,31 @@
 **Context**: Construction · U8 checkpoint · NFR Requirements 승인 · NFR Design 착수
 
 ---
+## Construction · U8 `checkpoint` · NFR Design 계획과 물음
+**Timestamp**: 2026-09-30T14:33:29Z
+**User Input**: (없음 — NFR Requirements 승인에 이어)
+**AI Response**: NFR Requirements 를 cd7d6a3 으로 커밋했다. 같은 작성 서브에이전트 (약 56만 토큰 · 4분) 가 NFR Design Step 1 ~ 4 를 마쳤다. 계획 construction/plans/checkpoint-nfr-design-plan.md (163 줄). 물음 하나 — D1 보존이 finalize 판정을 바꾸지 않게 하는 모양 (A 예약을 세션을 열 때로 옮긴다 · B 남은 예산이 10초 아래면 예약하지 않는다 · C finalize 판정에서 보존 시간을 뺀다 · 권장 A). 묻지 않고 정한 것 — D2 측정은 spool 잠금 밖 (잠금은 기록을 읽고 적을 때만 · 적을 때 다시 읽어 그새 퇴출 · 만료된 항목이면 버림) · D3 spool 의 usage.json 요약 (판정 끝에 쓰고 예약이 읽음 · 형제가 채운 spool 에서 quota 거절이 성립) · D4 삭제자와 같은 모양 (자리 하나짜리 채널로 깸을 합침 · 측정 helper 는 항목마다 차례로 · IO 우선순위 idle) · 회복 · 보안은 새 패턴 없음 · 규모 N/A. 측정 (이 기계 ext4) — 세션을 열 때 예약 p50 67 µs · p99 168 µs · 성공한 단계의 예약 버리기 p50 36 µs · 요약 읽기 p50 15 µs. 진행자 확인 — claim.go:712 (runtime Open) · claim.go:876-884 (Close 가 끝난 시각이 마감 뒤면 closedLate · timedOut) · bake_build.go:196 (굽기의 Open) 이 계획과 맞다 · emphasis-check.py exit 0 · 새 파일은 계획 하나.
+**Context**: Construction · U8 checkpoint · NFR Design Step 1 ~ 4 · 답 대기
+
+---
+## Construction · U8 `checkpoint` · NFR Design 물음의 답
+**Timestamp**: 2026-09-30T14:54:12Z
+**User Input**: "권장"
+**AI Response**: 계획 파일의 [Answer]: 에 A 를 적었다 (예약을 세션을 열 때로 옮긴다). NFR Design Step 5 · 6 (산출물 nfr-design-patterns.md · logical-components.md) 과 FD · NFR 산출물의 고칠 곳을 같은 작성 서브에이전트에게 맡긴다. 승인은 산출물 뒤에 묻는다.
+**Context**: Construction · U8 checkpoint · NFR Design Step 5 · 답
+
+---
+## Construction · U8 `checkpoint` · NFR Design 산출물
+**Timestamp**: 2026-09-30T14:59:04Z
+**User Input**: (없음 — 답에 이어 산출물)
+**AI Response**: 같은 작성 서브에이전트 (약 60만 토큰 · 4분) 가 NFR Design Step 5 · 6 을 마쳤다. 되물음 없음. 산출물 construction/checkpoint/nfr-design/ — nfr-design-patterns.md 127 줄 (D1 답 A 가 on-failure 의 뜻 · ADR-076 §4 의 rejected · failed(lease_budget) · 결정 2-7 과 함께 성립하는지 대 본 표 · D2 ~ D4 · 범주별 N/A) · logical-components.md 61 줄. 고친 곳 스물여섯 (표지 「NFR Design 답 1 · D2 · D3 · D4 로 고침」) — 규칙 2절 ⑤ (예약은 세션을 열 때 · 열 때의 실패는 errno 를 들고 닫을 때 알림 · 요구하지 않은 예약은 보고 뒤 버림) · 5절 (보존 총량은 usage.json 에서 닫을 때 읽음) · 6절 (측정은 잠금 밖 · 적기 전 다시 읽기 · usage.json 쓰기) · 13절 (도는 단계의 예약은 list 와 show 에서 뺌) · 엔티티 3 · 4 · 6절 · 흐름 1 ~ 5 · 7 · 10 · 12절 · nfr-requirements.md P2 · P5 · P7 · 5 · 6 · 8절. 계획 3.2 와 다른 것 하나 — usage.json 은 열 때가 아니라 닫을 때 읽는다 (몇 시간 도는 단계에서 열 때의 값은 낡고 ADR-076 §4 는 현재 보존 총량을 말한다 · 읽기 15 µs). 정본 되돌림에 한 줄 더함 (ADR-076 §4 — 예약은 세션을 열 때 · 임대 창에는 받아들임과 rename 만). 진행자 확인 — git status · emphasis-check.py 새 문서 둘과 고친 문서 넷과 계획 exit 0 · 사내 이름 0 · 흐름 1절 diff 를 읽었다 (예약은 명령 앞 · 창에는 stat · statfs · usage.json 읽기 · rename · 확정은 closedAt 뒤). 승인을 묻는다 — Request Changes 또는 Continue to Next Stage (다음은 Code Generation).
+**Context**: Construction · U8 checkpoint · NFR Design Step 6 · 7 · 승인 대기
+
+---
+## Construction · U8 `checkpoint` · NFR Design 승인
+**Timestamp**: 2026-09-30T23:18:42Z
+**User Input**: "승인"
+**AI Response**: NFR Design 승인 (Continue to Next Stage). 상태 파일에 적고 이 단계 (계획 · 산출물 둘 · FD 셋과 nfr-requirements 고침 · 상태 · 감사) 를 커밋한다. 다음은 Code Generation Part 1 (계획) — 같은 작성 서브에이전트에게 맡긴다.
+**Context**: Construction · U8 checkpoint · NFR Design 승인 · Code Generation 착수
+
+---

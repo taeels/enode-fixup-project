@@ -37,7 +37,7 @@
 | ③ | Finalize 가 마감으로 끝났거나 지금이 마감 뒤 | `rejected`(`lease_budget`) | `the finalize budget ran out before the upper could be moved into the spool` |
 | ④ | statfs 여유 < `min_free_gb` | `rejected`(`free_space`) | `free space 8.0 GiB is below min_free_gb 10` |
 | ④ | 보존 총량 ≥ 몫 (5절) | `rejected`(`quota`) | `kept checkpoints already use 41.2 GiB, capacity_percent 20 of kept plus free space` |
-| ⑤ | 예약 (항목 폴더 · 잠금 · `reserved` 기록) 이 실패 | `failed`(`io`) | `reserving a place in the spool failed: <errno>` |
+| ⑤ | 세션을 열 때의 예약 (항목 폴더 · 잠금 · `reserved` 기록) 이 실패했다 — 그때의 errno 를 들고 있다가 여기서 알린다 (NFR Design 답 1 로 고침) | `failed`(`io`) | `reserving a place in the spool failed: <errno>` |
 | ⑤ | spool 자리를 거절했다 — symlink · 디렉터리 아님 · 남의 것 (11절 · NFR 답 3 으로 고침) | `failed`(`io`) | `the spool is not a private directory of this node; nothing is kept` |
 | ⑤ | `Close(Keep{Upper, By, Result})` 뒤 `KeepResult.Late` | `rejected`(`lease_budget`) | ③ 과 같다 |
 | ⑤ | `KeepResult.Err` | `failed`(`io`) | `moving the upper into the spool failed: <errno>` · abort 면 `the session was aborted before the upper could be kept` |
@@ -48,8 +48,10 @@
 - **④ 는 여유를 먼저 본다** — 노드 전체의 여유를 보존 몫보다 먼저 지킨다
 - **⑤ · ⑥ 에서 실패한 예약은 그 자리에서 버린다** — 항목 폴더째 `Trash.Move` 한 번 (상수 시간) 하고 잠금을 놓는다. 버리기도
   실패하면 `reserved` 로 남아 9절 조정이 거둔다 (ADR-076 §4 「spool 미완료 항목은 store 가 정리한다」)
-- **예약의 자리는 NFR Design 이 정할 때 바뀐다** — 쓰기 부하에서 예약이 4.2 초 멈췄다 (`nfr-requirements.md` 2절 P2). 보존이
-  finalize 판정을 바꾸지 않게 할 모양을 NFR Design 이 정하면 ⑤ 의 차례가 바뀐다. 지금 모양은 그대로다 (NFR P2 로 고침)
+- **예약은 세션을 열 때 한다** (NFR Design 답 1 로 고침) — `claim.go:712` · `bake_build.go:196` 뒤. 정책이 off 가 아니고 runtime 이
+  지원하고 spool 을 받아들인 노드에서 단계마다. 판정의 창에는 ① ~ ④ 의 stat · statfs · 요약 읽기와 Close 안의 rename 만 남고, ⑥ ⑦ 의
+  확정은 `closedAt` 뒤다. 요구하지 않았거나 칸이 없는 끝 (4절) 의 예약은 보고 뒤 버린다. 요구하는지는 여전히 닫을 때 1절이 정한다
+  (`nfr-design-patterns.md` 1절)
 - **`<errno>` 는 오류의 뜻만이다** — `syscall.Errno` 의 글 (`file exists` 처럼). `PathError` · `LinkError` 의 문장은 경로를 담으므로
   쓰지 않는다 (11절)
 
@@ -83,9 +85,10 @@ ADR-076 §4 의 두 문장이 함께 성립해야 한다 — 「capture 가 실�
 
 ## 5. 받아들임 — 보고 전 (계획 3절 4번 · 결정 2-7 · 2-10)
 
-- **보는 것은 둘이다.** statfs 의 여유 (`freeBytes` · `disk_unix.go:7`) 와 Store 가 메모리에 든 보존 총량. 둘 다 upper 크기와 무관하다
-- **보존 총량** = `kept` 항목의 측정한 바이트의 합. 측정 전 항목은 0 으로 센다. 값은 마지막 보고 뒤 판정과 조정이 채운다 —
-  scratch 를 나눠 쓰는 형제의 최근 보존본이 빠져 있을 수 있다. 받아들임은 느슨한 문이고 6절이 정확히 막는다
+- **보는 것은 둘이다.** statfs 의 여유 (`freeBytes` · `disk_unix.go:7`) 와 spool 의 요약 `usage.json` 의 보존 총량 (닫을 때 읽는다 ·
+  잠금 없이 · 없거나 못 읽으면 0). 둘 다 upper 크기와 무관하다 (NFR Design D3 로 고침)
+- **보존 총량** = `kept` 항목의 측정한 바이트의 합. 어느 노드의 판정이든 spool 전체를 읽고 요약을 쓰므로 형제의 측정한 보존본이
+  든다. 측정 전 항목은 0 으로 센다 — 받아들임은 그만큼 느슨하고 6절이 정확히 막는다 (NFR Design D3 로 고침)
 - **몫** = `capacity_percent` / 100 x (보존 총량 + 여유)
 - 예약은 spool 잠금을 쥐지 않는다 — 보고 뒤 판정이 측정하는 동안 (몇 초) 보고 전 창이 기다리지 않게 한다. 항목 잠금만 쥔다
 
@@ -93,7 +96,8 @@ ADR-076 §4 의 두 문장이 함께 성립해야 한다 — 「capture 가 실�
 
 ## 6. 보고 뒤 판정과 퇴출 (계획 3절 5번 · 답 7 · 결정 2-8)
 
-spool 잠금을 쥐고 차례대로 한다. 보고 전 창과 임대 밖이다.
+차례대로 한다. 보고 전 창과 임대 밖이다. spool 잠금은 1 (읽기) 과 3 ~ 7 (적기) 에만 쥐고 2 의 측정은 잠금 밖이다 — 적기 전에 기록을
+다시 읽어 그새 형제가 퇴출하거나 만료한 항목의 측정값은 버린다 (NFR Design D2 로 고침).
 
 | 차례 | 하는 일 |
 |---|---|
@@ -103,7 +107,7 @@ spool 잠금을 쥐고 차례대로 한다. 보고 전 창과 임대 밖이다.
 | 4 | 몫을 한 번 정한다 — 바이트는 `capacity_percent` x (보존 총량 + 여유), inode 는 10절의 한도. 퇴출한 것은 여유로 돌아올 것이므로 몫은 판정 동안 그대로다 (NFR 답 2 로 고침) |
 | 5 | 보존 총량 > 몫이면 오래된 `kept` 부터 퇴출 · 사유 `over capacity_percent`. 새 것도 예외가 아니다 |
 | 6 | inode 합 > inode 한도 (10절) 면 오래된 `kept` 부터 퇴출 · 사유 `over max_total_inodes`. statfs 의 전체 inode 가 0 이면 이 차례를 건너뛴다 (NFR 답 2 로 고침) |
-| 7 | 메모리의 보존 총량과 상태 파일의 spool 칸을 고친다. trash 에 넣었으면 삭제자를 깨운다 |
+| 7 | 요약 `usage.json` (`kept` 의 바이트 합 · inode 합 · 시각 · 0600 · fsync 없음) 과 상태 파일의 spool 칸을 쓴다. trash 에 넣었으면 삭제자를 깨운다 (NFR Design D3 로 고침) |
 
 - **측정이 실패하면** 그 항목은 측정 전으로 남고 다음 판정에서 다시 걷는다. helper 를 못 띄우면 (`LaunchError`) 그 판정은 멈추고
   다음 때를 기다린다 — 삭제자와 같은 규칙 (trash `business-rules.md` 4.3)
@@ -221,7 +225,8 @@ ID            STATE                          RUN      STEP        CAPTURED      
 c41e09aa7b21  kept                           r-81f0   2 agent     2026-09-30T15:00:02Z  2026-10-02T15:00:02Z  unmeasured  unknown
 ```
 
-`reserved` 는 STATE 가 `incomplete` 다. 비었으면 `no checkpoints on this node`. scratch 가 없는 노드 (native) 는
+항목 잠금이 쥐어진 `reserved` (도는 단계의 예약) 는 목록에서 뺀다 — 잠금을 `LOCK_NB` 로 시험만 한다. 주인이 없는 `reserved` 만 STATE
+`incomplete` 다. `show` 도 같다 (NFR Design 답 1 로 고침). 비었으면 `no checkpoints on this node`. scratch 가 없는 노드 (native) 는
 `this node has no scratch; checkpoints need the runc-overlay runtime` — 둘 다 exit 0.
 
 **`show <ID>`** — 칸마다 한 줄 (초안):

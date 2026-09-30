@@ -122,11 +122,12 @@ type Entry struct {
 
 | 상태 | 뜻 | 트리 | 들어오는 때 | 나가는 때 |
 |---|---|---|---|---|
-| `reserved` | 예약 — 옮기는 중이거나 확정 전에 멈췄다 | 없거나 `upper/` | 보고 전 판정이 받아들임 | 확정 → `kept` · 버림이나 조정 → 자리째 trash |
+| `reserved` | 예약 — 도는 단계의 자리이거나, 옮기는 중이거나, 확정 전에 멈췄다 (NFR Design 답 1 로 고침) | 없거나 `upper/` | 세션을 열 때 | 확정 → `kept` · 요구하지 않음 → 보고 뒤 버림 · 조정 → 자리째 trash |
 | `kept` | 보관 중 | `upper/` | 확정 | 퇴출 → `evicted` · 만료 → 자리째 trash |
 | `evicted` | 트리는 trash 로 갔고 기록만 남았다 | 없음 | 보고 뒤 판정 | 만료 → 자리째 trash |
 
-만료된 항목은 기록째 없다 (답 7). `reserved` 는 조회에 `incomplete` 로 보인다 (규칙 13절).
+만료된 항목은 기록째 없다 (답 7). 주인이 없는 `reserved` 만 조회에 `incomplete` 로 보인다 — 도는 단계의 예약은 안 보인다 (규칙 13절 ·
+NFR Design 답 1 로 고침).
 
 **보고의 성패** (답 10) — `delivered` 보고가 닿았다 · `rejected` Mediator 가 4xx 로 거절했다 · `lease_ended` 임대가 끝나 보내기를
 멈췄다 · `unknown` 데몬이 멈췄거나 성패를 적기 전에 죽었다. `Worker.report` 의 네 끝이다 (`claim.go:405-433`).
@@ -137,9 +138,10 @@ type Entry struct {
 
 ```text
    <scratch>/spool/                 0700  노드 uid.  고정 — 설정으로 못 바꾼다
-     .lock                          보고 뒤 판정과 조정이 쥐는 spool 잠금 (flock)
+     .lock                          판정의 읽기 · 적기와 조정이 쥐는 spool 잠금 (flock · NFR Design D2 로 고침)
+     usage.json                     요약 — kept 의 바이트 합 · inode 합 · 시각 (0600 · 판정이 쓰고 받아들임이 읽는다 · NFR Design D3 로 고침)
      <ID>/                          0700  노드 uid.  이름이 곧 ID
-       .enode-session.lock          reserved 동안 쥐는 항목 잠금 (scratch.HoldSession 과 같은 모양)
+       .enode-session.lock          reserved 동안 쥐는 항목 잠금 — 세션을 열 때부터 (scratch.HoldSession 과 같은 모양)
        checkpoint.json              기록 (0600)
        upper/                       runRoot/upper 가 rename 한 번으로 들어온다
 ```
@@ -189,6 +191,7 @@ type KeepResult struct {
 | `closing.failed bool` · `closing.bake bool` | `claim.go:853` | 부르는 쪽이 아는 실패와 굽기 build 인지 (규칙 1절) |
 | `Result.CheckpointCapture` | `claim.go:192` | 2절 |
 | 보고의 성패 | `Worker.report` | 네 끝을 `Reported(ID, 성패)` 로 store 에 적는다 |
+| 단계의 예약 | 세션을 연 자리의 값 → `closing` | 세션을 열 때 받고, 닫을 때 쓰거나 보고 뒤 버린다. 열 때의 오류를 함께 든다 (NFR Design 답 1 로 고침) |
 
 ---
 

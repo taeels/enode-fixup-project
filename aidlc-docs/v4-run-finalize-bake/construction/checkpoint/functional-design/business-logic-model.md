@@ -8,23 +8,26 @@
 ## 1. 단계의 닫기 — `Worker.closeOut` (`claim.go:867`)
 
 ```text
+   세션 열기 뒤 (claim.go:712 · bake_build.go:196)   Keeper.Reserve — ID · <spool>/<ID>/ · 항목 잠금 · reserved 기록.  실패하면 errno 만 든다
+                                             (NFR Design 답 1 로 고침 — 전에는 Decide 아래에 있었다)
+   명령
    Finalize                                  오늘 그대로 [Finalize 예산 시작 = exited_at]
    diagnostics 를 짓는다                        Close 뒤 (claim.go:886) 에서 앞으로 옮긴다 — 빠진 산출물을 규칙 1절이 본다
-   Keeper.Decide(사실)                        규칙 1절 (요구하나) -> 규칙 2절 ② ~ ④.  걸리면 그 상태로 끝나고 Keep{} 로 닫는다
-     Reserve                                 ID · <spool>/<ID>/ · 항목 잠금 · reserved 기록 (신원 칸 · 규칙 11절)
+   Keeper.Decide(사실)                        규칙 1절 (요구하나) -> 규칙 2절 ② ~ ⑤ (usage.json 읽기 · 예약이 없으면 failed).  걸리면 Keep{} 로 닫는다
    session.Close(Keep{Upper, By, Result})    helper 가 끝난 뒤 By 를 보고 rename 한 번 (RENAME_NOREPLACE).  작업 폴더는 trash
-   Keeper.Finish(예약, KeepResult)           규칙 2절 ⑤ ~ ⑦ — kept 기록 · 잠금 놓기, 또는 버림 (항목 폴더째 trash)
+   closedAt                                  마감 판정은 여기까지다 (claim.go:884)
+   Keeper.Finish(예약, KeepResult)           규칙 2절 ⑥ ⑦ — 신원을 담은 kept 기록 · 잠금 놓기, 또는 버림 (항목 폴더째 trash)
    after (굽기) · finalized_at               오늘 그대로 [Finalize 예산 끝]
    업로드 · settle                            오늘 그대로.  settle 은 KeepResult 를 모른다 (규칙 3절)
    res.CheckpointCapture · Diagnostics.Checkpoint
 ```
 
-- **보고 전 창에 더하는 것** — stat 둘 (filesystem 번호) · statfs 하나 · mkdir · flock · 작은 기록 쓰기 둘 · rename 하나. 모두 upper
-  크기와 무관하다 (결정 2-4 — 임대 창에서는 O(1) 소유권 이전만)
+- **판정의 창에 더하는 것** — stat 둘 (filesystem 번호) · statfs 하나 · `usage.json` 읽기 · rename 하나. 예약은 명령 앞, 확정은
+  `closedAt` 뒤다. 모두 upper 크기와 무관하다 (결정 2-4 — 임대 창에서는 O(1) 소유권 이전만 · NFR Design 답 1 로 고침)
 - **기록은 임시 파일과 rename 으로 쓰고 fsync 하지 않는다** — 보고 전 창에 디스크 대기를 들이지 않는다. 전원이 나가 기록을 잃으면
   조정이 주인 없는 미완료로 거둔다 (규칙 9절). 보존본을 잃을 뿐 단계 결과는 그대로다
-- **예약의 자리** — 쓰기 부하에서 예약이 4.2 초 멈췄다. 보존이 finalize 판정을 바꾸지 않게 할 모양을 NFR Design 이 정할 때 바뀐다
-  (`nfr-requirements.md` 2절 P2 · 6절 D1). 지금 모양은 그대로다 (NFR P2 로 고침)
+- **예약의 자리** — 쓰기 부하에서 예약이 4.2 초 멈췄다 (NFR P2). 그래서 세션을 열 때로 옮겼다 — 멈추면 명령의 시작이 늦을 뿐 finalize
+  판정은 그대로다 (`nfr-design-patterns.md` 1절 · NFR Design 답 1 로 고침)
 - **`closing` 에 두 칸** (엔티티 6절) — 부르는 쪽이 아는 실패 (명령의 exit ≠ 0 · signal, agent 의 미완주) 와 굽기 build 인지. 빠진
   산출물과 Finalize 오류는 closeOut 안에서 더한다
 
@@ -35,8 +38,8 @@
 | 끝 | 오늘 | 바뀌는 것 |
 |---|---|---|
 | `failEnd` (`bake_build.go:388`) — 명령 실패 · IR 어긋남 · IR 대조를 못 함 · pinned 실패 | `closing{after}` · `Keep{}` | `closing{after, failed: true, bake: true}` — 1절의 흐름을 탄다. upper 는 spool 이나 trash |
-| `succeed` — 대기 자리 | `closing{keep: Keep{Upper: pending}}` | 그대로. `checkpoint_capture` 는 `not_requested` (규칙 1절) |
-| `stopEarly` (`:338`) | `Close(Keep{})` | 그대로 · 칸 없음 |
+| `succeed` — 대기 자리 | `closing{keep: Keep{Upper: pending}}` | 그대로. `checkpoint_capture` 는 `not_requested` (규칙 1절) · 예약은 보고 뒤 버린다 (NFR Design 답 1) |
+| `stopEarly` (`:338`) | `Close(Keep{})` | 그대로 · 칸 없음 · 예약은 보고 뒤 버린다 (NFR Design 답 1) |
 | merge 단계 | 세션 없음 | 그대로 · 칸 없음 |
 
 bake 규칙 3 (첫 실패에서 멈춤) 은 그대로다. 보존본은 첫 실패 자리의 트리를 담고 lower 에 합치지 않는다. 그 규칙의 근거 문장
@@ -50,7 +53,8 @@ bake 규칙 3 (첫 실패에서 멈춤) 은 그대로다. 보존본은 첫 실�
    Worker.report                              네 끝 가운데 하나 (claim.go:405-433)
    Keeper.Reported(ID, 성패)                   captured 였을 때만.  기록의 report 칸 (규칙 8절)
    AfterReport                                삭제자 Kick (오늘) · Keeper Kick
-   판정 고루틴 (Keeper.Run)                    spool 잠금 -> 규칙 6절의 일곱 차례 -> 잠금 놓기
+   판정 고루틴 (Keeper.Run)                    남은 예약 버리기 -> spool 잠금 (읽기) -> 측정 (잠금 밖) -> spool 잠금 (적기 · usage.json)
+                                              (NFR Design 답 1 · D2 · D3 로 고침)
      측정                                     trash-helper 의 측정 입구를 spool 에 연다 (namespace 안 · 5절)
      퇴출 · 만료                              Trash.Move -> 삭제자 Kick
      상태 파일                                 StatusBook.SetSpool (바뀌었을 때만)
@@ -70,8 +74,8 @@ bake 규칙 3 (첫 실패에서 멈춤) 은 그대로다. 보존본은 첫 실�
    광고 시작                                   조정을 기다리지 않는다 — 삭제자 첫 회와 같다 (trash 답 10)
 ```
 
-조정 전에 단계를 집어도 된다 — 예약은 spool 잠금을 안 쓰고, 받아들임의 보존 총량이 0 이면 문이 느슨할 뿐 판정이 뒤에 막는다
-(규칙 5절). `services.md` 4절의 차례 (삭제자 첫 회 → 조정 → 광고) 는 시작하는 차례로 지킨다.
+조정 전에 단계를 집어도 된다 — 예약은 spool 잠금을 안 쓰고, 요약 `usage.json` 이 없으면 받아들임의 보존 총량이 0 이라 문이 느슨할
+뿐 판정이 뒤에 막는다 (규칙 5절 · NFR Design D3 로 고침). `services.md` 4절의 차례 (삭제자 첫 회 → 조정 → 광고) 는 시작하는 차례로 지킨다.
 
 ---
 
@@ -79,7 +83,8 @@ bake 규칙 3 (첫 실패에서 멈춤) 은 그대로다. 보존본은 첫 실�
 
 spool 의 upper 에는 subordinate uid 소유 항목이 있어 노드 uid 로는 못 걷는다 (`components.md` 6절). 삭제자와 같은 매핑의 helper 가
 걷는다 — `enode trash-helper` 에 측정만 하는 동작을 더하고, `scratch.Measure` 가 trash 가 아닌 뿌리 (spool) 도 받게 한다. 경계는
-그대로다 (symlink 를 안 따라감 · 다른 filesystem 에 안 들어감). argv 의 모양은 Code Generation 이 정한다.
+그대로다 (symlink 를 안 따라감 · 다른 filesystem 에 안 들어감). 삭제자의 helper 처럼 IO 우선순위 idle 과 CPU 19 로 돌고
+(`trash_linux.go:53` · NFR Design D4 로 고침), 항목 하나에 하나씩 차례로 연다. argv 의 모양은 Code Generation 이 정한다.
 
 ---
 
@@ -97,7 +102,7 @@ spool 의 upper 에는 subordinate uid 소유 항목이 있어 노드 uid 로는
 | 자리 | 본다 |
 |---|---|
 | `internal/scratch` | 판정 차례 ② ~ ④ · ID 와 겹침 · 기록의 읽기와 쓰기 · 보고 뒤 판정 (만료 · 하나의 상한 · 몫은 오래된 것부터이고 새 것도 · inode · 측정 실패 · `LaunchError`) · 조정의 다섯 줄 (살아 있는 형제의 잠금 포함) · spool 칸 |
-| `internal/enode` | 규칙 1절 표 (명령 · agent · 굽기 build) · 가짜 세션으로 closeOut — `KeepResult` 셋 (옮김 · 늦음 · 실패) 마다 receipt 와 diagnostics 가 맞고 finalize 칸 · error · exit 은 그대로 · 다른 Close 오류는 finalize 칸 error · `Keep.Result` 가 없는 굽기 keep 은 오늘 그대로 · 보고의 네 끝 · 설정 검증 표 · 조회 출력 · 어휘 두 벌이 같다 (엔티티 8절) · diagnostics 문장에 경로가 없다 |
+| `internal/enode` | 규칙 1절 표 (명령 · agent · 굽기 build) · 가짜 세션으로 closeOut — `KeepResult` 셋 (옮김 · 늦음 · 실패) 마다 receipt 와 diagnostics 가 맞고 finalize 칸 · error · exit 은 그대로 · 다른 Close 오류는 finalize 칸 error · `Keep.Result` 가 없는 굽기 keep 은 오늘 그대로 · 보고의 네 끝 · 예약을 세션을 열 때 하고 요구하지 않으면 보고 뒤 버림 · 도는 단계의 예약이 `list` 에 없음 (NFR Design 답 1) · 설정 검증 표 · 조회 출력 · 어휘 두 벌이 같다 (엔티티 8절) · diagnostics 문장에 경로가 없다 |
 | `runc_overlay_linux_test.go` | 가짜 helper 로 Close 의 keep — `By` 가 지났으면 옮기지 않음 · rename 실패면 `Err` 이고 upper 는 trash · 결과를 Close 오류에 안 싣는다 |
 | `internal/panel` | spool 줄 · 정책 줄 · off · native 문구 |
 
@@ -157,6 +162,10 @@ flock · `Renameat2` · statfs 를 쓰는 자리는 `_unix` (또는 `_linux`) �
 | 이 폴더 `business-rules.md` (NFR 뒤 · 2026-09-30) | 2절 ② · ⑤ · 6절 4 · 6 · 9절 · 10절 · 11절 · 14절 | spool 자리 거절 (NFR 답 3) · 예약 자리 (P2) · inode 한도 (답 2) · 미완료 조정 (R2) · 기본값 (답 1 · 2) · 기록 읽기 (C7) · 로그 두 줄 (답 3) |
 | 이 폴더 `domain-entities.md` (NFR 뒤) | 1절 | N2 의 값 (NFR 답 1 · 2) |
 | 이 폴더 `business-logic-model.md` (NFR 뒤) | 1 · 11 · 12절 | 예약 자리 (P2) · NFR 이 받은 넘김 · 정본 되돌림의 이어짐 |
+| 이 폴더 `business-rules.md` (NFR Design 뒤 · 2026-09-30) | 2절 ⑤ · 예약 줄 · 5절 · 6절 머리 · 6절 7 · 13절 | 예약을 세션을 열 때로 · 열 때의 실패를 닫을 때 알림 · 도는 단계의 예약을 목록에서 뺌 (답 1) · 측정은 잠금 밖 (D2) · 보존 총량은 `usage.json` (D3) |
+| 이 폴더 `domain-entities.md` (NFR Design 뒤) | 3 · 4 · 6절 | `reserved` 의 뜻 · 단계의 예약 (답 1) · spool 잠금의 범위 (D2) · `usage.json` (D3) |
+| 이 폴더 `business-logic-model.md` (NFR Design 뒤) | 1 · 2 · 3 · 4 · 5 · 7 · 12절 | 예약 자리와 `closedAt` 뒤의 확정 · 굽기의 예약 버림 (답 1) · 판정 고루틴의 차례 (답 1 · D2 · D3) · 기동의 요약 (D3) · 측정 helper 의 idle (D4) · 시험 한 줄 · 정본 되돌림의 이어짐 |
+| `nfr-requirements/nfr-requirements.md` (NFR Design 뒤) | 2절 P2 · P5 · P7 · 5절 · 6절 · 8절 | 정한 모양 (답 1 · D2 · D3) · 잔여의 받는 자리 · 넘김을 받았다 · 정본 되돌림 한 줄 |
 
 ---
 
@@ -187,7 +196,7 @@ flock · `Renameat2` · statfs 를 쓰는 자리는 `_unix` (또는 `_linux`) �
 | ADR-076 §10 | 조회는 노드의 `enode checkpoint list \| show` · Mediator API 없음 · 퇴출 기록은 만료까지 (답 6 · 7) |
 | ADR-076 §10 | reason 의 wire 표기는 여섯 글자 그대로 · 새 코드는 더하기만 · Mediator 는 원인을 확인하지 않는다 (`store/claim.go:965`) |
 | ADR-075 §6 · mediator-api 의 result | diagnostics 에 `checkpoint` 문장 한 칸 (답 9) |
-| (NFR 이 더한 넷) | `nfr-requirements.md` 8절 — N2 의 값 · spool 자리 · fsync 없음 · 창의 비용 |
+| (NFR 과 NFR Design 이 더한 다섯) | `nfr-requirements.md` 8절 — N2 의 값 · spool 자리 · fsync 없음 · 예약의 때 · 창의 비용 |
 
 ---
 
