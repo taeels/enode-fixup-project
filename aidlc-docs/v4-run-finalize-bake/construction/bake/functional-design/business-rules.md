@@ -225,8 +225,14 @@ bash · 4 A build claim 이 낡은 merging 을 만나면 재개를 열고 bake_i
 - **두 예산은 오늘 규칙 그대로다** — Finalize 예산이 결과 확정 · 닫기(Keep 의 rename) · pinned 의 sha256 · 초안 · pending 쓰기를 덮고,
   업로드 예산이 단계 로그와 manifest 를 덮는다. 계약이 build 의 budget 을 늘릴 수 있다 (contract-grammar). 예산은 kind 를 안 보므로
   `contractStep` 을 넓혀도 build 의 값은 같다 (finalize 가 넘긴 일)
-- **merge 단계는 exited 를 안 보내고 예산을 안 쓴다** — 기다림은 merge.wait, 합치기 본체는 상한이 없다 (결정 3-11 대기 상한 기본
+- **merge 단계는 exited 를 안 보내고 Finalize 예산을 안 쓴다** — 기다림은 merge.wait, 합치기 본체는 상한이 없다 (결정 3-11 대기 상한 기본
   4시간 · 본체에 상한 없음). Mediator 도 merge 의 exited 를 받지 않는다 (`store/claim.go:793` · `:847`)
+- **merge 단계의 업로드 (단계 로그와 `merged`) 에는 업로드 예산이 걸린다** (CG 물음 1 답 A — Code Generation 계획 `plans/bake-code-generation-plan.md` 10절 물음 1 의 답 · 2026-09-27T14:41:18Z) — 정본 ADR-075 결정 5
+  (ADR-075:437 ~ :442) 대로 넘기면 FAILED · 원인 `upload_timeout` 이다. ADR-077:261 ~ :263 이 merge 에서 빼는 것은 Finalize 예산뿐이다.
+  merge 단계는 계약이 budget 을 적지 못하므로 (`internal/contract/effect.go:103` ~ `:108`) 늘 기본 3분이다. 모양은 명령 단계의 것 그대로다 —
+  error `upload budget of 3m0s exceeded` · `upload` 칸 `timeout`. 넘겨도 lower 는 이미 합쳐졌고 (committed · metadata 의 bake.run 이 이 Run)
+  merge 칸은 싣는다 — Record 는 실패를 말하고 lower 는 새 ir 에 있다 (ADR-077:290 ~ :292 의 재개와 같은 모양). 처음 판은 「merge 는 예산을
+  안 쓴다」 로 적었고 근거로 결정 3-11 을 댔는데, 3-11 은 대기 상한과 합치기 본체만 말한다
 
 ---
 
@@ -293,7 +299,8 @@ bash · 4 A build claim 이 낡은 merging 을 만나면 재개를 열고 bake_i
    13  committed            WriteState(committed)
    14  정리                 대기 자리 (빈 자리와 초안) 를 그 scratch 의 trash 로 Trash.Move 한 번 — committed 뒤다 (2절)
    15  놓기                 배타 Release · 굽기 Release · DropBake · Baker.held 를 비운다
-   16  보고                 $OUT/merged · 업로드 · 보고 DONE (merge 칸)
+   16  보고                 $OUT/merged · 업로드 (업로드 예산 · 5절) · 보고 DONE (merge 칸).  업로드 예산을 넘기면 FAILED upload_timeout
+                            (merge 칸은 싣는다 — 합치기는 끝났다 · CG 물음 1 답 A)
 ```
 
 - **merging 을 쓴 뒤 멈추면 (10 ~ 12 의 오류)** — merging 에 둔다 · 배타 Release · 굽기 Release · DropBake · Baker.held 를 비운다 ·
@@ -690,6 +697,8 @@ code-summary 5절 표 `:144`). 대기 자리는 `enode-runc-` 로 시작하지 �
    the pending upper of this run is left for the stale-bake cleanup; the node restarted or could not record the end of the build step
    merge preflight: <merge 의 문장>
    merge stopped: <merge.OpError 의 문장>; the lower stays merging and a node on this lower resumes it
+   upload budget of 3m0s exceeded                                                      merge 단계 · 합친 뒤 · reason upload_timeout ·
+                                                                                     finalize 의 문구 그대로 (5절 · CG 물음 1 답 A)
 ```
 
 - bake_in_progress 의 주인은 state.json 의 owner 에서 읽는다 (US-16 다시 내면 되는 거절). owner 가 없으면 `run unknown`

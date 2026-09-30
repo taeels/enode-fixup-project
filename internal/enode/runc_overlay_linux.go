@@ -204,14 +204,25 @@ func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSe
 	if r.doc.Profile.Runtime.Credentials.SSH == "readonly" {
 		s.open.SSHDir = r.binding.SSHDir
 	}
-	if err := s.send(runtimeWireRequest{Op: "open", Open: &s.open}); err != nil {
-		return nil, errors.Join(err, s.abort())
+	// 요청을 못 보냈거나 답을 못 받으면 helper 를 죽이고 기다린 뒤에 stderr 꼬리를 싣는다 (bake 유닛 · 계획 4.1
+	// 31번). 그 순간에는 helper 가 아직 stderr 를 다 쓰지 않았을 수 있다 — Wait 가 stderr 를 다 옮긴 뒤에 읽는다.
+	// 먼저 죽은 helper 에는 요청 쓰기가 broken pipe 로 실패한다 — 그때도 같다.
+	withDetail := func(err error) error {
+		if detail := s.helperErr.String(); detail != "" {
+			return fmt.Errorf("%w: %s", err, detail)
+		}
+		return err
 	}
-	response, err := s.receive()
+	if err := s.send(runtimeWireRequest{Op: "open", Open: &s.open}); err != nil {
+		released := s.abort()
+		return nil, errors.Join(withDetail(err), released)
+	}
+	var response runtimeWireResponse
+	err = s.decoder.Decode(&response)
 	if err != nil || response.Op != "opened" || response.Error != "" {
 		released := s.abort()
 		if err != nil {
-			return nil, errors.Join(fmt.Errorf("open runtime namespace: %w", err), released)
+			return nil, errors.Join(fmt.Errorf("open runtime namespace: %w", withDetail(err)), released)
 		}
 		return nil, errors.Join(fmt.Errorf("open runtime namespace: %s", response.Error), released)
 	}
@@ -346,6 +357,11 @@ func (s *runcOverlaySession) Project(_ context.Context, spec FrameworkProjection
 func (s *runcOverlaySession) Run(ctx context.Context, spec ProcessSpec) (int, error) {
 	s.callMu.Lock()
 	defer s.callMu.Unlock()
+	return s.run(ctx, spec)
+}
+
+// run 은 Run 의 몸통이다 — callMu 를 쥔 쪽이 부른다. Finalize 가 같은 잠금을 쥔 채 세션 안의 diff 를 돌린다.
+func (s *runcOverlaySession) run(ctx context.Context, spec ProcessSpec) (int, error) {
 	if len(spec.Argv) == 0 {
 		return -1, exec.ErrNotFound
 	}
@@ -427,11 +443,17 @@ var helperGrace = 5 * time.Second
 // Finalize 는 결과 확정을 helper 에 맡긴다. 마감은 요청의 Deadline 으로 helper 에 가고,
 // helper 가 그 시각으로 자기 ctx 를 만든다. Worker 쪽은 ctx 가 끝난 뒤 helperGrace 만큼
 // 더 기다리고, 그래도 답이 없으면 helper 를 죽이고 ctx 의 오류를 돌려준다.
+//
+// workspace.diff 는 helper 가 아니라 세션 안에서 만든다 (bake 유닛 · 계획 4.1 34번) — helper 는 호스트의
+// 바이너리라 merged view 에서 git 을 돌리면 그 트리의 설정을 호스트가 실행한다. 차례는 helper 의 collect ·
+// 지목 경로 stat · 명시 훑기 뒤에 diff 다 — stat 이 diff 앞이라 느린 diff 가 마감을 넘겨도 changed 는 남는다.
+// helper 의 답이 이미 마감이면 diff 를 건너뛰고, 도는 중 마감이면 Run 이 끊긴다. 둘 다 ctx 의 오류다.
 func (s *runcOverlaySession) Finalize(ctx context.Context, spec FinalizeSpec) (FinalizeResult, error) {
 	s.callMu.Lock()
 	defer s.callMu.Unlock()
 	copySpec := spec
 	copySpec.Workspace = ""
+	copySpec.Diff = false // helper 는 diff 를 안 한다 — 아래에서 세션 안에서 만든다
 	if deadline, ok := ctx.Deadline(); ok && copySpec.Deadline.IsZero() {
 		copySpec.Deadline = deadline
 	}
@@ -465,14 +487,49 @@ func (s *runcOverlaySession) Finalize(ctx context.Context, spec FinalizeSpec) (F
 	if a.response.Op != "finalized" || a.response.Finalize == nil {
 		return FinalizeResult{}, errors.New(a.response.Error)
 	}
+	result := *a.response.Finalize
+	var err error
 	switch a.response.Error {
 	case "":
-		return *a.response.Finalize, nil
 	case context.DeadlineExceeded.Error():
 		// helper 의 마감이다 — 모은 것은 남기고 마감으로 돌려준다
-		return *a.response.Finalize, context.DeadlineExceeded
+		err = context.DeadlineExceeded
+	default:
+		err = errors.New(a.response.Error)
 	}
-	return *a.response.Finalize, errors.New(a.response.Error)
+	if !spec.Diff {
+		return result, err
+	}
+	switch {
+	case errors.Is(err, context.DeadlineExceeded) || ctx.Err() != nil:
+		result.DiffError = "the finalize deadline passed before the workspace diff"
+		if err == nil {
+			err = ctx.Err()
+		}
+	default:
+		result.DiffBytes, result.DiffError = s.diffInSession(ctx, spec.Out)
+		if cerr := ctx.Err(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}
+	return result, err
+}
+
+// diffInSession 은 세션 안에서 workspace.diff 를 만들어 호스트의 out 에 놓는다 — callMu 를 쥔 Finalize 가 부른다.
+// 작업 폴더는 세션의 워크스페이스 자리 (merged view) 이고 환경은 sessionDiffEnv 뿐이다. 전체가 diffLimit 을 넘으면
+// 요약으로 한 번 더 돈다 — 오늘 workspaceDiff 와 같은 바이트다. 돌려주는 것은 놓은 바이트 수와 DiffError 다.
+func (s *runcOverlaySession) diffInSession(ctx context.Context, out string) (int, string) {
+	body, why := sessionDiff(func(mode string, stdout, stderr io.Writer) (int, error) {
+		return s.run(ctx, ProcessSpec{Argv: []string{"sh", "-c", sessionDiffScript}, Dir: s.Paths().Dir,
+			Env: sessionDiffEnv(mode), Stdout: stdout, Stderr: stderr})
+	})
+	if why != "" || len(body) == 0 {
+		return 0, why // 아무것도 안 바뀌었으면 산출물도 없다
+	}
+	if err := placeWorkspaceDiff(out, body); err != nil {
+		return 0, err.Error()
+	}
+	return len(body), ""
 }
 
 // Close 는 helper 를 닫고(unmount 만) runRoot 를 trash 로 옮긴 뒤 잠금을 놓는다. 보고 전
@@ -480,15 +537,25 @@ func (s *runcOverlaySession) Finalize(ctx context.Context, spec FinalizeSpec) (F
 // ctx 로 끊지 않는다 — 반쯤 닫은 세션은 helper 와 마운트를 남긴다. 닫기가 마감을 넘었는지는
 // Worker 가 본다.
 //
-// Keep 은 받기만 한다 — Upper 는 늘 비어 있고 행선지를 쓰는 것은 bake · checkpoint 유닛이다.
+// keep.Upper 가 있으면 helper 가 끝난 뒤 (namespace 와 그 마운트가 사라진 뒤) · 작업 폴더를 trash 로 옮기기 앞에
+// <runRoot>/upper 를 그 자리로 rename 한 번 옮긴다 (bake 유닛 · 계획 4.1 6번). 대상이 이미 있으면 덮지 않는다 —
+// linux 의 rename(2) 은 빈 디렉터리를 덮고 성공하므로 RENAME_NOREPLACE 다. 실패하면 upper 는 작업 폴더와 함께
+// trash 로 간다. Close 는 처음 부른 한 번만 돈다 — 굽기는 Keep 을 넘기는 Close 를 첫 부름으로 둔다.
 // Finalize 가 helper 를 죽였으면 helper 에 말하지 않는다 — 죽은 helper 에 close 를 보내면
-// 실패가 덧붙는다. 그때 옮기기는 abort 가 이미 했다.
-func (s *runcOverlaySession) Close(context.Context, Keep) error {
+// 실패가 덧붙는다. 그때 옮기기는 abort 가 이미 했고 upper 도 함께 trash 에 있다.
+func (s *runcOverlaySession) Close(_ context.Context, keep Keep) error {
 	s.closeOnce.Do(func() {
 		s.callMu.Lock()
 		defer s.callMu.Unlock()
 		if s.aborted {
-			s.closeErr = s.release()
+			var errs []error
+			if keep.Upper != "" {
+				errs = append(errs, errors.New("keep the upper: the session was aborted and its upper went to trash"))
+			}
+			if err := s.release(); err != nil {
+				errs = append(errs, err)
+			}
+			s.closeErr = errors.Join(errs...)
 			return
 		}
 		var errs []error
@@ -517,6 +584,13 @@ func (s *runcOverlaySession) Close(context.Context, Keep) error {
 				_ = syscall.Kill(-s.cmd.Process.Pid, syscall.SIGKILL)
 			}
 			errs = append(errs, errors.New("runtime helper did not exit after close"))
+		}
+		if keep.Upper != "" {
+			err := unix.Renameat2(unix.AT_FDCWD, filepath.Join(s.runRoot, "upper"), unix.AT_FDCWD, keep.Upper,
+				unix.RENAME_NOREPLACE)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("keep the upper: %w", err))
+			}
 		}
 		if err := s.release(); err != nil {
 			errs = append(errs, err)
@@ -1072,12 +1146,15 @@ func (h *overlayRuntimeHelper) cancel() {
 
 func (h *overlayRuntimeHelper) waitRun() { h.runWG.Wait() }
 
-// finalize 는 merged 에서 collect · stat · diff 를, upper 에서 명시 훑기를 한다.
+// finalize 는 merged 에서 collect · stat 을, upper 에서 명시 훑기를 한다. diff 는 하지 않는다 — 호스트가
+// 켜서 보내도 끈다. helper 는 호스트의 바이너리라 merged view 에서 git · repo 를 돌리면 그 트리의 설정을 컨테이너
+// 밖에서 실행한다. diff 는 세션 안에서 만든다 (bake 유닛 · 계획 4.1 34번 · runcOverlaySession.Finalize).
 // 마감은 요청이 나른 시각이다 — Worker 의 ctx 는 이 프로세스에 닿지 않는다.
 func (h *overlayRuntimeHelper) finalize(spec FinalizeSpec) (FinalizeResult, error) {
 	if h.open == nil {
 		return FinalizeResult{}, errors.New("runtime is not open")
 	}
+	spec.Diff = false
 	ctx, cancel := context.WithCancel(context.Background())
 	if !spec.Deadline.IsZero() {
 		ctx, cancel = context.WithDeadline(context.Background(), spec.Deadline)

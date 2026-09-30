@@ -2,6 +2,7 @@ package merge
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -161,6 +162,26 @@ func TestCheckDevices(t *testing.T) {
 		var pe *PreflightError
 		if !errors.As(err, &pe) || pe.Check != CheckFilesystem {
 			t.Fatalf("checkDevices(%v) = %v; want a filesystem PreflightError", d, err)
+		}
+	}
+}
+
+// 셋이 한 마운트면 nil, 하나라도 다르면 mount 줄과 번호 셋이 든 문장이다 (bake 유닛 · FD 규칙 10절).
+func TestCheckMounts(t *testing.T) {
+	if err := checkMounts(41, 41, 41); err != nil {
+		t.Fatalf("one mount: %v", err)
+	}
+	for _, m := range [][3]uint64{{41, 42, 41}, {41, 41, 42}, {42, 41, 41}} {
+		err := checkMounts(m[0], m[1], m[2])
+		var pe *PreflightError
+		if !errors.As(err, &pe) || pe.Check != CheckMount {
+			t.Fatalf("checkMounts(%v) = %v; want a mount PreflightError", m, err)
+		}
+		want := fmt.Sprintf("merge preflight: upper, lower and trash must share one mount "+
+			"(upper mount %d, lower mount %d, trash mount %d); a bind alias of the lower cannot take a rename",
+			m[0], m[1], m[2])
+		if err.Error() != want {
+			t.Fatalf("message = %q\nwant %q", err, want)
 		}
 	}
 }

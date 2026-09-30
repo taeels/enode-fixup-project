@@ -222,6 +222,31 @@ func TestRun_TrashHelperIsReachedBeforeAnyConfigIsLooked(t *testing.T) {
 	}
 }
 
+func TestMergeHelperEntrySkipsTheConfigSearch(t *testing.T) {
+	// merge-helper 도 private entrypoint 다 — 굽기가 unshare 안에서 합치기를 돌리려고 다시 실행한다 (bake 유닛).
+	// 빈 stdin 이면 요청을 못 읽어 1 로 끝나고, 설정을 찾은 흔적이 없어야 한다.
+	isolateNode(t)
+	noSystemNodeConfig(t)
+	empty, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer empty.Close()
+	oldStdin := os.Stdin
+	os.Stdin = empty
+	defer func() { os.Stdin = oldStdin }()
+	code, stdout, stderr := callRun(t, "merge-helper")
+	if code != 1 {
+		t.Fatalf("exit code contract: enode merge-helper with an empty stdin = %d, want 1; stderr %q", code, stderr)
+	}
+	if strings.Contains(stderr, "no config file found") {
+		t.Fatalf("merge-helper went through the config search: %q", stderr)
+	}
+	if !strings.Contains(stderr, "merge helper: cannot read the request") && !strings.Contains(stderr, "linux only") {
+		t.Fatalf("merge-helper said neither its error nor its platform: stdout %q stderr %q", stdout, stderr)
+	}
+}
+
 func TestRun_NoConfig_NamesEveryPlaceItLookedAndExitsOne(t *testing.T) {
 	// ADR-015 §2 - 설정 파일이 곧 신원이다. 못 찾았을 때 어디를 봤는지
 	// 말하지 않으면 사람이 엉뚱한 경로를 들여다본다.

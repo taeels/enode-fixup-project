@@ -7,11 +7,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -24,9 +26,12 @@ func TestRuntimeProtocolHelperProcess(t *testing.T) {
 	if os.Getenv("ENODE_TEST_RUNTIME_HELPER") != "1" {
 		return
 	}
+	// 모든 갈래를 os.Exit 로 끝낸다 — return 으로 끝나면 시험 바이너리가 stdout 에 PASS 를 찍고, -coverpkg 면
+	// coverage 줄까지 붙는다 (bake 유닛 · 계획 4.1 31번 · 기준선 흔들림의 원인 하나).
+	defer os.Exit(0)
 	if os.Getenv("ENODE_TEST_RUNTIME_MODE") == "eof" {
 		_, _ = io.WriteString(os.Stderr, "injected helper failure")
-		return
+		os.Exit(1)
 	}
 	decoder := json.NewDecoder(os.Stdin)
 	encoder := json.NewEncoder(os.Stdout)
@@ -35,6 +40,7 @@ func TestRuntimeProtocolHelperProcess(t *testing.T) {
 		if err := decoder.Decode(&request); err != nil {
 			return
 		}
+		recordHelperRequest(request)
 		switch request.Op {
 		case "open":
 			if os.Getenv("ENODE_TEST_RUNTIME_MODE") == "refuse" {
@@ -45,6 +51,10 @@ func TestRuntimeProtocolHelperProcess(t *testing.T) {
 		case "project":
 			_ = encoder.Encode(runtimeWireResponse{Op: "projected"})
 		case "run":
+			if len(request.Process.Argv) == 3 && request.Process.Argv[2] == sessionDiffScript {
+				answerSessionDiff(decoder, encoder, request.Process)
+				continue
+			}
 			if len(request.Process.Argv) > 1 && request.Process.Argv[1] == "wait" {
 				var cancel runtimeWireRequest
 				_ = decoder.Decode(&cancel)
@@ -77,6 +87,54 @@ func TestRuntimeProtocolHelperProcess(t *testing.T) {
 			return
 		}
 	}
+}
+
+// recordHelperRequest 는 가짜 helper 가 받은 요청을 ENODE_TEST_RUNTIME_RECORD 의 파일에 한 줄씩 적는다 — 시험이
+// helper 가 받은 것 (finalize 의 Diff · run 의 argv 와 환경) 을 본다.
+func recordHelperRequest(request runtimeWireRequest) {
+	p := os.Getenv("ENODE_TEST_RUNTIME_RECORD")
+	if p == "" {
+		return
+	}
+	f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	_ = json.NewEncoder(f).Encode(request)
+}
+
+// answerSessionDiff 는 세션 안 diff 의 가짜 답이다. ENODE_TEST_DIFF_DIR 의 파일 <모드> · stderr · exit 로 답한다.
+// diff-hang 모드는 cancel 을 받을 때까지 기다린다.
+func answerSessionDiff(decoder *json.Decoder, encoder *json.Encoder, process *runtimeWireProcess) {
+	if os.Getenv("ENODE_TEST_RUNTIME_MODE") == "diff-hang" {
+		var cancel runtimeWireRequest
+		_ = decoder.Decode(&cancel)
+		_ = encoder.Encode(runtimeWireResponse{Op: "run-done", ExitCode: -1, Error: "signal: killed"})
+		return
+	}
+	mode := ""
+	for _, kv := range process.Env {
+		if v, ok := strings.CutPrefix(kv, "ENODE_DIFF_MODE="); ok {
+			mode = v
+		}
+	}
+	dir := os.Getenv("ENODE_TEST_DIFF_DIR")
+	if b, err := os.ReadFile(filepath.Join(dir, mode)); err == nil && len(b) > 0 {
+		_ = encoder.Encode(runtimeWireResponse{Op: "stdout", Data: b})
+	}
+	if b, err := os.ReadFile(filepath.Join(dir, "stderr")); err == nil && len(b) > 0 {
+		_ = encoder.Encode(runtimeWireResponse{Op: "stderr", Data: b})
+	}
+	code := 0
+	if b, err := os.ReadFile(filepath.Join(dir, "exit")); err == nil {
+		code, _ = strconv.Atoi(strings.TrimSpace(string(b)))
+	}
+	response := runtimeWireResponse{Op: "run-done", ExitCode: code}
+	if code < 0 {
+		response.Error = "the helper lost the process"
+	}
+	_ = encoder.Encode(response)
 }
 
 func protocolTestRuntime(t *testing.T, mode string) (*RuncOverlayRuntime, RuntimeSpec, string) {
@@ -808,4 +866,499 @@ func TestIsOverlayWhiteoutIgnoresRegularFiles(t *testing.T) {
 			t.Fatal("/dev/null (1:3) was taken for a whiteout")
 		}
 	}
+}
+
+// 닫기가 upper 를 남긴다 (bake 유닛 · 계획 4.1 6번)
+
+// keepSession 은 가짜 helper 로 연 세션이다. 가짜 helper 는 upper 를 만들지 않으므로 (upper 는 helper 안의
+// openSession 이 만든다) 시험이 Open 뒤에 <runRoot>/upper 와 그 안의 파일을 만든다.
+func keepSession(t *testing.T, mode string) (*RuncOverlayRuntime, *runcOverlaySession) {
+	t.Helper()
+	runtimeImpl, spec, _ := protocolTestRuntime(t, mode)
+	session, err := runtimeImpl.Open(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := session.(*runcOverlaySession)
+	if err := os.MkdirAll(filepath.Join(s.runRoot, "upper", "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(s.runRoot, "upper", "sub", "built"), []byte("built"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return runtimeImpl, s
+}
+
+// keepTarget 은 대기 자리 모양의 행선지다 — 부모는 있고 그 자리는 없다.
+func keepTarget(t *testing.T) string {
+	t.Helper()
+	parent := filepath.Join(t.TempDir(), "bake-1")
+	if err := os.Mkdir(parent, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return filepath.Join(parent, "upper")
+}
+
+func TestRuncOverlayCloseKeepsTheUpper(t *testing.T) {
+	runtimeImpl, s := keepSession(t, "")
+	target := keepTarget(t)
+	if err := s.Close(context.Background(), Keep{Upper: target}); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(filepath.Join(target, "sub", "built")); err != nil || string(b) != "built" {
+		t.Fatalf("the upper did not reach the keep path: %q %v", b, err)
+	}
+	assertInTrash(t, runtimeImpl, s.runRoot)
+	if _, err := os.Stat(filepath.Join(runtimeImpl.trash.Dir, filepath.Base(s.runRoot), "upper")); !os.IsNotExist(err) {
+		t.Fatalf("the upper also went to trash: %v", err)
+	}
+}
+
+// Finalize 가 helper 를 죽였으면 upper 는 이미 작업 폴더와 함께 trash 에 있다 — 닫기는 옮기지 않고 오류를 낸다.
+func TestRuncOverlayCloseKeepAfterAnAbort(t *testing.T) {
+	grace := helperGrace
+	helperGrace = 20 * time.Millisecond
+	t.Cleanup(func() { helperGrace = grace })
+	runtimeImpl, s := keepSession(t, "silent")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, err := s.Finalize(ctx, FinalizeSpec{}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("finalize = %v", err)
+	}
+	target := keepTarget(t)
+	err := s.Close(context.Background(), Keep{Upper: target})
+	if err == nil || err.Error() != "keep the upper: the session was aborted and its upper went to trash" {
+		t.Fatalf("close = %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("the keep path appeared: %v", err)
+	}
+	moved := filepath.Join(runtimeImpl.trash.Dir, filepath.Base(s.runRoot), "upper", "sub", "built")
+	if _, err := os.Stat(moved); err != nil {
+		t.Fatalf("the upper is not in trash: %v", err)
+	}
+}
+
+// 행선지에 빈 디렉터리가 이미 있으면 덮지 않는다 — os.Rename 이면 덮고 성공하는 모양이다. upper 는 trash 로 가고
+// 그 빈 디렉터리는 그대로다.
+func TestRuncOverlayCloseKeepOntoAnExistingPath(t *testing.T) {
+	runtimeImpl, s := keepSession(t, "")
+	target := keepTarget(t)
+	if err := os.Mkdir(target, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	err := s.Close(context.Background(), Keep{Upper: target})
+	if err == nil || !strings.HasPrefix(err.Error(), "keep the upper: ") || !strings.Contains(err.Error(), "file exists") {
+		t.Fatalf("close = %v", err)
+	}
+	if ents, err := os.ReadDir(target); err != nil || len(ents) != 0 {
+		t.Fatalf("the existing directory changed: %v %v", ents, err)
+	}
+	moved := filepath.Join(runtimeImpl.trash.Dir, filepath.Base(s.runRoot), "upper", "sub", "built")
+	if _, err := os.Stat(moved); err != nil {
+		t.Fatalf("the upper is not in trash: %v", err)
+	}
+}
+
+// Close 는 처음 부른 한 번만 돈다 — Keep{} 로 먼저 닫으면 뒤의 Keep{Upper} 는 옮기지 않는다. 그래서 build 단계는
+// Keep{Upper} 를 넘기는 Close 를 첫 부름으로 둔다.
+func TestRuncOverlayCloseKeepOnlyOnTheFirstClose(t *testing.T) {
+	_, s := keepSession(t, "")
+	session := manageSession(s)
+	if err := session.Close(context.Background(), Keep{}); err != nil {
+		t.Fatal(err)
+	}
+	target := keepTarget(t)
+	if err := session.Close(context.Background(), Keep{Upper: target}); err != nil {
+		t.Fatalf("a second close = %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("a second close moved the upper: %v", err)
+	}
+}
+
+// 격리 노드의 diff 는 세션 안에서 (bake 유닛 · 계획 4.1 34번)
+
+// diffSession 은 세션 안 diff 에 가짜로 답하는 helper 로 연 세션이다. files 는 <모드> · stderr · exit 의 답이다.
+// 돌려주는 record 는 helper 가 받은 요청을 한 줄씩 적는 파일이다.
+func diffSession(t *testing.T, mode string, files map[string]string) (*runcOverlaySession, string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	record := filepath.Join(t.TempDir(), "record")
+	t.Setenv("ENODE_TEST_DIFF_DIR", dir)
+	t.Setenv("ENODE_TEST_RUNTIME_RECORD", record)
+	runtimeImpl, spec, _ := protocolTestRuntime(t, mode)
+	session, err := runtimeImpl.Open(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = session.Close(context.Background(), Keep{}) })
+	return session.(*runcOverlaySession), spec.Out, record
+}
+
+// helperRequests 는 가짜 helper 가 받은 요청이다 — op 로 거른다.
+func helperRequests(t *testing.T, record, op string) []runtimeWireRequest {
+	t.Helper()
+	b, err := os.ReadFile(record)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	var out []runtimeWireRequest
+	for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
+		var r runtimeWireRequest
+		if line == "" || json.Unmarshal([]byte(line), &r) != nil || r.Op != op {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
+
+func hourDeadline() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), time.Hour)
+}
+
+func TestRuncOverlayFinalizeMakesTheDiffInTheSession(t *testing.T) {
+	diffBody := "diff --git a/keep.c b/keep.c\n-int x = 1;\n+int x = 2;\n\x00binary\n"
+	t.Run("the helper gets no diff and the session makes it", func(t *testing.T) {
+		s, out, record := diffSession(t, "", map[string]string{"diff": diffBody})
+		ctx, cancel := hourDeadline()
+		defer cancel()
+		res, err := s.Finalize(ctx, FinalizeSpec{Diff: true, Out: out})
+		if err != nil || res.DiffBytes != len(diffBody) || res.DiffError != "" {
+			t.Fatalf("finalize = %+v %v", res, err)
+		}
+		if b, err := os.ReadFile(filepath.Join(out, diffName)); err != nil || string(b) != diffBody {
+			t.Fatalf("workspace.diff = %q %v", b, err)
+		}
+		fin := helperRequests(t, record, "finalize")
+		if len(fin) != 1 || fin[0].Finalize.Diff {
+			t.Fatalf("the helper was asked for a diff: %+v", fin)
+		}
+		runs := helperRequests(t, record, "run")
+		if len(runs) != 1 || !reflect.DeepEqual(runs[0].Process.Argv, []string{"sh", "-c", sessionDiffScript}) ||
+			runs[0].Process.Cwd != "/work" || !reflect.DeepEqual(runs[0].Process.Env, sessionDiffEnv("diff")) {
+			t.Fatalf("the session ran %+v", runs)
+		}
+		if ents, _ := os.ReadDir(out); len(ents) != 1 {
+			t.Fatalf("a temporary file was left in $OUT: %v", ents)
+		}
+	})
+	t.Run("a symlink in $OUT is replaced, not followed", func(t *testing.T) {
+		s, out, _ := diffSession(t, "", map[string]string{"diff": diffBody})
+		host := filepath.Join(t.TempDir(), "host-file")
+		if err := os.WriteFile(host, []byte("host"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(host, filepath.Join(out, diffName)); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := hourDeadline()
+		defer cancel()
+		if _, err := s.Finalize(ctx, FinalizeSpec{Diff: true, Out: out}); err != nil {
+			t.Fatal(err)
+		}
+		if fi, err := os.Lstat(filepath.Join(out, diffName)); err != nil || !fi.Mode().IsRegular() {
+			t.Fatalf("workspace.diff = %v %v", fi, err)
+		}
+		if b, _ := os.ReadFile(host); string(b) != "host" {
+			t.Fatalf("the host file behind the symlink changed: %q", b)
+		}
+	})
+	t.Run("a directory named workspace.diff", func(t *testing.T) {
+		s, out, _ := diffSession(t, "", map[string]string{"diff": diffBody})
+		if err := os.Mkdir(filepath.Join(out, diffName), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := hourDeadline()
+		defer cancel()
+		res, err := s.Finalize(ctx, FinalizeSpec{Diff: true, Out: out})
+		if err != nil || res.DiffBytes != 0 || !strings.HasPrefix(res.DiffError, "cannot place workspace.diff: ") {
+			t.Fatalf("finalize = %+v %v", res, err)
+		}
+		if ents, _ := os.ReadDir(out); len(ents) != 1 {
+			t.Fatalf("a temporary file was left in $OUT: %v", ents)
+		}
+	})
+	t.Run("over the limit it runs once more for the summary", func(t *testing.T) {
+		was := diffLimit
+		diffLimit = 10
+		t.Cleanup(func() { diffLimit = was })
+		stat := " keep.c | 2 +-\n 1 file changed\n"
+		s, out, record := diffSession(t, "", map[string]string{"diff": diffBody, "stat": stat})
+		ctx, cancel := hourDeadline()
+		defer cancel()
+		res, err := s.Finalize(ctx, FinalizeSpec{Diff: true, Out: out})
+		want := fmt.Sprintf(diffNote, len(diffBody), 10) + stat
+		if err != nil || res.DiffBytes != len(want) {
+			t.Fatalf("finalize = %+v %v", res, err)
+		}
+		if b, _ := os.ReadFile(filepath.Join(out, diffName)); string(b) != want {
+			t.Fatalf("workspace.diff = %q\nwant %q", b, want)
+		}
+		runs := helperRequests(t, record, "run")
+		if len(runs) != 2 || !reflect.DeepEqual(runs[1].Process.Env, sessionDiffEnv("stat")) {
+			t.Fatalf("runs = %+v", runs)
+		}
+	})
+	t.Run("no change makes no file", func(t *testing.T) {
+		s, out, _ := diffSession(t, "", nil)
+		ctx, cancel := hourDeadline()
+		defer cancel()
+		res, err := s.Finalize(ctx, FinalizeSpec{Diff: true, Out: out})
+		if err != nil || res.DiffBytes != 0 || res.DiffError != "" {
+			t.Fatalf("finalize = %+v %v", res, err)
+		}
+		if _, err := os.Stat(filepath.Join(out, diffName)); !os.IsNotExist(err) {
+			t.Fatalf("an empty diff made a file: %v", err)
+		}
+	})
+	for code, want := range map[string]string{
+		"125": "the prepared rootfs has no git",
+		"124": "the prepared rootfs has no repo",
+		"121": "cannot prepare temporary index: fatal: bad HEAD",
+		"122": "intent-to-add: fatal: bad HEAD",
+		"3":   "workspace diff exited 3: fatal: bad HEAD",
+		"-1":  "runtime run: the helper lost the process",
+	} {
+		t.Run("exit "+code, func(t *testing.T) {
+			s, out, _ := diffSession(t, "", map[string]string{"diff": "partial", "stderr": "warning\nfatal: bad HEAD\n",
+				"exit": code})
+			ctx, cancel := hourDeadline()
+			defer cancel()
+			res, err := s.Finalize(ctx, FinalizeSpec{Diff: true, Out: out})
+			if err != nil || res.DiffError != want || res.DiffBytes != 0 {
+				t.Fatalf("finalize = %+v %v; want DiffError %q and no error", res, err, want)
+			}
+			if _, err := os.Stat(filepath.Join(out, diffName)); !os.IsNotExist(err) {
+				t.Fatalf("a failed diff left a file: %v", err)
+			}
+		})
+	}
+	t.Run("the helper answered at the deadline", func(t *testing.T) {
+		s, out, record := diffSession(t, "deadline", map[string]string{"diff": diffBody})
+		ctx, cancel := hourDeadline()
+		defer cancel()
+		res, err := s.Finalize(ctx, FinalizeSpec{Diff: true, Out: out})
+		if !errors.Is(err, context.DeadlineExceeded) ||
+			res.DiffError != "the finalize deadline passed before the workspace diff" {
+			t.Fatalf("finalize = %+v %v", res, err)
+		}
+		if runs := helperRequests(t, record, "run"); len(runs) != 0 {
+			t.Fatalf("the diff ran past the deadline: %+v", runs)
+		}
+	})
+	t.Run("the deadline passes during the diff", func(t *testing.T) {
+		s, out, _ := diffSession(t, "diff-hang", nil)
+		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+		defer cancel()
+		res, err := s.Finalize(ctx, FinalizeSpec{Diff: true, Out: out})
+		if !errors.Is(err, context.DeadlineExceeded) || !strings.HasPrefix(res.DiffError, "runtime run: ") {
+			t.Fatalf("finalize = %+v %v", res, err)
+		}
+	})
+	t.Run("no diff asked, no diff run", func(t *testing.T) {
+		s, out, record := diffSession(t, "", map[string]string{"diff": diffBody})
+		ctx, cancel := hourDeadline()
+		defer cancel()
+		if _, err := s.Finalize(ctx, FinalizeSpec{Out: out}); err != nil {
+			t.Fatal(err)
+		}
+		if runs := helperRequests(t, record, "run"); len(runs) != 0 {
+			t.Fatalf("runs = %+v", runs)
+		}
+	})
+}
+
+// markerPATH 는 PATH 를 한 폴더로 바꾸고 그 자리에 이름마다 argv 를 표지 파일에 적는 스크립트를 둔다. 표지 파일이
+// 생기면 그 이름이 호스트에서 불린 것이다.
+func markerPATH(t *testing.T, names ...string) string {
+	t.Helper()
+	bin, marker := t.TempDir(), filepath.Join(t.TempDir(), "ran")
+	for _, name := range names {
+		script := "#!/bin/sh\necho \"" + name + " $*\" >> " + marker + "\nexit 0\n"
+		if err := os.WriteFile(filepath.Join(bin, name), []byte(script), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", bin)
+	return marker
+}
+
+// helper 의 finalize 는 Diff 가 켜져 와도 git · repo 를 부르지 않는다 — git 모양과 repo 모양 둘 다. 대조군으로 호스트의
+// workspaceDiff 가 같은 PATH 에서 표지를 남긴다 (fixture 가 살아 있다).
+func TestRuncOverlayHelperFinalizeRunsNoHostGit(t *testing.T) {
+	for _, shape := range []string{".git", ".repo/manifests"} {
+		t.Run(shape, func(t *testing.T) {
+			marker := markerPATH(t, "git", "repo")
+			root := t.TempDir()
+			merged, out, upper := filepath.Join(root, "merged"), filepath.Join(root, "out"), filepath.Join(root, "upper")
+			for _, dir := range []string{filepath.Join(merged, shape), out, upper} {
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			h := &overlayRuntimeHelper{open: &runtimeWireOpen{Out: out}, merged: merged, upper: upper}
+			res, err := h.finalize(FinalizeSpec{Diff: true, Deadline: time.Now().Add(time.Minute)})
+			if err != nil || res.DiffBytes != 0 || res.DiffError != "" {
+				t.Fatalf("finalize = %+v %v", res, err)
+			}
+			if b, err := os.ReadFile(marker); !os.IsNotExist(err) {
+				t.Fatalf("the helper ran a host program: %q", b)
+			}
+			_, _ = workspaceDiff(context.Background(), merged, maxBlobBytes)
+			if _, err := os.Stat(marker); err != nil {
+				t.Fatalf("the control did not run the fake program; the fixture is dead: %v", err)
+			}
+		})
+	}
+}
+
+// isolatedGitEnv 는 러너의 전역 설정과 기본 브랜치 이름에 기대지 않는 git 환경이다 (계획 5절).
+func isolatedGitEnv(t *testing.T) {
+	t.Helper()
+	for k, v := range map[string]string{"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
+		"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@e", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@e",
+		"LC_ALL": "C"} {
+		t.Setenv(k, v)
+	}
+}
+
+// hostGit 은 시험의 git 이다 — isolatedGitEnv 뒤에 부른다.
+func hostGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %v: %s", args, out)
+	}
+}
+
+// committedTree 는 파일 셋이 커밋된 git 저장소다.
+func committedTree(t *testing.T, dir string, files map[string]string) {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hostGit(t, dir, "init", "-q", "-b", "main")
+	for name, body := range files {
+		write(t, dir, name, body)
+	}
+	hostGit(t, dir, "add", "-A")
+	hostGit(t, dir, "commit", "-q", "-m", "initial")
+}
+
+// helper 의 finalize 는 트리의 .git/config 가 적은 core.fsmonitor 와 clean filter 를 실행하지 않는다. 대조군 — 같은
+// 트리에 호스트 workspaceDiff 를 부르면 표지가 생긴다 (오늘의 구멍이 있었다 · fixture 가 살아 있다).
+func TestRuncOverlayHelperFinalizeDoesNotRunTheTreesConfig(t *testing.T) {
+	isolatedGitEnv(t)
+	tree := t.TempDir()
+	committedTree(t, tree, map[string]string{"a.txt": "one\n"})
+	marker := filepath.Join(t.TempDir(), "ran")
+	hook := filepath.Join(t.TempDir(), "hook")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho \"$0 $*\" >> "+marker+"\ncat\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hostGit(t, tree, "config", "core.fsmonitor", hook)
+	hostGit(t, tree, "config", "filter.mark.clean", hook)
+	write(t, tree, ".gitattributes", "*.txt filter=mark\n")
+	write(t, tree, "a.txt", "two\n")
+	_ = os.Remove(marker)
+
+	out := t.TempDir()
+	h := &overlayRuntimeHelper{open: &runtimeWireOpen{Out: out}, merged: tree, upper: t.TempDir()}
+	if _, err := h.finalize(FinalizeSpec{Diff: true, Deadline: time.Now().Add(time.Minute)}); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(marker); !os.IsNotExist(err) {
+		t.Fatalf("the helper ran the tree's config: %q", b)
+	}
+	if _, err := workspaceDiff(context.Background(), tree, maxBlobBytes); err != nil {
+		t.Fatalf("the control diff failed: %v", err)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("the host diff did not run the tree's config; the fixture is dead: %v", err)
+	}
+}
+
+// hostSessionDiff 는 sessionDiffScript 를 호스트 sh 로 그 트리에서 돈다 — 세션 안과 같은 글자 · 같은 환경 변수.
+func hostSessionDiff(dir string) func(mode string, stdout, stderr io.Writer) (int, error) {
+	return func(mode string, stdout, stderr io.Writer) (int, error) {
+		cmd := exec.Command("sh", "-c", sessionDiffScript)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), sessionDiffEnv(mode)...)
+		cmd.Stdout, cmd.Stderr = stdout, stderr
+		err := cmd.Run()
+		if cmd.ProcessState == nil {
+			return -1, err
+		}
+		return cmd.ProcessState.ExitCode(), nil
+	}
+}
+
+// 세션 안의 글이 호스트 workspaceDiff · repoDiff 와 같은 바이트를 낸다 — 고친 파일 · 새 파일 · 지운 파일 · 이진 ·
+// ASCII 밖의 경로 (quotePath) · 상한을 넘은 요약. repo 모양은 PATH 의 가짜 repo (프로젝트 둘을 돌며 REPO_PATH 를 넣고 -c 의 글을
+// sh 로 돈다) 로 댄다. 실제 rootfs 에서는 integration 시험이 처음 본다.
+func TestSessionDiffScript_MatchesTheHostDiff(t *testing.T) {
+	isolatedGitEnv(t)
+	edit := func(t *testing.T, dir string) {
+		committedTree(t, dir, map[string]string{"keep.c": "int x = 1;\n", "gone.c": "int g;\n", "bin.dat": "a\x00b"})
+		write(t, dir, "keep.c", "int x = 2;\n")
+		write(t, dir, "new.c", "int y;\n")
+		write(t, dir, "r\u00e9sum\u00e9/na\u00efve.txt", "text\n")
+		write(t, dir, "bin.dat", "a\x00c\x01")
+		if err := os.Remove(filepath.Join(dir, "gone.c")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	compare := func(t *testing.T, dir string) {
+		t.Helper()
+		want, err := workspaceDiff(context.Background(), dir, diffLimit)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, why := sessionDiff(hostSessionDiff(dir))
+		if why != "" || len(want) == 0 || !bytes.Equal(got, want) {
+			t.Fatalf("session diff (%q) differs from the host diff:\n%s\n---\n%s", why, got, want)
+		}
+	}
+	t.Run("git", func(t *testing.T) {
+		dir := t.TempDir()
+		edit(t, dir)
+		compare(t, dir)
+	})
+	t.Run("git over the limit", func(t *testing.T) {
+		dir := t.TempDir()
+		edit(t, dir)
+		was := diffLimit
+		diffLimit = 64
+		t.Cleanup(func() { diffLimit = was })
+		compare(t, dir)
+	})
+	t.Run("repo", func(t *testing.T) {
+		bin := t.TempDir()
+		fake := "#!/bin/sh\n[ \"$1\" = forall ] && [ \"$2\" = -c ] || exit 2\n" +
+			"for p in proj-a proj-b; do (cd \"$p\" && REPO_PATH=$p sh -c \"$3\") || exit $?; done\n"
+		if err := os.WriteFile(filepath.Join(bin, "repo"), []byte(fake), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, ".repo"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		edit(t, filepath.Join(dir, "proj-a"))
+		committedTree(t, filepath.Join(dir, "proj-b"), map[string]string{"b.c": "b\n"})
+		write(t, filepath.Join(dir, "proj-b"), "b.c", "bb\n")
+		compare(t, dir)
+		was := diffLimit
+		diffLimit = 64
+		t.Cleanup(func() { diffLimit = was })
+		compare(t, dir)
+	})
 }

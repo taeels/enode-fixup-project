@@ -25,11 +25,17 @@ import (
 // 기본값을 여기서 다시 적지 않는다 — Mediator 와 노드가 같은 상수를 읽어야
 // 한쪽만 바뀌는 일이 없다. 종류를 정하는 칸(run 이면 Run, agent 면 Agent)과
 // 세 칸만 채운다.
+//
+// 굽기 칸 넷도 옮긴다 (bake 유닛) — 그래야 MergeWait 이 계약의 merge.wait 을 읽는다. build 는 Sync · Builds,
+// merge 는 Merge 가 종류를 정하므로 Run 을 채우지 않는다. 예산은 종류를 안 보므로 build 의 값은 그대로다.
 func contractStep(step *Step) contract.Step {
-	cs := contract.Step{Effect: step.Effect, Budget: step.Budget, Discover: step.Discover}
-	if step.Kind == "agent" {
+	cs := contract.Step{Effect: step.Effect, Budget: step.Budget, Discover: step.Discover,
+		Sync: step.Sync, Builds: step.Builds, IR: step.IR, Merge: step.Merge}
+	switch step.Kind {
+	case "agent":
 		cs.Agent = map[string]interface{}{}
-	} else {
+	case contract.KindBuild.String(), contract.KindMerge.String():
+	default:
 		cs.Run = step.Run
 	}
 	return cs
@@ -192,9 +198,12 @@ func (r *exitReporter) Stop() {
 
 // settleIn 은 finalize · upload · reason 칸과 error 를 정하는 데 드는 사실이다.
 type settleIn struct {
-	finalizeErr    error          // session.Finalize 가 돌려준 것
-	closeErr       error          // session.Close 가 돌려준 것
-	closedLate     bool           // 닫기가 Finalize 예산의 마감 뒤에 끝났다 (임대는 살아 있다)
+	finalizeErr error // session.Finalize 가 돌려준 것
+	closeErr    error // session.Close 가 돌려준 것
+	closedLate  bool  // 닫기가 Finalize 예산의 마감 뒤에 끝났다 (임대는 살아 있다)
+	// sealErr 는 닫은 뒤 · 업로드 앞의 노드 쪽 오류다 — 굽기의 build 가 pending 을 쓰기까지의 초안 · sha256 ·
+	// pending 쓰기 (bake 유닛 · 계획 4.1 4번). finalize 칸 error 이고 그 문장을 그대로 error 에 잇는다.
+	sealErr        error
 	upload         contract.Stage // Worker.upload 가 돌려준 것
 	leaseEnded     bool           // runCtx 가 임대로 끝났다
 	finalizeBudget time.Duration
@@ -223,6 +232,12 @@ func settle(in settleIn) (finalize, upload contract.Stage, reason, errText strin
 			finalize = contract.StageError
 		}
 		errs = append(errs, "runtime cleanup: "+in.closeErr.Error())
+	}
+	if in.sealErr != nil {
+		if finalize == contract.StageOK {
+			finalize = contract.StageError
+		}
+		errs = append(errs, in.sealErr.Error())
 	}
 	upload = in.upload
 	if upload == contract.StageTimeout {

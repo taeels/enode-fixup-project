@@ -419,8 +419,14 @@ func (c *Client) Exited(ctx context.Context, runID string, seq int, e Exited) er
 ```
 
 ```go
-func (w *Worker) runBuildStep(ctx context.Context, step *Step, log *slog.Logger)
-func (w *Worker) runMergeStep(ctx context.Context, step *Step, log *slog.Logger)
+// (bake 코드 · CG 계획 4절 2번 — 겉면은 runAgentStep 과 같은 모양이다.  runCtx 는 임대의 context · ctx 는 데몬의 context ·
+//  dir · in · out 은 그 단계의 워크스페이스 · $IN · $OUT.  execute 가 빈 argv 확인 앞에서 kind 로 나눠 부른다.  두 함수의 첫 줄이
+//  WorkspaceWrites(w.Runtime) 가 isolated 가 아니면 거절한다 — Bake 가 있어도.  Runtime 이 nil 이면 native 로 보고 거절한다)
+func (w *Worker) runBuildStep(runCtx, ctx context.Context, step *Step, dir, in, out string, log *slog.Logger)
+func (w *Worker) runMergeStep(runCtx, ctx context.Context, step *Step, log *slog.Logger)
+
+// (bake 코드) Worker 에 Bake *Baker 칸 — 기동이 func StartBaker(ctx context.Context, guard *LowerGuard, scratchDir string,
+//  ident Identity, instance string, log *slog.Logger) *Baker 로 짓고 (guard 가 nil 이면 nil) 끝에 Baker.Wait() 로 배경 재개를 기다린다
 
 type BuildManifest struct {
 	Sync   lower.BuildRecord   `json:"sync"`
@@ -469,6 +475,10 @@ func (g *LowerGuard) OnClaim(step *Step) error // 거절할 Run 이면 lower_cha
 func (g *LowerGuard) StepDone(step *Step)       // 세션을 닫은 뒤.  lower-state FD 가 더했다 · HoldBake · DropBake 도
 // (bake FD 더함 · 되물음 1 답 A) func (g *LowerGuard) OnStale(f func(lower.State)) — state 가 committed 가 아닌 광고에서 부른다 ·
 //  func (g *LowerGuard) Dir() *lower.Dir — 연 상태 자리 (못 열었으면 nil)
+// (bake 코드 · CG 계획 4절 18번) guard 는 BeforeAdvert 안에서 ReadState 가 된 뒤 phase 가 building · pending · merging 이고 이
+//  프로세스가 굽기를 쥐지 않았으면 (HoldBake 부터 DropBake 까지 밖) g.mu 아래에서 f(st) 를 곧바로 부른다 — 고루틴을 띄우지 않는다.
+//  f 는 막지 않아야 한다 (Baker.onStale 은 판단만 하고 배경 일을 wg 로 연다).  f 가 nil 이거나 ReadState 가 실패하면 안 부른다.
+//  둘 다 nil 수신자에 안전하다
 
 // (lower-state 코드 — 짓는 것은 func StartLowerGuard(lowerRoot string, ident Identity, log *slog.Logger) *LowerGuard.
 //  lowerRoot 가 "" 면 nil 이고 nil 은 아무것도 안 한다.  거절의 오류는 *LowerChangedError.  Advertiser 에 Guard · Writes,
@@ -484,6 +494,11 @@ func (g *LowerGuard) StepDone(step *Step)       // 세션을 닫은 뒤.  lower-
 ```go
 func RunTrashHelper(args []string, errOut io.Writer) int // trash 항목 하나 — scratch.Remove
 func RunMergeHelper(in io.Reader, out, errOut io.Writer) int // merge.Preflight 와 merge.Apply
+// (bake 코드 · CG 계획 4절 16번) 입력 한 줄 · 출력 한 줄의 JSON — 요청은 op (preflight | apply) 와 upper · lower · trash,
+//  응답은 result (apply 가 센 것) · error · check (시작 전 확인의 어긋남) · kind (preflight | op | io).  exit 0 은 오류가 없었다 ·
+//  1 은 그 밖이다.
+//  linux 밖은 exit 1 과 merge-helper is supported on linux only.  호스트는 unshare --user --map-root-user --map-auto --fork
+//  --kill-child -- <enode> merge-helper 로 연다 (--mount 없음)
 
 // ExecutionRuntimeVerifier 가 environment.FactSource 를 구현한다.
 func (ExecutionRuntimeVerifier) Facts(ctx context.Context, doc execenv.Document, b execenv.Binding) []execenv.Fact

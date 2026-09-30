@@ -607,27 +607,122 @@ func TestLowerGuard_MetadataKeys(t *testing.T) {
 	}
 }
 
-// BenchmarkBeforeAdvert 는 광고 한 번의 몫이다 — state.json 읽기 · 쥔 사람 기록 맞추기 · metadata 읽기 (계획 3.2 ·
-// FD 흐름 12절이 NFR 에 둔 「광고마다 metadata 읽기」). 임시 폴더의 진짜 자리에서 공유를 쥔 채 측정한다.
-func BenchmarkBeforeAdvert(b *testing.B) {
-	dir := b.TempDir()
-	ws := filepath.Join(dir, "ws")
-	if err := os.Mkdir(ws, 0o755); err != nil {
-		b.Fatal(err)
+// OnStale — 광고 직전에 state.json 이 building · pending · merging 이면 그 state 로 곧바로 부른다 (bake 유닛 · 계획 4.1
+// 18번). committed · 이 프로세스가 굽기를 쥠 · f 가 nil · state.json 을 못 읽음이면 안 부른다. BeforeAdvert 가
+// 돌아오기 전에 불렸다 — 고루틴을 띄우지 않는다. 막지 않는 것은 f 쪽의 일이다 (TestOnStale_ReturnsAtOnce).
+func TestLowerGuard_OnStaleSeesStaleStates(t *testing.T) {
+	f := newGuardFixture(t)
+	var seen []lower.State
+	f.g.OnStale(func(st lower.State) { seen = append(seen, st) })
+	for _, phase := range []lower.Phase{lower.PhaseBuilding, lower.PhasePending, lower.PhaseMerging} {
+		f.writeState(t, phase, "R-"+string(phase))
+		before := len(seen)
+		f.g.BeforeAdvert(nil)
+		if len(seen) != before+1 || seen[len(seen)-1].Phase != phase || seen[len(seen)-1].Owner.Run != "R-"+string(phase) {
+			t.Fatalf("after one advert with %s: %d calls, last %+v", phase, len(seen)-before, seen)
+		}
 	}
-	ir := "your-ir-tag"
-	if err := lower.WriteMetadata(ws, lower.Metadata{Source: lower.Source{IR: &ir},
-		Builds: []lower.BuildRecord{{Name: "config-a"}, {Name: "config-b"}}, Bake: lower.BakeRecord{Run: "R-1"}}); err != nil {
-		b.Fatal(err)
+	calls := len(seen)
+	f.writeState(t, lower.PhaseCommitted, "")
+	f.g.BeforeAdvert(nil)
+	if len(seen) != calls {
+		t.Fatalf("committed called OnStale: %+v", seen[calls:])
 	}
-	g := newLowerGuard(filepath.Join(dir, "lowers"), ws, Identity{NodeID: "node-a", Label: "a"},
+	// 이 프로세스가 굽기를 쥐었다 — HoldBake 부터 DropBake 까지 안 부른다
+	f.writeState(t, lower.PhasePending, "R-mine")
+	f.g.HoldBake("R-mine", func() {})
+	f.g.BeforeAdvert(nil)
+	if len(seen) != calls {
+		t.Fatalf("a held bake called OnStale: %+v", seen[calls:])
+	}
+	f.g.DropBake()
+	f.g.BeforeAdvert(nil)
+	if len(seen) != calls+1 {
+		t.Fatalf("after DropBake OnStale was called %d times", len(seen)-calls)
+	}
+	// state.json 을 못 읽으면 부르지 않는다 — 모르는 상태를 낡은 것으로 읽지 않는다
+	if err := os.WriteFile(filepath.Join(f.g.Dir().Path, "state.json"), []byte(`{"schema":1,"phase":"weird"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.g.BeforeAdvert(nil)
+	if len(seen) != calls+1 {
+		t.Fatalf("an unreadable state called OnStale: %+v", seen[calls+1:])
+	}
+	f.writeState(t, lower.PhaseMerging, "R-2")
+	f.g.OnStale(nil)
+	f.g.BeforeAdvert(nil)
+	if len(seen) != calls+1 {
+		t.Fatalf("a nil OnStale was still called")
+	}
+	var nilGuard *LowerGuard
+	nilGuard.OnStale(func(lower.State) { t.Fatal("a nil guard called f") })
+}
+
+// Dir 은 연 상태 자리다 — 못 열었으면 nil.
+func TestLowerGuard_Dir(t *testing.T) {
+	f := newGuardFixture(t)
+	d := f.g.Dir()
+	if d == nil || d.Path != f.sibling(t).Path {
+		t.Fatalf("Dir = %+v", d)
+	}
+	dir := t.TempDir()
+	g := newLowerGuard(filepath.Join(dir, "lowers"), filepath.Join(dir, "no-such-ws"), Identity{NodeID: "n"},
 		slog.New(slog.NewTextHandler(io.Discard, nil)))
 	g.start()
-	if own, keys := g.BeforeAdvert(nil); len(own) != 0 || len(keys) != 5 || g.shared == nil {
-		b.Fatalf("setup = %+v %v", own, keys)
+	if g.Dir() != nil {
+		t.Fatalf("an unopened guard gave %+v", g.Dir())
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		g.BeforeAdvert(nil)
+	var nilGuard *LowerGuard
+	if nilGuard.Dir() != nil {
+		t.Fatal("a nil guard gave a Dir")
+	}
+}
+
+// BenchmarkBeforeAdvert 는 광고 한 번의 몫이다 — state.json 읽기 · 쥔 사람 기록 맞추기 · metadata 읽기 (계획 3.2 ·
+// FD 흐름 12절이 NFR 에 둔 「광고마다 metadata 읽기」). 임시 폴더의 진짜 자리에서 측정한다. committed 는 공유를 쥔
+// 채 · pending 은 OnStale 을 부르는 갈래다 — f 는 부른 수만 센다 (진짜 onStale 은 반복마다 배경 일을 띄워 측정을
+// 흐린다 · bake 유닛 계획 Step 17).
+func BenchmarkBeforeAdvert(b *testing.B) {
+	for _, phase := range []lower.Phase{lower.PhaseCommitted, lower.PhasePending} {
+		b.Run(string(phase), func(b *testing.B) {
+			dir := b.TempDir()
+			ws := filepath.Join(dir, "ws")
+			if err := os.Mkdir(ws, 0o755); err != nil {
+				b.Fatal(err)
+			}
+			ir := "your-ir-tag"
+			if err := lower.WriteMetadata(ws, lower.Metadata{Source: lower.Source{IR: &ir},
+				Builds: []lower.BuildRecord{{Name: "config-a"}, {Name: "config-b"}}, Bake: lower.BakeRecord{Run: "R-1"}}); err != nil {
+				b.Fatal(err)
+			}
+			g := newLowerGuard(filepath.Join(dir, "lowers"), ws, Identity{NodeID: "node-a", Label: "a"},
+				slog.New(slog.NewTextHandler(io.Discard, nil)))
+			g.start()
+			calls := 0
+			g.OnStale(func(lower.State) { calls++ })
+			if phase == lower.PhasePending {
+				lock, ok, err := g.Dir().TryBake()
+				if err != nil || !ok {
+					b.Fatalf("TryBake = %v %v", ok, err)
+				}
+				if err := lock.WriteState(lower.State{Phase: lower.PhasePending, Owner: &lower.Owner{Run: "R-2"},
+					PendingUpper: "/s/pending/k/n/upper", Since: time.Now()}); err != nil {
+					b.Fatal(err)
+				}
+				_ = lock.Release()
+			}
+			own, keys := g.BeforeAdvert(nil)
+			if len(keys) != 5 || (phase == lower.PhaseCommitted) != (g.shared != nil && len(own) == 0) {
+				b.Fatalf("setup = %+v %v", own, keys)
+			}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				g.BeforeAdvert(nil)
+			}
+			b.StopTimer()
+			if phase == lower.PhasePending && calls != b.N+1 {
+				b.Fatalf("OnStale was called %d times in %d adverts", calls, b.N+1)
+			}
+		})
 	}
 }

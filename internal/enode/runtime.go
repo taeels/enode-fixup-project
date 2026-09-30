@@ -64,7 +64,7 @@ type FinalizeSpec struct {
 	Workspace string // native 에서만.  overlay 는 helper 가 merged 로 채운다
 	Out       string
 	Effect    contract.Effect   // 기본값을 채운 뒤의 값
-	Diff      bool              // workspace.diff 를 만드나
+	Diff      bool              // workspace.diff 를 만드나.  runc-overlay 는 helper 가 아니라 세션 안에서 만든다 (bake 유닛)
 	Collect   map[string]string // collect 를 할 때만.  agent 가 완주 못 하면 비운다
 	Check     []string          // 지목 경로 (ADR-037).  늘 있다
 	Stamp     Stamp             // Root 가 비면 노드에 워크스페이스가 없다 — 명시 훑기를 건너뛴다
@@ -98,8 +98,9 @@ type Discovery struct {
 	Skipped string    // 못 훑은 이유.  훑었으면 ""
 }
 
-// Keep 은 닫을 때 upper 의 행선지다. 아직 늘 비어 있고, 비어 있으면 작업 폴더째 trash 로
-// 간다 (trash 유닛). 행선지를 쓰는 것은 bake (대기 자리) · checkpoint (spool) 유닛이다.
+// Keep 은 닫을 때 upper 의 행선지다. 비어 있으면 작업 폴더째 trash 로 간다 (trash 유닛). 굽기의 build 단계가
+// 성공하면 대기 자리 <scratch>/pending/<lower 키>/<이름>/upper 를 넘긴다 (bake 유닛) — runc-overlay 의 Close 가
+// rename 한 번으로 옮긴다. checkpoint 유닛이 spool 로 쓸 자리다. native 의 Close 는 Keep 을 안 본다.
 type Keep struct {
 	Upper string // "" 면 버린다
 }

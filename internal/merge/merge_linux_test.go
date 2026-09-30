@@ -285,6 +285,21 @@ func TestPreflight(t *testing.T) {
 			t.Fatalf("Preflight changed the trees:\n%s", d)
 		}
 	})
+	// 한 마운트의 임시 폴더 셋은 마운트 줄을 지난다 — resolve 가 statx 로 읽은 번호가 0 이 아니고 셋이 같다.
+	// bind 별칭 (번호가 다르다) 은 namespace 가 들어 integration 시험이 본다 (bake 유닛 · 계획 Step 18).
+	t.Run("reads one mount id for the three roots", func(t *testing.T) {
+		f := newFixture(t)
+		r, err := resolve(f.p)
+		if err != nil {
+			t.Fatalf("resolve: %v", err)
+		}
+		if r.mounts[0] == 0 || r.mounts[0] != r.mounts[1] || r.mounts[1] != r.mounts[2] {
+			t.Fatalf("mount ids = %v; want one non-zero id three times", r.mounts)
+		}
+		if err := Preflight(f.p); err != nil {
+			t.Fatalf("Preflight on one mount: %v", err)
+		}
+	})
 	for _, tc := range []struct {
 		name  string
 		setup func(f *fixture) Paths

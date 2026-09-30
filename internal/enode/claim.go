@@ -86,6 +86,13 @@ type Step struct {
 	Effect   contract.Effect  `json:"effect,omitempty"`
 	Budget   *contract.Budget `json:"budget,omitempty"`
 	Discover bool             `json:"discover,omitempty"`
+
+	// 아래 넷은 굽기 단계의 칸이다 (bake 유닛 · ADR-077 §2). 이름과 모양은 store.Claimed 와 같다 — Mediator 는
+	// 이미 싣고 있었고 노드가 안 받았을 뿐이다. contractStep 이 옮겨 MergeWait 이 계약의 merge.wait 을 읽는다.
+	Sync   string           `json:"sync,omitempty"`   // build 단계만 — 셸 한 줄
+	Builds []contract.Build `json:"builds,omitempty"` // build 단계만 — 적힌 차례로
+	IR     string           `json:"ir,omitempty"`     // build 단계만 — 구울 IR 태그의 정확한 값
+	Merge  *contract.Merge  `json:"merge,omitempty"`  // merge 단계만 — "merge": {} 도 nil 이 아니다
 }
 
 // planOutName 은 계획 산출물의 이름이다 — 계획 단계가 아니면 빈 문자열.
@@ -213,6 +220,11 @@ type Result struct {
 	Upload      contract.Stage        `json:"upload,omitempty"`
 	Reason      string                `json:"reason,omitempty"`
 	Diagnostics *contract.Diagnostics `json:"diagnostics,omitempty"`
+
+	// 아래 둘은 굽기 단계가 아는 것이다 (bake 유닛). 이름과 모양은 store.StepResult 와 같다. 판정 재료가
+	// 아니다 — 판정은 계약의 produced 조건이 한다 (I3).
+	Build *contract.BuildManifest `json:"build,omitempty"` // build 단계 — 계약의 명령이 하나라도 돌았으면 늘
+	Merge *contract.MergeResult   `json:"merge,omitempty"` // merge 단계 — 합쳤을 때만
 }
 
 func (c *Client) Report(ctx context.Context, runID string, seq int, res Result) error {
@@ -333,6 +345,10 @@ type Worker struct {
 	// 보인 임대면 다시 쥐거나 거절한다. 세션을 닫은 뒤 StepDone 으로 짝을 맞춘다. nil 이면 아무것도 안 한다 —
 	// runc-overlay 가 아닌 노드 · 시험.
 	Guard *LowerGuard
+
+	// Bake 는 이 노드의 굽기다 (bake 유닛). nil 이면 굽기 단계 (build · merge) 를 거절한다 — runc-overlay 가 아닌
+	// 노드 · lower 루트가 없는 노드 · 시험.
+	Bake *Baker
 
 	// drainingNoted 는 「안 집는다」를 이미 찍었는가다 — 광고 주기마다 다시 안 찍는다.
 	drainingNoted bool
@@ -671,6 +687,17 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 		}
 	}()
 
+	// 굽기의 두 단계는 여기서 나뉜다 (bake 유닛 · 계획 4.1 2번) — 빈 argv 확인 앞이다. 굽기 단계는
+	// workspace 와 in 을 받지 않으므로 앞에서 준비된 것은 $OUT · $IN 임시 폴더뿐이다. 세션은 흐름이 스스로 연다.
+	switch step.Kind {
+	case contract.KindBuild.String():
+		w.runBuildStep(runCtx, ctx, step, dir, in, out, log)
+		return
+	case contract.KindMerge.String():
+		w.runMergeStep(runCtx, ctx, step, log)
+		return
+	}
+
 	// 단계는 두 종류다 (ADR-019 결정 3) — 노드는 합쳤지만 단계는 안 합쳤다.
 	// agent 단계는 produced 로, 명령 단계는 exit_code 로 판정한다.
 	if step.Kind != "agent" && len(step.Run) == 0 {
@@ -817,6 +844,27 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 // 돌려주는 것은 그동안 임대가 끝났나다 — 명령이 완주하지 않았다는 문구는 부르는 쪽이
 // 덮어쓴다.
 func (w *Worker) afterExit(runCtx, ctx context.Context, step *Step, session StepSession, spec FinalizeSpec, from time.Time, logBody []byte, blobs bool, res *Result, log *slog.Logger) bool {
+	return w.closeOut(runCtx, ctx, step, session, spec, from, func() []byte { return logBody }, blobs, res, log,
+		closing{})
+}
+
+// closing 은 closeOut 이 닫는 모양이다 (bake 유닛 · 계획 4.1 3번). 명령 · agent 단계는 closing{} 이다 — Close 에
+// Keep{} 를 넘기고 · 닫은 뒤에 할 일이 없고 · $OUT 을 올린다. 오늘과 같다.
+type closing struct {
+	// keep 은 Close 에 넘긴다 — 성공한 build 는 대기 자리의 upper 다.
+	keep Keep
+	// after 는 Close 뒤 · 업로드 앞에 돈다. closeErr · finErr 는 닫기와 Finalize 의 오류다. late 는 마감을 넘겨
+	// 할 일을 안 했다는 뜻이고 (finalize_timeout), err 는 노드 쪽 오류다 (finalize 칸 error · 그 문장).
+	after func(deadline time.Time, closeErr, finErr error) (late bool, err error)
+	// upload 는 올릴 폴더다. 비면 spec.Out.
+	upload string
+}
+
+// closeOut 은 명령이 끝난 뒤의 구간을 닫는다 — afterExit 의 몸통이고 굽기의 build 단계도 이것으로 닫는다.
+// 차례는 Finalize · Close(keep) · after · FinalizedAt · 업로드 · settle 이다. closedLate 는 after 가 late 라고
+// 했거나 Close 가 끝난 시각이 마감 뒤이고 임대가 살아 있는 것이다 — pending 을 썼는지 아는 after 가 late 를 말한다.
+// logBody 는 업로드할 때 읽는다 — after 가 쓴 줄도 단계 로그에 든다.
+func (w *Worker) closeOut(runCtx, ctx context.Context, step *Step, session StepSession, spec FinalizeSpec, from time.Time, logBody func() []byte, blobs bool, res *Result, log *slog.Logger, c closing) bool {
 	finalizeBudget, uploadBudget := w.budgetsFor(step)
 	spec.DiscoverFor = discoverTime(finalizeBudget)
 	spec.Deadline = from.Add(finalizeBudget)
@@ -824,9 +872,16 @@ func (w *Worker) afterExit(runCtx, ctx context.Context, step *Step, session Step
 	began := time.Now()
 	fin, finErr := session.Finalize(fctx, spec)
 	cancel()
-	closeErr := session.Close(ctx, Keep{})
-	finalizedAt := time.Now().UTC()
-	closedLate := finalizedAt.After(spec.Deadline) && runCtx.Err() == nil
+	closeErr := session.Close(ctx, c.keep)
+	closedAt := time.Now().UTC()
+	finalizedAt := closedAt
+	var late bool
+	var sealErr error
+	if c.after != nil {
+		late, sealErr = c.after(spec.Deadline, closeErr, finErr)
+		finalizedAt = time.Now().UTC()
+	}
+	closedLate := late || (closedAt.After(spec.Deadline) && runCtx.Err() == nil)
 
 	diag := diagnosticsFor(step, spec.Out, spec.Effect, fin)
 	logFinalize(log, spec, fin, diag, time.Since(began))
@@ -834,15 +889,19 @@ func (w *Worker) afterExit(runCtx, ctx context.Context, step *Step, session Step
 		(errors.Is(finErr, context.DeadlineExceeded) || (finErr == nil && closedLate))
 	tail := logTail(step, diag, fin, timedOut, finalizeBudget)
 
+	dir := spec.Out
+	if c.upload != "" {
+		dir = c.upload
+	}
 	uctx, cancel := context.WithTimeout(runCtx, uploadBudget)
-	produced, uploaded := w.upload(uctx, step, spec.Out, withTail(logBody, tail), blobs, log)
+	produced, uploaded := w.upload(uctx, step, dir, withTail(logBody(), tail), blobs, log)
 	cancel()
 
 	leaseEnded := runCtx.Err() != nil && ctx.Err() == nil
 	res.Changed, res.Produced = fin.Changed, produced
 	res.FinalizedAt, res.Diagnostics = &finalizedAt, diag
 	res.Finalize, res.Upload, res.Reason, res.Error = settle(settleIn{
-		finalizeErr: finErr, closeErr: closeErr, closedLate: closedLate, upload: uploaded,
+		finalizeErr: finErr, closeErr: closeErr, closedLate: closedLate, upload: uploaded, sealErr: sealErr,
 		leaseEnded: leaseEnded, finalizeBudget: finalizeBudget, uploadBudget: uploadBudget,
 	})
 	return leaseEnded

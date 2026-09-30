@@ -240,3 +240,50 @@ func openUp(root string) {
 		return nil
 	})
 }
+
+// bind 별칭 — user · mount namespace 안에서 lower 를 bind 별칭으로 걸고 그 경로로 Preflight 하면 마운트 줄에 걸린다.
+// st_dev 는 같아 filesystem 줄은 지난다. 원래 경로는 지난다 (bake 유닛 · 계획 4.1 17번). --map-auto 가 없어도 돈다.
+//
+//	TMPDIR=$HOME/merge-it-tmp ./merge.it -test.run TestBindAliasPreflightIntegration -test.v
+func TestBindAliasPreflightIntegration(t *testing.T) {
+	const child = "ENODE_MERGE_ALIAS_CHILD"
+	if base := os.Getenv(child); base != "" {
+		if err := unix.Mount("", "/", "", unix.MS_REC|unix.MS_PRIVATE, ""); err != nil {
+			t.Fatalf("make the mount namespace private: %v", err)
+		}
+		lower, alias := filepath.Join(base, "lower"), filepath.Join(base, "alias")
+		if err := unix.Mount(lower, alias, "", unix.MS_BIND|unix.MS_REC, ""); err != nil {
+			t.Fatalf("bind the alias: %v", err)
+		}
+		p := Paths{Upper: filepath.Join(base, "upper"), Lower: alias, Trash: filepath.Join(base, "trash")}
+		err := Preflight(p)
+		var pe *PreflightError
+		if !errors.As(err, &pe) || pe.Check != CheckMount {
+			t.Fatalf("Preflight through the alias = %v; want a mount PreflightError", err)
+		}
+		t.Logf("alias: %v", err)
+		p.Lower = lower
+		if err := Preflight(p); err != nil {
+			t.Fatalf("Preflight through the original path = %v", err)
+		}
+		return
+	}
+	base := t.TempDir()
+	for _, d := range []string{"upper", "lower", "alias", "trash"} {
+		if err := os.Mkdir(filepath.Join(base, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	unshare, err := exec.LookPath("unshare")
+	if err != nil {
+		t.Fatalf("unshare is required: %v", err)
+	}
+	cmd := exec.Command(unshare, "--user", "--map-root-user", "--mount", os.Args[0],
+		"-test.run=^TestBindAliasPreflightIntegration$", "-test.count=1", "-test.v")
+	cmd.Env = append(os.Environ(), child+"="+base)
+	out, err := cmd.CombinedOutput()
+	t.Logf("namespace child:\n%s", out)
+	if err != nil {
+		t.Fatalf("the namespace child failed: %v", err)
+	}
+}

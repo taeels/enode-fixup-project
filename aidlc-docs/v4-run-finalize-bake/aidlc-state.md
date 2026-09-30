@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U7 bake 의 Functional Design 승인 2026-09-27T12:54:46Z · NFR 여부를 묻는다 (브랜치 `unit/bake` · main `0262155` 에서 땄다). U6 lower-state 는 PR #66 으로 병합 2026-09-27T04:23:29Z · U5 merge-rules 는 PR #65 로 병합 2026-09-26T16:50:25Z · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U7 bake 의 Code Generation 승인 2026-09-30T05:50:37Z (「승인. 커밋해」) · unit/bake 에 한 커밋 · push 와 PR 은 안 함. 병합 조건 — 사람 조각 6 · 7 · 8 (SunnyVM · code-summary 8절) 이 아직 안 돌았다. PR 은 그 뒤이고 올리기 전에 묻는다. 다음 유닛 U8 checkpoint. 계획 construction/plans/bake-code-generation-plan.md (단계 스물둘 · 체크박스 88 · 4절 서른넷 · 물음 다섯 답함). QA 지적 마흔여섯은 작성 서브에이전트의 반영 보고뿐이고 진행자는 넷만 확인 · 4절 30 ~ 34 번은 검수받지 않음 · NFR 건너뜀 2026-09-27T13:14:53Z · Functional Design 은 승인 2026-09-27T12:54:46Z · 커밋 fb86ad2 (브랜치 `unit/bake` · main `0262155` 에서 땄다). U6 lower-state 는 PR #66 으로 병합 2026-09-27T04:23:29Z · U5 merge-rules 는 PR #65 로 병합 2026-09-26T16:50:25Z · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -356,7 +356,34 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           새 결정 (52) · (53).  물음 1 (ir_mismatch) 에 달린 문장은 두었다 (진행자가 다시 묻는 중)
                           물음 1 B 반영 (IR 어긋남은 build DONE · reason ir_mismatch · 판정은 계약의 조건) · FD 승인 2026-09-27T12:54:46Z · 바꾼 줄 약 129 · 새 결정 (54) · (55)
                           Functional Design 승인 2026-09-27T12:54:46Z (「B. 승인.」) — 물음 1 을 B 로 · 되물음 2 를 B 로 (I3) · 나머지 A.
-                          QA 검수 세 번 (aidlc-verify).  설계 결정 (1) ~ (55) 는 audit.  NFR 여부는 사용자에게 묻는다
+                          QA 검수 세 번 (aidlc-verify).  설계 결정 (1) ~ (55) 는 audit.  한 커밋 (fb86ad2)
+   NFR                    건너뜀 (사용자 결정 2026-09-27T13:14:53Z · 「건너뛰고 다음으로.」).  유닛 정의 7절이 NFR 에 둔 것 — 보안 (계약의
+                          명령이 격리 실행 환경 안에서만) · 성능 (형제가 기다리는 시간은 합치기가 아니라 형제 Run 이 정한다) —
+                          을 Code Generation 계획이 받는다 (앞 유닛들과 같은 방식)
+   Code Generation        Part 1 착수 2026-09-27T13:14:53Z.  계획은 작성 서브에이전트가 내고 QA 서브에이전트가 검수한 뒤 승인을 묻는다
+                          계획 — 단계 스물둘 2026-09-27T13:54:10Z
+                          construction/plans/bake-code-generation-plan.md
+                          NFR 둘은 계획 3절 — 보안 (계약의 명령 · bash 확인 · IR 대조 · pinned 가 session.Run 으로만 돈다 · IR 은 환경 변수로만 ·
+                          굽기 흐름 파일의 import 를 보는 시험 · merge-helper 는 unshare 뒤) · 성능 (형제가 새 일을 못 받는 구간을 형제 Run ·
+                          광고 주기 · 초 단위 합치기로 나눔 · 새로 드는 셋은 광고 고루틴 밖 · 벤치마크 넷).  측정 여섯 (계획 3절 · 스크래치에서 하고
+                          지웠다 · SunnyVM 은 읽기만 — 닿는다).  FD 에 없던 자리 스물아홉 (계획 4절).  행렬 밖 아홉 (FD 가 적은 일곱 · 주석 둘).
+                          FD 의 코드 주소는 모두 맞고 어긋난 코드의 모양은 계획 4.2.  물음 없음.  QA 검수 대기
+                          QA 지적 고침 2026-09-27T15:02:54Z — 마흔여섯 모두 반영 (사실이 아닌 지적 0) · 체크박스 77 -> 83 · 단계 스물둘 · 4절 32 · 10절에 물음 넷 (진행자가 묻는 중 · 답에 달린 문장은 두었다)
+                          물음 넷의 답 반영 2026-09-29T14:10:53Z — 1 A (merge 업로드 예산 · FD 규칙 5 · 7 · 16.1 · 흐름 3 · 7 고침) · 2 잔여 · 3 A (4절 33번 · 격리 노드의 Prepare · 행렬 밖 workspace.go) · 4 배타부터 · 체크박스 83 -> 85 · 4절 33 · 새 물음 5 (Finalize diff 의 호스트 git · 진행자가 묻는다)
+                          물음 5 의 답 반영 2026-09-29T15:15:40Z — 이 유닛에서 세션 안으로 (4절 34번 · 격리 노드의 workspace.diff 는 rootfs 의 git · repo · 행렬 밖 diff.go 와 runc 의 finalize) · 체크박스 85 -> 88 · 4절 34 · 정본 되돌림 없음 (보탬 제안 하나) · QA 재검 대기
+                          QA 재검은 도중에 멈춤 2026-09-29T15:45:43Z (하위 에이전트 넷도 멈춤 · 결과 없음) — 진행자가 1회 지적 넷 (막음 1 · 2 · 5 · 16) 과 답 다섯만 확인.
+                          나머지 지적 마흔둘은 작성 서브에이전트의 반영 보고뿐 · 4절 30 ~ 34 번은 검수받지 않음.
+                          계획 승인 2026-09-29T15:49:46Z (「승인만 기록해. 다음 세션에서 할게.」).  Part 2 는 다음 세션 — 작성 서브에이전트 하나 · 하위 에이전트 없음 ·
+                          진행자가 다시 돌려 확인.  커밋은 Part 2 승인 뒤 한 번 (계획 · FD 와 회차 문서의 고침 · 상태 · 감사가 작업 트리에 있다)
+                          Part 2 착수 2026-09-29T23:59Z (「코드 쓰자」) · 작성 서브에이전트 aidlc-xhigh 하나 (하위 에이전트 없음 · 약 40만 토큰 · 104분).
+                          Part 2 완료 2026-09-30T01:52:54Z — 체크박스 86/88 (남은 둘 — Step 21 의 사람 조각 결과 · Step 22 의 커밋).
+                          construction/bake/code/code-summary.md · 새 Go 파일 스물하나 · 조각 스크립트 다섯 (scripts/finalize-bake/) ·
+                          고친 Go 파일 스물다섯 · component-methods.md 4.2 · 4.3 · 4.4.  계획과 다른 자리는 code-summary 5절 (판정 · 실패 등급 ·
+                          보안 경계는 그대로 · 조각 6 · 7 은 symlink 형제 · 조각 8 은 bind 별칭 형제 — FD 규칙 10절 끝).
+                          integration — SunnyVM 에서 다섯 모두 초록.  진행자의 다시 돌리기 — 통과 2,562 · 실패 0 · 스킵 0 · 80% 하한 미달 0 ·
+                          전체 87.7% · 노드 패키지 여섯 -count=5 통과 6,800 실패 0 · race 경합 0.
+                          Code Generation 승인 2026-09-30T05:50:37Z (「승인. 커밋해」) — unit/bake 에 한 커밋 · push 와 PR 은 안 함.
+                          병합 조건 — 조각 5 green (slice-5.sh) · 조각 6 · 7 · 8 은 사람이 SunnyVM 에서 돈다 (code-summary 8절 · 아직 안 돌았다)
 ```
 
 ## Stage Progress
@@ -372,10 +399,10 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 
 ### CONSTRUCTION PHASE
 - [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z · U3 finalize 완료 2026-09-25T12:53:36Z · U4 trash 완료 2026-09-26T14:24:01Z · U5 merge-rules 완료 2026-09-26T16:11:17Z · U6 lower-state 완료 2026-09-27T01:27:20Z · U7 bake 완료 2026-09-27T12:54:46Z — 위 「Construction」 절
-- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 ~ U6 은 건너뜀 (U1 유닛 정의 · U2 ~ U6 사용자 결정)
-- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 ~ U6 은 건너뜀
+- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 ~ U7 은 건너뜀 (U1 유닛 정의 · U2 ~ U7 사용자 결정)
+- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 ~ U7 은 건너뜀
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z · U6 lower-state 완료 2026-09-27T04:07:18Z
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z · U6 lower-state 완료 2026-09-27T04:07:18Z · U7 bake 완료 2026-09-30T05:50:37Z (커밋 · 병합은 사람 조각 6 · 7 · 8 뒤)
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE

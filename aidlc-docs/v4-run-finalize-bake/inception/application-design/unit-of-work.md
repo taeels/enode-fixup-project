@@ -282,7 +282,11 @@ Run 을 조회할 때마다 매칭을 두 번 부르는 비용.
 (시작 순서 · helper) · 조각 스크립트. bake FD 가 더한 행렬 밖 다섯 (2026-09-27) — `internal/contract/result.go` ·
 `internal/store/claim.go` (원인 코드 `ir_mismatch` 와 build 결과의 `head_tags` · 물음 1 답 B) · `internal/merge` (시작 전 확인의
 마운트 줄 · lower-state FD 답 6) · `internal/enode/finalize.go` (contractStep 이 굽기 칸 넷을 옮긴다) ·
-`internal/enode/lowerguard.go` (광고 주기의 정리와 재개 자리 OnStale · Dir · 답 2 · 되물음 1 답 A)
+`internal/enode/lowerguard.go` (광고 주기의 정리와 재개 자리 OnStale · Dir · 답 2 · 되물음 1 답 A). bake Code Generation 이 더한 행렬 밖
+둘 (2026-09-29) — `internal/enode/workspace.go` (격리 노드의 Prepare 는 호스트에서 git · repo 를 돌리지 않고 새 upper 로 PrepClean 을
+얻는다 · 정본 ADR-072 결정 3 · bake Code Generation 계획의 물음 3 답 A) · `internal/enode/diff.go` 와 `runc_overlay_linux.go` 의 finalize
+(격리 노드의 workspace.diff 를 세션 안에서 만든다 · 호스트 helper 는 merged view 에 git · repo 를 돌리지 않는다 · finalize 유닛의 수확을
+고친다 · 같은 계획의 물음 5 답)
 
 **하지 않는 것** — 합치기 규칙(`merge-rules`) · 상태와 잠금의 모양(`lower-state`) · 계약 문법
 

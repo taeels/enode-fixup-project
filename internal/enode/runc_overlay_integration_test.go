@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -316,9 +317,15 @@ func discovered(d *Discovery, path string) bool {
 
 // TestMain 은 이 시험 바이너리가 runtime-helper 로도 돌게 한다 — Verify 는 os.Executable() 을 helper 로 쓰므로,
 // smoke 를 진짜로 돌리려면 시험 바이너리가 그 입구를 알아야 한다 (cmd/enode 의 run 과 같은 갈래).
+//
+// merge-helper 입구도 안다 — 굽기의 integration 시험이 제품 기본값 (unshare 로 이 바이너리를 다시 실행) 그대로
+// 합친다 (bake 유닛).
 func TestMain(m *testing.M) {
 	if len(os.Args) > 1 && os.Args[1] == "runtime-helper" {
 		os.Exit(RunRuncOverlayHelper(os.Stdin, os.Stdout, os.Stderr))
+	}
+	if len(os.Args) > 1 && os.Args[1] == "merge-helper" {
+		os.Exit(RunMergeHelper(os.Stdin, os.Stdout, os.Stderr))
 	}
 	os.Exit(m.Run())
 }
@@ -429,4 +436,166 @@ verify: {executables: [sh], locale: C.UTF-8}
 		t.Fatalf("the smoke kept the lower lock: %v", err)
 	}
 	again.Release()
+}
+
+// itRuntime 은 진짜 runc-overlay 런타임이다 — ENODE_RUNC_ROOTFS · ENODE_RUNC_TEST_ROOT 가 있어야 한다. rootfs 의 사용자는
+// ENODE_RUNC_USER (기본 enode · uid 1000). SSH 투영은 없다.
+func itRuntime(t *testing.T, name string) (*RuncOverlayRuntime, execenv.Binding, string) {
+	t.Helper()
+	rootfs, testRoot := os.Getenv("ENODE_RUNC_ROOTFS"), os.Getenv("ENODE_RUNC_TEST_ROOT")
+	if rootfs == "" || testRoot == "" {
+		t.Skip("set ENODE_RUNC_ROOTFS and ENODE_RUNC_TEST_ROOT for the real namespace gate")
+	}
+	user := os.Getenv("ENODE_RUNC_USER")
+	if user == "" {
+		user = "enode"
+	}
+	doc, err := execenv.Parse([]byte(fmt.Sprintf(`api_version: enode.dev/v1alpha1
+kind: execution-environment
+name: %s
+host:
+  provider: apt
+  packages: [debootstrap, runc, uidmap, util-linux]
+  require: {subuid_size: 65536, subgid_size: 65536, unprivileged_userns: true}
+rootfs:
+  builder: debootstrap
+  release: noble
+  arch: amd64
+  apt: {components: [main], packages: [bash, git]}
+  locale: C.UTF-8
+  user: {name: %s, uid: 1000, gid: 1000}
+runtime:
+  driver: runc-overlay
+  workspace_target: /work
+  tmp: {size: 64MiB, executable: true}
+  credentials: {}
+verify: {executables: [sh], locale: C.UTF-8}
+`, name, user)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := os.MkdirTemp(testRoot, name+"-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(base) })
+	binding := execenv.Binding{Scratch: filepath.Join(base, "scratch"), Workspace: filepath.Join(base, "workspace"),
+		Store: filepath.Join(base, "store")}
+	for _, dir := range []string{binding.Scratch, binding.Workspace} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	manifest := execenv.Manifest{Profile: execenv.ManifestProfile{Name: doc.Profile.Name, SHA256: doc.SHA256}}
+	runtimeImpl, err := newRuncOverlayRuntime(doc, binding, manifest, rootfs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return runtimeImpl, binding, base
+}
+
+// 진짜 세션의 단계 사용자가 쓴 파일이 Close(Keep{Upper}) 로 옮겨지고 호스트에서 노드 uid 소유다 — 나머지 작업 폴더는
+// trash 로 간다 (bake 유닛 · 계획 4.1 6번).
+func TestRuncOverlayCloseKeepsTheUpperIntegration(t *testing.T) {
+	runtimeImpl, binding, base := itRuntime(t, "bake-keep")
+	in, out := filepath.Join(base, "in"), filepath.Join(base, "out")
+	for _, dir := range []string{in, out, filepath.Join(base, "pending")} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	session, err := runtimeImpl.Open(context.Background(), RuntimeSpec{Dir: binding.Workspace, In: in, Out: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runRoot := session.(*runcOverlaySession).runRoot
+	var stderr bytes.Buffer
+	code, err := session.Run(context.Background(), ProcessSpec{Argv: []string{"/bin/sh", "-c",
+		"mkdir -p built && printf kept > built/out.bin"}, Dir: "/work", Stderr: &stderr})
+	if err != nil || code != 0 {
+		_ = session.Close(context.Background(), Keep{})
+		t.Fatalf("run = %d %v %s", code, err, stderr.String())
+	}
+	keep := filepath.Join(base, "pending", "upper")
+	if err := session.Close(context.Background(), Keep{Upper: keep}); err != nil {
+		t.Fatal(err)
+	}
+	var st syscall.Stat_t
+	if err := syscall.Lstat(filepath.Join(keep, "built", "out.bin"), &st); err != nil || int(st.Uid) != os.Getuid() {
+		t.Fatalf("the kept file: uid %d err %v (node uid %d)", st.Uid, err, os.Getuid())
+	}
+	if _, err := os.Stat(filepath.Join(binding.Workspace, "built")); !os.IsNotExist(err) {
+		t.Fatalf("the step wrote the lower: %v", err)
+	}
+	moved := filepath.Join(runtimeImpl.trash.Dir, filepath.Base(runRoot))
+	if _, err := os.Stat(filepath.Join(moved, "work")); err != nil {
+		t.Fatalf("the rest of the session is not in trash: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(moved, "upper")); !os.IsNotExist(err) {
+		t.Fatalf("the upper also went to trash: %v", err)
+	}
+}
+
+// 격리 노드의 diff 는 세션 안의 git 이 만든다 — edit 단계가 git 워크스페이스의 추적 파일을 고치고 .git/config 에
+// core.fsmonitor 로 호스트 절대 경로 (컨테이너에는 없다) 의 표지 스크립트를 적어도, workspace.diff 에 그 고친 줄이 있고
+// 호스트 표지가 없다 (bake 유닛 · 계획 4.1 34번). rootfs 에 git 이 있어야 한다.
+func TestRuncOverlayFinalizeDiffInTheSessionIntegration(t *testing.T) {
+	runtimeImpl, binding, base := itRuntime(t, "bake-diff")
+	for k, v := range map[string]string{"GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
+		"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@e", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@e"} {
+		t.Setenv(k, v)
+	}
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "commit.gpgsign", "false"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = binding.Workspace
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(binding.Workspace, "tracked.txt"), []byte("one\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"add", "tracked.txt"}, {"commit", "-q", "-m", "one"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = binding.Workspace
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s", args, out)
+		}
+	}
+	marker := filepath.Join(base, "host-marker")
+	hook := filepath.Join(base, "hook")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\necho ran >> "+marker+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	in, out := filepath.Join(base, "in"), filepath.Join(base, "out")
+	for _, dir := range []string{in, out} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	session, err := runtimeImpl.Open(context.Background(), RuntimeSpec{Dir: binding.Workspace, In: in, Out: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close(context.Background(), Keep{}) //nolint:errcheck
+	var stderr bytes.Buffer
+	code, err := session.Run(context.Background(), ProcessSpec{Argv: []string{"/bin/sh", "-c",
+		"printf 'two\\n' > tracked.txt && printf '[core]\\n\\tfsmonitor = " + hook + "\\n' >> .git/config"},
+		Dir: "/work", Stderr: &stderr})
+	if err != nil || code != 0 {
+		t.Fatalf("the edit step = %d %v %s", code, err, stderr.String())
+	}
+	res, err := session.Finalize(context.Background(), FinalizeSpec{Diff: true, Out: out,
+		Deadline: time.Now().Add(time.Minute)})
+	if err != nil || res.DiffError != "" || res.DiffBytes == 0 {
+		t.Fatalf("finalize = %+v %v", res, err)
+	}
+	b, err := os.ReadFile(filepath.Join(out, diffName))
+	if err != nil || !strings.Contains(string(b), "+two") || !strings.Contains(string(b), "-one") {
+		t.Fatalf("workspace.diff = %q %v", b, err)
+	}
+	if got, err := os.ReadFile(marker); !os.IsNotExist(err) {
+		t.Fatalf("the host ran the tree's fsmonitor: %q", got)
+	}
+	t.Logf("workspace.diff (%d bytes):\n%s", res.DiffBytes, b)
 }

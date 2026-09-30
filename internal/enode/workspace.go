@@ -27,9 +27,20 @@ type WorkspaceSpec struct {
 //
 // 저장소를 받지 않는다 — 노드가 이미 갖고 있고 그것이 매칭 조건이었다
 // (ADR-017: 저장소는 GB 라 10 MiB blob 을 못 지나간다).
+//
+// 격리 노드 (workspace.writes=isolated · runc-overlay) 는 호스트에서 되돌리지 않는다 (ADR-072 결정 3 · bake 유닛
+// 계획 4.1 33번) — 그 노드의 Prepare 는 윗 층을 버리는 것이고, 새 upper 는 뒤의 Runtime.Open 이 연다. 저장소
+// 확인 (읽기만) 은 남긴다. 호스트의 reset · clean · repo forall 은 lower 뿌리의 .git/config · .repo/repo 를
+// 실행하고 (굽기 뒤에는 계약의 sync 가 쓴 것이다), reset --hard 는 형제가 공유 잠금을 쥔 lower 를 바꾼다.
 func (w *Worker) Prepare(ctx context.Context, spec *WorkspaceSpec, log *slog.Logger) (Prep, error) {
 	if spec == nil {
 		return PrepNone, nil // 워크스페이스를 안 쓰는 단계
+	}
+	isolated := WorkspaceWrites(w.Runtime) == writesIsolated
+	if spec.Repo == "" && isolated && w.Local.Workspace != "" {
+		// 새 upper 가 되돌림이다 — 저장소가 없어도 된다 (ADR-072 §5.1)
+		log.Info("workspace prepared", "how", "fresh upper")
+		return PrepClean, nil
 	}
 	if spec.Repo == "" {
 		// 준비하지 않은 워크스페이스에서 돈다 (ADR-036).
@@ -56,6 +67,10 @@ func (w *Worker) Prepare(ctx context.Context, spec *WorkspaceSpec, log *slog.Log
 	if got := DetectRepo(ctx, dir); got != spec.Repo {
 		return PrepNone, fmt.Errorf("workspace repository mismatch: node has %q, contract wants %q", got, spec.Repo)
 	}
+	if isolated {
+		log.Info("workspace prepared", "repo", spec.Repo, "how", "fresh upper")
+		return PrepClean, nil
+	}
 
 	// 순서가 둘이고 뒤바꾸면 안 된다
 	//
@@ -72,7 +87,7 @@ func (w *Worker) Prepare(ctx context.Context, spec *WorkspaceSpec, log *slog.Log
 	if err := w.clean(ctx, dir); err != nil {
 		return PrepNone, err
 	}
-	log.Info("workspace prepared", "repo", spec.Repo,
+	log.Info("workspace prepared", "repo", spec.Repo, "how", "reset and clean",
 		"took", time.Since(start).Round(time.Millisecond))
 	return PrepClean, nil
 }
@@ -86,7 +101,7 @@ type Prep string
 
 const (
 	PrepNone       Prep = ""           // 워크스페이스를 안 쓰는 단계
-	PrepClean      Prep = "clean"      // reset 과 clean 을 마쳤다
+	PrepClean      Prep = "clean"      // reset 과 clean 을 마쳤다 · 격리 노드면 새 upper (ADR-072 §5.2)
 	PrepUnprepared Prep = "unprepared" // 되돌리지 않았다 — 저장소가 없다
 )
 

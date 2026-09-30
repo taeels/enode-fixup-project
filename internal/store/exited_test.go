@@ -637,7 +637,8 @@ func TestStepResult_OutOfVocabulary(t *testing.T) {
 // (lower-state 유닛).
 func TestStepResult_ReasonsAreInVocabulary(t *testing.T) {
 	for _, reason := range []string{contract.ReasonFinalizeTimeout, contract.ReasonUploadTimeout,
-		contract.ReasonMergeWaitTimeout, contract.ReasonBakeInProgress, contract.ReasonLowerChanged} {
+		contract.ReasonMergeWaitTimeout, contract.ReasonBakeInProgress, contract.ReasonLowerChanged,
+		contract.ReasonIRMismatch} {
 		if got := (StepResult{Reason: reason}).OutOfVocabulary(); len(got) != 0 {
 			t.Errorf("reason %q is out of vocabulary: %v", reason, got)
 		}

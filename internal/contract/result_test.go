@@ -120,7 +120,7 @@ func TestResultVocabulary_FieldNames(t *testing.T) {
 		{"captured", CheckpointCapture{State: CaptureCaptured, Reason: "r", ID: "c1", Scope: "workspace-upper",
 			Guarantee: "inspect-only", Node: "n1", ExpiresAt: &at},
 			"expires_at guarantee id node reason scope state"},
-		{"build manifest", BuildManifest{}, "builds head ir pinned sync"},
+		{"build manifest", BuildManifest{}, "builds head head_tags ir pinned sync"},
 		{"build record", BuildRecord{}, "command exit_code finished_at name started_at"},
 		{"pinned", Pinned{}, "file sha256"},
 		{"merge result", MergeResult{IR: &ir}, "ir merged_at ops previous_ir resumed"},
@@ -163,5 +163,37 @@ func TestStage_RoundTrip(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got.F, StageTimeout) {
 		t.Fatalf("stage = %q", got.F)
+	}
+}
+
+// head_tags 는 null 과 [] 를 나눈다 (bake 유닛 · 되물음 5 답 A 의 (11)) — 대조 전이거나 대조를 못 했으면 null,
+// 대조가 HEAD 의 태그를 읽었는데 없으면 [] 다. omitempty 면 둘 다 칸이 빠져 읽는 쪽이 못 나눈다.
+func TestBuildManifest_HeadTagsNullAndEmpty(t *testing.T) {
+	cases := []struct {
+		name string
+		tags []string
+		want string
+	}{
+		{"not measured", nil, `"head_tags":null`},
+		{"no tags at HEAD", []string{}, `"head_tags":[]`},
+		{"two tags", []string{"a", "b"}, `"head_tags":["a","b"]`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			b, err := json.Marshal(BuildManifest{HeadTags: tc.tags})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(b), tc.want) {
+				t.Fatalf("%s does not carry %s", b, tc.want)
+			}
+			var back BuildManifest
+			if err := json.Unmarshal(b, &back); err != nil {
+				t.Fatal(err)
+			}
+			if (back.HeadTags == nil) != (tc.tags == nil) || len(back.HeadTags) != len(tc.tags) {
+				t.Fatalf("round trip = %#v, want %#v", back.HeadTags, tc.tags)
+			}
+		})
 	}
 }

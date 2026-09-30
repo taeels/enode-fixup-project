@@ -113,6 +113,8 @@
        Trash.Move(대기 자리)                         committed 를 쓴 때만.  오류 -> 경고 · 계속 (버려진 자리 — 기동 정리가 거둔다)
        ex.Release · lock.Release · DropBake · Baker.held = nil
        $OUT/merged · 업로드 · 보고 DONE (merge 칸) · AfterReport (삭제자 Kick)
+         업로드 예산 (기본 3분) 을 넘겼으면 보고 FAILED upload_timeout · merge 칸은 싣는다 (합치기는 끝났다 · 규칙 5절 · CG 물음 1 답 A —
+         Code Generation 계획 10절 물음 1 의 답)
 
    merging 에 둠 (답 2)
        ex.Release · lock.Release · DropBake · Baker.held = nil (retryAt 은 걸지 않는다)
@@ -229,6 +231,7 @@
 | Apply · rmdir · metadata 오류 (merging 뒤) | FAILED | 없음 | 대기 자리에 남음 | merging | 없음 | 재개 (답 2) |
 | metadata 뒤 committed 쓰기 오류 | DONE (merged) | 없음 | 대기 자리에 남음 (초안 · upper 뿌리는 치웠다) | merging | 그대로 — 재개가 committed 를 쓸 때 지운다 | 재개가 초안으로 끝났나를 보고 committed 만 쓴다 (되물음 5 답 A 의 (3)) |
 | committed 뒤 대기 자리 옮기기 오류 | DONE (merged) | 없음 | 버려진 대기 자리 (초안만) | committed | 지움 | 그 scratch 를 쓰는 노드의 기동 정리가 거둔다 |
+| 합친 뒤 업로드 예산을 넘김 (merge) | FAILED | `upload_timeout` | 합쳤다 (대기 자리는 trash) | committed | 지움 | Run 끝 · lower 는 합쳐졌고 metadata 의 bake.run 이 이 Run (ADR-077:290 ~ :292 와 같은 모양 · 규칙 5절 · CG 물음 1 답 A) |
 | 재개 실패 | 단계 없음 | — | 대기 자리에 남음 | merging | 없음 | 그 노드는 10분 뒤 · 다른 노드는 자기 광고에서 |
 | 데몬이 멈춤 (명령 중 · merge 대기 중) | 보고 없음 | — | trash | committed | 남김 (`node stopped`) | 임대 만료나 재시작 (ADR-030) 이 Run 을 닫는다 |
 | 데몬이 멈춤 (pending 뒤 · merge claim 전) | 보고 없음 | — | 형제의 광고 주기가 trash | pending -> committed | 남김 (`abandoned: …`) | 형제가 치우고 drain 은 두 주기 안에 풀린다 (되물음 1 답 A) |
@@ -412,6 +415,11 @@
    internal/merge/merge_linux.go    resolve 가 STATX_MNT_ID 를 읽고 댄다
    internal/enode/finalize.go       contractStep 이 굽기 칸 넷을 옮긴다 (finalize 가 넘긴 일 · 받는 일 19) — finalize 유닛의 파일
    internal/enode/lowerguard.go     OnStale · Dir (답 2 · 되물음 1 답 A) — lower-state 유닛의 파일
+   internal/enode/workspace.go      isolated 노드의 Prepare 는 호스트 git · repo 를 돌리지 않는다 (ADR-072 결정 3 · CG 물음 3 답 A — Code
+                                    Generation 이 더함)
+   internal/enode/diff.go ·         isolated 노드의 Finalize 는 workspace.diff 를 세션 안 (준비된 rootfs 의 git · repo) 에서 만든다 ·
+   runc_overlay_linux.go 의 finalize  helper 는 merged view 에 git · repo 를 돌리지 않는다 — finalize 유닛의 수확을 고친다 (CG 물음 5 답 —
+   · runtime.go 의 주석              Code Generation 이 더함)
    위 파일들의 시험                    표 시험 한두 줄씩
 ```
 
@@ -669,6 +677,17 @@ reason `ir_mismatch` 를 싣고 판정을 계약의 produced 조건에 맡긴다
   조건에 맡긴다 (되물음 2 답 B · QA 재검 D1). 재시작 줄과 7.1 의 어긋남 줄의 FAILED 는 판정이 아니라 미완주다 (규칙 7.1절). IR 어긋남도
   I3 을 지킨다 — ir_mismatch 는 완주 (DONE) 에 붙고 Run 은 produced ["manifest"] 조건이 판정한다 (`internal/contract/bake.go:36` ~ `:37` ·
   규칙 4절 · 물음 1 답 B)
+- **정본을 따르게 하는 것 (Code Generation 이 더함)** — ADR-072 결정 3 (§5 「오버레이 노드에서 Prepare 는 윗 층을 버리는 것이다」 · §5.2 ·
+  §8) 을 이 회차의 팩 · Inception · FD 는 받지 않았다 (팩은 ADR-072 의 §6.4 · §8 · §9 만 받았다). 오늘 Prepare 는 runtime 을 안 보고 lower
+  뿌리에서 호스트 reset · clean 을 돌린다 — Code Generation 계획 4절 33번이 isolated 노드에서 그것을 멈춘다 (CG 물음 3 답 A ·
+  2026-09-29T13:53:38Z). 되돌림은 없다
+- **굽기 전부터 있던 격리의 구멍 (Code Generation 이 더함)** — isolated 노드의 edit 단계 (agent 포함) 가 upper 에 `.git/config` 를 쓰면
+  Finalize 의 workspace.diff 때 runtime helper (컨테이너 밖 · 노드 uid) 의 호스트 git 이 그 설정 (core.fsmonitor · filter.<이름>.clean) 을
+  실행했다 (진행자 측정 git 2.39.2 · 2026-09-29T14:13:46Z). 굽기는 lower 에 남은 설정을 뒤 Run 의 diff 가 읽게 해 길을 넓힌다. Code Generation
+  계획 4절 34번이 diff 를 세션 안으로 옮긴다 (CG 물음 5 답 · 2026-09-29T15:05:21Z). **정본과 어긋나지 않는다** — execution-environment.md
+  §10.3 (:597 ~ :608) 과 ADR-073 §6 은 diff 를 Close 전에 merged view 에서 만든다고만 적었고 그 git 이 어디서 도는지 적지 않았다. 세션 안의
+  작업 폴더가 그 merged view 다. 「격리 노드에서 호스트 쪽 helper 는 워크스페이스가 적은 설정을 실행하는 명령을 돌리지 않는다」 는 정본에
+  없는 규칙이라 보탤지 진행자가 정한다 (되돌림이 아니라 보탬)
 
 ### 13.2 팩 — 진행자가 정한다 (`requirements/finalize-bake/`)
 
