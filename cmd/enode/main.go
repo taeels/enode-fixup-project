@@ -53,6 +53,10 @@ func run() int {
 	if len(os.Args) > 1 && os.Args[1] == "trash-helper" {
 		return enode.RunTrashHelper(os.Args[2:], os.Stdout, os.Stderr)
 	}
+	// merge-helper 도 같다 — 굽기의 merge 단계와 재개가 unshare 안에서 합치기를 돌리려고 다시 실행한다 (bake 유닛).
+	if len(os.Args) > 1 && os.Args[1] == "merge-helper" {
+		return enode.RunMergeHelper(os.Stdin, os.Stdout, os.Stderr)
+	}
 	// 하위 명령이 하나 있다 — `enode hook stop` (R5③ · R6).
 	// 훅을 별도 스크립트로 두지 않고 enode 자신이 되는 이유는 hook.go 에 적었다.
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
@@ -247,6 +251,9 @@ func run() int {
 
 	// lower 공유 잠금 — 상태 자리를 열고 놓은 상태로 시작한다. 첫 광고가 쥔다 (lower-state 유닛).
 	guard := enode.StartLowerGuard(lowerRoot, ident, log)
+	// 굽기 — 광고 주기의 정리와 재개를 먼저 등록하고, 굽기 잠금이 되면 기동 정리 · 재개를 연다 (bake 유닛).
+	// guard 가 없으면 (runc-overlay 가 아닌 노드) nil 이고 굽기 단계를 거절한다.
+	baker := enode.StartBaker(ctx, guard, scratchDir, ident, client.Instance, log)
 	adv := &enode.Advertiser{
 		Client: client, Ident: ident, Every: *every, Log: log,
 		Caps:     det.Capabilities, // 여기서 탐지하지 않는다 (ADR-068)
@@ -299,7 +306,7 @@ func run() int {
 		}
 	}
 	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log,
-		Runtime: stepRuntime, RuntimeRecord: runtimeRecord, Guard: guard}
+		Runtime: stepRuntime, RuntimeRecord: runtimeRecord, Guard: guard, Bake: baker}
 
 	// 단계가 남긴 작업 폴더를 지우는 자리 (ADR-076 §4.1) — runc-overlay 노드만 있다.
 	//
@@ -333,6 +340,7 @@ func run() int {
 		go func() { defer wg.Done(); deleter.Run(ctx) }()
 	}
 	wg.Wait()
+	baker.Wait() // 도는 재개의 Apply 를 기다린다
 	log.Info("stopped")
 	return 0
 }

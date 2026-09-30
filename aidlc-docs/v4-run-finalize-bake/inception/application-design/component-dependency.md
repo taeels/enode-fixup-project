@@ -114,13 +114,13 @@ namespace 가 필요 없는 둘은 `--mount` 를 안 연다 — 삭제와 합치
 | 파일 | 쓰는 쪽 | 읽는 쪽 | 만나는 법 |
 |---|---|---|---|
 | `lowers/<key>/lower.lock` | 형제 전부(공유) · merge(배타) | 커널 | flock. 쥔 프로세스가 죽으면 커널이 푼다 |
-| `lowers/<key>/bake.lock` | 굽기 Run 의 Worker · 재개하는 노드 | 커널 | flock. 주인이 살아 있다는 증거 |
+| `lowers/<key>/bake.lock` | 굽기 Run 의 Worker · 재개하는 노드 · 낡은 상태를 정리하는 형제 (광고 주기 · bake FD 되물음 1 답 A) | 커널 | flock. 주인이 살아 있다는 증거 |
 | `lowers/<key>/` 의 쥔 사람 기록 | 공유 잠금을 쥔 노드 | merge (Q4) | 살아 있는 기록만 읽는다. 형식은 Functional Design |
-| `lowers/<key>/state.json` | 굽기 노드 · 재개하는 노드 | 형제 전부(광고 주기) | 임시 파일에 쓰고 rename |
+| `lowers/<key>/state.json` | 굽기 노드 · 재개하는 노드 · 낡은 상태를 정리하는 형제 (광고 주기 · bake FD 되물음 1 답 A) — 늘 굽기 잠금을 쥔 쪽 | 형제 전부(광고 주기) | 임시 파일에 쓰고 rename |
 | `lowers/<key>/lower.json` | 처음 본 노드 · 별칭을 더하는 노드 | env check | 같다 |
 | `<lower>/.enode-metadata.json` | merge (합치기의 마지막 동작) | 형제 전부(광고 키) | 마운트 0 인 창에서만 쓴다 (결정 3-15) |
 | `<scratch>/trash/` | 그 노드의 세션 닫기 · merge | 그 노드의 삭제자 | rename 으로 들어오고 helper 가 지운다 |
-| `<scratch>/pending/<run>` | build 단계 닫기 | merge · 재개하는 노드 | state.json 이 자리를 가리킨다 |
+| `<scratch>/pending/<lower 키>/<이름>/` (upper · bake.json) | build 단계 (building 때 만들고 닫기가 upper 를 옮긴다) | merge · 재개하는 노드 | state.json 의 pending_upper 가 가리킨다. 이름에 run_id 를 안 쓴다 (bake FD 2026-09-27 고침) |
 | `<scratch>/spool/` | 세션 닫기(capture) | Store · enode checkpoint | 소유자만 읽는다 (5.3) |
 | `<stem>.status.yaml` | Advertiser | 제어판 | 오늘 그대로 · 칸이 는다 (Q3) |
 | `<stem>.policy.yaml` | 소유자 · 제어판 | Advertiser | 오늘 그대로 |
@@ -169,7 +169,7 @@ lower 를 모른다 (4-7 기각).
 ### 5.2 upper 에서 lower 까지
 
 ```text
-   build 세션의 upper --rename--> <scratch>/pending/<run>      state = pending
+   build 세션의 upper --rename--> <scratch>/pending/<키>/<이름>/upper      state = pending
                                             |                     형제 drain 시작
                                             v
                        배타 잠금 (형제가 전부 후보에서 빠지고 도는 Run 0)

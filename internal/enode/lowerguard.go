@@ -47,6 +47,8 @@ type LowerGuard struct {
 	baking   map[string]bool // prepare · merge 단계를 claim 한 Run — 늦게 보인 임대로 치지 않는다
 	stepping int             // 도는 단계 수 — 0 이 아니면 놓지 않는다
 	bake     *bakeHold       // 이 프로세스가 쥔 굽기 잠금의 Run 과 치우는 몸통 (bake 유닛이 등록)
+	// onStale 은 광고 주기의 낡은 상태 정리와 재개 자리다 (bake 유닛 · 되물음 1 답 A). Baker 가 기동 때 채운다.
+	onStale func(lower.State)
 
 	// 로그는 원인이나 phase 가 바뀔 때만 쓴다
 	warnOpen   string
@@ -200,6 +202,11 @@ func (g *LowerGuard) sourcesLocked() []DrainSource {
 		return []DrainSource{lowerSource("cannot open the lower state: " + err.Error())}
 	}
 	g.warnOpen = ""
+	// 주인이 죽었을 수 있는 굽기 — 이 프로세스가 쥔 굽기가 아니면 Baker 에게 알린다 (bake 유닛 · 계획 4.1 18번).
+	// g.mu 아래에서 곧바로 부른다 — 고루틴을 띄우지 않는다. f 는 막지 않는다 (Baker.onStale 이 배경 일을 연다).
+	if st.Phase != lower.PhaseCommitted && g.bake == nil && g.onStale != nil {
+		g.onStale(st)
+	}
 	if st.Phase != g.warnPhase {
 		g.warnPhase = st.Phase
 		switch st.Phase {
@@ -497,6 +504,28 @@ func (g *LowerGuard) HoldBake(run string, abandon func()) {
 		g.releaseLocked()
 	}
 	g.bake = &bakeHold{run: run, abandon: abandon}
+}
+
+// OnStale 은 Baker 가 기동 때 채운다 (bake 유닛 · FD 엔티티 10절). 광고 직전에 state.json 이 committed 가 아니면
+// (building · pending · merging) 곧바로 부른다 — 광고 루프를 막지 않는 것은 f 의 일이다 (Baker.onStale 이 판단만
+// 하고 배경 일을 연다). nil 이면 안 부른다. 이 프로세스가 굽기를 쥐었으면 (HoldBake 부터 DropBake 까지) 안 부른다.
+func (g *LowerGuard) OnStale(f func(lower.State)) {
+	if g == nil {
+		return
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.onStale = f
+}
+
+// Dir 은 연 상태 자리다. 못 열었으면 nil — 광고 주기가 다시 연다. 굽기가 빌려 쓴다 (bake 유닛).
+func (g *LowerGuard) Dir() *lower.Dir {
+	if g == nil {
+		return nil
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.dir
 }
 
 // DropBake 는 bake 유닛이 committed 를 쓰고 굽기 잠금을 놓은 뒤 부른다. 이 노드가 바꾼 lower 의 표지를 새로 적는다 —

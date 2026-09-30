@@ -58,23 +58,30 @@ agent 단계는 오늘 그대로다 — 수확을 안 좁히고(FR-1) exited 는
 ```text
    claim                     LowerGuard.OnClaim — prepare 면 후보 잠금을 놓는다 (결정 3-9)
    굽기 잠금                   TryBake.  못 잡으면(주인이 살아 있음) 곧바로 reason bake_in_progress 로 보고
-                              잡았는데 상태가 committed 가 아니면 낡은 상태다 — 정리하고 간다 (결정 3-12)
-   상태 building              state.json — 주인(Run · 단계 · 노드 · 인스턴스)
+                              잡았는데 상태가 building · pending 이면 낡은 상태다 — 정리하고 간다 (결정 3-12).
+                              merging 이면 재개를 배경에 열고 reason bake_in_progress 로 보고 (bake FD 답 2 · 되물음 4 답 A)
+   상태 building              state.json — 주인(Run · 단계 · 노드 · 인스턴스) · 대기 upper 의 자리
    세션 열기                   평범한 overlay 단계와 같다.  lower 는 읽기 전용 (FR-6)
-   sync                       sh -c 로.  시작 · 끝 시각과 exit 를 적는다
-   builds                     적힌 순서대로.  항목마다 같은 기록
-     하나라도 0 이 아니면       upper 를 trash 로 · last_attempt · 상태 committed · 굽기 잠금 놓음 ·
-                              build 단계 실패로 보고.  합치지 않는다 (결정 3-18)
-   IR 대조                    계약의 IR 을 sync 와 builds 에 환경 변수로 넘긴다. sync 뒤 manifest HEAD 에
-                              그 태그가 정확히 붙었는지 본다. 다르면 upper 를 trash 로 · 상태 committed ·
-                              굽기 잠금 놓음 · build 단계 실패 (Units Generation 2.3 이 고쳤다)
-   pinned manifest            repo manifest -r 을 워크스페이스에 떠 둔다 — upper 에 남아 합쳐진다
+   bash 확인                  rootfs 에 bash 가 없으면 여기서 멈춘다 — 노드 쪽 오류 (bake FD 되물음 3 답 A)
+   sync                       bash -c 로.  시작 · 끝 시각과 exit 를 적는다.  0 이 아니면 builds 를 안 돈다
+   IR 대조                    계약의 IR 을 sync 와 builds 에 환경 변수로 넘긴다.  sync 바로 뒤 .repo/manifests
+                              (없으면 워크스페이스 뿌리의 .git) 의 HEAD 가 그 태그의 커밋인지 본다.  다르면 builds 를
+                              안 돌리고 manifest 를 안 낸다 · build 단계 DONE · reason ir_mismatch · upper 를 trash 로 ·
+                              상태 committed · 굽기 잠금 놓음.  판정은 계약의 조건 (Units Generation 2.3 · bake FD 물음 1 답 B)
+   pinned manifest            repo 모양이면 repo manifest -r 을 워크스페이스에 떠 둔다 — upper 에 남아 합쳐진다
+   builds                     적힌 순서대로.  항목마다 같은 기록.  하나가 0 이 아니면 거기서 멈춘다 (bake FD 답 3)
+     명령이 0 이 아니면         upper 를 trash 로 · last_attempt · 상태 committed · 굽기 잠금 놓음.
+                              build 단계는 DONE (exit 는 그 명령의 값 · 완주) 이고 manifest 가 없다 — 판정이
+                              실패다.  합치지 않는다 (결정 3-18)
    Finalize                   결과는 파일 목록이 아니라 build manifest 다 (ADR-075 §5 의 prepare 줄)
-   닫기                       Keep{Upper: 대기 자리} — upper 만 <scratch>/pending/<run> 으로 rename.
-                              나머지 runRoot 는 trash 로
-   상태 pending               state.json 에 대기 upper 의 자리.  굽기 잠금은 쥔 채다
+   닫기                       Keep{Upper: 대기 자리} — upper 만 <scratch>/pending/<lower 키>/<이름>/upper 로
+                              rename.  나머지 runRoot 는 trash 로
+   상태 pending               state.json.  Finalize 예산 안에서 쓴다.  굽기 잠금은 쥔 채다
    보고                       build 단계 DONE.  build manifest 를 싣는다
 ```
+
+(bake FD 2026-09-27 고침 — 차례 · 셸 · IR 대조의 자리 · 명령 실패는 DONE · 대기 자리의 이름. 규칙은
+`construction/bake/functional-design/business-rules.md` 3 · 4 · 6절)
 
 **pending 이 되는 순간 형제가 drain 을 싣기 시작한다** (5절). merge 단계는 Mediator 가 다음
 단계로 만든다.
@@ -85,24 +92,32 @@ agent 단계는 오늘 그대로다 — 수확을 안 좁히고(FR-1) exited 는
 
 ```text
    claim                     Mediator 가 phase 를 waiting 으로 적는다 (ADR-075 §10.3)
-   상태 확인                   pending 이고 주인이 이 Run 인가.  아니면 실패로 보고
-   배타 잠금 기다림             Exclusive(ctx 마감 = 받은 시각 + merge.wait).  기다리는 동안 주기마다
-                              쥔 사람 기록을 읽어 단계 로그에 한 줄씩 쓴다 (Q4)
-                                waiting for the lower lock; deadline <시각> (<남은 시간> left)
-                                  node <노드>  run <Run>  holding since <시각>
-                                  node <노드>  candidate  drain not acknowledged yet
+   상태 확인                   이 노드가 이 Run 의 굽기를 쥐었고 pending 이며 주인이 이 Run 인가.
+                              대기 upper 가 없으면 합칠 것 없음 — DONE · merged 없음 (판정은 계약의 조건 · bake FD 되물음 2 답 B) ·
+                              재시작 뒤면 실패로 보고
+   배타 잠금 기다림             Exclusive(ctx 마감 = 받은 시각 + merge.wait).  쥔 사람 기록을 읽어 단계 로그에 쓴다 —
+                              처음 · 모습이 바뀔 때 · 5분마다 (Q4)
+                                waiting for the lower lock; deadline <시각> node clock (<남은 시간> left)
+                                  node <노드> holds it for run <Run> since <시각>
+                                  node <노드> holds it as a candidate; its drain was acknowledged <n> of 2 times
    마감                       upper 를 trash 로 · 상태 committed · 굽기 잠금 놓음 · drain 풀림 ·
                               reason merge_wait_timeout 으로 보고 (결정 3-11)
    잡았다                      형제가 전부 후보에서 빠졌고 도는 Run 이 없다 (Q1)
+   그물                       다른 namespace 의 overlay 마운트를 훑는다.  찾으면 배타를 놓고 60초 뒤 다시 기다린다
+   시작 전 확인                merge.Preflight — 같은 filesystem · 같은 마운트 · metacopy · redirect.  아무것도 안
+                              바꾼다.  어긋나면 merging 을 안 쓴다 — upper 를 trash · committed.  마운트 0 은 쥔
+                              배타 잠금이 증거다
    상태 merging               state.json.  이 순간부터 끊기면 재개 대상이다
-   시작 전 확인                merge.Preflight — 같은 filesystem · metacopy · redirect.
-                              마운트 0 은 쥔 배타 잠금이 증거다
    합치기                      merge-helper (namespace 안) -> merge.Apply.  lower 에서 없앨 것은 trash 로
    metadata                  합치기의 마지막 동작.  bake.run · merged_at · resumed=false · previous_ir
-   상태 committed             대기 upper 자리를 지우고 굽기 잠금 · 배타 잠금 놓음
+   상태 committed             state.json.  그 뒤에 대기 upper 자리를 trash 로 옮긴다
+   놓기                       배타 잠금 · 굽기 잠금 차례로 놓는다
    보고                       merge 단계 DONE.  ir · 셈을 싣는다
    보고 뒤                     삭제자 Kick
 ```
+
+(bake FD 2026-09-27 고침 — 상태 확인 · 그물 · 시작 전 확인이 merging 앞 · 대기 로그 · committed 뒤 옮김 · 놓는 차례. 규칙은
+`construction/bake/functional-design/business-rules.md` 7 · 8 · 10절)
 
 **합치기 본체에는 상한이 없다** (결정 3-11). 끊으면 lower 가 merging 에 묶인다.
 
@@ -121,7 +136,8 @@ lower 가 없어 후보 잠금도 없다.
          building · pending    대기 upper 를 trash 로 · 상태 committed
          merging               재개 — 배타 잠금을 배경에서 기다려 merge.Apply 를 남은 upper 에 다시 돌린다.
                                metadata 에 resumed=true 와 원래 Run.  광고 루프를 안 막는다
-       못 잡으면               다른 노드가 잡았다.  그쪽이 정리한다
+       못 잡으면               다른 노드가 잡았다.  그쪽이 정리한다.  살아 있는 동안에도 광고 주기가 같은 정리와 재개를 한다
+                               (5절 · bake FD 되물음 1 답 A)
    3   삭제자 첫 회              남은 trash 를 비운다.  env check 의 smoke 가 남긴 것도 여기서 (FR-4)
    4   checkpoint 조정          미완료 capture 와 만료 항목 (FR-10)
    5   광고 시작                5절.  첫 광고 전에 후보 잠금을 시도한다
@@ -141,6 +157,8 @@ drain 을 싣고, 재개가 배타 잠금을 기다리는 동안 형제의 도�
                            공유 잠금을 못 잡음(합치기 중) -> bake
    drain 합성               LowerGuard.BeforeAdvert — 셋 중 센 쪽 (at-boundary > graceful > 없음)
    후보 잠금                 실을 drain 이 없으면 공유 잠금을 쥔다 (Q1)
+   낡은 상태 (OnStale)       lower 상태가 committed 가 아니면 배경에서 TryBake — 되면 주인이 죽은 것이다.  building · pending
+                           은 정리, merging 은 재개 (4절의 표 · bake FD 답 2 · 되물음 1 답 A).  광고는 기다리지 않는다
    광고 키                  workspace.writes · ir · repo.built.<name> · bake.run · bake.resumed ·
                            producer.<name>.  ir 과 bake 는 metadata 에서, arch 는 툴체인만 보고 (FR-4)
    광고                     POST /v1/nodes

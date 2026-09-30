@@ -361,6 +361,12 @@ func TestSettle(t *testing.T) {
 		{"closing ran late after a finalize error", with(func(i *settleIn) {
 			i.finalizeErr, i.closedLate = errors.New("merged view is gone"), true
 		}), contract.StageError, contract.StageOK, "", "runtime finalize: merged view is gone"},
+		// 닫은 뒤의 노드 쪽 오류 — 굽기의 초안 · sha256 · pending 쓰기 (bake 유닛 · 계획 4.1 4번)
+		{"a node error while sealing", with(func(i *settleIn) { i.sealErr = errors.New("cannot write the bake draft: disk full") }),
+			contract.StageError, contract.StageOK, "", "cannot write the bake draft: disk full"},
+		{"cleanup then sealing", with(func(i *settleIn) {
+			i.closeErr, i.sealErr = errors.New("busy"), errors.New("cannot pin the manifest: x")
+		}), contract.StageError, contract.StageOK, "", "runtime cleanup: busy; cannot pin the manifest: x"},
 	}
 	for _, c := range cases {
 		fin, up, reason, text := settle(c.in)

@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U6 lower-state 의 Code Generation 승인 2026-09-27T04:07:18Z · 커밋과 PR (병합은 CI 뒤). Functional Design 승인 · NFR 건너뜀 2026-09-27T01:27:20Z (브랜치 `unit/lower-state` · main `56ce415` 에서 땄다). U5 merge-rules 는 PR #65 로 병합 2026-09-26T16:50:25Z · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U7 bake 의 병합 조건 (조각 5 · 6 · 7 · 8) 초록 2026-09-30T12:50:12Z (사용자 판정) · unit/bake 를 push 하고 main 으로 PR · 병합은 CI 뒤 묻는다. 다음 유닛 U8 checkpoint. Code Generation 승인 2026-09-30T05:50:37Z (7116e8d) · 흠 고침 6d9e6c7.
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -318,7 +318,77 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           고쳤다) · 고친 뒤 go test ./... 세 번 통과.  CPU 부하에서 internal/enode 의 시험 셋이 가끔 실패 — 유닛 전 나무도 같다
                           (code-summary.md 5절 끝).  승인 2026-09-27T04:07:18Z (「승인」).
                           한 커밋 (9d7197f) · PR #66.  CI 의 test 가 빨갛다 — TestReadRoot 가 러너의 fsid (위 네 비트가 0) 에서
-                          stat -f -c %i 와 글자가 어긋났다.  키의 fsid 를 앞의 0 없이 쓰도록 고친 커밋을 더했다 2026-09-27T04:13:23Z (code-summary.md 4절 첫 줄)
+                          stat -f -c %i 와 글자가 어긋났다.  키의 fsid 를 앞의 0 없이 쓰도록 고친 커밋을 더했다 2026-09-27T04:13:23Z (code-summary.md 4절 첫 줄).  CI 초록 2026-09-27T04:18:51Z (test · cross · bounded-demo · baa8770)
+   병합                   PR #66 (CI 초록) 로 main 에 병합 (0262155 · 2026-09-27T04:23:29Z · 「그래」)
+```
+
+### U7 `bake` — 브랜치 `unit/bake` (`0262155` 에서 땄다)
+
+```text
+   Functional Design      착수 2026-09-27T04:23:29Z.  계획과 물음 넷 2026-09-27T04:54:46Z — construction/plans/bake-functional-design-plan.md.
+                          받는 일 쉰넷 (일곱 곳 — 앞 유닛 여섯 · 유닛 정의와 Application Design).
+                          측정 넷 (git 태그 대조 · merge.Preflight 가 bind 별칭을 통과시키고 STATX_MNT_ID 가 다르다 ·
+                          LowerGuard 가 building 동안 공유를 다시 쥐고 임대가 사라지면 치우는 몸통이 한 번 돈다 · SunnyVM 읽기 — 옛 판 데몬 둘).
+                          묻지 않고 정한 것 열여섯 (계획 3절).  물음 — 1 IR 어긋남의 보고 · 2 끊긴 합치기를 언제 잇나 · 3 실패 뒤 builds ·
+                          4 운영 lower 확인 (권장은 모두 A).
+                          답 2026-09-27T07:29:40Z — 넷 모두 A (「권장대로」).  사용자 지시 — 작업은 에이전트가 하고 뒤에 QA 가 검수한다
+                          되물음 없음 (답 넷을 서로 · 계획 3절 · 앞 유닛의 넘김에 대 봤다 — business-logic-model.md 11.1).
+                          산출물 셋 2026-09-27T08:02:23Z — construction/bake/functional-design/.  받는 일 쉰넷의 추적은 business-logic-model.md 11.2.
+                          답 1 에 따라 행렬 밖 파일 둘 (contract/result.go · store/claim.go 의 어휘 한 줄) 과 merge-rules 의 파일 셋
+                          (마운트 줄 · lower-state 답 6) · finalize.go · lowerguard.go 를 고친다.  답에 없던 설계 결정 스물셋 (audit).
+                          회차 문서 넷의 줄을 고쳤다 (unit-of-work.md 7절 · components.md 5절 · component-methods.md 4.2 ·
+                          requirements.md FR-8 · FR-9).  services.md 2 · 3절의 거짓이 된 줄 여섯은 고칠 목록 밖이라 두었다 (진행자 ·
+                          business-logic-model.md 13.3).
+                          QA 검수 2026-09-27T08:40:08Z — 고친 뒤 승인 (막음 넷 S1 · S2 · S3 · X1 · 고칠 것 · 되물음 거리).  고침과 되물음 진행
+                          고침 2026-09-27T08:58:43Z — QA 지적 쉰셋 반영 (설계 아홉 · 집행 다섯 · 기계적 아홉 · 문서 일곱 · 주소 열둘 · 참고 열하나.
+                          손대지 않은 네 자리와 까닭은 audit).  회차 문서 여섯을 고쳤다.  답에 없던 설계 결정 (24) ~ (39).  되물음 다섯 —
+                          construction/plans/bake-functional-design-clarification-questions.md.  답 대기
+                          답 2026-09-27T10:38:41Z 다섯 모두 A.  반영 2026-09-27T10:43:48Z — 「되물음 N 답 A」로 확정한 줄 아흔
+                          (규칙 32 · 흐름 48 · 엔티티 6 · services.md 3 · components.md 1).  새 결정 (40) ~ (43).  QA 재검 대기
+                          QA 재검 2026-09-27T11:32:02Z — 고친 뒤 승인 (앞 53 중 닫힘 47 · 새 막음 B1 · B2 · 사용자에게 다시 물을 D1 · D2).  고침 진행
+                          재검 고침 2026-09-27T11:38:36Z — 스물하나 (B1 · B2 · 코드 명세 여섯 · 문서 여덟 · 참고의 사실 넷 · 13.1 에 D1 · D2 줄).
+                          사실이 아닌 지적 0.  새 결정 (44) ~ (49).  되물음 2 · 3 의 답에 달린 문장은 두었다 (D1 · D2 는 진행자가 다시 묻는다)
+                          되물음 2 를 B 로 반영 2026-09-27T12:03:29Z — 「되물음 2 답 B」 줄 스물둘 (규칙 7 · 흐름 13 · components 1 · services 1) ·
+                          13.1 의 I3 · :292 줄은 「지킨다」로 · 되물음 3 A 유지 (INVARIANTS :293 은 굽기 명령의 예외 · run-contract :1146 의 래퍼).
+                          새 결정 (50) · (51).  QA 재검 대기
+                          마지막 QA 고침 2026-09-27T12:15:12Z — 7.1 재시작 줄을 pending 갈래로 좁힘 · 정리의 옮기기 실패를 몸통과 같게 ·
+                          last_attempt 를 싣는 쓰기에 merging · 엔티티의 reason 글자 · exited 에 helper 죽음 · 흐름 7절 정리 오류 줄.
+                          새 결정 (52) · (53).  물음 1 (ir_mismatch) 에 달린 문장은 두었다 (진행자가 다시 묻는 중)
+                          물음 1 B 반영 (IR 어긋남은 build DONE · reason ir_mismatch · 판정은 계약의 조건) · FD 승인 2026-09-27T12:54:46Z · 바꾼 줄 약 129 · 새 결정 (54) · (55)
+                          Functional Design 승인 2026-09-27T12:54:46Z (「B. 승인.」) — 물음 1 을 B 로 · 되물음 2 를 B 로 (I3) · 나머지 A.
+                          QA 검수 세 번 (aidlc-verify).  설계 결정 (1) ~ (55) 는 audit.  한 커밋 (fb86ad2)
+   NFR                    건너뜀 (사용자 결정 2026-09-27T13:14:53Z · 「건너뛰고 다음으로.」).  유닛 정의 7절이 NFR 에 둔 것 — 보안 (계약의
+                          명령이 격리 실행 환경 안에서만) · 성능 (형제가 기다리는 시간은 합치기가 아니라 형제 Run 이 정한다) —
+                          을 Code Generation 계획이 받는다 (앞 유닛들과 같은 방식)
+   Code Generation        Part 1 착수 2026-09-27T13:14:53Z.  계획은 작성 서브에이전트가 내고 QA 서브에이전트가 검수한 뒤 승인을 묻는다
+                          계획 — 단계 스물둘 2026-09-27T13:54:10Z
+                          construction/plans/bake-code-generation-plan.md
+                          NFR 둘은 계획 3절 — 보안 (계약의 명령 · bash 확인 · IR 대조 · pinned 가 session.Run 으로만 돈다 · IR 은 환경 변수로만 ·
+                          굽기 흐름 파일의 import 를 보는 시험 · merge-helper 는 unshare 뒤) · 성능 (형제가 새 일을 못 받는 구간을 형제 Run ·
+                          광고 주기 · 초 단위 합치기로 나눔 · 새로 드는 셋은 광고 고루틴 밖 · 벤치마크 넷).  측정 여섯 (계획 3절 · 스크래치에서 하고
+                          지웠다 · SunnyVM 은 읽기만 — 닿는다).  FD 에 없던 자리 스물아홉 (계획 4절).  행렬 밖 아홉 (FD 가 적은 일곱 · 주석 둘).
+                          FD 의 코드 주소는 모두 맞고 어긋난 코드의 모양은 계획 4.2.  물음 없음.  QA 검수 대기
+                          QA 지적 고침 2026-09-27T15:02:54Z — 마흔여섯 모두 반영 (사실이 아닌 지적 0) · 체크박스 77 -> 83 · 단계 스물둘 · 4절 32 · 10절에 물음 넷 (진행자가 묻는 중 · 답에 달린 문장은 두었다)
+                          물음 넷의 답 반영 2026-09-29T14:10:53Z — 1 A (merge 업로드 예산 · FD 규칙 5 · 7 · 16.1 · 흐름 3 · 7 고침) · 2 잔여 · 3 A (4절 33번 · 격리 노드의 Prepare · 행렬 밖 workspace.go) · 4 배타부터 · 체크박스 83 -> 85 · 4절 33 · 새 물음 5 (Finalize diff 의 호스트 git · 진행자가 묻는다)
+                          물음 5 의 답 반영 2026-09-29T15:15:40Z — 이 유닛에서 세션 안으로 (4절 34번 · 격리 노드의 workspace.diff 는 rootfs 의 git · repo · 행렬 밖 diff.go 와 runc 의 finalize) · 체크박스 85 -> 88 · 4절 34 · 정본 되돌림 없음 (보탬 제안 하나) · QA 재검 대기
+                          QA 재검은 도중에 멈춤 2026-09-29T15:45:43Z (하위 에이전트 넷도 멈춤 · 결과 없음) — 진행자가 1회 지적 넷 (막음 1 · 2 · 5 · 16) 과 답 다섯만 확인.
+                          나머지 지적 마흔둘은 작성 서브에이전트의 반영 보고뿐 · 4절 30 ~ 34 번은 검수받지 않음.
+                          계획 승인 2026-09-29T15:49:46Z (「승인만 기록해. 다음 세션에서 할게.」).  Part 2 는 다음 세션 — 작성 서브에이전트 하나 · 하위 에이전트 없음 ·
+                          진행자가 다시 돌려 확인.  커밋은 Part 2 승인 뒤 한 번 (계획 · FD 와 회차 문서의 고침 · 상태 · 감사가 작업 트리에 있다)
+                          Part 2 착수 2026-09-29T23:59Z (「코드 쓰자」) · 작성 서브에이전트 aidlc-xhigh 하나 (하위 에이전트 없음 · 약 40만 토큰 · 104분).
+                          Part 2 완료 2026-09-30T01:52:54Z — 체크박스 86/88 (남은 둘 — Step 21 의 사람 조각 결과 · Step 22 의 커밋).
+                          construction/bake/code/code-summary.md · 새 Go 파일 스물하나 · 조각 스크립트 다섯 (scripts/finalize-bake/) ·
+                          고친 Go 파일 스물다섯 · component-methods.md 4.2 · 4.3 · 4.4.  계획과 다른 자리는 code-summary 5절 (판정 · 실패 등급 ·
+                          보안 경계는 그대로 · 조각 6 · 7 은 symlink 형제 · 조각 8 은 bind 별칭 형제 — FD 규칙 10절 끝).
+                          integration — SunnyVM 에서 다섯 모두 초록.  진행자의 다시 돌리기 — 통과 2,562 · 실패 0 · 스킵 0 · 80% 하한 미달 0 ·
+                          전체 87.7% · 노드 패키지 여섯 -count=5 통과 6,800 실패 0 · race 경합 0.
+                          Code Generation 승인 2026-09-30T05:50:37Z (「승인. 커밋해」) — unit/bake 에 한 커밋 · push 와 PR 은 안 함.
+                          조각 6 · 7 첫 실행 2026-09-30T10:00:23Z (집행 에이전트 · SunnyVM) — 조각 6 끝까지 · 조각 7 에서 흠 (symlink 형제의 재개가
+                          metadata fsync 에서 ENOTDIR · 10분 뒤 광고 재개가 끝냄) 으로 멈춤 · 조각 8 안 돎.  고침 2026-09-30T11:55:09Z — lowerRootOf (상태 자리를 연
+                          때 푼 경로) · 시험 둘 · 진행자 확인 초록 (통과 2,564).  조각을 다시 돈다
+                          조각 6 · 7 · 8 · 8.4 다시 돎 2026-09-30T12:47:41Z (6d9e6c7 · 흠 없음 · 못 본 줄 없음 · code-summary 8.6).
+                          사용자 판정 초록 2026-09-30T12:50:12Z — 병합 조건이 섰다.  조각 자리를 지웠다.  push · PR
+                          병합 조건 — 조각 5 green (slice-5.sh) · 조각 6 · 7 · 8 은 사람이 SunnyVM 에서 돈다 (code-summary 8절 · 아직 안 돌았다)
 ```
 
 ## Stage Progress
@@ -333,11 +403,11 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [x] Units Generation — 착수 2026-09-24T06:42:48Z. 계획 · 질문 넷 2026-09-24T06:50:29Z. 채팅 논의로 일곱이 닫힘 2026-09-24T09:50:00Z (Q1 A · Q2 A · Q3 A 순연 · Q4 B · Q7 A). 계획 승인 2026-09-24T12:14:10Z. 산출물 넷 2026-09-24T12:22:43Z · 승인 2026-09-24T12:31:50Z
 
 ### CONSTRUCTION PHASE
-- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z · U3 finalize 완료 2026-09-25T12:53:36Z · U4 trash 완료 2026-09-26T14:24:01Z · U5 merge-rules 완료 2026-09-26T16:11:17Z · U6 lower-state 완료 2026-09-27T01:27:20Z — 위 「Construction」 절
-- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 ~ U6 은 건너뜀 (U1 유닛 정의 · U2 ~ U6 사용자 결정)
-- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 ~ U6 은 건너뜀
+- [ ] Functional Design — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:03:44Z · U2 step-phase 완료 2026-09-25T08:52:58Z · U3 finalize 완료 2026-09-25T12:53:36Z · U4 trash 완료 2026-09-26T14:24:01Z · U5 merge-rules 완료 2026-09-26T16:11:17Z · U6 lower-state 완료 2026-09-27T01:27:20Z · U7 bake 완료 2026-09-27T12:54:46Z — 위 「Construction」 절
+- [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 ~ U7 은 건너뜀 (U1 유닛 정의 · U2 ~ U7 사용자 결정)
+- [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 ~ U7 은 건너뜀
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z · U6 lower-state 완료 2026-09-27T04:07:18Z
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z · U6 lower-state 완료 2026-09-27T04:07:18Z · U7 bake 완료 2026-09-30T05:50:37Z (커밋 · 병합은 사람 조각 6 · 7 · 8 뒤)
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE

@@ -125,7 +125,7 @@ Build and Test 가 함께 지킨다.
 
 ```text
    조각 6    「HEAD 에 IR 태그가 없으면 ir 은 null」 대신 — sync 가 계약의 IR 에 닿지 않으면
-            build 가 실패하고 합치지 않는다 (계획 2.3)
+            manifest 를 내지 않고 합치지 않는다 (계획 2.3 · bake FD 물음 1 답 B 가 「build 가 실패」를 고침)
    조각 12   앞 조각이 6 하나다.  adapter 에 기대지 않는다 (Q3 = A)
 ```
 

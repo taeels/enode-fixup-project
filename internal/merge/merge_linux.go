@@ -50,16 +50,21 @@ func Preflight(p Paths) error {
 	return scan(fd, ".")
 }
 
-// roots 는 푼 세 뿌리다.
+// roots 는 푼 세 뿌리와 그 마운트 번호다.
 type roots struct {
 	upper, lower, trash string
+	// 마운트 번호 (statx 의 STATX_MNT_ID) — upper · lower · trash 차례
+	mounts [3]uint64
 }
 
-// resolve 는 시작 전 확인의 1 ~ 4 다 — 절대 경로 · 진짜 디렉터리 · 겹침 · 같은 filesystem.
+// resolve 는 시작 전 확인의 1 ~ 5 다 — 절대 경로 · 진짜 디렉터리 · 겹침 · 같은 filesystem · 같은 마운트.
+//
+// 마운트 번호는 셋마다 Lstat 옆의 statx 한 번이다 (bake 유닛 · lower-state 답 6). 커널이 번호를 안 주면
+// 확인을 못 한 것이라 *PreflightError 가 아닌 오류다 — 어긋난 것이 아니다.
 func resolve(p Paths) (roots, error) {
 	in := [...]string{p.Upper, p.Lower, p.Trash}
 	var out [3]string
-	var dev [3]uint64
+	var dev, mnt [3]uint64
 	for i, path := range in {
 		if !filepath.IsAbs(path) {
 			return roots{}, &PreflightError{Check: CheckPath, Path: path, Err: errors.New("path is not absolute")}
@@ -78,7 +83,14 @@ func resolve(p Paths) (roots, error) {
 		if st.Mode&modeType != modeDir {
 			return roots{}, &PreflightError{Check: CheckDirectory, Path: path, Err: errors.New("not a directory")}
 		}
-		out[i], dev[i] = real, uint64(st.Dev)
+		var sx unix.Statx_t
+		if err := unix.Statx(unix.AT_FDCWD, real, unix.AT_SYMLINK_NOFOLLOW, unix.STATX_MNT_ID, &sx); err != nil {
+			return roots{}, fmt.Errorf("merge preflight: %s: %w", path, err)
+		}
+		if sx.Mask&unix.STATX_MNT_ID == 0 {
+			return roots{}, fmt.Errorf("merge preflight: %s: the kernel does not report a mount id", path)
+		}
+		out[i], dev[i], mnt[i] = real, uint64(st.Dev), sx.Mnt_id
 	}
 	if err := checkOverlap(out[0], out[1], out[2]); err != nil {
 		return roots{}, err
@@ -86,7 +98,10 @@ func resolve(p Paths) (roots, error) {
 	if err := checkDevices(dev[0], dev[1], dev[2]); err != nil {
 		return roots{}, err
 	}
-	return roots{upper: out[0], lower: out[1], trash: out[2]}, nil
+	if err := checkMounts(mnt[0], mnt[1], mnt[2]); err != nil {
+		return roots{}, err
+	}
+	return roots{upper: out[0], lower: out[1], trash: out[2], mounts: mnt}, nil
 }
 
 // scan 은 upper 를 fd 로 걸으며 금지 표시를 찾는다. 첫 금지에서 멈춘다.

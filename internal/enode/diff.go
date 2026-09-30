@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,29 +93,33 @@ func workspaceDiff(ctx context.Context, dir string, limit int64) ([]byte, error)
 	return append([]byte(head), stat...), nil
 }
 
+// repoDiffScript · repoStatScript 는 .repo 트리의 프로젝트마다 도는 글이다 — 프로젝트마다 자기 임시 인덱스를
+// 쓴다 (진짜 인덱스를 안 건드리는 이유는 단일 git 쪽과 같다). 호스트의 repoDiff 와 세션 안의 sessionDiffScript 가
+// 같은 글자를 쓰도록 패키지 상수로 둔다 (bake 유닛 · 계획 4.1 34번).
+const (
+	repoDiffScript = `i=$(mktemp); export GIT_INDEX_FILE="$i"; ` +
+		`git read-tree HEAD 2>/dev/null && git add -N . >/dev/null 2>&1; ` +
+		`d=$(git -c core.quotePath=false diff --binary HEAD); rm -f "$i"; ` +
+		`if [ -n "$d" ]; then echo "### $REPO_PATH"; echo "$d"; fi`
+	// 요약도 프로젝트별로 모은다.
+	repoStatScript = `i=$(mktemp); export GIT_INDEX_FILE="$i"; ` +
+		`git read-tree HEAD 2>/dev/null && git add -N . >/dev/null 2>&1; ` +
+		`s=$(git -c core.quotePath=false diff HEAD --stat); rm -f "$i"; ` +
+		`if [ -n "$s" ]; then echo "### $REPO_PATH"; echo "$s"; fi`
+)
+
 // repoDiff 는 .repo 트리다 — 프로젝트마다 돌며 앞에 경로를 붙인다.
 //
 // 실물 manifest 로는 아직 못 돌려봤다. 형태는 위와 같다.
 func repoDiff(ctx context.Context, dir string, limit int64) ([]byte, error) {
-	// 프로젝트마다 자기 임시 인덱스를 쓴다 — 진짜 인덱스를 안 건드리는
-	// 이유는 단일 git 쪽과 같다.
-	const script = `i=$(mktemp); export GIT_INDEX_FILE="$i"; ` +
-		`git read-tree HEAD 2>/dev/null && git add -N . >/dev/null 2>&1; ` +
-		`d=$(git -c core.quotePath=false diff --binary HEAD); rm -f "$i"; ` +
-		`if [ -n "$d" ]; then echo "### $REPO_PATH"; echo "$d"; fi`
-	out, err := gitOutName(ctx, dir, nil, "repo", "forall", "-c", script)
+	out, err := gitOutName(ctx, dir, nil, "repo", "forall", "-c", repoDiffScript)
 	if err != nil {
 		return nil, err
 	}
 	if len(out) == 0 || int64(len(out)) <= limit {
 		return out, nil
 	}
-	// 요약도 프로젝트별로 모은다.
-	const statScript = `i=$(mktemp); export GIT_INDEX_FILE="$i"; ` +
-		`git read-tree HEAD 2>/dev/null && git add -N . >/dev/null 2>&1; ` +
-		`s=$(git -c core.quotePath=false diff HEAD --stat); rm -f "$i"; ` +
-		`if [ -n "$s" ]; then echo "### $REPO_PATH"; echo "$s"; fi`
-	stat, err := gitOutName(ctx, dir, nil, "repo", "forall", "-c", statScript)
+	stat, err := gitOutName(ctx, dir, nil, "repo", "forall", "-c", repoStatScript)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +171,159 @@ const diffName = "workspace.diff"
 // 여기 값은 「전체를 보낼지 요약으로 갈지」를 미리 정하는 데만 쓴다.
 // 어긋나면 Mediator 가 413 으로 막으므로 틀려도 안전한 쪽으로 틀린다.
 const maxBlobBytes = 10 << 20
+
+// 격리 노드의 diff — 세션 안에서 만든다 (bake 유닛 · 계획 4.1 34번 · CG 물음 5 답)
+//
+// runc-overlay 노드의 Finalize 는 workspace.diff 를 준비된 rootfs 의 git · repo 로 세션 안에서 만든다. 호스트의
+// runtime helper (컨테이너 밖 · 노드 uid) 가 merged view 에서 git 을 돌리면 그 단계가 쓴 .git/config 와 굽기 뒤
+// lower 에 남은 계약의 설정 (core.fsmonitor · filter 의 clean · .repo/repo 의 런처) 을 호스트가 실행한다.
+// native 노드는 오늘처럼 workspaceDiff 의 호스트 git 이다 — 계약의 명령이 이미 호스트에서 돈다.
+
+// sessionDiffScript 는 세션 안에서 도는 고정 글자다 — 계약은 못 바꾼다. 차례와 글자는 workspaceDiff 그대로다
+// (임시 인덱스 · read-tree HEAD · add -N . · diff --binary · 요약은 diff HEAD --stat · 모든 git 에 core.quotePath=false).
+// repo 모양은 repoDiffScript · repoStatScript 를 환경 변수로 받아 repo forall -c 에 넘긴다. 출력은 stdout 흐름으로만
+// 호스트에 온다 — 호스트가 컨테이너가 쓴 파일을 읽지 않는다.
+//
+//	exit 125    준비된 rootfs 에 git 이 없다 (repo 모양이어도 먼저)
+//	exit 124    repo 모양인데 repo 가 없다
+//	exit 121    임시 인덱스를 못 만들었다 · read-tree HEAD 가 실패했다
+//	exit 122    add -N . 이 실패했다
+const sessionDiffScript = `export LC_ALL=C GIT_TERMINAL_PROMPT=0
+GIT_CEILING_DIRECTORIES=$(cd .. && pwd); export GIT_CEILING_DIRECTORIES
+command -v git >/dev/null 2>&1 || exit 125
+if [ -e .repo ]; then
+  command -v repo >/dev/null 2>&1 || exit 124
+  if [ "$ENODE_DIFF_MODE" = stat ]; then exec repo forall -c "$ENODE_REPO_STAT_SCRIPT"; fi
+  exec repo forall -c "$ENODE_REPO_DIFF_SCRIPT"
+fi
+i=$(mktemp) || exit 121
+trap 'rm -f "$i"' EXIT
+GIT_INDEX_FILE=$i; export GIT_INDEX_FILE
+git -c core.quotePath=false read-tree HEAD >/dev/null || exit 121
+git -c core.quotePath=false add -N . >/dev/null || exit 122
+if [ "$ENODE_DIFF_MODE" = stat ]; then git -c core.quotePath=false diff HEAD --stat
+else git -c core.quotePath=false diff --binary HEAD; fi
+`
+
+// sessionDiffEnv 는 세션 안의 diff 가 받는 환경이다 — 호스트 환경 변수를 넘기지 않는다.
+func sessionDiffEnv(mode string) []string {
+	return []string{"ENODE_DIFF_MODE=" + mode, "ENODE_REPO_DIFF_SCRIPT=" + repoDiffScript,
+		"ENODE_REPO_STAT_SCRIPT=" + repoStatScript}
+}
+
+// diffLimit 은 세션 안 diff 의 상한이다 — 넘으면 요약으로 갈아끼운다. 제품은 maxBlobBytes 이고 시험이 줄인다.
+var diffLimit int64 = maxBlobBytes
+
+// sessionDiffError 는 세션 안 diff 의 exit 와 stderr 의 마지막 줄을 DiffError 글자로 옮긴다. 진단이다 —
+// 단계는 이것으로 실패하지 않는다 (finalize.go 의 logTail 이 단계 로그 끝에 적는다).
+func sessionDiffError(code int, last string) string {
+	switch code {
+	case 125:
+		return "the prepared rootfs has no git"
+	case 124:
+		return "the prepared rootfs has no repo"
+	case 121:
+		return joinCause("cannot prepare temporary index", last)
+	case 122:
+		return joinCause("intent-to-add", last)
+	}
+	return joinCause(fmt.Sprintf("workspace diff exited %d", code), last)
+}
+
+// placeWorkspaceDiff 는 세션이 stdout 으로 보낸 diff 를 호스트의 $OUT 에 놓는다 — 새 임시 파일 (O_EXCL) 에 쓰고
+// fsync 뒤 workspace.diff 로 rename 한다. 단계가 그 이름에 미리 둔 symlink · FIFO 를 따라가지 않는다 (rename 은
+// 그 이름을 갈아끼운다). 그 이름이 디렉터리면 rename 이 실패한다. 임시 파일은 .enode- 로 시작해 올라가지 않는다.
+func placeWorkspaceDiff(out string, b []byte) error {
+	fail := func(err error) error { return fmt.Errorf("cannot place %s: %w", diffName, err) }
+	f, err := os.CreateTemp(out, ".enode-diff-*")
+	if err != nil {
+		return fail(err)
+	}
+	tmp := f.Name()
+	_, err = f.Write(b)
+	if err == nil {
+		err = f.Chmod(0o644)
+	}
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(tmp, filepath.Join(out, diffName))
+	}
+	if err != nil {
+		_ = os.Remove(tmp)
+		return fail(err)
+	}
+	return nil
+}
+
+// sessionDiff 는 sessionDiffScript 를 돈 결과를 workspace.diff 의 바이트로 만든다 — run 이 그 글을 한 모드로 돌린다
+// (세션이면 세션의 Run, 시험이면 호스트 sh). 전체가 diffLimit 을 넘으면 stat 모드로 한 번 더 돌아 diffNote 머리와
+// 요약을 잇는다 — 오늘 workspaceDiff 와 같은 바이트다. 실패는 DiffError 의 글자로 돌려준다. 빈 diff 는 nil 이다.
+func sessionDiff(run func(mode string, stdout, stderr io.Writer) (int, error)) ([]byte, string) {
+	once := func(mode string) (*diffBuffer, string) {
+		// 요약은 호스트처럼 자르지 않는다 — 상한은 Mediator 의 blob 상한이다
+		limit := diffLimit
+		if mode == "stat" {
+			limit = maxBlobBytes
+		}
+		stdout, stderr := &diffBuffer{limit: limit}, &tailBuffer{max: 4 << 10}
+		code, err := run(mode, stdout, stderr)
+		switch {
+		case code < 0:
+			return nil, runtimeRunText(err)
+		case code > 0:
+			return nil, sessionDiffError(code, lastLine(stderr.String()))
+		}
+		return stdout, ""
+	}
+	d, why := once("diff")
+	if why != "" || d.total == 0 {
+		return nil, why
+	}
+	if d.total <= diffLimit {
+		return d.buf.Bytes(), ""
+	}
+	stat, why := once("stat")
+	if why != "" {
+		return nil, why
+	}
+	return append([]byte(fmt.Sprintf(diffNote, d.total, diffLimit)), stat.buf.Bytes()...), ""
+}
+
+// diffBuffer 는 세션 안 diff 의 stdout 이다 — limit 바이트까지 담고 전체 길이는 센다. 넘으면 요약으로 간다.
+type diffBuffer struct {
+	limit int64
+	total int64
+	buf   bytes.Buffer
+}
+
+func (b *diffBuffer) Write(p []byte) (int, error) {
+	b.total += int64(len(p))
+	if room := b.limit - int64(b.buf.Len()); room > 0 {
+		b.buf.Write(p[:min(int64(len(p)), room)])
+	}
+	return len(p), nil
+}
+
+// tailBuffer 는 stderr 의 뒤쪽 max 바이트만 남긴다 — 문장에는 마지막 줄만 싣는다.
+type tailBuffer struct {
+	max int
+	b   []byte
+}
+
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.b = append(t.b, p...)
+	if len(t.b) > t.max {
+		t.b = append([]byte(nil), t.b[len(t.b)-t.max:]...)
+	}
+	return len(p), nil
+}
+
+func (t *tailBuffer) String() string { return string(t.b) }
 
 // writeWorkspaceDiff 는 diff 를 $OUT 에 놓는다.
 //

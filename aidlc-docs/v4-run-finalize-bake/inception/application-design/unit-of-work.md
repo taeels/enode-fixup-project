@@ -25,7 +25,7 @@ Generation 까지 따로 진행하고 따로 `main` 에 병합한다.
 | 4 | `trash` 버리기와 여유 공간 | trash 로 옮기기 · 배경 삭제자 · 여유 부족 drain · arch 조건 제거 · 상태 파일과 제어판 | 4 | 4 | 조각 4 |
 | 5 | `merge-rules` 합치기 규칙 | 합치기 표 · 시작 전 확인 · 가짜 트리 재개 시험 | 7 (규칙) | 7 의 기계 부분 | 코드 검사 + 재개 시험 |
 | 6 | `lower-state` 아래층 상태와 잠금 | 신원 · 상태 파일 · 잠금 · 후보 잠금 · 광고 키 · 준비도 점검 | 8 (상태 · 잠금 · drain · 점검) · 9 (광고) | 없음 | 코드 검사 |
-| 7 | `bake` 굽기 단계 | build · merge 단계 · IR 대조 · 시작 때 정리와 재개 · metadata · 대기 로그 · 합치기 조각 스크립트 | 5 (노드) · 6 · 7 (연결) · 8 (나머지) · 9 (쓰기) | 5 · 6 · 7 · 8 | 조각 5 · 6 · 7 · 8 |
+| 7 | `bake` 굽기 단계 | build · merge 단계 · IR 대조 · 시작 때와 광고 주기의 정리와 재개 (bake FD 되물음 1 답 A) · metadata · 대기 로그 · 합치기 조각 스크립트 | 5 (노드) · 6 · 7 (연결) · 8 (나머지) · 9 (쓰기) | 5 · 6 · 7 · 8 | 조각 5 · 6 · 7 · 8 |
 | 8 | `checkpoint` 실패한 단계 보존 | 받아들임 · spool · 크기 판정 · TTL · 재시작 조정 · 조회 명령 | 10 | 9 | 조각 9 |
 
 **코드 검사** = 빌드 · 기본 `go test` · 패키지별 커버리지 80% 이상 · 코드 경계 시험 · 크로스 빌드
@@ -266,12 +266,12 @@ Run 을 조회할 때마다 매칭을 두 번 부르는 비용.
 
 - build 단계 — 굽기 잠금(주인이 살아 있으면 곧바로 `bake_in_progress`) · 상태 building ·
   위층에서 sync 와 builds 를 차례로(항목마다 시각과 종료 코드) · **계약의 IR 을 환경 변수로 넘기고
-  sync 뒤 HEAD 와 대조**(다르면 실패 · 합치지 않음 · 결과에 HEAD 의 태그와 커밋) · pinned
+  sync 뒤 HEAD 와 대조**(다르면 manifest 없음 · 합치지 않음 · 결과에 HEAD 의 태그와 커밋 · bake FD 물음 1 답 B) · pinned
   manifest · 위층을 대기 자리로 · 상태 pending · 실패하면 위층은 trash, `last_attempt` 에 남김
 - merge 단계 — 상태 확인 · 배타 잠금 대기(마감 = 받은 시각 + `merge.wait`) · 기다리는 동안
   로그에 「어느 노드가 어느 Run 으로 잡고 있나 · 남은 시간」 · 마감이면 `merge_wait_timeout`
-  (위층 trash · committed · drain 해제) · 잡으면 merging · 시작 전 확인 · merge-helper 로 합치기 ·
-  metadata · committed
+  (위층 trash · committed · drain 해제) · 잡으면 그물 · 시작 전 확인 · merging · merge-helper 로 합치기 ·
+  metadata · committed (bake FD 2026-09-27 고침 — 시작 전 확인은 아무것도 안 바꾸므로 merging 앞이다)
 - merge-helper 입구 (`enode merge-helper`)
 - 노드 시작 순서 — 상태 자리 열기 · 굽기 잠금 시도 · 낡은 상태 정리와 끊긴 합치기 재개(metadata
   에 `resumed` 와 원래 Run) · 삭제자 첫 회 · 광고 시작
@@ -279,7 +279,14 @@ Run 을 조회할 때마다 매칭을 두 번 부르는 비용.
   멈춘다 (완료 조건 8)
 
 **만지는 자리** — `internal/enode` (단계 분기 · 굽기 흐름 · 세션 닫기의 대기 자리) · `cmd/enode`
-(시작 순서 · helper) · 조각 스크립트
+(시작 순서 · helper) · 조각 스크립트. bake FD 가 더한 행렬 밖 다섯 (2026-09-27) — `internal/contract/result.go` ·
+`internal/store/claim.go` (원인 코드 `ir_mismatch` 와 build 결과의 `head_tags` · 물음 1 답 B) · `internal/merge` (시작 전 확인의
+마운트 줄 · lower-state FD 답 6) · `internal/enode/finalize.go` (contractStep 이 굽기 칸 넷을 옮긴다) ·
+`internal/enode/lowerguard.go` (광고 주기의 정리와 재개 자리 OnStale · Dir · 답 2 · 되물음 1 답 A). bake Code Generation 이 더한 행렬 밖
+둘 (2026-09-29) — `internal/enode/workspace.go` (격리 노드의 Prepare 는 호스트에서 git · repo 를 돌리지 않고 새 upper 로 PrepClean 을
+얻는다 · 정본 ADR-072 결정 3 · bake Code Generation 계획의 물음 3 답 A) · `internal/enode/diff.go` 와 `runc_overlay_linux.go` 의 finalize
+(격리 노드의 workspace.diff 를 세션 안에서 만든다 · 호스트 helper 는 merged view 에 git · repo 를 돌리지 않는다 · finalize 유닛의 수확을
+고친다 · 같은 계획의 물음 5 답)
 
 **하지 않는 것** — 합치기 규칙(`merge-rules`) · 상태와 잠금의 모양(`lower-state`) · 계약 문법
 

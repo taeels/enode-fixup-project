@@ -960,7 +960,8 @@ func (r StepResult) OutOfVocabulary() [][2]string {
 	check("finalize", string(r.Finalize), stages...)
 	check("upload", string(r.Upload), stages...)
 	check("reason", r.Reason, contract.ReasonFinalizeTimeout, contract.ReasonUploadTimeout,
-		contract.ReasonMergeWaitTimeout, contract.ReasonBakeInProgress, contract.ReasonLowerChanged)
+		contract.ReasonMergeWaitTimeout, contract.ReasonBakeInProgress, contract.ReasonLowerChanged,
+		contract.ReasonIRMismatch)
 	if c := r.CheckpointCapture; c != nil {
 		check("checkpoint_capture.state", c.State, contract.CaptureNotRequested, contract.CaptureUnsupported,
 			contract.CaptureRejected, contract.CaptureCaptured, contract.CaptureFailed)

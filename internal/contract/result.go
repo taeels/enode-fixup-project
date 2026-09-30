@@ -97,6 +97,10 @@ const (
 	// ReasonLowerChanged 는 놓은 뒤에 보인 임대의 Run 이 바뀐 lower 위에서 돌 뻔했다는 뜻이다
 	// (lower-state 유닛 · ADR-077 §6). 노드가 단계를 돌리지 않고 곧바로 보고한다 — 다시 내면 된다.
 	ReasonLowerChanged = "lower_changed"
+	// ReasonIRMismatch 는 sync 뒤 HEAD 가 계약의 IR 에 닿지 않았다는 뜻이다 (bake 유닛 · 물음 1 답 B). builds 를
+	// 돌리지 않고 manifest 를 내지 않은 완주 (DONE) 에 싣는다 — error 와 함께 오지 않는 첫 원인 코드다. Run 의
+	// 판정은 계약의 produced ["manifest"] 조건이 한다 (I3).
+	ReasonIRMismatch = "ir_mismatch"
 )
 
 // Diagnostics 는 result 의 진단 칸이다 (Application Design Q5 · FR-1).
@@ -167,10 +171,14 @@ type BuildManifest struct {
 	Builds []BuildRecord `json:"builds"`
 	// Head 는 sync 뒤의 manifest HEAD 다.
 	Head string `json:"head"`
-	// IR 은 HEAD 에 정확히 붙은 태그다. 없으면 null 이다.
+	// IR 은 계약의 IR 이 HEAD 와 맞았을 때 그 값이다 — HEAD 에 붙은 그 태그다. 어긋났거나 대조 전이면 null 이다.
 	IR *string `json:"ir"`
 	// Pinned 는 manifest 파일의 지문이다. manifest 가 없는 저장소면 null 이다.
 	Pinned *Pinned `json:"pinned"`
+	// HeadTags 는 sync 뒤 HEAD 에 붙은 태그 전부다 (git tag --points-at HEAD · 이름순). 대조가 HEAD 와 태그를
+	// 읽었으면 늘 있고 태그가 없으면 [] 이다. 대조 전에 끝났거나 대조를 못 했으면 null 이다 — 재지 않은 것을
+	// 「없다」로 쓰지 않는다. 그래서 omitempty 가 아니다.
+	HeadTags []string `json:"head_tags"`
 }
 
 // BuildRecord 는 명령 하나를 돈 기록이다. sync 도 같은 모양이다.

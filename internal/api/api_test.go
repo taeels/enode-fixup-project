@@ -213,12 +213,33 @@ func TestSubmitRejectsBadContract(t *testing.T) {
 		"exit_code on an agent step": `{"run_id":"r3","requires":[{"as":"b","capability":"agent.reason"}],
 		                          "steps":[{"id":"s","uses":"b","agent":{}}],
 		                          "success_when":[{"step":"s","exit_code":0}]}`,
+		// 굽기 계약 (bake 유닛 · 조각 5) — merge 가 없는 계약 · 구성 이름 규칙 · 이름 겹침은 제출 경로에서 400
+		"bake without merge": `{"run_id":"r4","requires":[{"as":"b","capability":"agent.reason"}],
+		                        "steps":[{"id":"build","uses":"b","effect":"prepare","ir":"ir-1","sync":"s",
+		                                  "builds":[{"name":"config-a","command":"c"}]}]}`,
+		"bake build name": `{"run_id":"r5","requires":[{"as":"b","capability":"agent.reason"}],
+		                     "steps":[{"id":"build","uses":"b","effect":"prepare","ir":"ir-1","sync":"s",
+		                               "builds":[{"name":"Config-A","command":"c"}]},
+		                              {"id":"merge","uses":"b","needs":["build"],"merge":{}}]}`,
+		"bake build name twice": `{"run_id":"r6","requires":[{"as":"b","capability":"agent.reason"}],
+		                           "steps":[{"id":"build","uses":"b","effect":"prepare","ir":"ir-1","sync":"s",
+		                                     "builds":[{"name":"config-a","command":"c"},{"name":"config-a","command":"d"}]},
+		                                    {"id":"merge","uses":"b","needs":["build"],"merge":{}}]}`,
+	}
+	// 굽기 줄은 굽기의 까닭으로 막혀야 한다 — 다른 칸의 오류로 400 이면 조각 5 를 재지 못한다
+	why := map[string]string{
+		"bake without merge":    "has no merge step",
+		"bake build name":       "must be 1 to 64 characters",
+		"bake build name twice": "appears twice",
 	}
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
-			code, _ := do(t, srv, "POST", "/v1/runs", body, nil)
+			code, res := do(t, srv, "POST", "/v1/runs", body, nil)
 			if code != 400 {
 				t.Fatalf("code=%d, want 400", code)
+			}
+			if want := why[name]; want != "" && !strings.Contains(reasonIn(res), want) {
+				t.Fatalf("400 for another reason: %v, want %q", res, want)
 			}
 		})
 	}

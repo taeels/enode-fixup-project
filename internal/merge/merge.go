@@ -137,6 +137,9 @@ const (
 	CheckOverlap    Check = "overlap"    // 셋 중 하나가 다른 하나와 같거나 그 안에 있다
 	CheckFilesystem Check = "filesystem" // st_dev 가 셋이 같지 않다
 	CheckMark       Check = "mark"       // upper 에 금지 표시가 있다
+	// CheckMount 는 셋이 같은 filesystem 이지만 같은 마운트가 아니라는 뜻이다 (bake 유닛 · lower-state 답 6).
+	// bind 별칭은 st_dev 가 같고 마운트 번호가 다르다 — 그 사이의 rename 은 EXDEV 다.
+	CheckMount Check = "mount"
 )
 
 // PreflightError 는 시작 전 확인이 어긋난 까닭이다.

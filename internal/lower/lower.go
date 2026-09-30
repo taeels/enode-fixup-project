@@ -110,7 +110,7 @@ type State struct {
 	Schema       int          `json:"schema"`
 	Phase        Phase        `json:"phase"`
 	Owner        *Owner       `json:"owner,omitempty"`         // committed 가 아닐 때
-	PendingUpper string       `json:"pending_upper,omitempty"` // pending · merging 일 때 대기 upper 의 자리
+	PendingUpper string       `json:"pending_upper,omitempty"` // building 부터 대기 upper 의 자리 (bake 유닛 — 닫기와 pending 사이에 죽어도 정리가 안다)
 	Since        time.Time    `json:"since"`                   // 이 phase 가 된 때 (노드 시계)
 	LastAttempt  *LastAttempt `json:"last_attempt,omitempty"`  // 실패한 굽기 (결정 3-18)
 }

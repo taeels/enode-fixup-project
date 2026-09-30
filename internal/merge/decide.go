@@ -198,6 +198,18 @@ func checkDevices(upper, lower, trash uint64) error {
 		upper, lower, trash)}
 }
 
+// checkMounts 는 세 뿌리의 마운트 번호(statx 의 STATX_MNT_ID)가 같은지 본다. checkDevices 다음에 부른다 —
+// 다른 filesystem 이면 그 문장이 먼저다. bind 별칭은 st_dev 가 같아 checkDevices 를 지나고 여기서 걸린다.
+// 정본은 이미 「한 마운트포인트 안」을 요구한다 (ADR-077:133) — 이 확인이 그것을 지키게 한다.
+func checkMounts(upper, lower, trash uint64) error {
+	if upper == lower && lower == trash {
+		return nil
+	}
+	return &PreflightError{Check: CheckMount, Err: fmt.Errorf(
+		"upper, lower and trash must share one mount (upper mount %d, lower mount %d, trash mount %d); "+
+			"a bind alias of the lower cannot take a rename", upper, lower, trash)}
+}
+
 // joinRel 은 상대 경로에 이름 하나를 잇는다. 뿌리 "." 아래는 이름 그대로다.
 func joinRel(rel, name string) string {
 	if rel == "." {
