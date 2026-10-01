@@ -66,7 +66,7 @@ bake 규칙 3 (첫 실패에서 멈춤) 은 그대로다. 보존본은 첫 실�
 
 ```text
    설정 읽기 · 검증                            규칙 10절.  틀리면 노드가 안 뜬다
-   런타임                                     native 면 Keeper 없음.  상태 파일에 checkpoint 블록 (unsupported: runtime) · 로그 한 줄
+   런타임                                     native 면 Store 없는 Keeper (요구한 단계에 unsupported(runtime) 를 싣는다 · Code Generation 이 고침).  상태 파일에 checkpoint 블록 (unsupported: runtime) · 로그 한 줄
    runc-overlay
      SweepOrphanSessions · 삭제자              오늘 그대로 (main.go:317-324)
      StartCheckpoints                          Keeper 를 짓고 상태 파일의 checkpoint 블록 · 기동 로그 한 줄 (규칙 12절)
@@ -147,7 +147,7 @@ flock · `Renameat2` · statfs 를 쓰는 자리는 `_unix` (또는 `_linux`) �
 | `internal/enode/bake_build.go` | `failEnd` 의 `closing` 두 칸 (답 3) |
 | `internal/panel/page.go` | spool 줄과 정책 줄 (답 5). trash · lower-state 도 고친 파일이다 |
 | `internal/enode/trash_linux.go` · `trash_other.go` | trash-helper 의 측정 입구 (5절) |
-| `internal/scratch/remove_unix.go` | `Measure` 가 spool 뿌리도 받는다 (5절) |
+| `internal/scratch/deleter.go` | `Usage` 의 spool 칸 (Code Generation 이 더함 — 타입이 이 파일에 있다) |
 | `internal/enode/checkpoint.go` · `checkpoint_cmd.go` (새) | 행렬의 ⑧ 칸에 `internal/enode` 새 파일이 없다 |
 
 ---

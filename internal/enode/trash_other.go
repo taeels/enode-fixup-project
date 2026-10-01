@@ -28,5 +28,12 @@ func TrashLauncher(scratch.Trash) func(context.Context, string, func(scratch.Siz
 	}
 }
 
+// MeasureLauncher 는 helper 를 못 띄운다는 답만 한다.
+func MeasureLauncher() func(context.Context, string, string) (scratch.Size, error) {
+	return func(context.Context, string, string) (scratch.Size, error) {
+		return scratch.Size{}, &scratch.LaunchError{Err: errTrashHelperLinux}
+	}
+}
+
 // SweepOrphanSessions 는 할 일이 없다 — 남을 작업 폴더가 없다.
 func SweepOrphanSessions(string, *slog.Logger) {}

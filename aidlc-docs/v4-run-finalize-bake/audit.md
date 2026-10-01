@@ -1386,3 +1386,38 @@
 **Context**: Construction · U8 checkpoint · NFR Design 승인 · Code Generation 착수
 
 ---
+## Construction · U8 `checkpoint` · Code Generation 계획
+**Timestamp**: 2026-09-30T23:32:11Z
+**User Input**: (없음 — NFR Design 승인에 이어)
+**AI Response**: NFR Design 을 03b6eef 으로 커밋했다. 같은 작성 서브에이전트 (약 66만 토큰 · 7분) 가 Code Generation Part 1 을 마쳤다. 계획 construction/plans/checkpoint-code-generation-plan.md (352 줄 · 단계 열일곱 · 체크박스 마흔둘). 새 파일 — internal/scratch/checkpoint.go · checkpoint_unix.go · checkpoint_other.go · internal/enode/checkpoint.go · checkpoint_cmd.go · scripts/finalize-bake/slice-9.sh · 시험. 행렬 밖 열 — FD 흐름 9절의 여덟에 internal/scratch/deleter.go (Usage 타입이 여기 있다) 와 remove_other.go 를 더했다. 기준선 커버리지 (2026-10-01 · 이 기계 · 03b6eef) — cmd/enode 80.8% · internal/enode 86.7% · internal/panel 89.1% · internal/contract 92.5% · internal/scratch 93.5% · 전체 87.7%. cmd/enode 대책 — runc-overlay 기동을 internal/enode 의 StartScratch 하나로 옮기고 main.go 에는 부르는 줄만. 계획이 정한 것 — lower 신원은 lower.ReadRoot 의 키 (FD 엔티티 3절의 「lower-state 의 Identity」 를 이것으로 읽음) · environment 는 RuntimeRecord.PreparedEnvironment · Keeper 가 nil 이면 오늘과 같다. 조각 9 는 약 한 시간 반 (TTL 을 먼저 걸고 기다리는 동안 나머지) · free_space 는 min_free_gb 를 지금 여유보다 1 GB 작게 두고 단계가 2 GB 를 쓴다. 물음 하나 — Q1 흔들리는 TestFinalize_ACommandKilledByASignal (작성 에이전트의 전체 실행 두 번 중 한 번 「exit report = []」 · 권장 A 시험만 고친다 — 종료 보고 0 또는 1 개). 진행자 확인 — emphasis-check.py exit 0 · 새 파일은 계획 하나 · internal/scratch/deleter.go:20 의 Usage · lower.ReadRoot (root_linux.go:16 · lower_other.go:14) 가 있다 · finalize.go:186-194 의 Stop 이 도는 종료 보고를 취소하므로 시험의 「정확히 하나」 기대가 설계보다 좁다 · 진행자는 흔들림을 재현하지 못했다 (go test ./internal/enode 세 번 · CI 와 같은 전체 실행 두 번 모두 internal/enode 초록). 전체 실행의 cmd/mediator 빨강은 이 셸에 ENODE_TEST_DATABASE_URL 이 없어서다 (scripts/testdb.sh · 유닛과 무관). 계획 승인과 Q1 의 답을 묻는다.
+**Context**: Construction · U8 checkpoint · Code Generation Part 1 · 승인 대기
+
+---
+## Construction · U8 `checkpoint` · Code Generation 계획 승인
+**Timestamp**: 2026-09-30T23:51:51Z
+**User Input**: "권장대로"
+**AI Response**: Code Generation 계획 승인 · 물음 1 은 A (이 유닛의 Step 1 에서 TestFinalize_ACommandKilledByASignal 의 기대를 종료 보고 0 또는 1 개로 고친다 · 제품 코드 불변). 계획의 [Answer]: 에 A 를 적었다. Part 2 (Step 10 ~ 14 · 계획 Step 1 ~ 16) 를 같은 작성 서브에이전트에게 맡긴다. 끝나면 진행자가 빌드와 시험을 직접 다시 돌려 확인한다. 커밋은 Code Generation 승인 뒤 한 번 (앞 유닛과 같다).
+**Context**: Construction · U8 checkpoint · Code Generation 계획 승인 · Part 2 착수
+
+---
+## Construction · U8 `checkpoint` · Code Generation Part 2 완료 · 진행자의 다시 돌리기
+**Timestamp**: 2026-10-01T00:36:57Z
+**User Input**: (없음 — 계획 승인에 이어)
+**AI Response**: 같은 작성 서브에이전트 (약 96만 토큰 · 38분) 가 계획 Step 1 ~ 16 과 code-summary (construction/checkpoint/code/code-summary.md 176 줄) 를 마쳤다. 새 파일 열하나 (internal/scratch/checkpoint.go · checkpoint_unix.go · checkpoint_other.go · internal/enode/checkpoint.go · checkpoint_cmd.go · scripts/finalize-bake/slice-9.sh · 시험 다섯) · 고친 파일 스물둘 (행렬 밖 — contract/result.go · scratch/deleter.go · bake_build.go · trash_linux.go · trash_other.go · panel/page.go · finalize_worker_test.go). 계획과 다른 자리 여덟 (remove_unix.go 는 안 고침 · native 노드에도 Store 없는 Keeper — 요구한 단계에 unsupported(runtime) 를 싣기 위해 · 시험 이음매 checkpointPause · statfs 실패면 두 몫을 보지 않음 · 측정 실패 debug 줄 등 · code-summary 에 있다). 사용자에게 보이는 문구가 초안과 다른 곳 — 크기는 1 GiB 아래면 MiB · KiB · show 의 evicted 줄 칸 맞춤 · scratch 없는 노드의 show 는 exit 1 · 일어나지 않아야 하는 갈래의 diagnostics 문장 셋 · 제어판 spool 줄은 판정 전이면 측정 없음. 진행자가 직접 다시 돌렸다 — gofmt 빈 출력 · go vet (기본 · integration 태그) · go build · 크로스 빌드 셋 · glyphscan (173 파일 · 0) · U+2605 0 · enodectl.exe 심볼 tls 1 · http 6 · CI 와 같은 커버리지 실행 (시험 DB · 가짜 claude 스텁) 통과 2,675 · 실패 0 · 스킵 0 · 하한 미달 0 · 전체 87.6% (cmd/enode 83.7 · internal/enode 86.8 · internal/scratch 88.1 · internal/panel 89.1 · internal/contract 92.5 · internal/build 80.0 은 이 유닛이 안 만짐) · internal/scratch -count=10 · 새 시험이 걸린 internal/enode 시험 -count=10 · -race (scratch · enode · panel · cmd/enode) · go test ./internal/enode 두 번 더 — 모두 초록. slice-9.sh 는 bash -n 통과 · 돌리지 않았다 (사람 · SunnyVM). runc_overlay_linux.go 의 keepUpper 를 읽었다 — 보존 (Keep.Result 있음) 의 rename 실패와 늦음만 Result 에 적고 release (trash 옮기기) 오류는 오늘처럼 Close 오류다 (FD 규칙 3절). 진행자가 FD 넷을 코드에 맞게 고쳤다 — 흐름 4절 (native 는 Store 없는 Keeper) · 흐름 9절 (remove_unix.go 를 빼고 deleter.go) · 엔티티 3절 (Lower 는 lower.ReadRoot 의 키) · 규칙 13절 (scratch 없는 show 의 exit 1 · 크기 단위). 사내 이름 0 · 표기 검사 exit 0. 승인을 묻는다 — Request Changes 또는 Continue to Next Stage. 승인 뒤 한 커밋 · 병합 조건은 조각 9.
+**Context**: Construction · U8 checkpoint · Code Generation Part 2 · 승인 대기
+
+---
+## Construction · U8 `checkpoint` · 진행 물음
+**Timestamp**: 2026-10-01T08:05:39Z
+**User Input**: "다 됐나?"
+**AI Response**: 코드와 진행자 확인은 끝났고 남은 것을 답했다 — Code Generation 승인과 그 뒤 한 커밋 · 병합 조건인 조각 9 (사람 · SunnyVM · 약 한 시간 반) · 그 뒤 push 와 PR · 회차의 Build and Test. 승인은 아직 받지 않았다.
+**Context**: Construction · U8 checkpoint · Code Generation 승인 대기
+
+---
+## Construction · U8 `checkpoint` · Code Generation 승인
+**Timestamp**: 2026-10-01T08:06:28Z
+**User Input**: "승인."
+**AI Response**: Code Generation 승인 (Continue to Next Stage). 계획의 마지막 체크박스 (한 커밋) 를 채우고 상태 파일에 적었다. 코드 · 시험 · 조각 9 스크립트 · code-summary · 계획 · FD 고침 넷 · 상태 · 감사를 unit/checkpoint 에 한 커밋으로 넣는다. 병합 조건은 조각 9 (사람 · SunnyVM) 이고 아직 돌지 않았다 — U7 의 선례 (코드를 쓰지 않은 새 에이전트 하나가 SunnyVM 에서 돌리고 볼 것과 실제 출력을 나란히 보인다 · 판정은 사용자) 를 사용자에게 제안한다.
+**Context**: Construction · U8 checkpoint · Code Generation 승인 · 조각 9 대기
+
+---

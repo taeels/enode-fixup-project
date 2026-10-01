@@ -105,7 +105,7 @@ type Entry struct {
 	Format      string     `json:"format"`    // overlay-upper
 	Scope       string     `json:"scope"`     // workspace-upper
 	Guarantee   string     `json:"guarantee"` // inspect-only
-	Lower       string     `json:"lower,omitempty"`       // lower 신원 (lower-state 의 Identity)
+	Lower       string     `json:"lower,omitempty"`       // lower 신원 — lower.ReadRoot 의 키 (filesystem 번호 · inode · Code Generation 이 고침)
 	Environment string     `json:"environment,omitempty"` // 준비된 실행 환경의 식별자 (execenv.Record)
 	Head        string     `json:"head,omitempty"`        // lower metadata 가 있으면
 	IR          string     `json:"ir,omitempty"`

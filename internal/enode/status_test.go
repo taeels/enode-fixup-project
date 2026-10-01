@@ -161,3 +161,40 @@ func TestStatusBookRetriesAFailedWriteAndWarnsOnce(t *testing.T) {
 		t.Fatal("a nil logger was kept")
 	}
 }
+
+// 삭제자와 보존의 판정이 같은 scratch 칸의 제 몫만 고친다 (checkpoint 유닛 · domain-entities.md 7절).
+func TestStatus_SetSpoolKeepsTrash(t *testing.T) {
+	config := filepath.Join(t.TempDir(), "node.yaml")
+	b := NewStatusBook(config, nil)
+	at := time.Now().UTC().Truncate(time.Second)
+	b.SetScratch(scratch.Usage{TrashBytes: 9 << 30, TrashEntries: 2, MeasuredAt: at})
+	b.SetSpool(scratch.SpoolUsage{Bytes: 4 << 30, Checkpoints: 3, Unsized: 1, At: at})
+	b.SetScratch(scratch.Usage{TrashBytes: 1 << 30, TrashEntries: 1, MeasuredAt: at})
+	b.SetCheckpoint(CheckpointStatus{Policy: "on-failure", TTLHours: 48, CapacityPercent: 20})
+	got, err := ReadStatus(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := got.Scratch
+	if u == nil || u.TrashBytes != 1<<30 || u.SpoolBytes != 4<<30 || u.Checkpoints != 3 || u.SpoolUnsized != 1 ||
+		!u.SpoolMeasuredAt.Equal(at) {
+		t.Fatalf("scratch = %+v", u)
+	}
+	if got.Checkpoint == nil || got.Checkpoint.Policy != "on-failure" || got.Checkpoint.Unsupported != "" {
+		t.Fatalf("checkpoint = %+v", got.Checkpoint)
+	}
+	// 같은 값이면 안 쓴다
+	fi, err := os.Stat(StatusPath(config))
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := fi.ModTime().Add(-time.Hour)
+	if err := os.Chtimes(StatusPath(config), old, old); err != nil {
+		t.Fatal(err)
+	}
+	b.SetSpool(scratch.SpoolUsage{Bytes: 4 << 30, Checkpoints: 3, Unsized: 1, At: at})
+	b.SetCheckpoint(CheckpointStatus{Policy: "on-failure", TTLHours: 48, CapacityPercent: 20})
+	if fi, err := os.Stat(StatusPath(config)); err != nil || !fi.ModTime().Equal(old) {
+		t.Fatalf("an unchanged value rewrote the file: %v", err)
+	}
+}

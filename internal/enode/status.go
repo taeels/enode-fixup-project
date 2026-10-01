@@ -34,6 +34,17 @@ type Status struct {
 	At      time.Time             `yaml:"at"`
 	Drain   *DrainStatus          `yaml:"drain,omitempty"`   // 이번 광고에 실은 drain 과 출처
 	Scratch *scratch.Usage        `yaml:"scratch,omitempty"` // scratch 가 없는 노드(native)는 없다
+	// Checkpoint 는 실효 보존 정책이다 (checkpoint 유닛 · business-rules.md 12절). 기동에 한 번 쓴다 — native 노드도
+	// 싣는다. 블록을 안 적은 소유자가 기본값을 보는 자리다 (완료 조건 3 ③).
+	Checkpoint *CheckpointStatus `yaml:"checkpoint,omitempty"`
+}
+
+// CheckpointStatus 는 상태 파일과 제어판에 보이는 보존 정책이다.
+type CheckpointStatus struct {
+	Policy          string `yaml:"policy" json:"policy"`
+	TTLHours        int    `yaml:"ttl_hours" json:"ttl_hours"`
+	CapacityPercent int    `yaml:"capacity_percent" json:"capacity_percent"`
+	Unsupported     string `yaml:"unsupported,omitempty" json:"unsupported,omitempty"` // native 면 runtime
 }
 
 // StatusPath 는 설정 파일 옆의 상태 파일이다 — <dir>/<stem>.status.yaml.
@@ -125,13 +136,45 @@ func (b *StatusBook) SetDrain(d DrainStatus) {
 	})
 }
 
-// SetScratch 는 scratch 의 양을 적는다.
+// SetScratch 는 trash 의 양을 적는다 — 삭제자가 부른다. spool 칸은 보존의 판정 것이라 그대로 둔다.
 func (b *StatusBook) SetScratch(u scratch.Usage) {
 	b.set(func(s *Status) bool {
 		if s.Scratch != nil && sameUsage(*s.Scratch, u) {
 			return false
 		}
+		if s.Scratch != nil {
+			u.SpoolBytes, u.Checkpoints = s.Scratch.SpoolBytes, s.Scratch.Checkpoints
+			u.SpoolUnsized, u.SpoolMeasuredAt = s.Scratch.SpoolUnsized, s.Scratch.SpoolMeasuredAt
+		}
 		s.Scratch = &u
+		return true
+	})
+}
+
+// SetSpool 은 spool 의 양을 적는다 — 보존의 판정이 부른다 (checkpoint 유닛). trash 칸은 그대로 둔다.
+func (b *StatusBook) SetSpool(u scratch.SpoolUsage) {
+	b.set(func(s *Status) bool {
+		cur := scratch.Usage{}
+		if s.Scratch != nil {
+			cur = *s.Scratch
+		}
+		if s.Scratch != nil && cur.SpoolBytes == u.Bytes && cur.Checkpoints == u.Checkpoints &&
+			cur.SpoolUnsized == u.Unsized && cur.SpoolMeasuredAt.Equal(u.At) {
+			return false
+		}
+		cur.SpoolBytes, cur.Checkpoints, cur.SpoolUnsized, cur.SpoolMeasuredAt = u.Bytes, u.Checkpoints, u.Unsized, u.At
+		s.Scratch = &cur
+		return true
+	})
+}
+
+// SetCheckpoint 는 실효 보존 정책을 적는다 — 기동에 한 번.
+func (b *StatusBook) SetCheckpoint(c CheckpointStatus) {
+	b.set(func(s *Status) bool {
+		if s.Checkpoint != nil && *s.Checkpoint == c {
+			return false
+		}
+		s.Checkpoint = &c
 		return true
 	})
 }

@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U8 checkpoint NFR Design 승인 2026-09-30T23:18:42Z · Code Generation 착수 (브랜치 unit/checkpoint · main 3c33730 에서 땄다). U7 bake 는 PR #68 로 병합 2026-09-30T12:55:24Z (3c33730) · U6 lower-state 는 PR #66 · U5 merge-rules 는 PR #65 · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U8 checkpoint Code Generation 승인 2026-10-01T08:06:28Z · 커밋. 병합 조건 조각 9 (사람 · SunnyVM) 대기 (브랜치 unit/checkpoint · main 3c33730 에서 땄다). U7 bake 는 PR #68 로 병합 2026-09-30T12:55:24Z (3c33730) · U6 lower-state 는 PR #66 · U5 merge-rules 는 PR #65 · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -409,6 +409,11 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
    NFR Design             계획과 물음 하나 · 답 A (예약을 세션을 열 때로).  산출물 둘 2026-09-30T14:59:04Z (nfr-design-patterns 127 ·
                           logical-components 61 줄) · FD 셋과 nfr-requirements 를 고침 (표지 「NFR Design 답 1 · D2 · D3 · D4 로 고침」).
                           승인 2026-09-30T23:18:42Z (「승인」).  다음은 Code Generation
+   Code Generation        계획 352 줄 · 단계 열일곱 · 물음 하나 (흔들리는 finalize 시험을 시험만 고침 · A).  계획 승인 2026-09-30T23:51:51Z (「권장대로」).
+                          Part 2 는 작성 서브에이전트 · 진행자가 시험을 다시 돌린다.  커밋은 Code Generation 승인 뒤 한 번
+                          Part 2 완료 · 진행자 다시 돌림 2026-10-01T00:36:57Z — 통과 2,675 · 실패 0 · 스킵 0 · 전 패키지 80% 이상 (cmd/enode 80.8 -> 83.7 ·
+                          internal/scratch 93.5 -> 88.1) · 크로스 셋 · glyphscan · 심볼 tls 1 · http 6.  승인 2026-10-01T08:06:28Z (「승인.」) · 한 커밋.
+                          병합 조건은 조각 9 (사람 · SunnyVM) — 아직 안 돌았다
 ```
 
 ## Stage Progress
@@ -427,7 +432,7 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
 - [ ] NFR Requirements — EXECUTE (유닛마다 · 최소). U1 ~ U7 은 건너뜀 (U1 유닛 정의 · U2 ~ U7 사용자 결정) · U8 checkpoint 완료 2026-09-30T14:29:13Z
 - [ ] NFR Design — EXECUTE (유닛마다 · 최소). U1 ~ U7 은 건너뜀 · U8 checkpoint 완료 2026-09-30T23:18:42Z
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z · U6 lower-state 완료 2026-09-27T04:07:18Z · U7 bake 완료 2026-09-30T05:50:37Z (조각 6 · 7 · 8 초록 뒤 PR #68 병합 2026-09-30T12:55:24Z)
+- [ ] Code Generation — EXECUTE (유닛마다). U1 contract-grammar 완료 2026-09-25T05:45:28Z · U2 step-phase 완료 2026-09-25T11:23:52Z · U3 finalize 완료 2026-09-26T00:45:54Z · U4 trash 완료 2026-09-26T15:24:25Z · U5 merge-rules 완료 2026-09-26T16:39:48Z · U6 lower-state 완료 2026-09-27T04:07:18Z · U7 bake 완료 2026-09-30T05:50:37Z (조각 6 · 7 · 8 초록 뒤 PR #68 병합 2026-09-30T12:55:24Z) · U8 checkpoint 완료 2026-10-01T08:06:28Z (병합은 조각 9 뒤)
 - [ ] Build and Test — EXECUTE (조각 0 ~ 12)
 
 ### OPERATIONS PHASE

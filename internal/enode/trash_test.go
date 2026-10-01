@@ -377,3 +377,51 @@ func TestSweepOrphanSessionsMovesOnlyWhatNobodyHolds(t *testing.T) {
 		t.Fatalf("log = %s", logs.String())
 	}
 }
+
+// --measure 는 측정만 하고 지우지 않는다 — 보존의 판정이 spool 의 항목을 측정한다 (checkpoint 유닛 · NFR Design D4).
+// 우선순위는 지우기와 같이 내린다.
+func TestTrashHelper_MeasureOnly(t *testing.T) {
+	calls := quietPriority(t)
+	trash, entry := trashEntry(t)
+	var out, errOut bytes.Buffer
+	if code := RunTrashHelper([]string{"--measure", trash, entry}, &out, &errOut); code != 0 {
+		t.Fatalf("exit %d\nstdout %s\nstderr %s", code, out.String(), errOut.String())
+	}
+	lines := trashLines(t, out.String())
+	if len(lines) != 1 || lines[0].Measured == nil || lines[0].Measured.Entries != 8 {
+		t.Fatalf("lines = %s", out.String())
+	}
+	if _, err := os.Lstat(filepath.Join(trash, entry, "upper", "a")); err != nil {
+		t.Fatalf("measuring removed the entry: %v", err)
+	}
+	if *calls != 1 {
+		t.Fatalf("priority calls = %d", *calls)
+	}
+	argv, err := measureHelperCommand("/s/spool/3f9a1c0b7d2e", "upper")
+	if err != nil || strings.Join(argv[len(argv)-4:], " ") != "trash-helper --measure /s/spool/3f9a1c0b7d2e upper" {
+		t.Fatalf("argv = %v err = %v", argv, err)
+	}
+}
+
+func TestMeasureLauncher(t *testing.T) {
+	useTestTrashHelper(t, "")
+	trash, entry := trashEntry(t)
+	size, err := MeasureLauncher()(context.Background(), trash, entry)
+	if err != nil || size.Entries != 8 || size.Bytes <= 0 {
+		t.Fatalf("measure = %+v %v", size, err)
+	}
+	if _, err := os.Lstat(filepath.Join(trash, entry)); err != nil {
+		t.Fatalf("the launcher removed the entry: %v", err)
+	}
+	var launch *scratch.LaunchError
+	if _, err := MeasureLauncher()(context.Background(), trash, ".."); err == nil || errors.As(err, &launch) ||
+		!strings.Contains(err.Error(), "invalid trash entry name") {
+		t.Fatalf("a bad entry = %v", err)
+	}
+	t.Run("silent", func(t *testing.T) {
+		useTestTrashHelper(t, "silent")
+		if _, err := MeasureLauncher()(context.Background(), trash, entry); !errors.As(err, &launch) {
+			t.Fatalf("a helper that never started = %v", err)
+		}
+	})
+}

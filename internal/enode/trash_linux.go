@@ -64,11 +64,18 @@ var lowerTrashPriority = func() error {
 // runtime 과 같은 uid 매핑의 user namespace 안이라 subordinate uid 소유 항목과 권한 000
 // 디렉터리를 지울 수 있다. 마운트 namespace 는 안 연다 — 삭제는 마운트하지 않는다. stdout 은
 // 줄 프로토콜에만 쓰고 진단은 stderr 로 보낸다. exit 0 은 다 지웠다 · 1 은 그 밖이다.
+//
+// enode trash-helper --measure <root> <entry> 는 측정만 하고 지우지 않는다 — 보존의 판정이 spool 의 항목을
+// 측정한다 (checkpoint 유닛 · NFR Design D4). 경계와 우선순위는 지우기와 같다. 측정 줄 하나와 exit 0 이다.
 func RunTrashHelper(args []string, out, errOut io.Writer) int {
 	enc := json.NewEncoder(out)
 	fail := func(err error) int {
 		_ = enc.Encode(trashLine{Error: err.Error()})
 		return 1
+	}
+	measureOnly := len(args) == 3 && args[0] == "--measure"
+	if measureOnly {
+		args = args[1:]
 	}
 	if len(args) != 2 {
 		return fail(errors.New("usage: enode trash-helper <trash> <entry>"))
@@ -86,6 +93,9 @@ func RunTrashHelper(args []string, out, errOut io.Writer) int {
 		return fail(err)
 	}
 	_ = enc.Encode(trashLine{Measured: &size})
+	if measureOnly {
+		return 0
+	}
 	left, err := scratch.Remove(trash, entry)
 	if err != nil {
 		return fail(err)
@@ -114,6 +124,16 @@ var trashHelperCommand = func(trash, entry string) ([]string, error) {
 	return trashHelperArgv(helper, trash, entry), nil
 }
 
+// measureHelperCommand 는 항목 하나를 측정만 하는 argv 다. 시험이 바꿔 끼운다.
+var measureHelperCommand = func(root, entry string) ([]string, error) {
+	argv, err := trashHelperCommand(root, entry)
+	if err != nil {
+		return nil, err
+	}
+	n := len(argv) - 2
+	return append(append(argv[:n:n], "--measure"), argv[n:]...), nil
+}
+
 // TrashLauncher 는 삭제자의 Launch 다 — 항목 하나에 helper 하나를 연다 (business-logic-model.md 3절).
 func TrashLauncher(trash scratch.Trash) func(context.Context, string, func(scratch.Size)) error {
 	return func(ctx context.Context, entry string, measured func(scratch.Size)) error {
@@ -121,7 +141,21 @@ func TrashLauncher(trash scratch.Trash) func(context.Context, string, func(scrat
 		if err != nil {
 			return &scratch.LaunchError{Err: err}
 		}
-		return runTrashHelper(ctx, argv, measured)
+		return runTrashHelper(ctx, argv, measured, false)
+	}
+}
+
+// MeasureLauncher 는 보존 판정의 Measure 다 — spool 의 항목 하나를 helper 안에서 측정한다 (checkpoint 유닛 · 흐름 5절).
+// upper 에는 subordinate uid 소유 항목이 있어 노드 uid 로는 못 걷는다. 삭제자처럼 helper 하나씩 · idle 이다.
+func MeasureLauncher() func(context.Context, string, string) (scratch.Size, error) {
+	return func(ctx context.Context, root, entry string) (scratch.Size, error) {
+		argv, err := measureHelperCommand(root, entry)
+		if err != nil {
+			return scratch.Size{}, &scratch.LaunchError{Err: err}
+		}
+		var size scratch.Size
+		err = runTrashHelper(ctx, argv, func(s scratch.Size) { size = s }, true)
+		return size, err
 	}
 }
 
@@ -131,7 +165,7 @@ func TrashLauncher(trash scratch.Trash) func(context.Context, string, func(scrat
 //
 // 한 줄도 없이 끝났으면 helper 가 뜨지 못한 것이다 (unshare 가 uid 매핑을 못 했다) — 항목의
 // 잘못이 아니므로 LaunchError 로 돌려준다.
-func runTrashHelper(ctx context.Context, argv []string, measured func(scratch.Size)) error {
+func runTrashHelper(ctx context.Context, argv []string, measured func(scratch.Size), measureOnly bool) error {
 	cmd := child(exec.Command(argv[0], argv[1:]...))
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGKILL}
 	var stderr lockedRuntimeBuffer
@@ -152,7 +186,7 @@ func runTrashHelper(ctx context.Context, argv []string, measured func(scratch.Si
 		}
 	}()
 	var last trashLine
-	lines := 0
+	lines, sawMeasure := 0, false
 	dec := json.NewDecoder(stdout)
 	for {
 		var line trashLine
@@ -162,6 +196,7 @@ func runTrashHelper(ctx context.Context, argv []string, measured func(scratch.Si
 		lines++
 		if line.Measured != nil {
 			measured(*line.Measured)
+			sawMeasure = true
 			continue
 		}
 		last = line
@@ -176,6 +211,8 @@ func runTrashHelper(ctx context.Context, argv []string, measured func(scratch.Si
 		return &scratch.LaunchError{Err: trashHelperFailure("trash helper did not start", waitErr, stderr.String())}
 	case last.Error != "":
 		return errors.New(last.Error)
+	case measureOnly && sawMeasure:
+		return nil
 	case last.Removed != nil && *last.Removed:
 		return nil
 	case last.Removed != nil:

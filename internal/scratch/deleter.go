@@ -23,6 +23,13 @@ type Usage struct {
 	TrashUnsized int       `yaml:"trash_unsized" json:"trash_unsized"` // 그 가운데 아직 측정하지 않은 수
 	Deleting     bool      `yaml:"deleting" json:"deleting"`
 	MeasuredAt   time.Time `yaml:"measured_at" json:"measured_at"`
+
+	// 아래 넷은 spool 의 양이다 (checkpoint 유닛 · 완료 조건 2). 삭제자가 아니라 보존의 판정이 채운다 — 상태 파일을
+	// 쓰는 자리 (StatusBook) 가 두 쪽의 칸을 따로 받는다. 늦은 값이라 측정한 시각이 따로 붙는다.
+	SpoolBytes      int64     `yaml:"spool_bytes" json:"spool_bytes"`             // kept 항목의 측정한 합
+	Checkpoints     int       `yaml:"checkpoints" json:"checkpoints"`             // kept 항목 수
+	SpoolUnsized    int       `yaml:"spool_unsized" json:"spool_unsized"`         // 그 가운데 측정 전
+	SpoolMeasuredAt time.Time `yaml:"spool_measured_at" json:"spool_measured_at"` // 보존의 판정이 끝난 시각
 }
 
 // LaunchError 는 helper 를 못 띄웠다는 것이다 (unshare 가 없다 · uid 매핑이 안 된다 …).

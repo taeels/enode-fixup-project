@@ -113,8 +113,9 @@ func TestResultVocabulary_FieldNames(t *testing.T) {
 		{"exited", Exited{}, "attempt exited_at instance node outcome"},
 		{"empty diagnostics", Diagnostics{}, "changes effect"},
 		{"full diagnostics", Diagnostics{Missing: []string{"a"}, Collect: []CollectNote{{"a", "b"}},
-			Changes: ChangesPartial, Effect: EffectEdit, Discovered: []string{"x"}, DiscoveryLimit: LimitVisits},
-			"changes collect discovered discovery_limit effect missing"},
+			Changes: ChangesPartial, Effect: EffectEdit, Discovered: []string{"x"}, DiscoveryLimit: LimitVisits,
+			Checkpoint: "free space 8.0 GiB is below min_free_gb 10"},
+			"changes checkpoint collect discovered discovery_limit effect missing"},
 		{"collect note", CollectNote{}, "name why"},
 		{"empty capture", CheckpointCapture{State: CaptureNotRequested}, "state"},
 		{"captured", CheckpointCapture{State: CaptureCaptured, Reason: "r", ID: "c1", Scope: "workspace-upper",
@@ -195,5 +196,27 @@ func TestBuildManifest_HeadTagsNullAndEmpty(t *testing.T) {
 				t.Fatalf("round trip = %#v, want %#v", back.HeadTags, tc.tags)
 			}
 		})
+	}
+}
+
+// diagnostics 의 보존 칸은 문장 그대로 오가고, 비면 칸째 없다 (checkpoint 유닛 · FD 답 9). Mediator 는 같은 타입으로
+// 봉인을 되풀므로 이 왕복이 곧 Record 에 남는 모양이다.
+func TestDiagnostics_CheckpointRoundTrip(t *testing.T) {
+	in := Diagnostics{Changes: ChangesNotMeasured, Effect: EffectBuild,
+		Checkpoint: "the finalize budget ran out before the upper could be moved into the spool"}
+	b, err := json.Marshal(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out Diagnostics
+	if err := json.Unmarshal(b, &out); err != nil || out.Checkpoint != in.Checkpoint {
+		t.Fatalf("round trip = %+v %v", out, err)
+	}
+	empty, err := json.Marshal(Diagnostics{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(empty), "checkpoint") {
+		t.Fatalf("an empty checkpoint note is written: %s", empty)
 	}
 }

@@ -16,6 +16,7 @@ import (
 
 	"github.com/taeels/enode/internal/contract"
 	execenv "github.com/taeels/enode/internal/environment"
+	"github.com/taeels/enode/internal/scratch"
 )
 
 // Step 은 claim 이 돌려주는 할 일 하나다.
@@ -220,6 +221,9 @@ type Result struct {
 	Upload      contract.Stage        `json:"upload,omitempty"`
 	Reason      string                `json:"reason,omitempty"`
 	Diagnostics *contract.Diagnostics `json:"diagnostics,omitempty"`
+	// CheckpointCapture 는 실패한 단계의 보존이다 (checkpoint 유닛 · ADR-076 §2). 이름과 모양은 store.StepResult 와
+	// 같다. 닫기에 닿은 단계에만 있다 — 판정 재료가 아니고 단계의 결과를 바꾸지 않는다 (FR-10).
+	CheckpointCapture *contract.CheckpointCapture `json:"checkpoint_capture,omitempty"`
 
 	// 아래 둘은 굽기 단계가 아는 것이다 (bake 유닛). 이름과 모양은 store.StepResult 와 같다. 판정 재료가
 	// 아니다 — 판정은 계약의 produced 조건이 한다 (I3).
@@ -350,6 +354,10 @@ type Worker struct {
 	// 노드 · lower 루트가 없는 노드 · 시험.
 	Bake *Baker
 
+	// Checkpoints 는 실패한 단계의 보존이다 (checkpoint 유닛). nil 이면 오늘과 같다 — result 에 보존 칸이 없고 예약도
+	// 없다.
+	Checkpoints *CheckpointKeeper
+
 	// drainingNoted 는 「안 집는다」를 이미 찍었는가다 — 광고 주기마다 다시 안 찍는다.
 	drainingNoted bool
 
@@ -406,20 +414,30 @@ func (w *Worker) report(ctx context.Context, step *Step, res Result) {
 	if w.AfterReport != nil {
 		defer w.AfterReport()
 	}
+	// 보존본에 보고의 성패를 적는다 (checkpoint 유닛 · business-rules.md 8절) — 넷 가운데 하나다. 데몬이 멈춰 끝나면
+	// unknown 이다.
+	outcome := scratch.ReportUnknown
+	defer func() { w.Checkpoints.Reported(res.CheckpointCapture, outcome) }()
 	if res.Environment == nil {
 		res.Environment = w.RuntimeRecord
 	}
 	for {
 		err := w.Client.Report(ctx, step.RunID, step.Seq, res)
-		if err == nil || ctx.Err() != nil {
+		if err == nil {
+			outcome = scratch.ReportDelivered
+			return
+		}
+		if ctx.Err() != nil {
 			return
 		}
 		var rej *ReportRejected
 		if errors.As(err, &rej) {
+			outcome = scratch.ReportRejected
 			w.Log.Error("report rejected; not retrying", "step", step.StepID, "err", err)
 			return
 		}
 		if _, ok := w.Held.Valid(step.RunID); !ok {
+			outcome = scratch.ReportLeaseEnded
 			w.Log.Warn("lease ended before the report was delivered; the reaper will settle it",
 				"step", step.StepID, "err", err)
 			return
@@ -720,9 +738,13 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	}
 	session = manageSession(session)
 	defer session.Close(ctx, Keep{}) //nolint:errcheck // 명시 Close가 오류를 결과로 옮긴다
+	// 보존 자리의 예약 (checkpoint 유닛 · NFR Design 답 1) — 세션을 연 뒤 · 명령 앞이라 Finalize 판정의 창 밖이다.
+	// 판정이 아니다 — 요구하는지는 닫을 때 정한다. 쓰지 않은 예약은 보고 뒤에 버린다 (defer 는 보고 뒤에 돈다).
+	slot := w.Checkpoints.Reserve(step)
+	defer w.Checkpoints.Dispose(slot)
 	runtimePaths := session.Paths()
 	if step.Kind == "agent" {
-		w.runAgentStep(runCtx, ctx, step, dir, in, out, runtimePaths, stamp, prep, missingIn, session, log)
+		w.runAgentStep(runCtx, ctx, step, dir, in, out, runtimePaths, stamp, prep, missingIn, session, slot, log)
 		return
 	}
 
@@ -802,7 +824,8 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 	res.ExitedAt = &exitedAt
 	spec := finalizeSpecFor(step, true, w.Local)
 	spec.Workspace, spec.Out, spec.Stamp = dir, out, stamp
-	leaseEnded := w.afterExit(runCtx, ctx, step, session, spec, exitedAt, buf.Bytes(), true, &res, log)
+	leaseEnded := w.afterExit(runCtx, ctx, step, session, spec, exitedAt, buf.Bytes(), true, &res, log,
+		closing{failed: code != 0, slot: slot})
 	reporter.Stop()
 
 	switch {
@@ -843,14 +866,20 @@ func (w *Worker) execute(ctx context.Context, step *Step) {
 // (ADR-075 §9). res 에 changed · produced 와 새 칸 다섯, error 의 앞부분을 채운다.
 // 돌려주는 것은 그동안 임대가 끝났나다 — 명령이 완주하지 않았다는 문구는 부르는 쪽이
 // 덮어쓴다.
-func (w *Worker) afterExit(runCtx, ctx context.Context, step *Step, session StepSession, spec FinalizeSpec, from time.Time, logBody []byte, blobs bool, res *Result, log *slog.Logger) bool {
-	return w.closeOut(runCtx, ctx, step, session, spec, from, func() []byte { return logBody }, blobs, res, log,
-		closing{})
+func (w *Worker) afterExit(runCtx, ctx context.Context, step *Step, session StepSession, spec FinalizeSpec, from time.Time, logBody []byte, blobs bool, res *Result, log *slog.Logger, c closing) bool {
+	return w.closeOut(runCtx, ctx, step, session, spec, from, func() []byte { return logBody }, blobs, res, log, c)
 }
 
-// closing 은 closeOut 이 닫는 모양이다 (bake 유닛 · 계획 4.1 3번). 명령 · agent 단계는 closing{} 이다 — Close 에
-// Keep{} 를 넘기고 · 닫은 뒤에 할 일이 없고 · $OUT 을 올린다. 오늘과 같다.
+// closing 은 closeOut 이 닫는 모양이다 (bake 유닛 · 계획 4.1 3번). 명령 · agent 단계는 keep · after · upload 가
+// 빈 closing 이다 — Close 에 Keep{} 를 넘기고 · 닫은 뒤에 할 일이 없고 · $OUT 을 올린다. 오늘과 같다.
 type closing struct {
+	// failed · bake · slot 은 보존의 판정이 본다 (checkpoint 유닛 · business-rules.md 1절). failed 는 부르는 쪽이 아는
+	// 실패다 — 명령의 exit ≠ 0 · signal, agent 의 미완주, 굽기의 failEnd. 빠진 산출물과 Finalize 오류는 closeOut 이
+	// 더한다 (굽기는 더하지 않는다 — 굽기는 failEnd 만 보존한다). slot 은 세션을 열 때의 예약이다.
+	failed bool
+	bake   bool
+	slot   *checkpointSlot
+
 	// keep 은 Close 에 넘긴다 — 성공한 build 는 대기 자리의 upper 다.
 	keep Keep
 	// after 는 Close 뒤 · 업로드 앞에 돈다. closeErr · finErr 는 닫기와 Finalize 의 오류다. late 는 마감을 넘겨
@@ -872,8 +901,19 @@ func (w *Worker) closeOut(runCtx, ctx context.Context, step *Step, session StepS
 	began := time.Now()
 	fin, finErr := session.Finalize(fctx, spec)
 	cancel()
-	closeErr := session.Close(ctx, c.keep)
+	// 진단은 닫기 앞에서 짓는다 — 빠진 산출물이 보존의 판정에 든다 (checkpoint 유닛 · business-rules.md 1절). $OUT 은
+	// 호스트의 폴더라 닫기와 무관하다.
+	diag := diagnosticsFor(step, spec.Out, spec.Effect, fin)
+	failed := c.failed
+	if !c.bake {
+		failed = failed || len(diag.Missing) > 0 || finErr != nil
+	}
+	plan := w.Checkpoints.Decide(closeFacts{step: step, failed: failed, bake: c.bake, deadline: spec.Deadline,
+		finErr: finErr, slot: c.slot})
+	closeErr := session.Close(ctx, plan.Keep(c.keep))
 	closedAt := time.Now().UTC()
+	// 확정은 closedAt 뒤다 — 기록 쓰기가 늦어도 finalize 판정 (closedLate) 에 안 든다 (NFR P2).
+	res.CheckpointCapture, diag.Checkpoint = w.Checkpoints.Finish(plan)
 	finalizedAt := closedAt
 	var late bool
 	var sealErr error
@@ -883,7 +923,6 @@ func (w *Worker) closeOut(runCtx, ctx context.Context, step *Step, session StepS
 	}
 	closedLate := late || (closedAt.After(spec.Deadline) && runCtx.Err() == nil)
 
-	diag := diagnosticsFor(step, spec.Out, spec.Effect, fin)
 	logFinalize(log, spec, fin, diag, time.Since(began))
 	timedOut := runCtx.Err() == nil &&
 		(errors.Is(finErr, context.DeadlineExceeded) || (finErr == nil && closedLate))
@@ -925,7 +964,7 @@ func (w *Worker) closeAndUploadLog(ctx context.Context, step *Step, session Step
 // ①사출은 위에서 이미 했다 ($IN + 프롬프트 조립).
 // missingIn 은 계약이 요청했는데 이 Run 에 없던 입력 이름들이다 (ADR-058).
 // 부재를 값으로 나른다 — 프롬프트가 그것을 적어준다.
-func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, runtimePaths RuntimePaths, stamp Stamp, prep Prep, missingIn []string, session StepSession, log *slog.Logger) {
+func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, out string, runtimePaths RuntimePaths, stamp Stamp, prep Prep, missingIn []string, session StepSession, slot *checkpointSlot, log *slog.Logger) {
 	report := func(res Result) {
 		res.Environment = session.Environment()
 		if closeErr := session.Close(ctx, Keep{}); closeErr != nil {
@@ -1102,7 +1141,8 @@ func (w *Worker) runAgentStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	// 명령 단계와 같은 모양으로 적고 계속한다.
 	spec := finalizeSpecFor(step, completed, w.Local)
 	spec.Workspace, spec.Out, spec.Stamp = dir, out, stamp
-	leaseEnded := w.afterExit(runCtx, ctx, step, session, spec, from, logBytes, completed, &res, log)
+	leaseEnded := w.afterExit(runCtx, ctx, step, session, spec, from, logBytes, completed, &res, log,
+		closing{failed: !completed, slot: slot})
 	reporter.Stop()
 
 	switch {

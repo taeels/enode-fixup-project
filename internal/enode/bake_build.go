@@ -158,6 +158,7 @@ type buildRun struct {
 	probe  *irProbe
 	match  bool
 	pinned bool
+	slot   *checkpointSlot // 보존 자리의 예약 (checkpoint 유닛)
 }
 
 func (w *Worker) runBuildStep(runCtx, ctx context.Context, step *Step, dir, in, out string, log *slog.Logger) {
@@ -201,6 +202,10 @@ func (w *Worker) runBuildStep(runCtx, ctx context.Context, step *Step, dir, in, 
 	}
 	r.session = manageSession(session)
 	defer r.session.Close(ctx, Keep{}) //nolint:errcheck // 첫 Close 가 오류를 결과로 옮긴다 — 이것은 안전망이다
+	// 보존 자리의 예약 (checkpoint 유닛 · NFR Design 답 1) — failEnd 만 쓴다 (FD 답 3). 성공 끝과 stopEarly 의 예약은
+	// 보고 뒤에 버린다.
+	r.slot = w.Checkpoints.Reserve(step)
+	defer w.Checkpoints.Dispose(r.slot)
 	r.paths = r.session.Paths()
 	r.env = harnessEnv(append(commandEnv, step.Env...),
 		map[string]string{"OUT": r.paths.Out, "IN": r.paths.In, contract.EnvIR: step.IR}, nil)
@@ -396,7 +401,7 @@ func (r *buildRun) failEnd(attempt, code, errText string) {
 		return false, nil
 	}
 	leaseEnded := r.w.closeOut(r.runCtx, r.ctx, r.step, r.session, spec, exitedAt, r.sl.buf.Bytes, false, &res,
-		r.log, closing{after: after})
+		r.log, closing{after: after, failed: true, bake: true, slot: r.slot})
 	reporter.Stop()
 	if r.ctx.Err() != nil {
 		return
@@ -512,7 +517,7 @@ func (r *buildRun) succeed(upper string, previousIR *string) {
 		return false, nil
 	}
 	leaseEnded := r.w.closeOut(r.runCtx, r.ctx, r.step, r.session, spec, exitedAt, r.sl.buf.Bytes, true, &res,
-		r.log, closing{keep: Keep{Upper: upper}, after: after, upload: upload})
+		r.log, closing{keep: Keep{Upper: upper}, after: after, upload: upload, bake: true, slot: r.slot})
 	reporter.Stop()
 	if res.Upload == contract.StageTimeout {
 		// pending 을 쓴 뒤 업로드 예산을 넘겼다 — Run 이 FAILED 로 끝나므로 merge 가 오지 않는다. 광고가 임대가

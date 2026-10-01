@@ -254,6 +254,7 @@ discard      move <scratch>/spool/3f9a1c0b7d2e into <scratch>/trash/; the backgr
 - `evicted` 면 path · open · discard 대신 `evicted     larger than max_gb at <시각>; the tree is gone and this record stays until <expires>`
 - 기록에 없는 칸 (head · ir · 측정 전 크기) 은 줄째 뺀다. 측정 전이면 `size        unmeasured`
 - 모르는 ID — stderr `no checkpoint <ID> on this node: it expired or was never captured here` · exit 1 (답 7)
+- scratch 가 없는 노드의 `show` 는 `list` 와 같은 문장을 내고 exit 1 이다 · 크기는 1 GiB 아래면 MiB · KiB 로 적는다 (Code Generation 이 고침)
 - `--json` — `list` 는 기록의 배열, `show` 는 기록 하나. 둘 다 `path` 칸을 더한다 (엔티티 3절)
 
 ---
