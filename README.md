@@ -97,10 +97,10 @@ go run ./cmd/enodectl -h
 
 | 알고 싶은 것 | 문서 |
 |---|---|
-| 시스템 전체의 경계와 데이터 흐름 | [시스템 설계](enode-design/docs/system.md) |
-| 계약의 형태와 실행 규칙 | [Run 계약](enode-design/protocol/run-contract.md) |
-| 항상 지켜야 하는 상태와 불변식 | [INVARIANTS](enode-design/protocol/INVARIANTS.md) |
-| 설계 선택의 이유 | [설계 결정 문서](enode-design/adr) |
+| 시스템 전체의 경계와 데이터 흐름 | [시스템 설계](https://github.com/taeels/enode-design/blob/main/docs/system.md) |
+| 계약의 형태와 실행 규칙 | [Run 계약](https://github.com/taeels/enode-design/blob/main/protocol/run-contract.md) |
+| 항상 지켜야 하는 상태와 불변식 | [INVARIANTS](https://github.com/taeels/enode-design/blob/main/protocol/INVARIANTS.md) |
+| 설계 선택의 이유 | [설계 결정 문서](https://github.com/taeels/enode-design/tree/main/adr) |
 | 요구사항과 확인하는 장면 | [요구 팩](requirements/README.md) |
 | 표기, 언어와 커밋 규약 | [CONVENTIONS](CONVENTIONS.md) |
 
