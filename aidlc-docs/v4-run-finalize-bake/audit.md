@@ -1421,3 +1421,24 @@
 **Context**: Construction · U8 checkpoint · Code Generation 승인 · 조각 9 대기
 
 ---
+## Construction · U8 `checkpoint` · 조각 9 실행 착수
+**Timestamp**: 2026-10-01T08:21:24Z
+**User Input**: "그래" (제안 — U7 처럼 코드를 쓰지 않은 새 에이전트 하나가 SunnyVM 에서 slice-9.sh 를 돌리고 여덟 확인마다 볼 것과 실제 출력을 나란히 보인다 · 판정은 사용자 · 약 한 시간 반)
+**AI Response**: 새 에이전트 하나 (general-purpose · 하위 에이전트 없음 · 코드를 쓴 작성 에이전트와 다르다) 에게 조각 9 를 맡긴다. 차림은 U7 조각 6 · 7 · 8 과 같다 — 이 기계의 스크래치 Mediator (e55644f 빌드 · 새 DB) 와 SunnyVM 의 조각 전용 노드 둘 (runc-overlay 하나 · native 하나 · 같은 빌드 · 버려도 되는 자리). /srv/yocto · 사용자의 떠 있는 노드 · 공유 rootfs 는 건드리지 않는다. 제품 코드는 고치지 않는다 — 흠으로 보이면 멈추고 보고한다. 스크립트의 작은 고침은 diff 와 함께 보고한다. 판정 뒤 조각 자리를 지운다.
+**Context**: Construction · U8 checkpoint · 조각 9 실행
+
+---
+## Construction · U8 `checkpoint` · 조각 9 실행 결과 (판정은 사용자)
+**Timestamp**: 2026-10-01T09:39:17Z
+**User Input**: (없음 — 집행 에이전트가 끝났다)
+**AI Response**: 집행 에이전트 (general-purpose · 하위 에이전트 없음 · 약 22만 토큰 · 77분) 가 SunnyVM 에서 slice-9.sh 를 끝까지 돌렸다 — exit 0 · 멈춘 곳 없음 · 스크립트 고침 없음 · sudo 없음. 차림 — 이 기계의 스크래치 Mediator (e55644f 를 git archive 로 지음 · 포트 18080 · 사용자의 8080 Mediator 는 안 건드림) · 시험 Postgres 의 새 DB enode_slice_ckpt · SunnyVM 의 ~/ckpt-slice-20261001-1725/ 에 조각 노드 둘 (runc-overlay 하나 · checkpoint ttl_hours 1 · max_gb 1 · native 하나 · env check ready). 여덟 확인 — 1 실패 단계 captured · 12 hex ID · workspace-upper · inspect-only · expires_at 한 시간 뒤 · 통과 단계 not_requested · 2 list 에 kept · 12.0 KiB · delivered · show 에 path · unshare 를 든 open 줄 · discard 줄 · 상태 파일의 spool 칸과 checkpoint 블록 · 3 1.1 GiB upper 는 receipt captured · 확정 23 ms 뒤 evicted: larger than max_gb · 4 native 는 unsupported(runtime) 와 그 문장 · 5 재시작 1초 뒤 주인 없는 예약이 spool 에서 없음 · 도는 단계의 예약은 spool 에 있고 목록에 없음 · 6 policy off 의 같은 실패 계약은 exit_code · produced · finalize 가 같고 not_requested · 7 min_free_gb 를 여유보다 작게 두자 rejected(free_space) 와 「free space 318.9 GiB is below min_free_gb 320」 · 되돌림 · 8 만료 3분 54초 뒤 expired 로그 · list 비어 있음 · show exit 1 · Record 는 captured 그대로. 볼 것과 다른 점 — (가) show 의 attempt 0 (FD 규칙 13절 초안은 attempt 1 · 진행자 확인 — attempt 는 0 부터다 store/claim.go:165 · schema.sql:82 · 초안의 값이 틀렸다) (나) ws 가 git 이 아니라 head · ir 줄 없음 (설계대로 · 기록에 없는 칸은 줄째 뺀다) (다) 제어판 spool 줄은 GiB 소수 한 자리라 12 KiB 가 0.0 GiB (FD 초안과 trash 줄의 선례 그대로 · CLI 만 KiB 로 고쳤다 · 브라우저가 없어 그림은 안 봤다 · /api/state 의 칸은 맞다) (라) 확인 5 에서 trash 를 거친 것과 삭제자가 지운 것을 따로 보지 못했다 (재시작 1초 뒤 둘 다 비어 있음 · 조정의 info 로그 줄은 설계에 없다). integration 시험 넷 SunnyVM 에서 통과 (스킵 없음 · 보고 전 창 빈 upper 6.3 ms · 2만 파일 upper 39.2 ms) — 첫 시험이 권한 000 의 work/work 디렉터리를 남긴다 (t.Cleanup 이 못 지움 · 시험의 정리 흠). 조각 자리 · DB · 이 기계의 tmp/slice9 는 판정 전이라 남겨 두었다 · 노드와 Mediator 는 멈췄다. 사용자에게 판정을 묻는다.
+**Context**: Construction · U8 checkpoint · 조각 9 · 판정 대기
+
+---
+## Construction · U8 `checkpoint` · 조각 9 판정 · 정리 · PR
+**Timestamp**: 2026-10-02T07:12:23Z
+**User Input**: "초록. 정리하고 PR 올려"
+**AI Response**: 조각 9 사용자 판정 초록 — 병합 조건이 섰다. 정리 — SunnyVM 의 ~/ckpt-slice-20261001-1725/ 를 지웠다 · 집행 에이전트가 멈췄다고 보고한 스크래치 Mediator (포트 18080) 가 실제로는 떠 있어 DB 를 붙잡고 있었다 — 진행자가 cwd 와 설정 경로 (job tmp 의 slice9) 로 조각의 것임을 확인하고 SIGTERM 으로 멈췄다 · DB enode_slice_ckpt 를 지웠다 · job tmp 의 slice9 를 지웠다 (Record 파일이 읽기 전용이라 권한을 풀고). 18080 리스너 0 · slice DB 0. code-summary 4.1 에 실행 기록 (여덟 줄 · integration 넷 · 볼 것과 다른 점 넷) 을 적고 상태 파일에 판정을 적었다. 커밋한 뒤 unit/checkpoint 를 push 하고 main 으로 PR 을 연다. 병합은 CI 결과를 보고 묻는다.
+**Context**: Construction · U8 checkpoint · 조각 9 초록 · PR
+
+---

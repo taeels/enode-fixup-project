@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-09-23T13:49:57Z
-- **Current Stage**: CONSTRUCTION — U8 checkpoint Code Generation 승인 2026-10-01T08:06:28Z · 커밋. 병합 조건 조각 9 (사람 · SunnyVM) 대기 (브랜치 unit/checkpoint · main 3c33730 에서 땄다). U7 bake 는 PR #68 로 병합 2026-09-30T12:55:24Z (3c33730) · U6 lower-state 는 PR #66 · U5 merge-rules 는 PR #65 · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
+- **Current Stage**: CONSTRUCTION — U8 checkpoint 조각 9 초록 2026-10-02T07:12:23Z (사용자 판정) · unit/checkpoint 를 push 하고 main 으로 PR · 병합은 CI 뒤 묻는다. Code Generation 승인 2026-10-01T08:06:28Z (e55644f). U7 bake 는 PR #68 로 병합 2026-09-30T12:55:24Z (3c33730) · U6 lower-state 는 PR #66 · U5 merge-rules 는 PR #65 · U4 trash 는 PR #64 · U3 finalize 는 PR #63 · U2 step-phase 는 PR #62 · U1 contract-grammar 는 PR #61. Inception 은 2026-09-24T12:31:50Z 에 닫혔다
 - **AI-DLC Version**: 1.0.1 (`.aidlc/aidlc-rules/`)
 - **Run Branch**: `v4-run-finalize-bake` (Inception 산출물이 여기 직렬로 쌓인다. CONVENTIONS.md 3.1)
 - **문서 루트**: `aidlc-docs/v4-run-finalize-bake/` — Inception 과 Construction 모두 (CLAUDE.md 의 회차별 layering). Construction 은 `construction/` 아래. 2026-09-24 에 규약을 이렇게 바꿨다 — 처음 판은 Construction 을 `aidlc-docs/taeels/` 에 두었다
@@ -413,7 +413,8 @@ Requirements Analysis 의 질문 4 ~ 6 이 정했다 (2026-09-23T14:35:56Z). 셋
                           Part 2 는 작성 서브에이전트 · 진행자가 시험을 다시 돌린다.  커밋은 Code Generation 승인 뒤 한 번
                           Part 2 완료 · 진행자 다시 돌림 2026-10-01T00:36:57Z — 통과 2,675 · 실패 0 · 스킵 0 · 전 패키지 80% 이상 (cmd/enode 80.8 -> 83.7 ·
                           internal/scratch 93.5 -> 88.1) · 크로스 셋 · glyphscan · 심볼 tls 1 · http 6.  승인 2026-10-01T08:06:28Z (「승인.」) · 한 커밋.
-                          병합 조건은 조각 9 (사람 · SunnyVM) — 아직 안 돌았다
+                          조각 9 SunnyVM 2026-10-01 (집행 에이전트 · e55644f) · 사용자 판정 초록 2026-10-02T07:12:23Z — 병합 조건이 섰다.
+                          조각 자리 · DB · 스크래치를 지웠다.  push · PR
 ```
 
 ## Stage Progress

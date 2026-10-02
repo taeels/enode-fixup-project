@@ -122,6 +122,29 @@ scripts/finalize-bake/slice-9.sh
 를 지금 여유보다 1 GB 작게 두고 단계가 2 GB 를 써서 하한 아래로 내려간다 — 미리 채우면 노드가 drain 해 단계를 못 집는다. 끝나면
 `min_free_gb` 를 되돌린다.
 
+### 4.1 실행 기록 — 사용자 판정 초록 (2026-10-02)
+
+코드를 쓰지 않은 집행 에이전트가 2026-10-01 SunnyVM 에서 돌렸다 (e55644f · 스크래치 Mediator 와 새 DB · 조각 전용 노드 둘 — runc-overlay
+하나와 native 하나 · env check ready). 스크립트 exit 0 · 고침 없음 · sudo 없음. 판정 뒤 조각 자리 · DB · 스크래치를 지웠다.
+
+| # | 실제 |
+|---|---|
+| 1 | 실패 단계 `captured` · 12 hex ID · `workspace-upper` · `inspect-only` · 만료 한 시간 뒤 · 통과 단계 `not_requested` |
+| 2 | `list` 에 `kept · 12.0 KiB · delivered` · `show` 에 path · open (`unshare`) · discard 줄 · 상태 파일에 spool 칸과 정책 블록 |
+| 3 | 1.1 GiB upper — receipt `captured` · 확정 23 ms 뒤 `evicted: larger than max_gb` |
+| 4 | native — `unsupported`(`runtime`) 와 그 문장 |
+| 5 | 재시작 1초 뒤 주인 없는 예약이 spool 에 없음 · 도는 단계의 예약은 spool 에 있고 목록에 없음 |
+| 6 | `policy: off` 의 같은 실패 계약 — exit_code · produced · finalize 같음 · `not_requested` |
+| 7 | `rejected`(`free_space`) · `free space 318.9 GiB is below min_free_gb 320` · 하한 되돌림 |
+| 8 | 만료 3분 54초 뒤 치움 · `list` 비어 있음 · `show` exit 1 · Record 는 `captured` 그대로 |
+
+integration 시험 넷 SunnyVM 에서 통과 (스킵 없음 · 보고 전 창 — 빈 upper 6.3 ms · 2만 파일 upper 39.2 ms).
+
+**볼 것과 다른 점 (판정에 걸지 않음)** — `show` 의 `attempt 0` 은 맞다 (attempt 는 0 부터 · `store/claim.go:165` · FD 규칙 13절 초안의 값이
+틀렸다) · ws 가 git 이 아니라 head · ir 줄이 없다 (설계대로) · 제어판 spool 줄은 GiB 소수 한 자리라 작은 보존본이 `0.0 GiB` 다 (trash 줄과
+같다 · CLI 만 KiB) · 5 의 trash 를 거쳐 지우는 중간은 따로 보지 못했다 · integration 첫 시험이 권한 000 의 `work/work` 를 남긴다 (시험의
+정리 흠 · 후속).
+
 ---
 
 ## 5. 계획과 다른 자리
