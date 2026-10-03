@@ -2,6 +2,7 @@ package enode
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os/exec"
 	"sync"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/taeels/enode/internal/contract"
 	execenv "github.com/taeels/enode/internal/environment"
+	"github.com/taeels/enode/internal/scratch"
 )
 
 type RuntimeSpec struct {
@@ -100,9 +102,37 @@ type Discovery struct {
 
 // Keep 은 닫을 때 upper 의 행선지다. 비어 있으면 작업 폴더째 trash 로 간다 (trash 유닛). 굽기의 build 단계가
 // 성공하면 대기 자리 <scratch>/pending/<lower 키>/<이름>/upper 를 넘긴다 (bake 유닛) — runc-overlay 의 Close 가
-// rename 한 번으로 옮긴다. checkpoint 유닛이 spool 로 쓸 자리다. native 의 Close 는 Keep 을 안 본다.
+// rename 한 번으로 옮긴다. 실패한 단계의 보존은 spool 의 예약 자리를 넘긴다 (checkpoint 유닛). native 의 Close 는
+// Keep 을 안 본다.
 type Keep struct {
 	Upper string // "" 면 버린다
+	// By 와 Result 는 보존 (spool) 의 keep 에만 쓴다 — 굽기의 대기 자리는 비운다 (business-rules.md 3절).
+	//
+	// By 가 비어 있지 않으면 helper 가 끝난 뒤 이 시각이 지났을 때 옮기지 않는다 — Finalize 예산을 넘겨 옮기면
+	// 보존이 단계의 마감을 쓴다 (ADR-076 §4 · rename 앞이면 rejected(lease_budget)).
+	By time.Time
+	// Result 가 있으면 옮기기의 결과를 여기에 적고 Close 의 오류에 싣지 않는다 — 보존이 실패해도 단계의 결과는
+	// 그대로다 (FR-10). unmount · 작업 폴더를 trash 로 옮기기 같은 나머지 Close 오류는 오늘처럼 돌려준다.
+	Result *KeepResult
+}
+
+// KeepResult 는 보존의 옮기기가 어떻게 끝났나다. 셋 가운데 하나다.
+type KeepResult struct {
+	Moved bool
+	Late  bool  // By 가 지나 옮기지 않았다
+	Err   error // 세션이 abort 됐거나 rename 이 실패했다 — upper 는 작업 폴더와 함께 trash 로 갔다
+}
+
+// errKeepAborted 는 Finalize 가 helper 를 죽여 upper 가 이미 trash 에 있는 세션의 keep 이다.
+var errKeepAborted = errors.New("the session was aborted before the upper could be kept")
+
+// CaptureSupport 는 런타임이 보존을 할 수 있는가다 (ADR-076 §3 · FR-10). 광고에 오르지 않는다 — 새 매칭 속성이
+// 아니다 (ADR-076 §5).
+type CaptureSupport struct {
+	Supported bool
+	Scope     string // workspace-upper
+	Guarantee string // inspect-only
+	Reason    string // 못 하면 runtime
 }
 
 type StepRuntime interface {
@@ -114,8 +144,8 @@ type StepRuntime interface {
 
 // RuntimeCapability 는 런타임이 광고에 내는 것이다 (component-methods.md 4.1).
 type RuntimeCapability struct {
-	Writes string // "isolated" | "in-place" — 광고 workspace.writes
-	// 보존 지원(Capture)은 checkpoint 유닛이 더한다
+	Writes  string // "isolated" | "in-place" — 광고 workspace.writes
+	Capture CaptureSupport
 }
 
 // workspace.writes 의 두 값 (ADR-077 §8). isolated 는 단계의 쓰기가 upper 로 가고 워크스페이스(lower)에 안 닿는다.
@@ -155,8 +185,10 @@ func (NativeRuntime) Open(_ context.Context, spec RuntimeSpec) (StepSession, err
 	return &nativeSession{spec: spec, record: spec.Record}, nil
 }
 
-// Capability 는 in-place 다 — native 는 워크스페이스에 그대로 쓴다.
-func (NativeRuntime) Capability() RuntimeCapability { return RuntimeCapability{Writes: writesInPlace} }
+// Capability 는 in-place 다 — native 는 워크스페이스에 그대로 쓴다. 분리된 upper 가 없어 보존을 못 한다 (ADR-076 §3).
+func (NativeRuntime) Capability() RuntimeCapability {
+	return RuntimeCapability{Writes: writesInPlace, Capture: CaptureSupport{Reason: scratch.ReasonRuntime}}
+}
 
 type nativeSession struct {
 	spec   RuntimeSpec

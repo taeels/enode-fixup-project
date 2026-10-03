@@ -292,7 +292,7 @@ type Policy struct {
 	TTL       time.Duration // 기본 48시간
 	Share     float64       // (보존 총량 + 여유) 의 몫.  기본 0.2
 	MaxBytes  int64         // checkpoint 하나의 상한 — 값은 NFR N2
-	MaxInodes int64         // 값은 NFR N2
+	MaxInodes int64         // 보존본 전체의 inode 한도 (checkpoint FD · ADR-076 §5) — 값은 NFR N2
 }
 
 // Capture 는 receipt 의 checkpoint_capture 다 (ADR-076 §2 · 설계가 답한 ⑧).
@@ -315,8 +315,10 @@ type Store struct {
 // Admit 는 보고 전의 받아들임이다. 상수 시간만 본다 (결정 2-7).
 func (s *Store) Admit(free, minFree uint64) (ok bool, reason string)
 
-// Keep 은 upper 를 spool 로 rename 하고 미완료 기록을 남긴다.
-func (s *Store) Keep(upper string, meta Meta) (Capture, error)
+// (checkpoint FD 고침) rename 은 Store 가 아니라 세션의 Close(Keep{Upper: spool}) 가 한다. Store 는 앞뒤를 맡는다 —
+// 예약 (항목 폴더 · 잠금 · reserved 기록) 과 확정 (kept 기록) 또는 버림. 모양은 checkpoint domain-entities.md 3 · 5절.
+func (s *Store) Reserve(meta Meta) (*Reservation, error)
+func (s *Store) Commit(r *Reservation, now time.Time) (Capture, error)
 
 func (s *Store) Settle(ctx context.Context) error    // 보고 뒤 — 크기 판정 · 퇴출 · TTL
 func (s *Store) Reconcile(ctx context.Context) error // 데몬 시작 때 — 미완료와 만료
@@ -412,7 +414,7 @@ func (c *Client) Exited(ctx context.Context, runID string, seq int, e Exited) er
 //   Reason      string                // finalize_timeout | upload_timeout | merge_wait_timeout | bake_in_progress | lower_changed (lower-state FD 답 1) |
 //                                     ir_mismatch (bake FD 물음 1 답 B · 2026-09-27 더함 — DONE 에 실린다)
 //   Diagnostics *Diagnostics
-//   Checkpoint  *scratch.Capture       // receipt 의 checkpoint_capture
+//   CheckpointCapture *contract.CheckpointCapture // receipt 의 checkpoint_capture (step-phase 의 타입 · checkpoint FD 고침)
 //   Changeset   *ChangesetDescriptor
 //   Build       *BuildManifest         // build 단계
 //   Merge       *MergeResult           // merge 단계 — ir · resumed · 셈

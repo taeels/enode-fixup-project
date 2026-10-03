@@ -8,6 +8,7 @@ import (
 	"io"
 
 	execenv "github.com/taeels/enode/internal/environment"
+	"github.com/taeels/enode/internal/scratch"
 )
 
 type RuncOverlayRuntime struct{}
@@ -22,7 +23,8 @@ func (*RuncOverlayRuntime) Open(context.Context, RuntimeSpec) (StepSession, erro
 
 // Capability 는 linux 판과 같은 값이다 — 짓지 못하므로 광고에 오르지 않는다.
 func (*RuncOverlayRuntime) Capability() RuntimeCapability {
-	return RuntimeCapability{Writes: writesIsolated}
+	return RuntimeCapability{Writes: writesIsolated, Capture: CaptureSupport{Supported: true,
+		Scope: scratch.ScopeWorkspaceUpper, Guarantee: scratch.GuaranteeInspectOnly}}
 }
 
 func RunRuncOverlayHelper(io.Reader, io.Writer, io.Writer) int { return 1 }

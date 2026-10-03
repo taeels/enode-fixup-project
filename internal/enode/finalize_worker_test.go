@@ -334,6 +334,10 @@ func TestFinalize_AProcessThatNeverStartedHasNoNewFields(t *testing.T) {
 
 // native 에서 signal 로 죽은 명령 — 종료 보고는 signal 로 보내고, result 는 오늘처럼
 // 완주가 아니다. Finalize 는 돈다.
+//
+// 종료 보고는 없을 수도 있다 — goroutine 이 보내고, result 직전의 Stop 이 첫 요청 앞에서 끊을 수
+// 있다 (finalize.go 의 Stop · 「result 가 같은 사실을 싣는다」). 부하가 걸린 전체 실행에서 그렇게
+// 끝난 적이 있다 (checkpoint 유닛 계획 3.1). 그래서 0 이나 1 이고, 1 이면 signal 9 다.
 func TestFinalize_ACommandKilledByASignal(t *testing.T) {
 	m, w := finalizeWorker(t)
 	w.execute(context.Background(), runStep("sh", "-c", `kill -KILL $$`))
@@ -346,7 +350,8 @@ func TestFinalize_ACommandKilledByASignal(t *testing.T) {
 		t.Fatalf("finalize did not run: %+v", res)
 	}
 	exits := m.exits()
-	if len(exits) != 1 || exits[0].Outcome.Kind != contract.OutcomeSignal || *exits[0].Outcome.Code != 9 {
+	if len(exits) > 1 || (len(exits) == 1 &&
+		(exits[0].Outcome.Kind != contract.OutcomeSignal || *exits[0].Outcome.Code != 9)) {
 		t.Fatalf("exit report = %+v", exits)
 	}
 }

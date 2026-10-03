@@ -24,9 +24,11 @@ type State struct {
 	// "status" 는 데몬이 광고에 실은 값 · "policy" 는 정책 파일의 값이다.
 	DrainSources []enode.DrainSource `json:"drain_sources"`
 	DrainFrom    string              `json:"drain_from"`
-	// Scratch 는 곧 지워질 trash 의 양이다 (완료 조건 2). scratch 가 없는 노드는 없다.
-	Scratch  *scratch.Usage `json:"scratch,omitempty"`
-	Mediator MediatorView   `json:"mediator"`
+	// Scratch 는 곧 지워질 trash 의 양과 보존본의 양이다 (완료 조건 2). scratch 가 없는 노드는 없다.
+	Scratch *scratch.Usage `json:"scratch,omitempty"`
+	// Checkpoint 는 실효 보존 정책이다 (checkpoint 유닛 · 완료 조건 3 ③). native 노드에도 있다.
+	Checkpoint *enode.CheckpointStatus `json:"checkpoint,omitempty"`
+	Mediator   MediatorView            `json:"mediator"`
 }
 
 // drain 칸의 출처 (business-rules.md 8.1).
@@ -102,6 +104,7 @@ func (s *Server) state(ctx context.Context) State {
 		at := got.At
 		st.Caps = CapsView{Known: true, Caps: got.Caps, At: &at}
 		st.Scratch = got.Scratch
+		st.Checkpoint = got.Checkpoint
 	}
 
 	// 프로세스 — 로컬 잠금 파일 + proc.

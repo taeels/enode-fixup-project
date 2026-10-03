@@ -122,6 +122,9 @@ type Diagnostics struct {
 	// DiscoveryLimit 은 discover 가 닿은 상한이다 — visits · time · memory · size.
 	// 닿았을 때만 있다.
 	DiscoveryLimit string `json:"discovery_limit,omitempty"`
+	// Checkpoint 는 보존하지 못한 까닭이다 — 영어 문장 하나 (checkpoint 유닛 · ADR-076 §2). 보존했거나
+	// (captured) 보존을 요구하지 않았으면 (not_requested) 없다. host 경로를 싣지 않는다 (requirements.md 5.3).
+	Checkpoint string `json:"checkpoint,omitempty"`
 }
 
 // CollectNote 는 collect 가 못 걷은 이름 하나와 그 이유다.

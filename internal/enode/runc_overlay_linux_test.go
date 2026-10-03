@@ -83,6 +83,10 @@ func TestRuntimeProtocolHelperProcess(t *testing.T) {
 					Collected: []string{"fake"}, Changed: []string{request.Finalize.Deadline.UTC().Format(time.RFC3339)}}})
 			}
 		case "close":
+			if os.Getenv("ENODE_TEST_RUNTIME_MODE") == "close-error" {
+				_ = encoder.Encode(runtimeWireResponse{Op: "closed", Error: "unmount failed"})
+				return
+			}
 			_ = encoder.Encode(runtimeWireResponse{Op: "closed"})
 			return
 		}
@@ -1361,4 +1365,105 @@ func TestSessionDiffScript_MatchesTheHostDiff(t *testing.T) {
 		t.Cleanup(func() { diffLimit = was })
 		compare(t, dir)
 	})
+}
+
+// 보존의 keep (checkpoint 유닛 · business-rules.md 3절) — 결과는 Keep.Result 에 적고 Close 의 오류에 싣지 않는다.
+
+func TestRuncOverlayClose_KeepMovesIntoTheSpool(t *testing.T) {
+	_, s := keepSession(t, "")
+	target := keepTarget(t)
+	kr := &KeepResult{}
+	if err := s.Close(context.Background(), Keep{Upper: target, By: time.Now().Add(time.Hour), Result: kr}); err != nil {
+		t.Fatal(err)
+	}
+	if !kr.Moved || kr.Late || kr.Err != nil {
+		t.Fatalf("result = %+v", kr)
+	}
+	if b, err := os.ReadFile(filepath.Join(target, "sub", "built")); err != nil || string(b) != "built" {
+		t.Fatalf("the upper did not reach the spool: %q %v", b, err)
+	}
+}
+
+// By 가 지났으면 옮기지 않는다 — rename 앞이면 rejected(lease_budget) 다 (ADR-076 §4). upper 는 작업 폴더와 함께 trash.
+func TestRuncOverlayClose_KeepLatePastBy(t *testing.T) {
+	runtimeImpl, s := keepSession(t, "")
+	target := keepTarget(t)
+	kr := &KeepResult{}
+	if err := s.Close(context.Background(), Keep{Upper: target, By: time.Now().Add(-time.Second), Result: kr}); err != nil {
+		t.Fatalf("a late keep failed the close: %v", err)
+	}
+	if !kr.Late || kr.Moved || kr.Err != nil {
+		t.Fatalf("result = %+v", kr)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("a late keep moved the upper: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(runtimeImpl.trash.Dir, filepath.Base(s.runRoot), "upper", "sub", "built")); err != nil {
+		t.Fatalf("the upper is not in trash: %v", err)
+	}
+}
+
+// rename 이 실패해도 Close 는 오류가 아니다 — 결과에만 남고 upper 는 trash 로 간다.
+func TestRuncOverlayClose_KeepRenameFails(t *testing.T) {
+	runtimeImpl, s := keepSession(t, "")
+	target := keepTarget(t)
+	if err := os.Mkdir(target, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	kr := &KeepResult{}
+	if err := s.Close(context.Background(), Keep{Upper: target, Result: kr}); err != nil {
+		t.Fatalf("a failed keep failed the close: %v", err)
+	}
+	if kr.Err == nil || !strings.Contains(kr.Err.Error(), "file exists") || kr.Moved {
+		t.Fatalf("result = %+v", kr)
+	}
+	if _, err := os.Stat(filepath.Join(runtimeImpl.trash.Dir, filepath.Base(s.runRoot), "upper", "sub", "built")); err != nil {
+		t.Fatalf("the upper is not in trash: %v", err)
+	}
+}
+
+// 나머지 Close 오류는 오늘 그대로다 — helper 의 close 오류는 돌려주고, 보존의 결과는 따로 남는다.
+func TestRuncOverlayClose_KeepNotInCloseError(t *testing.T) {
+	_, s := keepSession(t, "close-error")
+	target := keepTarget(t)
+	kr := &KeepResult{}
+	err := s.Close(context.Background(), Keep{Upper: target, Result: kr})
+	if err == nil || err.Error() != "runtime close: unmount failed" {
+		t.Fatalf("close = %v", err)
+	}
+	if !kr.Moved {
+		t.Fatalf("result = %+v", kr)
+	}
+}
+
+// Finalize 가 helper 를 죽였으면 upper 는 이미 trash 에 있다 — 보존의 keep 은 결과에 그 까닭을 적는다.
+func TestRuncOverlayClose_KeepAfterAnAbortWithAResult(t *testing.T) {
+	grace := helperGrace
+	helperGrace = 20 * time.Millisecond
+	t.Cleanup(func() { helperGrace = grace })
+	_, s := keepSession(t, "silent")
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if _, err := s.Finalize(ctx, FinalizeSpec{}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("finalize = %v", err)
+	}
+	kr := &KeepResult{}
+	if err := s.Close(context.Background(), Keep{Upper: keepTarget(t), Result: kr}); err != nil {
+		t.Fatalf("close = %v", err)
+	}
+	if !errors.Is(kr.Err, errKeepAborted) {
+		t.Fatalf("result = %+v", kr)
+	}
+}
+
+func TestRuntimeCapture(t *testing.T) {
+	native := NativeRuntime{}
+	if c := native.Capability().Capture; c.Supported || c.Reason != "runtime" {
+		t.Fatalf("native = %+v", c)
+	}
+	overlay := &RuncOverlayRuntime{}
+	if c := overlay.Capability().Capture; !c.Supported || c.Scope != "workspace-upper" ||
+		c.Guarantee != "inspect-only" {
+		t.Fatalf("runc-overlay = %+v", c)
+	}
 }

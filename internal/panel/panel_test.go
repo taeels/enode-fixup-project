@@ -530,3 +530,43 @@ func TestIndexLoadsTheCardModuleInsteadOfItsOwnDrawing(t *testing.T) {
 		}
 	}
 }
+
+// 상태 파일의 보존 칸 (checkpoint 유닛) — spool 의 양과 실효 정책이 State 에 실린다.
+func TestStateCarriesTheCheckpoint(t *testing.T) {
+	s := testServer(t, nil, "node-xyz")
+	at := time.Now().UTC().Truncate(time.Second)
+	usage := scratch.Usage{SpoolBytes: 4 << 30, Checkpoints: 3, SpoolUnsized: 1, SpoolMeasuredAt: at}
+	policy := enode.CheckpointStatus{Policy: "on-failure", TTLHours: 48, CapacityPercent: 20}
+	if err := enode.WriteStatus(s.cfg.ConfigPath, enode.Status{At: at, Scratch: &usage, Checkpoint: &policy}); err != nil {
+		t.Fatal(err)
+	}
+	st := s.state(context.Background())
+	if st.Checkpoint == nil || *st.Checkpoint != policy || st.Scratch == nil || st.Scratch.Checkpoints != 3 {
+		t.Fatalf("checkpoint = %+v scratch = %+v", st.Checkpoint, st.Scratch)
+	}
+	b, err := json.Marshal(st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"checkpoint":{"policy":"on-failure","ttl_hours":48,"capacity_percent":20}`,
+		`"spool_bytes":4294967296`, `"checkpoints":3`, `"spool_unsized":1`} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("state JSON lacks %s: %s", want, b)
+		}
+	}
+}
+
+// 화면이 spool 줄 · 정책 줄 · 안내 줄 · off · native 를 그린다 (business-rules.md 12절의 문구).
+func TestPanel_CheckpointLines(t *testing.T) {
+	for _, want := range []string{
+		`"보존 " + (sc.checkpoints || 0) + " 개"`, `"spool "`, `" 개는 크기 모름)"`, "spool_measured_at",
+		`"보존 정책 " + cp.policy + " · " + cp.ttl_hours + "시간 · (보존 + 여유) 의 " + cp.capacity_percent + "% — 바꾸려면 설정 파일의 checkpoint: 블록"`,
+		"보존 정책 off — 단계의 upper 를 남기지 않는다. 켜려면 설정 파일의 checkpoint: 블록",
+		`"이 노드는 단계를 격리 없이 돌려 보존하지 않는다 (" + cp.unsupported + ")"`,
+		"실패한 단계의 upper 가 이 기계에 남는다. 도구가 쓴 자격증명 캐시가 들어 있을 수 있다. 여는 법은 enode checkpoint show <ID>",
+	} {
+		if !strings.Contains(indexHTML, want) {
+			t.Errorf("index page missing %q", want)
+		}
+	}
+}

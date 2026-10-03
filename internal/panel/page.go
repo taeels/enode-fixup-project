@@ -277,6 +277,17 @@ function render(st){
     if(sc.deleting) parts.push("지우는 중");
     parts.push("측정 " + (sc.measured_at ? new Date(sc.measured_at).toLocaleTimeString() : "없음"));
     h += "<div class='subline'>" + esc(parts.join(" · ")) + "</div>";
+    // 보존본의 양 (checkpoint 유닛 · 완료 조건 2) — 보존의 판정이 채운다
+    var sp = ["보존 " + (sc.checkpoints || 0) + " 개",
+      "spool " + ((sc.spool_bytes || 0) / 1073741824).toFixed(1) + " GiB" + (sc.spool_unsized ? " (" + sc.spool_unsized + " 개는 크기 모름)" : ""),
+      "측정 " + (measured(sc.spool_measured_at) ? new Date(sc.spool_measured_at).toLocaleTimeString() : "없음")];
+    h += "<div class='subline'>" + esc(sp.join(" · ")) + "</div>";
+  }
+  // 실효 보존 정책 (checkpoint 유닛 · 완료 조건 3 의 셋째 줄 · US-5) — 블록을 안 적은 소유자가 기본값을 보는 자리
+  var cp = st.checkpoint;
+  if(cp){
+    h += "<div class='subline'>" + esc(checkpointLine(cp)) + "</div>";
+    if(cp.policy !== "off" && !cp.unsupported) h += "<div class='subline'>" + esc(checkpointNote) + "</div>";
   }
   dr.innerHTML = h;
   for(var m of dr.querySelectorAll("input[name=mode]")){
@@ -305,6 +316,13 @@ function render(st){
 }
 
 // drain 출처의 이름과 누가 풀 수 있나 (business-rules.md 8.1)
+function measured(t){ return !!t && String(t).indexOf("0001-") !== 0; }
+function checkpointLine(cp){
+  if(cp.unsupported) return "이 노드는 단계를 격리 없이 돌려 보존하지 않는다 (" + cp.unsupported + ")";
+  if(cp.policy === "off") return "보존 정책 off — 단계의 upper 를 남기지 않는다. 켜려면 설정 파일의 checkpoint: 블록";
+  return "보존 정책 " + cp.policy + " · " + cp.ttl_hours + "시간 · (보존 + 여유) 의 " + cp.capacity_percent + "% — 바꾸려면 설정 파일의 checkpoint: 블록";
+}
+var checkpointNote = "실패한 단계의 upper 가 이 기계에 남는다. 도구가 쓴 자격증명 캐시가 들어 있을 수 있다. 여는 법은 enode checkpoint show <ID>";
 function drainName(kind){ return {owner:"소유자 정책", disk:"여유 부족", bake:"굽기", lower:"아래층 상태"}[kind] || kind; }
 function drainLift(kind){
   return {owner:"여기서 풀 수 있다", disk:"저절로 풀린다 — trash 가 비거나 디스크가 늘면",

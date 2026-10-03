@@ -1260,3 +1260,185 @@
 **Context**: Construction · U7 bake · 조각 6 · 7 · 8 초록 · 커밋 · PR
 
 ---
+## Construction · U7 `bake` · PR #68
+**Timestamp**: 2026-09-30T12:51:39Z
+**User Input**: (없음 — 「초록 · 커밋 · PR 올림」 에 이어)
+**AI Response**: 커밋 511482d (조각 판정 · 기록 · 스크립트 고침). 올리기 전 확인 — origin/main 이 52af9c0 (probe.lock 을 추적에서 뺌 · cmd/enodectl 두 파일) 으로 한 커밋 앞서 있으나 merge-tree 로 충돌 없음 · origin/main 기준 브랜치 diff 와 PR 본문에 사내 이름 0 · PR 본문 emphasis-check exit 0. unit/bake 를 push 하고 main 으로 PR #68 을 열었다 (https://github.com/taeels/enode-fixup-project/pull/68). CI (test · cross · bounded-demo) 대기. 병합은 CI 결과를 보고 묻는다.
+**Context**: Construction · U7 bake · PR · CI 대기
+
+---
+## Construction · 유닛 현황 물음
+**Timestamp**: 2026-09-30T12:52:28Z
+**User Input**: "유닛 현황"
+**AI Response**: 상태 파일의 유닛 표와 gh pr list 로 답했다 — U1 ~ U6 병합 (PR #61 ~ #66) · U7 bake PR #68 CI 진행 중 (bounded-demo 통과 · test · cross 대기) · U8 checkpoint (조각 9) 착수 전 · 그 뒤 Build and Test (조각 0 ~ 12 · 조각 11 · 12 는 유닛 없이 사람).
+**Context**: Construction · 현황
+
+---
+## Construction · U7 `bake` · PR #68 CI 결과
+**Timestamp**: 2026-09-30T12:54:55Z
+**User Input**: (없음 — CI 가 끝났다)
+**AI Response**: PR #68 의 CI 셋 모두 통과 — test (2분 56초) · cross (52초) · bounded-demo (11초). mergeable CLEAN. 사용자에게 병합을 묻는다.
+**Context**: Construction · U7 bake · CI 초록 · 병합 물음
+
+---
+## Construction · U7 `bake` 병합 · U8 `checkpoint` 착수 기록
+**Timestamp**: 2026-09-30T12:55:49Z
+**User Input**: "병합 · U8 착수 (Recommended)" (질문 — PR #68 (U7 bake)을 병합할까요? 선택지: 병합 · U8 착수 / 병합만 / 아직 병합 안 함) · 이어서 "착수 시작까지만 기록. 새 세션에서 할 것"
+**AI Response**: PR #68 을 merge commit 으로 병합했다 (3c33730 · 2026-09-30T12:55:24Z). U7 bake 가 끝났다 — 조각 5 · 6 · 7 · 8 초록. main 에서 unit/checkpoint 를 땄다 (3c33730). U8 checkpoint 의 Functional Design 은 새 세션에서 한다 — 이 세션은 착수 기록까지. 커밋 안 된 audit · 상태는 unit/checkpoint 작업 트리에 있고 U8 의 첫 단계 커밋이 함께 싣는다 (앞 유닛들과 같다).
+**Context**: Construction · U7 병합 · U8 착수 기록 · 작업은 새 세션
+
+---
+## Construction · U8 `checkpoint` · Functional Design 착수
+**Timestamp**: 2026-09-30T12:57:56Z
+**User Input**: "/home/sunny/enode-fixup-v4의 unit/checkpoint에서 U8의 Functional Design부터 시작"
+**AI Response**: 새 세션에서 착수했다. 브랜치 unit/checkpoint (3c33730) · 작업 트리에 앞 세션의 착수 기록 (상태 · 감사) 이 커밋 안 된 채 있다 — 이 단계의 커밋이 함께 싣는다. Office 원장은 회차 상태 파일과 README 가 적은 f806768d 에 붙였다. Functional Design Step 1 ~ 4 (유닛 맥락 · 계획 · 물음) 를 작성 서브에이전트 (aidlc-xhigh) 하나에게 맡긴다 — 하위 에이전트를 띄우지 않는다. 진행자는 계획을 확인하고 물음을 사용자에게 낸다.
+**Context**: Construction · U8 checkpoint · Functional Design Step 1 ~ 4 착수
+
+---
+## Construction · U8 `checkpoint` · Functional Design 계획과 물음
+**Timestamp**: 2026-09-30T13:16:17Z
+**User Input**: (없음 — 착수에 이어)
+**AI Response**: 작성 서브에이전트 (aidlc-xhigh · 하위 에이전트 없음 · 약 33만 토큰 · 16분) 가 Functional Design Step 1 ~ 4 를 마쳤다. 계획 construction/plans/checkpoint-functional-design-plan.md — 받는 일 스물 (1절) · 오늘의 코드와 측정 (2절) · 묻지 않고 정한 것 열다섯 (3절) · 물음 아홉 (4절 · 권장 모두 A) · Step 5 이후 체크박스 (5절). 물음 — 1 on-failure 가 보존하는 실패 · 2 요구하지 않은 단계와 native 노드의 receipt 상태 · 3 실패한 굽기 build 의 upper (bake 넘김) · 4 설정 블록의 키 이름과 단위 · 5 기본값과 양을 소유자가 보는 자리 · 6 보존본을 여는 길과 일찍 버리는 길 · 7 퇴출 · 만료된 보존본을 조회가 기억하는 기간 · 8 불투명 ID 의 모양 · 9 diagnostics 의 실패 상세 자리. 측정 못 한 것 — namespace 안에서 subordinate uid 소유 0600 파일 읽기 (이 기계에서 newuidmap 이 Operation not permitted · 물음 6 의 A 가 기댄다). 진행자 확인 — 인용 주소 (finalize.go:230-235 의 Close 오류가 finalize 칸을 error 로 · result.go 의 CheckpointCapture 칸 일곱과 Diagnostics 에 보존 칸 없음 · bake_build.go failEnd 의 Keep{} · config.go:97 min_free_gb · bake code-summary 6절의 커버리지 86.7 · 80.8 · 결정 2-2 · 2-3 · 2-7 · 2-8 · 2-10 · 2-11 · scene-gates 조각 9 줄 · ADR-076 §4 · §5 · §10) 가 맞다. 진행자가 물음 10 을 더했다 — 결과 보고가 거절되거나 임대가 만료된 단계의 보존본 (3절 7번은 TTL 까지 남긴다고 정했는데 ADR-076 §4 끝 「정책에 따라 만료 · 정리」가 곧바로 치우는 것으로도 읽힌다 · 권장 A TTL 까지). 3절 7번에 (물음 10) 을 달고 5절 첫 체크박스에 7 과 10 의 짝을 더했다. Step 5 에 넘길 것 하나 — 3절 2번 (keep 실패를 Close 오류에서 뗀다) 은 ADR-076 §4 의 「Close 오류를 무시해 성공으로 봉인하지 않는 기존 수명 규칙은 유지한다」와 함께 서려면 spool 로 옮기기의 실패만 떼고 unmount · trash 옮기기 같은 나머지 Close 오류는 오늘처럼 error 로 남는다고 규칙에 적어야 한다. 검사 — emphasis-check.py exit 0 · 말투 grep 0 · [Answer]: 열 · 새 축약어 0 · 새 파일은 계획 하나. 커밋은 승인 뒤다.
+**Context**: Construction · U8 checkpoint · Functional Design Step 1 ~ 4 · 답 대기
+
+---
+## Construction · U8 `checkpoint` · 물음 5 설명
+**Timestamp**: 2026-09-30T13:30:00Z
+**User Input**: "5번 설명"
+**AI Response**: 물음 5 를 풀어 설명했다 — 기본 보존 (on-failure · 48시간 · 20%) 이 설정 없이도 켜지는데 소유자가 그것과 끄는 법을 읽을 자리가 없다 (완료 조건 3 ③ · US-5) · spool 양을 보여야 한다 (완료 조건 2). 오늘 자리는 상태 파일의 scratch 칸과 제어판의 trash 한 줄. A 는 그 두 자리에 보존 양 · 수 · 실효 정책 한 줄 · 바꾸는 자리 · 자격증명 캐시 안내 (제어판 모형을 보였다) · 기동 로그 영어 한 줄 · native 는 한 줄. B 는 SampleLocal (설정이 없을 때만 보임) 주석 · C 는 packaging/macos/examples 넷 (native 라 보존이 안 되고 행렬 밖). 제어판 문구는 화면 안의 글이라 오늘처럼 한국어 · 영어 규약은 로그 줄에만 걸린다.
+**Context**: Construction · U8 checkpoint · Functional Design · 물음 설명
+
+---
+## Construction · U8 `checkpoint` · 물음 열의 답
+**Timestamp**: 2026-09-30T13:41:44Z
+**User Input**: "답했다."
+**AI Response**: 계획 파일의 [Answer]: 열이 모두 A 다 (1 노드가 아는 실패 전부 · 2 정책이 먼저 · 3 build 끝의 실패만 보존 · 4 단위를 이름에 · 5 상태 파일과 제어판 · 6 새 명령 없이 show 가 알림 · 7 퇴출은 원래 만료까지 기억 · 8 무작위 12 hex · 9 diagnostics.checkpoint 영어 문장 · 10 보고가 안 닿아도 TTL 까지). QA 를 돌릴지의 물음에는 답이 없어 진행자의 권장 (QA 에이전트 없음 · 진행자가 좁게 확인) 으로 간다. Functional Design Step 5 ~ 7 (답 분석 · 되물음이 필요하면 되물음 파일 · 산출물 셋) 을 같은 작성 서브에이전트에게 이어 맡긴다.
+**Context**: Construction · U8 checkpoint · Functional Design Step 5 · 답
+
+---
+## Construction · U8 `checkpoint` · Functional Design 산출물
+**Timestamp**: 2026-09-30T13:53:30Z
+**User Input**: (없음 — 답에 이어 산출물)
+**AI Response**: 같은 작성 서브에이전트 (aidlc-xhigh · 하위 에이전트 없음 · 약 43만 토큰 · 10분) 가 Step 5 ~ 7 을 마쳤다. 짝 넷 (1 과 3 · 2 와 5 · 4 와 7 · 7 과 10) 에 사용자가 정할 모순이 없어 되물음 파일을 만들지 않았다. 산출물 셋 construction/checkpoint/functional-design/ — domain-entities.md 220 줄 · business-rules.md 254 줄 (보존을 요구하는가 · 판정 차례와 전이 · keep 의 실패와 Close 의 오류 · 칸이 있는 때 · 받아들임 · 보고 뒤 판정과 퇴출 · TTL · 보고의 성패 · 재시작 조정 · 설정 · spool 과 보안 · 보이는 자리 · 조회 · 노드 로그) · business-logic-model.md 222 줄 (closeOut 흐름 · 굽기 build 의 끝 · 보고 뒤 · 기동 · 측정 입구 · 조회 · 시험과 조각 9 여덟 줄 · 코드 자리와 커버리지 · 행렬 밖 · 고친 회차 문서 · 넘기는 것 · 정본 되돌림 열둘 · 추적). 계획 5절 체크박스 여섯 [x]. 고친 회차 문서 — inception/application-design/component-methods.md 세 곳 (MaxInodes 는 보존본 전체 · Store.Keep 을 Reserve · Commit 으로 · result 의 보존 칸 타입). 답에 없던 결정 가운데 사용자에게 보이는 것 — 설정 검증 (ttl_hours 1 이상 · capacity_percent 1 ~ 100 · max_gb · max_total_inodes 1 이상 · 0 은 기본값 · 끄는 길은 policy: off 하나 · 틀리면 노드가 안 뜬다) · 상태 파일 칸 · 제어판 문구 다섯 · 기동 로그 셋 · diagnostics 문장 아홉 · list 칸과 상태 글자 · show 모양 · 보고의 성패 값 넷 (delivered · rejected · lease_ended · unknown) · 판정 주기 10분 · 노드 로그 일곱. 진행자 확인 — git status (새 폴더 · 계획 · component-methods.md 만) · emphasis-check.py 새 문서 셋 · 계획 · component-methods.md 모두 exit 0 · 사내 이름 grep 0 · 말투 grep 0 · component-methods.md diff 를 읽었다 · 규칙 1 ~ 3절 (진행자가 짚은 keep 실패 분리가 ADR-076 §4 두 문장과 함께 선다) · 10 ~ 14절 (사용자에게 보이는 값) · 흐름 7절 (조각 9) · 9 ~ 12절 (행렬 밖 · 넘김 · 되돌림) 을 읽었다. bake business-rules.md:118-120 은 이미 「checkpoint 유닛이 보존하면 다시 본다」로 적혀 있고 답 3 A 로 결론 (첫 실패에서 멈춤) 이 그대로라 고치지 않는다. 사용자에게 알릴 것 — ttl_hours 가 정수 시간이라 조각 9 의 TTL 확인 (4번) 이 한 시간 넘게 걸린다. 승인을 묻는다 — Request Changes 또는 Continue to Next Stage (다음은 이 유닛의 NFR Requirements).
+**Context**: Construction · U8 checkpoint · Functional Design Step 6 · 7 · 승인 대기
+
+---
+## Construction · U8 `checkpoint` · Functional Design 승인
+**Timestamp**: 2026-09-30T14:05:25Z
+**User Input**: "다음"
+**AI Response**: Functional Design 승인 (Continue to Next Stage). 조각 9 의 TTL 확인이 한 시간 넘게 걸리는 것은 그대로 둔다 (진행자 권장 — Code Generation 이 TTL 단계를 먼저 걸고 기다리는 동안 나머지를 돌린다). 상태 파일에 승인을 적고 이 단계의 산출물 (계획 · 산출물 셋 · component-methods.md 고침 · 상태 · 감사 · 앞 세션의 착수 기록) 을 unit/checkpoint 에 커밋한다. 다음은 이 유닛의 NFR Requirements (유닛 정의 8절 — N2 · 보안 · 성능) · 계획과 물음은 같은 작성 서브에이전트에게 맡긴다.
+**Context**: Construction · U8 checkpoint · Functional Design 승인 · NFR Requirements 착수
+
+---
+## Construction · U8 `checkpoint` · NFR Requirements 계획과 물음
+**Timestamp**: 2026-09-30T14:16:06Z
+**User Input**: (없음 — Functional Design 승인에 이어)
+**AI Response**: Functional Design 을 e6ec0d3 으로 커밋했다. 같은 작성 서브에이전트 (aidlc-xhigh · 하위 에이전트 없음 · 약 49만 토큰 · 9분) 가 NFR Requirements Step 1 ~ 4 를 마쳤다. 계획 construction/plans/checkpoint-nfr-requirements-plan.md — 측정 (이 기계 ext4 · 보고 전 창에 더한 일 p50 0.16 ms · p99 0.46 ms · 쓰기 부하에서 예약 최대 4.2 초 · fsync 를 하면 부하에서 p99 4.4 초 · upper 한 항목 평균 34 ~ 59 KB 라 바이트 몫이 inode 몫보다 먼저 닿는다) · 묻지 않고 정한 것 (성능 P1 ~ P7 · 보안 C1 ~ C7 · 신뢰 R1 ~ R3 · 규모 S1 · 유지 M1 · U1 · 기술 선택 목록 · NFR Design 에 넘기는 패턴 넷) · 물음 넷 (권장 모두 A) — 1 max_gb 기본값 (A 32) · 2 max_total_inodes 기본값 (A 몫과 같은 비율 · statfs 가 inode 를 안 내면 보지 않음) · 3 이미 있는 spool 자리가 symlink · 남의 것 · 느슨한 권한일 때 (A lower-state 선례 · 좁히거나 거절하고 노드는 뜬다) · 4 확인하지 못한 채로 두는 것 (A 받아들인다). 진행자가 고친 것 둘 — SunnyVM 의 디스크 수를 읽기만 해서 2절에 더했다 (ext4 · 539.4 GB · 가용 344.7 GB · inode 33,488,896 · 남은 inode 28,285,100 · 20% 몫은 68.9 GB 와 5,657,020 inode) 그래서 물음 4 의 목록에서 뺐다 · 물음 4 권장 근거의 「SunnyVM 이 켜질 때까지 기다린다 (노트북 VM)」를 지웠다 (미리 단서를 달지 않는다). 작성 에이전트가 찾은 FD 의 고칠 곳 넷 — 규칙 9절이 읽을 수 없는 기록을 건드리지 않게 적어 전원이 나간 뒤 빈 기록의 upper 가 영영 남는다 (항목 잠금을 쥘 수 있으면 trash 로 보내게 고친다) · P2 (보존이 finalize 판정을 바꾸지 않는다) 의 모양이 NFR Design 에서 정해지면 흐름 1절과 규칙 2절 ⑤ 의 예약 자리 · 답 1 · 2 에 따른 「0 이면 N2 의 기본값」 줄 · 답 3 에 따른 spool 자리 확인과 문장과 로그 줄. 검사 — emphasis-check.py exit 0 · 말투 0 · 사내 이름 0 · 새 파일은 계획 하나. 커밋은 승인 뒤다.
+**Context**: Construction · U8 checkpoint · NFR Requirements Step 1 ~ 4 · 답 대기
+
+---
+## Construction · U8 `checkpoint` · NFR Requirements 물음 넷의 답
+**Timestamp**: 2026-09-30T14:24:34Z
+**User Input**: "권장대로"
+**AI Response**: 계획 파일의 [Answer]: 넷에 A 를 적었다 (1 max_gb 32 · 2 max_total_inodes 는 바이트 몫과 같은 비율 · 3 lower-state 선례 · 4 받아들인다). NFR Requirements Step 5 · 6 (답 분석 · 산출물 nfr-requirements.md · tech-stack-decisions.md) 과 FD 의 고칠 곳 넷을 같은 작성 서브에이전트에게 맡긴다.
+**Context**: Construction · U8 checkpoint · NFR Requirements Step 5 · 답
+
+---
+## Construction · U8 `checkpoint` · NFR Requirements 미리 승인
+**Timestamp**: 2026-09-30T14:26:15Z
+**User Input**: "승인 미리 한다 다되면 다음거해"
+**AI Response**: NFR Requirements 의 승인을 미리 받았다. 작성 서브에이전트가 산출물 둘과 FD 고침 넷을 마치면 진행자가 확인하고, 막을 것이 없으면 승인으로 기록 · 커밋한 뒤 NFR Design (계획과 물음) 으로 넘어간다. 확인에서 사용자가 정해야 할 것이 나오면 넘어가지 않고 묻는다.
+**Context**: Construction · U8 checkpoint · NFR Requirements · 미리 승인
+
+---
+## Construction · U8 `checkpoint` · NFR Requirements 산출물과 승인
+**Timestamp**: 2026-09-30T14:29:13Z
+**User Input**: (없음 — 2026-09-30T14:26:15Z 의 미리 승인 「승인 미리 한다 다되면 다음거해」 에 따른다)
+**AI Response**: 같은 작성 서브에이전트 (약 53만 토큰 · 4분) 가 NFR Requirements Step 5 · 6 을 마쳤다. 답 넷에 모호함이 없어 되물음 파일을 만들지 않았다. 산출물 construction/checkpoint/nfr-requirements/ — nfr-requirements.md 132 줄 (N2 값 · 성능 P1 ~ P7 · 보안 C1 ~ C7 · 신뢰 · 규모 · 유지 · NFR Design 에 넘기는 D1 ~ D4 · 정본 되돌림 넷) · tech-stack-decisions.md 27 줄 (새 의존 0). FD 고침 넷 (표지 「NFR 답 N 으로 고침」) — 규칙 9절 (ID 모양 폴더의 기록이 없거나 비었거나 읽을 수 없으면 항목 잠금을 쥘 수 있을 때 trash · 잠금 파일조차 없으면 1시간 뒤) · 규칙 10절과 엔티티 1절 (max_gb 32 · max_total_inodes 는 capacity_percent 몫 · statfs 전체 inode 0 이면 보지 않음) · 규칙 2절 · 11절 · 14절 (spool 자리를 lstat 로 기동 때 확인 · 느슨한 비트는 좁힘 · symlink · 디렉터리 아님 · 남의 것은 failed(io) 와 새 문장 · 로그 두 줄 · 노드는 뜬다) · 규칙 2절과 흐름 1절 (예약 자리는 NFR Design 이 정할 때 바뀐다는 한 줄). 답에서 나온 결과 하나 — spool 이 다른 filesystem 을 가리키는 symlink 면 unsupported(cross_filesystem) 이 아니라 failed(io). 진행자 확인 — git status (새 폴더 · 계획 · FD 셋 · 감사) · emphasis-check.py 새 문서 둘 · FD 셋 · 계획 exit 0 · FD diff 를 읽었다. 사용자가 정할 것이 없어 미리 받은 승인으로 기록하고 커밋한다. 다음은 NFR Design (D1 ~ D4).
+**Context**: Construction · U8 checkpoint · NFR Requirements 승인 · NFR Design 착수
+
+---
+## Construction · U8 `checkpoint` · NFR Design 계획과 물음
+**Timestamp**: 2026-09-30T14:33:29Z
+**User Input**: (없음 — NFR Requirements 승인에 이어)
+**AI Response**: NFR Requirements 를 cd7d6a3 으로 커밋했다. 같은 작성 서브에이전트 (약 56만 토큰 · 4분) 가 NFR Design Step 1 ~ 4 를 마쳤다. 계획 construction/plans/checkpoint-nfr-design-plan.md (163 줄). 물음 하나 — D1 보존이 finalize 판정을 바꾸지 않게 하는 모양 (A 예약을 세션을 열 때로 옮긴다 · B 남은 예산이 10초 아래면 예약하지 않는다 · C finalize 판정에서 보존 시간을 뺀다 · 권장 A). 묻지 않고 정한 것 — D2 측정은 spool 잠금 밖 (잠금은 기록을 읽고 적을 때만 · 적을 때 다시 읽어 그새 퇴출 · 만료된 항목이면 버림) · D3 spool 의 usage.json 요약 (판정 끝에 쓰고 예약이 읽음 · 형제가 채운 spool 에서 quota 거절이 성립) · D4 삭제자와 같은 모양 (자리 하나짜리 채널로 깸을 합침 · 측정 helper 는 항목마다 차례로 · IO 우선순위 idle) · 회복 · 보안은 새 패턴 없음 · 규모 N/A. 측정 (이 기계 ext4) — 세션을 열 때 예약 p50 67 µs · p99 168 µs · 성공한 단계의 예약 버리기 p50 36 µs · 요약 읽기 p50 15 µs. 진행자 확인 — claim.go:712 (runtime Open) · claim.go:876-884 (Close 가 끝난 시각이 마감 뒤면 closedLate · timedOut) · bake_build.go:196 (굽기의 Open) 이 계획과 맞다 · emphasis-check.py exit 0 · 새 파일은 계획 하나.
+**Context**: Construction · U8 checkpoint · NFR Design Step 1 ~ 4 · 답 대기
+
+---
+## Construction · U8 `checkpoint` · NFR Design 물음의 답
+**Timestamp**: 2026-09-30T14:54:12Z
+**User Input**: "권장"
+**AI Response**: 계획 파일의 [Answer]: 에 A 를 적었다 (예약을 세션을 열 때로 옮긴다). NFR Design Step 5 · 6 (산출물 nfr-design-patterns.md · logical-components.md) 과 FD · NFR 산출물의 고칠 곳을 같은 작성 서브에이전트에게 맡긴다. 승인은 산출물 뒤에 묻는다.
+**Context**: Construction · U8 checkpoint · NFR Design Step 5 · 답
+
+---
+## Construction · U8 `checkpoint` · NFR Design 산출물
+**Timestamp**: 2026-09-30T14:59:04Z
+**User Input**: (없음 — 답에 이어 산출물)
+**AI Response**: 같은 작성 서브에이전트 (약 60만 토큰 · 4분) 가 NFR Design Step 5 · 6 을 마쳤다. 되물음 없음. 산출물 construction/checkpoint/nfr-design/ — nfr-design-patterns.md 127 줄 (D1 답 A 가 on-failure 의 뜻 · ADR-076 §4 의 rejected · failed(lease_budget) · 결정 2-7 과 함께 성립하는지 대 본 표 · D2 ~ D4 · 범주별 N/A) · logical-components.md 61 줄. 고친 곳 스물여섯 (표지 「NFR Design 답 1 · D2 · D3 · D4 로 고침」) — 규칙 2절 ⑤ (예약은 세션을 열 때 · 열 때의 실패는 errno 를 들고 닫을 때 알림 · 요구하지 않은 예약은 보고 뒤 버림) · 5절 (보존 총량은 usage.json 에서 닫을 때 읽음) · 6절 (측정은 잠금 밖 · 적기 전 다시 읽기 · usage.json 쓰기) · 13절 (도는 단계의 예약은 list 와 show 에서 뺌) · 엔티티 3 · 4 · 6절 · 흐름 1 ~ 5 · 7 · 10 · 12절 · nfr-requirements.md P2 · P5 · P7 · 5 · 6 · 8절. 계획 3.2 와 다른 것 하나 — usage.json 은 열 때가 아니라 닫을 때 읽는다 (몇 시간 도는 단계에서 열 때의 값은 낡고 ADR-076 §4 는 현재 보존 총량을 말한다 · 읽기 15 µs). 정본 되돌림에 한 줄 더함 (ADR-076 §4 — 예약은 세션을 열 때 · 임대 창에는 받아들임과 rename 만). 진행자 확인 — git status · emphasis-check.py 새 문서 둘과 고친 문서 넷과 계획 exit 0 · 사내 이름 0 · 흐름 1절 diff 를 읽었다 (예약은 명령 앞 · 창에는 stat · statfs · usage.json 읽기 · rename · 확정은 closedAt 뒤). 승인을 묻는다 — Request Changes 또는 Continue to Next Stage (다음은 Code Generation).
+**Context**: Construction · U8 checkpoint · NFR Design Step 6 · 7 · 승인 대기
+
+---
+## Construction · U8 `checkpoint` · NFR Design 승인
+**Timestamp**: 2026-09-30T23:18:42Z
+**User Input**: "승인"
+**AI Response**: NFR Design 승인 (Continue to Next Stage). 상태 파일에 적고 이 단계 (계획 · 산출물 둘 · FD 셋과 nfr-requirements 고침 · 상태 · 감사) 를 커밋한다. 다음은 Code Generation Part 1 (계획) — 같은 작성 서브에이전트에게 맡긴다.
+**Context**: Construction · U8 checkpoint · NFR Design 승인 · Code Generation 착수
+
+---
+## Construction · U8 `checkpoint` · Code Generation 계획
+**Timestamp**: 2026-09-30T23:32:11Z
+**User Input**: (없음 — NFR Design 승인에 이어)
+**AI Response**: NFR Design 을 03b6eef 으로 커밋했다. 같은 작성 서브에이전트 (약 66만 토큰 · 7분) 가 Code Generation Part 1 을 마쳤다. 계획 construction/plans/checkpoint-code-generation-plan.md (352 줄 · 단계 열일곱 · 체크박스 마흔둘). 새 파일 — internal/scratch/checkpoint.go · checkpoint_unix.go · checkpoint_other.go · internal/enode/checkpoint.go · checkpoint_cmd.go · scripts/finalize-bake/slice-9.sh · 시험. 행렬 밖 열 — FD 흐름 9절의 여덟에 internal/scratch/deleter.go (Usage 타입이 여기 있다) 와 remove_other.go 를 더했다. 기준선 커버리지 (2026-10-01 · 이 기계 · 03b6eef) — cmd/enode 80.8% · internal/enode 86.7% · internal/panel 89.1% · internal/contract 92.5% · internal/scratch 93.5% · 전체 87.7%. cmd/enode 대책 — runc-overlay 기동을 internal/enode 의 StartScratch 하나로 옮기고 main.go 에는 부르는 줄만. 계획이 정한 것 — lower 신원은 lower.ReadRoot 의 키 (FD 엔티티 3절의 「lower-state 의 Identity」 를 이것으로 읽음) · environment 는 RuntimeRecord.PreparedEnvironment · Keeper 가 nil 이면 오늘과 같다. 조각 9 는 약 한 시간 반 (TTL 을 먼저 걸고 기다리는 동안 나머지) · free_space 는 min_free_gb 를 지금 여유보다 1 GB 작게 두고 단계가 2 GB 를 쓴다. 물음 하나 — Q1 흔들리는 TestFinalize_ACommandKilledByASignal (작성 에이전트의 전체 실행 두 번 중 한 번 「exit report = []」 · 권장 A 시험만 고친다 — 종료 보고 0 또는 1 개). 진행자 확인 — emphasis-check.py exit 0 · 새 파일은 계획 하나 · internal/scratch/deleter.go:20 의 Usage · lower.ReadRoot (root_linux.go:16 · lower_other.go:14) 가 있다 · finalize.go:186-194 의 Stop 이 도는 종료 보고를 취소하므로 시험의 「정확히 하나」 기대가 설계보다 좁다 · 진행자는 흔들림을 재현하지 못했다 (go test ./internal/enode 세 번 · CI 와 같은 전체 실행 두 번 모두 internal/enode 초록). 전체 실행의 cmd/mediator 빨강은 이 셸에 ENODE_TEST_DATABASE_URL 이 없어서다 (scripts/testdb.sh · 유닛과 무관). 계획 승인과 Q1 의 답을 묻는다.
+**Context**: Construction · U8 checkpoint · Code Generation Part 1 · 승인 대기
+
+---
+## Construction · U8 `checkpoint` · Code Generation 계획 승인
+**Timestamp**: 2026-09-30T23:51:51Z
+**User Input**: "권장대로"
+**AI Response**: Code Generation 계획 승인 · 물음 1 은 A (이 유닛의 Step 1 에서 TestFinalize_ACommandKilledByASignal 의 기대를 종료 보고 0 또는 1 개로 고친다 · 제품 코드 불변). 계획의 [Answer]: 에 A 를 적었다. Part 2 (Step 10 ~ 14 · 계획 Step 1 ~ 16) 를 같은 작성 서브에이전트에게 맡긴다. 끝나면 진행자가 빌드와 시험을 직접 다시 돌려 확인한다. 커밋은 Code Generation 승인 뒤 한 번 (앞 유닛과 같다).
+**Context**: Construction · U8 checkpoint · Code Generation 계획 승인 · Part 2 착수
+
+---
+## Construction · U8 `checkpoint` · Code Generation Part 2 완료 · 진행자의 다시 돌리기
+**Timestamp**: 2026-10-01T00:36:57Z
+**User Input**: (없음 — 계획 승인에 이어)
+**AI Response**: 같은 작성 서브에이전트 (약 96만 토큰 · 38분) 가 계획 Step 1 ~ 16 과 code-summary (construction/checkpoint/code/code-summary.md 176 줄) 를 마쳤다. 새 파일 열하나 (internal/scratch/checkpoint.go · checkpoint_unix.go · checkpoint_other.go · internal/enode/checkpoint.go · checkpoint_cmd.go · scripts/finalize-bake/slice-9.sh · 시험 다섯) · 고친 파일 스물둘 (행렬 밖 — contract/result.go · scratch/deleter.go · bake_build.go · trash_linux.go · trash_other.go · panel/page.go · finalize_worker_test.go). 계획과 다른 자리 여덟 (remove_unix.go 는 안 고침 · native 노드에도 Store 없는 Keeper — 요구한 단계에 unsupported(runtime) 를 싣기 위해 · 시험 이음매 checkpointPause · statfs 실패면 두 몫을 보지 않음 · 측정 실패 debug 줄 등 · code-summary 에 있다). 사용자에게 보이는 문구가 초안과 다른 곳 — 크기는 1 GiB 아래면 MiB · KiB · show 의 evicted 줄 칸 맞춤 · scratch 없는 노드의 show 는 exit 1 · 일어나지 않아야 하는 갈래의 diagnostics 문장 셋 · 제어판 spool 줄은 판정 전이면 측정 없음. 진행자가 직접 다시 돌렸다 — gofmt 빈 출력 · go vet (기본 · integration 태그) · go build · 크로스 빌드 셋 · glyphscan (173 파일 · 0) · U+2605 0 · enodectl.exe 심볼 tls 1 · http 6 · CI 와 같은 커버리지 실행 (시험 DB · 가짜 claude 스텁) 통과 2,675 · 실패 0 · 스킵 0 · 하한 미달 0 · 전체 87.6% (cmd/enode 83.7 · internal/enode 86.8 · internal/scratch 88.1 · internal/panel 89.1 · internal/contract 92.5 · internal/build 80.0 은 이 유닛이 안 만짐) · internal/scratch -count=10 · 새 시험이 걸린 internal/enode 시험 -count=10 · -race (scratch · enode · panel · cmd/enode) · go test ./internal/enode 두 번 더 — 모두 초록. slice-9.sh 는 bash -n 통과 · 돌리지 않았다 (사람 · SunnyVM). runc_overlay_linux.go 의 keepUpper 를 읽었다 — 보존 (Keep.Result 있음) 의 rename 실패와 늦음만 Result 에 적고 release (trash 옮기기) 오류는 오늘처럼 Close 오류다 (FD 규칙 3절). 진행자가 FD 넷을 코드에 맞게 고쳤다 — 흐름 4절 (native 는 Store 없는 Keeper) · 흐름 9절 (remove_unix.go 를 빼고 deleter.go) · 엔티티 3절 (Lower 는 lower.ReadRoot 의 키) · 규칙 13절 (scratch 없는 show 의 exit 1 · 크기 단위). 사내 이름 0 · 표기 검사 exit 0. 승인을 묻는다 — Request Changes 또는 Continue to Next Stage. 승인 뒤 한 커밋 · 병합 조건은 조각 9.
+**Context**: Construction · U8 checkpoint · Code Generation Part 2 · 승인 대기
+
+---
+## Construction · U8 `checkpoint` · 진행 물음
+**Timestamp**: 2026-10-01T08:05:39Z
+**User Input**: "다 됐나?"
+**AI Response**: 코드와 진행자 확인은 끝났고 남은 것을 답했다 — Code Generation 승인과 그 뒤 한 커밋 · 병합 조건인 조각 9 (사람 · SunnyVM · 약 한 시간 반) · 그 뒤 push 와 PR · 회차의 Build and Test. 승인은 아직 받지 않았다.
+**Context**: Construction · U8 checkpoint · Code Generation 승인 대기
+
+---
+## Construction · U8 `checkpoint` · Code Generation 승인
+**Timestamp**: 2026-10-01T08:06:28Z
+**User Input**: "승인."
+**AI Response**: Code Generation 승인 (Continue to Next Stage). 계획의 마지막 체크박스 (한 커밋) 를 채우고 상태 파일에 적었다. 코드 · 시험 · 조각 9 스크립트 · code-summary · 계획 · FD 고침 넷 · 상태 · 감사를 unit/checkpoint 에 한 커밋으로 넣는다. 병합 조건은 조각 9 (사람 · SunnyVM) 이고 아직 돌지 않았다 — U7 의 선례 (코드를 쓰지 않은 새 에이전트 하나가 SunnyVM 에서 돌리고 볼 것과 실제 출력을 나란히 보인다 · 판정은 사용자) 를 사용자에게 제안한다.
+**Context**: Construction · U8 checkpoint · Code Generation 승인 · 조각 9 대기
+
+---
+## Construction · U8 `checkpoint` · 조각 9 실행 착수
+**Timestamp**: 2026-10-01T08:21:24Z
+**User Input**: "그래" (제안 — U7 처럼 코드를 쓰지 않은 새 에이전트 하나가 SunnyVM 에서 slice-9.sh 를 돌리고 여덟 확인마다 볼 것과 실제 출력을 나란히 보인다 · 판정은 사용자 · 약 한 시간 반)
+**AI Response**: 새 에이전트 하나 (general-purpose · 하위 에이전트 없음 · 코드를 쓴 작성 에이전트와 다르다) 에게 조각 9 를 맡긴다. 차림은 U7 조각 6 · 7 · 8 과 같다 — 이 기계의 스크래치 Mediator (e55644f 빌드 · 새 DB) 와 SunnyVM 의 조각 전용 노드 둘 (runc-overlay 하나 · native 하나 · 같은 빌드 · 버려도 되는 자리). /srv/yocto · 사용자의 떠 있는 노드 · 공유 rootfs 는 건드리지 않는다. 제품 코드는 고치지 않는다 — 흠으로 보이면 멈추고 보고한다. 스크립트의 작은 고침은 diff 와 함께 보고한다. 판정 뒤 조각 자리를 지운다.
+**Context**: Construction · U8 checkpoint · 조각 9 실행
+
+---
+## Construction · U8 `checkpoint` · 조각 9 실행 결과 (판정은 사용자)
+**Timestamp**: 2026-10-01T09:39:17Z
+**User Input**: (없음 — 집행 에이전트가 끝났다)
+**AI Response**: 집행 에이전트 (general-purpose · 하위 에이전트 없음 · 약 22만 토큰 · 77분) 가 SunnyVM 에서 slice-9.sh 를 끝까지 돌렸다 — exit 0 · 멈춘 곳 없음 · 스크립트 고침 없음 · sudo 없음. 차림 — 이 기계의 스크래치 Mediator (e55644f 를 git archive 로 지음 · 포트 18080 · 사용자의 8080 Mediator 는 안 건드림) · 시험 Postgres 의 새 DB enode_slice_ckpt · SunnyVM 의 ~/ckpt-slice-20261001-1725/ 에 조각 노드 둘 (runc-overlay 하나 · checkpoint ttl_hours 1 · max_gb 1 · native 하나 · env check ready). 여덟 확인 — 1 실패 단계 captured · 12 hex ID · workspace-upper · inspect-only · expires_at 한 시간 뒤 · 통과 단계 not_requested · 2 list 에 kept · 12.0 KiB · delivered · show 에 path · unshare 를 든 open 줄 · discard 줄 · 상태 파일의 spool 칸과 checkpoint 블록 · 3 1.1 GiB upper 는 receipt captured · 확정 23 ms 뒤 evicted: larger than max_gb · 4 native 는 unsupported(runtime) 와 그 문장 · 5 재시작 1초 뒤 주인 없는 예약이 spool 에서 없음 · 도는 단계의 예약은 spool 에 있고 목록에 없음 · 6 policy off 의 같은 실패 계약은 exit_code · produced · finalize 가 같고 not_requested · 7 min_free_gb 를 여유보다 작게 두자 rejected(free_space) 와 「free space 318.9 GiB is below min_free_gb 320」 · 되돌림 · 8 만료 3분 54초 뒤 expired 로그 · list 비어 있음 · show exit 1 · Record 는 captured 그대로. 볼 것과 다른 점 — (가) show 의 attempt 0 (FD 규칙 13절 초안은 attempt 1 · 진행자 확인 — attempt 는 0 부터다 store/claim.go:165 · schema.sql:82 · 초안의 값이 틀렸다) (나) ws 가 git 이 아니라 head · ir 줄 없음 (설계대로 · 기록에 없는 칸은 줄째 뺀다) (다) 제어판 spool 줄은 GiB 소수 한 자리라 12 KiB 가 0.0 GiB (FD 초안과 trash 줄의 선례 그대로 · CLI 만 KiB 로 고쳤다 · 브라우저가 없어 그림은 안 봤다 · /api/state 의 칸은 맞다) (라) 확인 5 에서 trash 를 거친 것과 삭제자가 지운 것을 따로 보지 못했다 (재시작 1초 뒤 둘 다 비어 있음 · 조정의 info 로그 줄은 설계에 없다). integration 시험 넷 SunnyVM 에서 통과 (스킵 없음 · 보고 전 창 빈 upper 6.3 ms · 2만 파일 upper 39.2 ms) — 첫 시험이 권한 000 의 work/work 디렉터리를 남긴다 (t.Cleanup 이 못 지움 · 시험의 정리 흠). 조각 자리 · DB · 이 기계의 tmp/slice9 는 판정 전이라 남겨 두었다 · 노드와 Mediator 는 멈췄다. 사용자에게 판정을 묻는다.
+**Context**: Construction · U8 checkpoint · 조각 9 · 판정 대기
+
+---
+## Construction · U8 `checkpoint` · 조각 9 판정 · 정리 · PR
+**Timestamp**: 2026-10-02T07:12:23Z
+**User Input**: "초록. 정리하고 PR 올려"
+**AI Response**: 조각 9 사용자 판정 초록 — 병합 조건이 섰다. 정리 — SunnyVM 의 ~/ckpt-slice-20261001-1725/ 를 지웠다 · 집행 에이전트가 멈췄다고 보고한 스크래치 Mediator (포트 18080) 가 실제로는 떠 있어 DB 를 붙잡고 있었다 — 진행자가 cwd 와 설정 경로 (job tmp 의 slice9) 로 조각의 것임을 확인하고 SIGTERM 으로 멈췄다 · DB enode_slice_ckpt 를 지웠다 · job tmp 의 slice9 를 지웠다 (Record 파일이 읽기 전용이라 권한을 풀고). 18080 리스너 0 · slice DB 0. code-summary 4.1 에 실행 기록 (여덟 줄 · integration 넷 · 볼 것과 다른 점 넷) 을 적고 상태 파일에 판정을 적었다. 커밋한 뒤 unit/checkpoint 를 push 하고 main 으로 PR 을 연다. 병합은 CI 결과를 보고 묻는다.
+**Context**: Construction · U8 checkpoint · 조각 9 초록 · PR
+
+---

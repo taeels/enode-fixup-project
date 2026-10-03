@@ -222,6 +222,20 @@ func TestRun_TrashHelperIsReachedBeforeAnyConfigIsLooked(t *testing.T) {
 	}
 }
 
+// checkpoint 는 보존본 조회다 (checkpoint 유닛). 데몬의 플래그를 지나지 않고 제 쓰는 법을 말한다.
+func TestMain_CheckpointEntry(t *testing.T) {
+	isolateNode(t)
+	noSystemNodeConfig(t)
+	code, _, stderr := callRun(t, "checkpoint")
+	if code != 2 || !strings.Contains(stderr, "usage: enode checkpoint list|show [ID] --config PATH [--json]") {
+		t.Fatalf("enode checkpoint without a word = %d; stderr %q", code, stderr)
+	}
+	code, _, stderr = callRun(t, "checkpoint", "list")
+	if code != 1 || !strings.Contains(stderr, "no config file found") {
+		t.Fatalf("enode checkpoint list without a config = %d; stderr %q", code, stderr)
+	}
+}
+
 func TestMergeHelperEntrySkipsTheConfigSearch(t *testing.T) {
 	// merge-helper 도 private entrypoint 다 — 굽기가 unshare 안에서 합치기를 돌리려고 다시 실행한다 (bake 유닛).
 	// 빈 stdin 이면 요청을 못 읽어 1 로 끝나고, 설정을 찾은 흔적이 없어야 한다.

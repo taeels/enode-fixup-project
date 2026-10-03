@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/taeels/enode/internal/scratch"
 )
 
 // Local 은 그 기계에서만 아는 것이다 (ADR-012).
@@ -96,6 +99,11 @@ type Local struct {
 	// "할 수 있는가" 는 노드가 판단한다 (ADR-017 결정 3). arch 키는 여유와 무관하다.
 	MinFreeGB int `yaml:"min_free_gb,omitempty"`
 
+	// Checkpoint 는 실패한 단계의 보존 정책이다 (checkpoint 유닛 · ADR-076 §4 · 결정 2-10 · 2-11). 블록이 없거나
+	// 값이 0 이면 기본값이다 — on-failure · 48시간 · (보존 + 여유) 의 20% · 하나에 32 GB · inode 는 같은 몫. 정책은
+	// 노드 소유자의 것이라 계약은 못 바꾼다. 끄는 길은 policy: off 하나다.
+	Checkpoint *CheckpointConfig `yaml:"checkpoint,omitempty"`
+
 	// Environment는 공유 profile과 이 node의 로컬 store/scratch binding이다.
 	// profile 내용은 복제하지 않고 경로만 둔다 (ADR-073).
 	Environment *EnvironmentBinding `yaml:"environment,omitempty"`
@@ -110,6 +118,65 @@ type Local struct {
 	// 노드 소유자의 결정이다. ADR-012 가 "포트에 무엇이 달렸는지는 기계가
 	// 모른다 — 그 기계에만 적는다" 로 board 를 다룬 것과 같은 자리다.
 	Orchestration bool `yaml:"orchestration,omitempty"`
+}
+
+// CheckpointConfig 는 checkpoint 블록이다 (business-rules.md 10절). 단위를 이름에 적는다 — min_free_gb 와 같은 꼴.
+type CheckpointConfig struct {
+	Policy          string `yaml:"policy,omitempty"`           // off | on-failure | always.  비면 on-failure
+	TTLHours        int    `yaml:"ttl_hours,omitempty"`        // 0 이면 48
+	CapacityPercent int    `yaml:"capacity_percent,omitempty"` // 0 이면 20.  1 ~ 100
+	MaxGB           int    `yaml:"max_gb,omitempty"`           // 보존본 하나의 상한.  0 이면 32
+	MaxTotalInodes  int64  `yaml:"max_total_inodes,omitempty"` // 보존본 전체의 inode 한도.  0 이면 capacity_percent 의 몫
+}
+
+// 보존의 기본값 (결정 2-10 · NFR 답 1).
+const (
+	defaultCheckpointTTLHours        = 48
+	defaultCheckpointCapacityPercent = 20
+	defaultCheckpointMaxGB           = 32
+)
+
+// CheckpointPolicy 는 Store 가 받는 값이다 — 0 은 기본값으로 채우고 min_free_gb 를 여유 하한으로 쓴다.
+func (l Local) CheckpointPolicy() scratch.Policy {
+	c := CheckpointConfig{}
+	if l.Checkpoint != nil {
+		c = *l.Checkpoint
+	}
+	p := scratch.Policy{Mode: scratch.Mode(c.Policy), TTL: time.Duration(c.TTLHours) * time.Hour,
+		CapacityPercent: c.CapacityPercent, MaxBytes: int64(c.MaxGB) << 30, MaxTotalInodes: c.MaxTotalInodes,
+		MinFree: uint64(l.MinFreeGB) << 30}
+	if p.Mode == "" {
+		p.Mode = scratch.ModeOnFailure
+	}
+	if p.TTL == 0 {
+		p.TTL = defaultCheckpointTTLHours * time.Hour
+	}
+	if p.CapacityPercent == 0 {
+		p.CapacityPercent = defaultCheckpointCapacityPercent
+	}
+	if p.MaxBytes == 0 {
+		p.MaxBytes = defaultCheckpointMaxGB << 30
+	}
+	return p
+}
+
+// validateCheckpoint 는 checkpoint 블록의 모양을 본다. 틀리면 노드가 안 뜬다 — validateMCP 와 같은 규칙이다.
+func validateCheckpoint(c *CheckpointConfig) error {
+	switch {
+	case c == nil:
+		return nil
+	case c.Policy != "" && !scratch.Mode(c.Policy).Valid():
+		return fmt.Errorf("checkpoint: policy %q is not off, on-failure or always", c.Policy)
+	case c.TTLHours < 0:
+		return errors.New("checkpoint: ttl_hours must be at least 1")
+	case c.CapacityPercent < 0 || c.CapacityPercent > 100:
+		return errors.New("checkpoint: capacity_percent must be between 1 and 100")
+	case c.MaxGB < 0:
+		return errors.New("checkpoint: max_gb must be at least 1")
+	case c.MaxTotalInodes < 0:
+		return errors.New("checkpoint: max_total_inodes must be at least 1")
+	}
+	return nil
 }
 
 type EnvironmentBinding struct {
@@ -143,6 +210,9 @@ func LoadLocal(path string) (Local, error) {
 	// 검증은 기본값 다음이다 — 둘은 무관하고, 검증이 먼저 죽으면 그 기본이
 	// 안 채워진 채로 오류만 나간다.
 	if err := validateMCP(l.MCP); err != nil {
+		return Local{}, fmt.Errorf("config %s: %w", path, err)
+	}
+	if err := validateCheckpoint(l.Checkpoint); err != nil {
 		return Local{}, fmt.Errorf("config %s: %w", path, err)
 	}
 	return l, nil

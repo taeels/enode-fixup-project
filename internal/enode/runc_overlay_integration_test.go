@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/taeels/enode/internal/contract"
 	execenv "github.com/taeels/enode/internal/environment"
 	"github.com/taeels/enode/internal/lower"
 	"github.com/taeels/enode/internal/scratch"
@@ -327,6 +328,10 @@ func TestMain(m *testing.M) {
 	if len(os.Args) > 1 && os.Args[1] == "merge-helper" {
 		os.Exit(RunMergeHelper(os.Stdin, os.Stdout, os.Stderr))
 	}
+	// 보존의 측정 helper 가 이 시험 바이너리를 다시 실행한다 (checkpoint 유닛 · MeasureLauncher)
+	if len(os.Args) > 1 && os.Args[1] == "trash-helper" {
+		os.Exit(RunTrashHelper(os.Args[2:], os.Stdout, os.Stderr))
+	}
 	os.Exit(m.Run())
 }
 
@@ -598,4 +603,119 @@ func TestRuncOverlayFinalizeDiffInTheSessionIntegration(t *testing.T) {
 		t.Fatalf("the host ran the tree's fsmonitor: %q", got)
 	}
 	t.Logf("workspace.diff (%d bytes):\n%s", res.DiffBytes, b)
+}
+
+// 보존 (checkpoint 유닛) — 진짜 세션의 upper 가 spool 의 예약 자리로 옮겨지고, helper 가 재고, 소유자가 안내대로 연다.
+// 사람이 SunnyVM 에서 돈다 (CI 밖). 판정의 순수한 규칙은 기본 go test 가 본다.
+
+// itCapture 는 진짜 세션 하나를 열고 명령을 돌린 뒤 Keeper 의 판정 · Close · 확정을 지난다. 돌려주는 것은 receipt 의
+// 칸 · 그 spool · 걸린 시간 (판정의 창 — Decide 부터 closedAt 까지) 이다.
+func itCapture(t *testing.T, name, script string, lowerFiles map[string]string) (*contract.CheckpointCapture, *scratch.Store, time.Duration) {
+	t.Helper()
+	runtimeImpl, binding, base := itRuntime(t, name)
+	for file, body := range lowerFiles {
+		if err := os.WriteFile(filepath.Join(binding.Workspace, file), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	in, out := filepath.Join(base, "in"), filepath.Join(base, "out")
+	for _, dir := range []string{in, out} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	st := &scratch.Store{Dir: scratch.SpoolIn(binding.Scratch), Scratch: binding.Scratch,
+		Trash: scratch.TrashIn(binding.Scratch), Measure: MeasureLauncher(),
+		Policy: scratch.Policy{Mode: scratch.ModeOnFailure, TTL: time.Hour, CapacityPercent: 20, MaxBytes: 32 << 30}}
+	if _, err := st.Open(); err != nil {
+		t.Fatal(err)
+	}
+	k := &CheckpointKeeper{Policy: st.Policy, Store: st, Support: runtimeImpl.Capability().Capture, Node: "n-it",
+		Runtime: "runc-overlay", Workspace: binding.Workspace}
+	step := &Step{RunID: "r-it", Seq: 1, Name: "build"}
+	slot := k.Reserve(step)
+	session, err := runtimeImpl.Open(context.Background(), RuntimeSpec{Dir: binding.Workspace, In: in, Out: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stderr bytes.Buffer
+	code, err := session.Run(context.Background(), ProcessSpec{Argv: []string{"/bin/sh", "-c", script}, Dir: "/work",
+		Stderr: &stderr})
+	if err != nil {
+		_ = session.Close(context.Background(), Keep{})
+		t.Fatalf("run = %d %v %s", code, err, stderr.String())
+	}
+	began := time.Now()
+	plan := k.Decide(closeFacts{step: step, failed: true, deadline: time.Now().Add(time.Minute), slot: slot})
+	if err := session.Close(context.Background(), plan.Keep(Keep{})); err != nil {
+		t.Fatal(err)
+	}
+	window := time.Since(began)
+	c, detail := k.Finish(plan)
+	if c == nil || c.State != contract.CaptureCaptured {
+		t.Fatalf("capture = %+v %q", c, detail)
+	}
+	return c, st, window
+}
+
+// 단계가 쓴 파일과 lower 를 지운 whiteout 이 spool 에 그대로 있다. 작업 폴더의 나머지는 trash 로 갔다.
+func TestIntegrationCheckpoint_CapturesSubuidAndWhiteouts(t *testing.T) {
+	c, st, _ := itCapture(t, "checkpoint-capture", "mkdir -p built && printf kept > built/out.bin && rm gone.txt",
+		map[string]string{"gone.txt": "lower"})
+	upper := filepath.Join(st.Dir, c.ID, "upper")
+	if b, err := os.ReadFile(filepath.Join(upper, "built", "out.bin")); err != nil || string(b) != "kept" {
+		t.Fatalf("the written file: %q %v", b, err)
+	}
+	var w syscall.Stat_t
+	if err := syscall.Lstat(filepath.Join(upper, "gone.txt"), &w); err != nil || w.Mode&syscall.S_IFMT != syscall.S_IFCHR || w.Rdev != 0 {
+		t.Fatalf("the whiteout did not survive the move: mode %o rdev %d err %v", w.Mode, w.Rdev, err)
+	}
+	l, err := st.Lookup(c.ID)
+	if err != nil || l == nil || l.State != scratch.EntryKept || l.Lower == "" {
+		t.Fatalf("record = %+v %v", l, err)
+	}
+}
+
+// helper 가 spool 의 항목을 namespace 안에서 측정한다 — 판정이 그 값을 기록에 적는다.
+func TestIntegrationCheckpoint_MeasureInHelper(t *testing.T) {
+	c, st, _ := itCapture(t, "checkpoint-measure", "mkdir -p a/b && head -c 65536 /dev/zero > a/b/z", nil)
+	size, err := MeasureLauncher()(context.Background(), filepath.Join(st.Dir, c.ID), "upper")
+	if err != nil || size.Entries < 3 || size.Bytes < 65536 {
+		t.Fatalf("measure = %+v %v", size, err)
+	}
+	res, err := st.Settle(context.Background())
+	if err != nil || res.Usage.Checkpoints != 1 || res.Usage.Bytes != size.Bytes || res.Usage.Unsized != 0 {
+		t.Fatalf("settle = %+v %v (helper said %+v)", res.Usage, err, size)
+	}
+}
+
+// NFR C4 — show 의 안내 줄 (unshare --user --map-root-user --map-auto) 로 subordinate uid 소유의 0600 파일이 읽힌다.
+// 노드 uid 로는 못 읽는다.
+func TestIntegrationCheckpoint_UnshareReadsRootFiles(t *testing.T) {
+	c, st, _ := itCapture(t, "checkpoint-open", "printf mine > mine.txt", nil)
+	upper := filepath.Join(st.Dir, c.ID, "upper")
+	ns := []string{"unshare", "--user", "--map-root-user", "--map-auto"}
+	mk := exec.Command(ns[0], append(ns[1:], "sh", "-c",
+		"printf secret > root.txt && chown 1 root.txt && chmod 600 root.txt")...)
+	mk.Dir = upper
+	if out, err := mk.CombinedOutput(); err != nil {
+		t.Fatalf("cannot make a subordinate-uid file: %v %s", err, out)
+	}
+	if _, err := os.ReadFile(filepath.Join(upper, "root.txt")); err == nil {
+		t.Fatal("the node uid read a 0600 file of a subordinate uid; the open line would be needless")
+	}
+	read := exec.Command(ns[0], append(ns[1:], "cat", filepath.Join(upper, "root.txt"))...)
+	if out, err := read.Output(); err != nil || string(out) != "secret" {
+		t.Fatalf("the open line did not read it: %q %v", out, err)
+	}
+}
+
+// NFR P1 · P3 — 보존이 판정의 창에 더하는 일은 upper 크기와 무관하다. 큰 upper 와 빈 upper 의 창을 적는다.
+func TestIntegrationCheckpoint_WindowIndependentOfSize(t *testing.T) {
+	_, _, small := itCapture(t, "checkpoint-small", "true", nil)
+	_, _, big := itCapture(t, "checkpoint-big", "mkdir -p many && cd many && i=0; while [ $i -lt 20000 ]; do : > f$i; i=$((i+1)); done", nil)
+	t.Logf("window: empty upper %v · 20000-file upper %v", small, big)
+	if big > small+2*time.Second {
+		t.Fatalf("the window grew with the upper: %v vs %v", big, small)
+	}
 }

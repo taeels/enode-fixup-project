@@ -24,7 +24,6 @@ import (
 	"github.com/taeels/enode/internal/build"
 	"github.com/taeels/enode/internal/enode"
 	execenv "github.com/taeels/enode/internal/environment"
-	"github.com/taeels/enode/internal/scratch"
 )
 
 func main() { os.Exit(run()) }
@@ -71,6 +70,10 @@ func run() int {
 	// 제어판의 net/http 표면을 enodectl.exe 밖에 두는 것이 이 갈래의 요점이다.
 	if len(os.Args) > 1 && os.Args[1] == "panel" {
 		return runPanelCmd(os.Args[2:])
+	}
+	// checkpoint 는 노드의 보존본 조회다 (checkpoint 유닛) — 설정을 읽지만 노드를 띄우지 않고 spool 의 기록만 읽는다.
+	if len(os.Args) > 1 && os.Args[1] == "checkpoint" {
+		return enode.RunCheckpointCmd(os.Args[2:], os.Stdout, os.Stderr)
 	}
 	// 환경 준비는 설정을 읽지만 노드를 띄우지 않는다. enodectl env가 이 좁은
 	// helper로 위임해 enodectl의 링크 표면을 유지한다 (ADR-073).
@@ -308,38 +311,27 @@ func run() int {
 	worker := &enode.Worker{Client: client, Ident: ident, Local: local, Held: held, Log: log,
 		Runtime: stepRuntime, RuntimeRecord: runtimeRecord, Guard: guard, Bake: baker}
 
-	// 단계가 남긴 작업 폴더를 지우는 자리 (ADR-076 §4.1) — runc-overlay 노드만 있다.
-	//
-	// 닫기는 작업 폴더를 trash 로 rename 한 번에 옮기기만 한다. 지우는 것은 보고 뒤의
-	// 삭제자다. 기동 청소가 먼저 죽은 데몬이 남긴 작업 폴더를 trash 로 옮기고, 삭제자는
-	// 곧바로 한 번 · 결과 보고 뒤마다 · 항목이 남아 있으면 10분마다 깬다. 배경에서 돈다 —
-	// 첫 광고는 삭제를 기다리지 않는다 (답 10 = A).
-	var deleter *scratch.Deleter
-	if scratchDir != "" {
-		enode.SweepOrphanSessions(scratchDir, log)
-		trash := scratch.TrashIn(scratchDir)
-		deleter = &scratch.Deleter{Trash: trash, Launch: enode.TrashLauncher(trash),
-			Changed: book.SetScratch, Log: log}
-		worker.AfterReport = deleter.Kick
-	}
+	// scratch 의 일꾼 — 단계가 남긴 작업 폴더를 지우는 삭제자 (ADR-076 §4.1) 와 실패한 단계의 보존 (ADR-076 §5 ·
+	// checkpoint 유닛). 둘 다 배경에서 돌고 첫 광고는 기다리지 않는다. native 노드는 보존 정책만 상태 파일에 적는다.
+	work := enode.StartScratch(ctx, enode.ScratchSetup{Scratch: scratchDir, Workspace: lowerRoot, Config: ident.Config,
+		Local: local, Runtime: stepRuntime, Record: runtimeRecord, Node: ident.NodeID, Status: book, Log: log})
+	worker.Checkpoints, worker.AfterReport = work.Keeper, work.AfterReport
 
 	// 고루틴이 셋이다 (ADR-016 의 둘에 ADR-068 이 하나를 더한다)
 	//   claim    롱폴 — 일을 기다린다. 서버가 대기 시간을 정한다
 	//   nodes    짧은 주기 — 살아 있다고 말하고 권한을 받는다
 	//   detect   자기 주기 — 비싼 탐지를 다시 돈다
 	// 셋을 가르는 논거가 같다 — 주기와 의미가 다른 일을 한 고루틴에 두면
-	// 느린 쪽이 빠른 쪽을 잡아먹는다. runc-overlay 노드는 넷째가 있다 —
-	//   trash    보고 뒤 · 항목이 남으면 10분 — 단계가 남긴 작업 폴더를 지운다
+	// 느린 쪽이 빠른 쪽을 잡아먹는다. runc-overlay 노드는 둘이 더 있다 (StartScratch 가 띄운다) —
+	//   trash       보고 뒤 · 항목이 남으면 10분 — 단계가 남긴 작업 폴더를 지운다
+	//   checkpoint  보고 뒤 · 10분 — 보존본을 측정하고 퇴출하고 만료를 거둔다
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go func() { defer wg.Done(); det.Run(ctx) }()
 	go func() { defer wg.Done(); adv.Run(ctx) }()
 	go func() { defer wg.Done(); worker.Run(ctx) }()
-	if deleter != nil {
-		wg.Add(1)
-		go func() { defer wg.Done(); deleter.Run(ctx) }()
-	}
 	wg.Wait()
+	work.Wait()
 	baker.Wait() // 도는 재개의 Apply 를 기다린다
 	log.Info("stopped")
 	return 0

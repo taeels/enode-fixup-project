@@ -126,10 +126,15 @@ type runtimeWireResponse struct {
 	Finalize *FinalizeResult `json:"finalize,omitempty"`
 }
 
-// Capability 는 isolated 다 — 단계의 쓰기는 upper 로 가고 워크스페이스(lower)에 안 닿는다 (ADR-077 §8).
+// Capability 는 isolated 다 — 단계의 쓰기는 upper 로 가고 워크스페이스(lower)에 안 닿는다 (ADR-077 §8). 그 upper 를
+// 보존할 수 있다 — 범위 workspace-upper · 보장 inspect-only (ADR-076 §3).
 func (r *RuncOverlayRuntime) Capability() RuntimeCapability {
-	return RuntimeCapability{Writes: writesIsolated}
+	return RuntimeCapability{Writes: writesIsolated, Capture: overlayCapture}
 }
+
+// overlayCapture 는 runc-overlay 의 보존 지원이다. linux 밖의 판도 같은 값을 낸다.
+var overlayCapture = CaptureSupport{Supported: true, Scope: scratch.ScopeWorkspaceUpper,
+	Guarantee: scratch.GuaranteeInspectOnly}
 
 func (r *RuncOverlayRuntime) Open(ctx context.Context, spec RuntimeSpec) (StepSession, error) {
 	if err := ctx.Err(); err != nil {
@@ -549,7 +554,10 @@ func (s *runcOverlaySession) Close(_ context.Context, keep Keep) error {
 		defer s.callMu.Unlock()
 		if s.aborted {
 			var errs []error
-			if keep.Upper != "" {
+			switch {
+			case keep.Upper != "" && keep.Result != nil:
+				keep.Result.Err = errKeepAborted
+			case keep.Upper != "":
 				errs = append(errs, errors.New("keep the upper: the session was aborted and its upper went to trash"))
 			}
 			if err := s.release(); err != nil {
@@ -586,11 +594,7 @@ func (s *runcOverlaySession) Close(_ context.Context, keep Keep) error {
 			errs = append(errs, errors.New("runtime helper did not exit after close"))
 		}
 		if keep.Upper != "" {
-			err := unix.Renameat2(unix.AT_FDCWD, filepath.Join(s.runRoot, "upper"), unix.AT_FDCWD, keep.Upper,
-				unix.RENAME_NOREPLACE)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("keep the upper: %w", err))
-			}
+			s.keepUpper(keep, &errs)
 		}
 		if err := s.release(); err != nil {
 			errs = append(errs, err)
@@ -598,6 +602,26 @@ func (s *runcOverlaySession) Close(_ context.Context, keep Keep) error {
 		s.closeErr = errors.Join(errs...)
 	})
 	return s.closeErr
+}
+
+// keepUpper 는 helper 가 끝난 뒤 upper 를 keep 자리로 rename 한 번 옮긴다. 보존 (Result 가 있음) 이면 By 를 먼저
+// 보고 결과를 Result 에 적는다 — Close 의 오류에 싣지 않는다 (checkpoint 유닛 · business-rules.md 3절). 굽기의 대기
+// 자리는 오늘처럼 실패가 Close 의 오류다.
+func (s *runcOverlaySession) keepUpper(keep Keep, errs *[]error) {
+	if keep.Result != nil && !keep.By.IsZero() && time.Now().After(keep.By) {
+		keep.Result.Late = true
+		return
+	}
+	err := unix.Renameat2(unix.AT_FDCWD, filepath.Join(s.runRoot, "upper"), unix.AT_FDCWD, keep.Upper,
+		unix.RENAME_NOREPLACE)
+	switch {
+	case keep.Result != nil && err != nil:
+		keep.Result.Err = err
+	case keep.Result != nil:
+		keep.Result.Moved = true
+	case err != nil:
+		*errs = append(*errs, fmt.Errorf("keep the upper: %w", err))
+	}
 }
 
 // abort 는 helper 를 죽이고 작업 폴더를 trash 로 옮긴다 (business-rules.md 1절 ③).
